@@ -120,11 +120,17 @@ var _dashData = null;
 var _dashMode = 'total';
 
 async function loadDashboard() {
+  var statsEls = ['statUsers','statToday','statActive','statCharts','statDivination','statTokens','statTokens7d'];
+  statsEls.forEach(function(id) { var el = document.getElementById(id); if (el) el.textContent = '…'; });
   try {
-    const res = await adminFetch('/stats');
+    var res = await adminFetch('/stats');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     _dashData = await res.json();
     renderDash();
-  } catch(e) { console.error('Dashboard load failed', e); }
+  } catch(e) {
+    console.error('Dashboard load failed', e);
+    statsEls.forEach(function(id) { var el = document.getElementById(id); if (el) el.textContent = '加载失败'; });
+  }
 }
 
 function switchDash(mode) {
@@ -137,25 +143,42 @@ function switchDash(mode) {
 
 function renderDash() {
   if (!_dashData) return;
-  var d = _dashData[_dashMode]; // total / web / wechat
-  document.getElementById('statUsers').textContent = d.users || 0;
-  document.getElementById('statToday').textContent = d.todayUsers || 0;
-  document.getElementById('statActive').textContent = _dashData.total.active7d || 0; // 活跃度只有total有
-  document.getElementById('statCharts').textContent = _dashData.total.charts || 0;
-  document.getElementById('statDivination').textContent = _dashData.total.divinations || 0;
-  document.getElementById('statTokens').textContent = fmtToken(d.totalTokens || 0);
-  document.getElementById('statTokens7d').textContent = fmtToken(d.tokens7d || 0);
+  // 防御：API 返回异常数据（如 token 过期导致 {error:"..."}）
+  if (_dashData.error) {
+    console.error('Dashboard data error:', _dashData.error);
+    document.getElementById('statUsers').textContent = '错误';
+    return;
+  }
+  var d = _dashData[_dashMode] || _dashData.total || {};
+  var t = _dashData.total || {};
+  setText('statUsers', d.users);
+  setText('statToday', d.todayUsers);
+  setText('statActive', t.active7d);
+  setText('statCharts', t.charts);
+  setText('statDivination', t.divinations);
+  setText('statTokens', fmtToken(d.totalTokens));
+  setText('statTokens7d', fmtToken(d.tokens7d));
 
   // 服务器状态
   var srv = _dashData.server;
-  document.getElementById('statServerExpiry').textContent = '到期 ' + srv.expiresAt.split('T')[0];
-  document.getElementById('statServerDays').textContent = (srv.daysLeft > 0 ? '剩余 ' + srv.daysLeft + ' 天' : '已过期');
+  if (srv) {
+    setText('statServerExpiry', '到期 ' + (srv.expiresAt || '').split('T')[0]);
+    setText('statServerDays', srv.daysLeft > 0 ? '剩余 ' + srv.daysLeft + ' 天' : '已过期');
+  }
 
   // DeepSeek
   var ds = _dashData.deepseek;
-  document.getElementById('statDeepseekStatus').textContent = ds.status === 'active' ? '正常' : '异常';
-  document.getElementById('statDeepseekStatus').style.color = ds.status === 'active' ? '#4caf50' : '#f44336';
-  document.getElementById('statDeepseekKey').textContent = 'Key: ' + ds.apiKeyPrefix;
+  if (ds) {
+    setText('statDeepseekStatus', ds.status === 'active' ? '正常' : '异常');
+    var statusEl = document.getElementById('statDeepseekStatus');
+    if (statusEl) statusEl.style.color = ds.status === 'active' ? '#4caf50' : '#f44336';
+    setText('statDeepseekKey', 'Key: ' + (ds.apiKeyPrefix || ''));
+  }
+}
+
+function setText(id, val) {
+  var el = document.getElementById(id);
+  if (el) el.textContent = (val !== undefined && val !== null) ? val : '—';
 }
 
 // ========================= 用户 =========================
@@ -640,7 +663,7 @@ async function doChangePwd(e) {
 
 // ========================= 工具 =========================
 
-function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function esc(s) { if (s === null || s === undefined) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 function escAttr(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function pad(n) { return String(n || 0).padStart(2, '0'); }
 
@@ -653,10 +676,11 @@ function fmtDate(ts) {
 }
 
 function fmtToken(n) {
-  if (!n) return '0';
-  if (n < 1000) return String(n);
-  if (n < 1000000) return (n / 1000).toFixed(1) + 'K';
-  return (n / 1000000).toFixed(1) + 'M';
+  var num = (typeof n === 'string') ? parseInt(n, 10) : n;
+  if (!num && num !== 0) return '0';
+  if (num < 1000) return String(num);
+  if (num < 1000000) return (num / 1000).toFixed(1) + 'K';
+  return (num / 1000000).toFixed(1) + 'M';
 }
 
 function fmtRel(ts) {
