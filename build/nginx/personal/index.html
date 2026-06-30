@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOMTFLY</title>
+<meta name="description" content="Somtfly — 探索 · 创造 · 连接">
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="preload" as="image" href="bg-placeholder.webp" fetchpriority="high">
+<style>
+  :root {
+    --text: #ffffff;
+    --text-dim: rgba(255,255,255,0.65);
+    --accent: #64b5f6;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Noto Sans SC", sans-serif;
+    background: #0a0a0f;
+    color: var(--text);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    min-height: 600px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .hero-bg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background: #0a0a10;
+  }
+
+  .hero-bg picture,
+  .hero-bg img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .hero-bg .bg-full {
+    position: absolute;
+    inset: 0;
+  }
+
+  .hero-bg .bg-full img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: brightness(0.55) saturate(0.85);
+    transform: scale(1.05);
+    animation: bgDrift 24s ease-in-out infinite alternate;
+    will-change: transform;
+  }
+
+  .hero-bg .bg-full.final img {
+    animation: bgDrift 24s ease-in-out infinite alternate;
+  }
+
+  /* Placeholder (blurry, loads instantly) */
+  .hero-bg .bg-placeholder {
+    position: absolute;
+    inset: 0;
+    background-image: url('bg-placeholder.webp');
+    background-size: cover;
+    background-position: center;
+    filter: blur(20px) brightness(0.6);
+    transform: scale(1.1);
+    transition: opacity 0.8s ease-out;
+    z-index: 1;
+  }
+
+  .hero-bg .bg-placeholder.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  @keyframes bgDrift {
+    0% { transform: scale(1.05) translate(0, 0); }
+    100% { transform: scale(1.12) translate(-1%, -0.5%); }
+  }
+
+  .hero-bg::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    background:
+      radial-gradient(ellipse at 50% 40%, transparent 50%, rgba(10,10,20,0.75) 100%),
+      linear-gradient(180deg, rgba(10,10,20,0.3) 0%, transparent 40%, transparent 70%, rgba(10,10,20,0.8) 100%);
+    pointer-events: none;
+  }
+
+  /* ── Floating particles (动感) ── */
+  .particles {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .particle {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    animation: floatUp linear infinite;
+  }
+
+  @keyframes floatUp {
+    0% {
+      transform: translateY(110vh) scale(0);
+      opacity: 0;
+    }
+    10% {
+      opacity: 0.8;
+    }
+    90% {
+      opacity: 0.1;
+    }
+    100% {
+      transform: translateY(-10vh) scale(1);
+      opacity: 0;
+    }
+  }
+
+  /* ── Content ── */
+  .hero-content {
+    position: relative;
+    z-index: 4;
+    text-align: center;
+    padding: 2rem;
+  }
+
+  .hero-content .brand {
+    font-size: clamp(3rem, 8vw, 7rem);
+    font-weight: 200;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    line-height: 1;
+    margin-bottom: 0.3em;
+    opacity: 0;
+    animation: fadeUp 1.2s 0.3s ease-out forwards;
+    text-shadow: 0 0 80px rgba(100,180,246,0.15);
+  }
+
+  .hero-content .divider {
+    width: 60px;
+    height: 1px;
+    background: rgba(255,255,255,0.4);
+    margin: 1.5rem auto;
+    opacity: 0;
+    animation: fadeUp 1.2s 0.6s ease-out forwards;
+  }
+
+  .hero-content .tagline {
+    font-size: clamp(0.95rem, 2vw, 1.15rem);
+    font-weight: 300;
+    letter-spacing: 0.15em;
+    color: var(--text-dim);
+    line-height: 2;
+    opacity: 0;
+    animation: fadeUp 1.2s 0.8s ease-out forwards;
+  }
+
+  .hero-content .tagline span {
+    display: block;
+  }
+
+  .hero-content .tagline em {
+    font-style: normal;
+    color: var(--accent);
+    font-weight: 400;
+  }
+
+  /* ── Scroll hint ── */
+  .scroll-hint {
+    position: absolute;
+    bottom: 2.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 4;
+    opacity: 0;
+    animation: fadeUp 1.2s 1.5s ease-out forwards;
+  }
+
+  .scroll-hint .line {
+    width: 1px;
+    height: 40px;
+    background: rgba(255,255,255,0.3);
+    margin: 0 auto 8px;
+    animation: scrollPulse 2.5s ease-in-out infinite;
+  }
+
+  .scroll-hint .dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.5);
+    margin: 0 auto;
+    animation: scrollPulse 2.5s 0.3s ease-in-out infinite;
+  }
+
+  @keyframes scrollPulse {
+    0%, 100% { opacity: 0.3; transform: translateY(0); }
+    50% { opacity: 1; transform: translateY(6px); }
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Sections ── */
+  section {
+    padding: 6rem 2rem;
+  }
+
+  .intro {
+    max-width: 640px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .intro h2 {
+    font-size: clamp(1.6rem, 3.5vw, 2.2rem);
+    font-weight: 300;
+    letter-spacing: 0.08em;
+    margin-bottom: 1.5rem;
+    color: var(--text);
+  }
+
+  .intro p {
+    font-size: 1rem;
+    font-weight: 300;
+    line-height: 2;
+    color: var(--text-dim);
+  }
+
+  /* ── Links grid ── */
+  .links {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  .link-card {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2.5rem 1.5rem;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.02);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 0.95rem;
+    font-weight: 300;
+    letter-spacing: 0.1em;
+    transition: all 0.4s ease;
+    cursor: pointer;
+  }
+
+  .link-card:hover {
+    border-color: rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.05);
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+  }
+
+  /* ── Footer ── */
+  footer {
+    text-align: center;
+    padding: 3rem 2rem 4rem;
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.25);
+  }
+
+  /* ── Cursor glow ── */
+  .cursor-glow {
+    position: fixed;
+    pointer-events: none;
+    z-index: 9999;
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(100,180,246,0.06) 0%, transparent 70%);
+    transform: translate(-50%, -50%);
+    transition: opacity 0.3s;
+    opacity: 0;
+  }
+
+  /* ── Desktop landscape: show rotated image ── */
+  /* ── Mobile portrait: show original orientation ── */
+  @media (max-width: 768px) {
+    .hero { min-height: 100dvh; }
+    section { padding: 4rem 1.5rem; }
+    .links { grid-template-columns: 1fr; padding: 1rem; }
+    .link-card { padding: 2rem 1rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-bg .bg-full img,
+    .hero-content .brand,
+    .hero-content .tagline,
+    .hero-content .divider,
+    .scroll-hint,
+    .particle {
+      animation: none !important;
+      opacity: 1;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="cursor-glow" id="glow"></div>
+
+<section class="hero">
+  <div class="hero-bg">
+    <!-- Instant low-res placeholder -->
+    <div class="bg-placeholder" id="placeholder"></div>
+
+    <!-- Full image: WebP landscape on desktop, WebP portrait on mobile -->
+    <div class="bg-full" id="bgFull" style="opacity:0;transition:opacity 0.6s ease-in-out;">
+      <picture>
+        <source srcset="bg-landscape.webp" media="(min-width: 769px)" type="image/webp">
+        <source srcset="bg-portrait.webp" media="(max-width: 768px)" type="image/webp">
+        <source srcset="bg-landscape.jpg" media="(min-width: 769px)" type="image/jpeg">
+        <img src="bg-portrait.webp" alt="" loading="eager" decoding="async"
+             onload="document.getElementById('bgFull').style.opacity='1';document.getElementById('placeholder').classList.add('hidden');">
+      </picture>
+    </div>
+  </div>
+
+  <!-- Floating particles for 动感 -->
+  <div class="particles" id="particles" aria-hidden="true"></div>
+
+  <div class="hero-content">
+    <h1 class="brand">Somtfly</h1>
+    <div class="divider"></div>
+    <p class="tagline">
+      <span>探索 · 创造 · 连接</span>
+      <span style="margin-top:0.4em;font-size:0.85em;">以<em>代码</em>为笔，以<em>思想</em>为墨</span>
+    </p>
+  </div>
+
+  <div class="scroll-hint" aria-hidden="true">
+    <div class="line"></div>
+    <div class="dot"></div>
+  </div>
+</section>
+
+<section>
+  <div class="intro">
+    <h2>万物皆数，万象皆码</h2>
+    <p>从 AI 到传统命理，从前端到后端，<br>技术是表达思想的语言，代码是改变世界的杠杆。</p>
+  </div>
+</section>
+
+<div class="links">
+  <a class="link-card" href="https://sqw.somtfly.com">🌌 易三千</a>
+  <a class="link-card" href="https://github.com/somtfly" target="_blank" rel="noopener">GitHub</a>
+  <a class="link-card" href="mailto:hi@somtfly.com">hi@somtfly.com</a>
+</div>
+
+<footer>
+  &copy; 2026 Somtfly &mdash; Built with curiosity.
+</footer>
+
+<script>
+  // ── Blur-up image loading ──
+  const placeholder = document.getElementById('placeholder');
+  const bgFull = document.getElementById('bgFull');
+  // Fallback: if onload doesn't fire within 3s, show anyway
+  setTimeout(() => {
+    if (bgFull.style.opacity === '0') {
+      bgFull.style.opacity = '1';
+      placeholder.classList.add('hidden');
+    }
+  }, 3000);
+
+  // ── Floating particles ──
+  (function() {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const container = document.getElementById('particles');
+    const count = 25;
+    for (let i = 0; i < count; i++) {
+      const p = document.createElement('div');
+      p.classList.add('particle');
+      const size = Math.random() * 3 + 1;
+      p.style.width = size + 'px';
+      p.style.height = size + 'px';
+      p.style.left = Math.random() * 100 + '%';
+      p.style.animationDuration = (Math.random() * 12 + 10) + 's';
+      p.style.animationDelay = (Math.random() * 15) + 's';
+      p.style.opacity = (Math.random() * 0.3 + 0.05);
+      container.appendChild(p);
+    }
+  })();
+
+  // ── Cursor glow (desktop only) ──
+  const glow = document.getElementById('glow');
+  if (window.matchMedia('(pointer: fine)').matches) {
+    let raf, mx = 0, my = 0;
+    document.addEventListener('mousemove', e => {
+      mx = e.clientX; my = e.clientY;
+      if (!raf) {
+        raf = requestAnimationFrame(() => {
+          glow.style.transform = `translate(${mx - 150}px, ${my - 150}px)`;
+          glow.style.opacity = '1';
+          raf = null;
+        });
+      }
+    });
+    document.addEventListener('mouseleave', () => { glow.style.opacity = '0'; });
+    document.addEventListener('mouseenter', () => { glow.style.opacity = '1'; });
+  }
+</script>
+
+</body>
+</html>

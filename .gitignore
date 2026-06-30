@@ -1,0 +1,21 @@
+# Secrets
+.env
+*.secret
+*.key
+*.pem
+.jwt_secret
+
+# Data files (contain user PII)
+data/users.json
+data/admin.json
+data/announcement_cache.json
+data/server_config.json
+
+# Backups
+backups/
+
+# Docker volumes
+docker/volumes/
+
+# Node
+node_modules/
