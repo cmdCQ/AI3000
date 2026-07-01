@@ -401,9 +401,8 @@ function calcGua(upperNum, lowerNum, moveNum) {
   var cuoUpperNum=linesToTri([cuoLines[2],cuoLines[1],cuoLines[0]]);
   var cuoLowerNum=linesToTri([cuoLines[5],cuoLines[4],cuoLines[3]]);
   var cuoGua={upper:cuoUpperNum,lower:cuoLowerNum,upperTri:TRIGRAMS[cuoUpperNum],lowerTri:TRIGRAMS[cuoLowerNum],name:HEX64[cuoUpperNum+'_'+cuoLowerNum],lines:buildLines(cuoUpperNum,cuoLowerNum,0)};
-  // 综卦：上下卦互换，各自内部顺序不变
-  // 本卦[上,五,四,三,二,初] → 综卦[三,二,初,上,五,四]
-  var zongLines=[benLines[3],benLines[4],benLines[5],benLines[0],benLines[1],benLines[2]];
+  // 综卦：将本卦上下颠倒（六爻全反转）
+  var zongLines = benLines.slice().reverse();
   var zongUpperNum=linesToTri([zongLines[2],zongLines[1],zongLines[0]]);
   var zongLowerNum=linesToTri([zongLines[5],zongLines[4],zongLines[3]]);
   var zongGua={upper:zongUpperNum,lower:zongLowerNum,upperTri:TRIGRAMS[zongUpperNum],lowerTri:TRIGRAMS[zongLowerNum],name:HEX64[zongUpperNum+'_'+zongLowerNum],lines:buildLines(zongUpperNum,zongLowerNum,0)};

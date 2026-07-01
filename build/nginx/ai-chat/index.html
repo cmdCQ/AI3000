@@ -941,21 +941,21 @@ function calcQuickGuaData(upper, lower, move) {
     triToLinesArr(upper)[2], triToLinesArr(upper)[1], triToLinesArr(upper)[0],
     triToLinesArr(lower)[2], triToLinesArr(lower)[1], triToLinesArr(lower)[0]
   ];
-  var huUpper = linesToTriNum([allLines[0], allLines[1], allLines[2]]);  // 4-6爻
+  var huUpper = linesToTriNum([allLines[1], allLines[2], allLines[3]]);  // 4-6爻
   var huLower = linesToTriNum([allLines[2], allLines[3], allLines[4]]);  // 3-5爻… 不对，互卦是2-4,3-5
-  // 互卦是234爻为下卦，345爻为上卦
-  var huUpper2 = linesToTriNum([allLines[1], allLines[2], allLines[3]]);
-  var huLower2 = linesToTriNum([allLines[2], allLines[3], allLines[4]]);
-  
+  // 互卦是234爻为下卦，345爻为上卦 (linesToTriNum 期望 [bottom,mid,top])
+  var huUpper2 = linesToTriNum([allLines[3], allLines[2], allLines[1]]);
+  var huLower2 = linesToTriNum([allLines[4], allLines[3], allLines[2]]);
+
   // 错卦：全部阴阳互换
   var cuoLines = allLines.map(function(l){ return l === 1 ? 0 : 1; });
-  var cuoUpper = linesToTriNum([cuoLines[0], cuoLines[1], cuoLines[2]]);
-  var cuoLower = linesToTriNum([cuoLines[3], cuoLines[4], cuoLines[5]]);
+  var cuoUpper = linesToTriNum([cuoLines[2], cuoLines[1], cuoLines[0]]);
+  var cuoLower = linesToTriNum([cuoLines[5], cuoLines[4], cuoLines[3]]);
 
   // 综卦：上下颠倒
   var zongLines = allLines.slice().reverse();
-  var zongUpper = linesToTriNum([zongLines[0], zongLines[1], zongLines[2]]);
-  var zongLower = linesToTriNum([zongLines[3], zongLines[4], zongLines[5]]);
+  var zongUpper = linesToTriNum([zongLines[2], zongLines[1], zongLines[0]]);
+  var zongLower = linesToTriNum([zongLines[5], zongLines[4], zongLines[3]]);
 
   return {
     benGua: {
