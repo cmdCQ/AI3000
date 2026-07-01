@@ -410,8 +410,8 @@ async function getUsers() {
   }
 }
 async function deleteUser(id) {
-  // 从 MySQL 删除
-  try { await db.query('DELETE FROM users WHERE phone = ?', [id]); } catch(e) { console.error('deleteUser MySQL error:', e); }
+  // 从 MySQL 删除（按 username，兼容微信用户 phone 为空的情况）
+  try { await db.query('DELETE FROM users WHERE username = ?', [id]); } catch(e) { console.error('deleteUser MySQL error:', e); }
   // 同时清理 JSON 备份
   const users = readJSON(USERS_FILE, {});
   delete users[id];
@@ -2521,9 +2521,11 @@ async function ensureDbUser(username) {
   try {
     const [rows] = await db.query('SELECT username FROM users WHERE username = ?', [username]);
     if (rows.length === 0) {
+      // 微信用户 openid 较长，phone 列只存手机号；username 存完整标识
+      const phone = (username.startsWith('wx_')) ? '' : username;
       await db.query(
         'INSERT INTO users (phone, username, password_hash, nick_name, ai_count, token_used, tier, created_at, last_active) VALUES (?, ?, ?, ?, 0, 0, 0, ?, ?)',
-        [username, username, '', username, Date.now(), Date.now()]
+        [phone, username, '', username, Date.now(), Date.now()]
       );
     }
   } catch (e) {
