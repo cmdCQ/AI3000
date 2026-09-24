@@ -23,6 +23,7 @@
 | `gen_golden_*.py` | 从 shushu 导出金标准 JSON |
 | `run_js_*.js` | 用 ai3000 `build/backend/paipan/*.js` 产出同形 JSON |
 | `diff.py` | 通用深层 JSON 比对，按字段聚合，`--allow` 申报偏差，`--case-keys` 折样例 id |
+| `verify_format_chart.js` | **shushu 侧没有对拍物**的那一层：ai3000 独有的 `formatChart` 文本，用「旧版 vs 新版」归类校验收紧 |
 
 ## 用法
 
@@ -40,6 +41,11 @@ $PY diff.py golden_dynamic.json js_dynamic.json --case-keys
 # 历法层（约 5 秒；gen 会**顺带重写** allow_calendar.json）
 $PY gen_golden_calendar.py && node run_js_calendar.js
 $PY diff.py golden_calendar.json js_calendar.json --allow allow_calendar.json --case-keys
+
+# formatChart 文本层（ai3000 独有；需先备好旧版，见下「层 5」）
+mkdir -p /tmp/oldliuyao && git -C .. show HEAD:build/backend/paipan/liuyao.js > /tmp/oldliuyao/liuyao_old.js
+ln -sf "$PWD/../build/backend/paipan/constants.js" /tmp/oldliuyao/constants.js
+node verify_format_chart.js
 ```
 
 > `--case-keys`：顶层键是样例 id（本 harness 的 `golden_*.json` 都是这个形状）
@@ -189,13 +195,52 @@ vs 新增 `paipan/relations.js`（六个纯函数，逐字移植）：
 
 两处都是 `grep -A 20` 截断了后续行导致的误读。**结论：报 shushu 的 bug 前必须实跑。**
 
-#### 发现但**不可达**的潜伏不一致（待用户拍板，本轮未动）
+#### 发现但**不可达**的潜伏不一致（**shushu 侧**，已定不动）
 
 - `advanced_features._is_jin_shen`（土进神含 `辰→未`、`戌→丑`）与
   `relations.DIZHI_PROGRESS_GROUPS`（不含）**两张表不同，但在所有可达对上一致**——
   差异全落在 `辰→未 / 戌→丑 / 未→辰 / 丑→戌`，而这四对结构上取不到。
   `relations.js` 照 shushu **各留各的表**，未擅自统一。
+  用户 2026-09-24 定：**shushu 不改**，故这处双表**永久保留**，不再列待办。
+  （ai3000 侧原先还有第三份表 —— `liuyao.js` 的 `JIN_SHEN`/`TUI_SHEN` ——
+  已于同日删除、收敛到 `relations.js` 一张表，见「层 5」。）
 - `najia.analyze_hua_qi` 是**死代码**（仅被测试引用，无生产调用点），
   其四库土进神表取向与上两者又相反；因无调用点故不可达，未移植。
 - 关联发现：`tests/test_liuyao_pro_audit.py:356` 用 `inspect.getsource`
   断言上面那个**死函数**的源码字符串——橡皮章测试。
+
+### 5. `formatChart` 文本层（ai3000 独有，shushu 无对拍物）— ✅ 通过
+
+`formatChart` 的产物**就是**注入六爻 AI prompt 的那段盘面文本
+（`auth-server.js:2624` → 默认模板 `:2726`）。shushu 没有对应实现，故不能对拍
+shushu，改用**「旧版 vs 新版」逐例归类收紧**：
+`git show HEAD:build/backend/paipan/liuyao.js > /tmp/oldliuyao/liuyao_old.js`
+（同目录要有 `constants.js` 符号链接，见脚本头注），再 `node verify_format_chart.js`。
+
+2026-09-24 把 `formatChart` 从「自造近似判定」改接到 `relations.js` 之后的结果：
+**720 例，所有差异逐类通过，无行为回退。**
+
+| 校验项 | 阈值 | 实测 |
+|---|---|---|
+| 实跑可达支对落在旧表多出的四对上 | 必须 0 | **0** ✅（88 种实达支对穷举） |
+| 进退神旧新不一致（排除不可达四对） | 必须 0 | **0** ✅ |
+| 回头生克类别不一致 | 必须 0 | **0** ✅ |
+| 旧已判成全三合、新侧丢失 | 必须 0 | **0** ✅ |
+| 文本出现 `undefined`/`NaN` | 必须 0 | **0** ✅ |
+| 旧漏判、新补上的「化同（伏吟、扶持）」 | 只增不减 | **+140 处** ✅ |
+| 「占两支」由旧记作三合 → 新另归半合 | 预期有差 | 990 → 490（照 shushu 收窄，非丢失） |
+
+> **可达性这里是实跑证明的，不是引定理**。旧 `JIN_SHEN`/`TUI_SHEN` 比
+> `DIZHI_PROGRESS_GROUPS` 多 `辰→未 / 戌→丑 / 未→辰 / 丑→戌` 四对，故「换表
+> 不掉行为」需要前提「这四对取不到」。720 例穷举出 88 种实达支对，与该四对
+> **零交集** —— 定理到此才落成事实。
+
+> 新文本**同时**给出两套旺衰，且明确标成 `月令:X`（四时旺衰，只看月令，对拍层 2 已验）
+> 与 `综合:X`（月日十二长生加权，对拍层 4 已验）。二者**会不一致**（如丑月午火
+> 「月令:死」而「综合:旺相」），这是两套体系本来的分歧，故并列并在读法里点明，
+> 不替 AI 合并。`月长生/日长生` 与 `日辰:合/生/克/破` 同理逐项标注来源。
+
+> **层 4 的取样路径在本次一并收紧了**：`run_js_dynamic.js` 原先自己重算
+> `R.analyzeDongJing(...)` 等，现在直接读 `buildChart` 产出的 `chart.deep.*`。
+> 于是层 4 验的不再只是 `relations.js` 本身，而是**`buildChart` 把这一层接对了没有**
+> ——即生产代码真正走的那条路径。改后重跑 174262 个叶子值仍 0 差异。

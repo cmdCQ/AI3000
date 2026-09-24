@@ -16,7 +16,6 @@ const path = require('path');
 
 const PAIPAN = path.join(__dirname, '..', 'build', 'backend', 'paipan');
 const C = require(path.join(PAIPAN, 'constants.js'));
-const R = require(path.join(PAIPAN, 'relations.js'));
 const { buildChart } = require(path.join(PAIPAN, 'liuyao.js'));
 
 const goldenPath = process.argv[2] || path.join(__dirname, 'golden_dynamic.json');
@@ -59,24 +58,9 @@ for (const [cid, g] of Object.entries(golden)) {
   else if (hc.isChongGua) hexType = '六冲卦';
 
   // ── 层 4：卦体关系层（用神无关）────────────────────────────
-  // 入参按 shushu 调用点的**键名**重构（那几个函数只认固定键），输出原形照抄。
-  // 键名对齐 shushu（branch/liu_qin/is_changing），不在这里改名——零归一。
-  const monthZhi = s.month_gz[1];
-  const dayZhi = s.day_gz[1];
-  const yaoIn = chart.yaos.map((y) => ({
-    dong: !!y.isMoving,
-    zhi: y.dizhi,
-    branch: y.dizhi,
-    liu_qin: y.liuqin,
-    is_changing: !!y.isMoving,
-    changed_zhi: y.changed ? y.changed.dizhi : '',
-  }));
-  // shushu 的 changed_yaos 恒为 6 条，非动爻用本爻支补齐（interpreter.py:971）
-  const changedIn = chart.yaos.map((y) => ({
-    branch: y.changed ? y.changed.dizhi : y.dizhi,
-    liu_qin: y.liuqin,
-  }));
-
+  // 取 buildChart 产出的 `deep`（**生产代码走的就是这条路径**），不在此处重算。
+  // 这样验的是「liuyao.js 把 relations.js 接对了没有」，比只验 relations.js 本身更强。
+  // 入参键名的对齐在 liuyao.js 内部完成（那几个函数只认固定键，零归一）。
   out[cid] = {
     case: cid,
     query_time: g.query_time,
@@ -97,12 +81,12 @@ for (const [cid, g] of Object.entries(golden)) {
     palace_position: p.palacePosition,
     palace_trigram: p.palaceName,
     hex_type: hexType,
-    dong_jing_analysis: R.analyzeDongJing(yaoIn),
-    hua_he_chong: R.analyzeHuaHeChong(yaoIn),
-    sanhe_sanhui: R.detectSanheSanhui(yaoIn),
+    dong_jing_analysis: chart.deep.dong_jing_analysis,
+    hua_he_chong: chart.deep.hua_he_chong,
+    sanhe_sanhui: chart.deep.sanhe_sanhui,
     deep_relations: {
-      line_details: R.lineDetails(yaoIn, monthZhi, dayZhi),
-      changing_relations: R.changingRelations(yaoIn, changedIn),
+      line_details: chart.deep.line_details,
+      changing_relations: chart.deep.changing_relations,
     },
     yaos: chart.yaos.map((y) => ({
       position: y.position,
