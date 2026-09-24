@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>临时文件中转</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(135deg,#1e293b,#0f172a); color:#e2e8f0;
+    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:16px; }
+  .card { width:100%; max-width:480px; background:#1e293b; border:1px solid #334155;
+    border-radius:16px; padding:28px 24px; box-shadow:0 20px 50px rgba(0,0,0,.4); }
+  h1 { font-size:20px; margin-bottom:4px; }
+  .sub { font-size:13px; color:#94a3b8; margin-bottom:20px; }
+  .field { margin-bottom:16px; }
+  label { display:block; font-size:13px; color:#cbd5e1; margin-bottom:6px; }
+  input[type=password] { width:100%; padding:10px 12px; background:#0f172a; border:1px solid #334155;
+    border-radius:8px; color:#e2e8f0; font-size:15px; }
+  .drop { border:2px dashed #475569; border-radius:12px; padding:32px 16px; text-align:center;
+    cursor:pointer; transition:.2s; background:#0f172a; }
+  .drop.over { border-color:#38bdf8; background:#0c1a2e; }
+  .drop .big { font-size:32px; margin-bottom:8px; }
+  .drop .hint { font-size:13px; color:#94a3b8; }
+  #list { margin-top:18px; display:flex; flex-direction:column; gap:10px; }
+  .item { background:#0f172a; border:1px solid #334155; border-radius:10px; padding:12px; font-size:13px; }
+  .item .name { font-weight:600; word-break:break-all; margin-bottom:6px; }
+  .item .row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; color:#94a3b8; }
+  .bar { height:6px; background:#334155; border-radius:4px; overflow:hidden; margin-top:8px; }
+  .bar > i { display:block; height:100%; width:0; background:#38bdf8; transition:width .2s; }
+  a.dl { color:#38bdf8; text-decoration:none; border:1px solid #38bdf8; padding:4px 10px; border-radius:6px; }
+  a.dl:active { opacity:.7; }
+  .copy { cursor:pointer; color:#a5b4fc; }
+  .err { color:#f87171; }
+  .ok { color:#4ade80; }
+  .foot { margin-top:18px; font-size:12px; color:#64748b; text-align:center; line-height:1.6; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>📦 临时文件中转</h1>
+  <div class="sub">上传后 <b>24 小时</b> 自动删除 · 单文件 ≤ 200MB</div>
+
+  <div class="field">
+    <label>访问口令</label>
+    <input type="password" id="token" placeholder="请输入口令" autocomplete="off">
+  </div>
+
+  <div class="drop" id="drop">
+    <div class="big">⬆️</div>
+    <div>点击选择文件，或拖拽到这里</div>
+    <div class="hint">支持任意类型文件</div>
+    <input type="file" id="file" multiple style="display:none">
+  </div>
+
+  <div id="list"></div>
+
+  <div class="foot">
+    文件与链接均在 24 小时后失效<br>
+    仅供临时中转使用
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const drop = $('#drop'), fileInput = $('#file'), list = $('#list'), tokenEl = $('#token');
+const API = '/api/up';
+
+tokenEl.value = sessionStorage.getItem('up_token') || '';
+tokenEl.addEventListener('input', () => sessionStorage.setItem('up_token', tokenEl.value));
+
+drop.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => { [...fileInput.files].forEach(uploadOne); fileInput.value=''; });
+['dragenter','dragover'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', ev => { [...ev.dataTransfer.files].forEach(uploadOne); });
+
+function fmt(n){ if(n<1024)return n+'B'; if(n<1048576)return (n/1024).toFixed(1)+'KB'; return (n/1048576).toFixed(1)+'MB'; }
+
+function uploadOne(f) {
+  const token = tokenEl.value.trim();
+  if (!token) { alert('请先输入访问口令'); return; }
+  if (f.size > 200*1024*1024) { alert(f.name + ' 超过 200MB'); return; }
+
+  const item = document.createElement('div');
+  item.className = 'item';
+  item.innerHTML = `<div class="name">${f.name}</div>
+    <div class="row"><span>${fmt(f.size)}</span><span class="status">上传中…</span></div>
+    <div class="bar"><i></i></div>`;
+  list.prepend(item);
+  const bar = item.querySelector('.bar > i'), status = item.querySelector('.status');
+
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', API + '/upload?name=' + encodeURIComponent(f.name));
+  xhr.setRequestHeader('X-Token', token);
+  xhr.upload.onprogress = e => { if (e.lengthComputable) bar.style.width = (e.loaded/e.total*100)+'%'; };
+  xhr.onload = () => {
+    let r = {}; try { r = JSON.parse(xhr.responseText); } catch(_){}
+    if (xhr.status === 200 && r.url) {
+      bar.style.width = '100%';
+      const full = location.origin + r.url;
+      item.querySelector('.row').innerHTML =
+        `<span class="ok">✔ 已上传</span><span>${fmt(r.size)}</span>` +
+        `<a class="dl" href="${r.url}" target="_blank">下载</a>` +
+        `<span class="copy">📋 复制链接</span>`;
+      item.querySelector('.copy').onclick = () => {
+        navigator.clipboard.writeText(full).then(()=>{ item.querySelector('.copy').textContent='✔ 已复制'; });
+      };
+    } else {
+      status.className = 'status err';
+      status.textContent = '✖ ' + (r.error || ('失败 '+xhr.status));
+    }
+  };
+  xhr.onerror = () => { status.className='status err'; status.textContent='网络错误'; };
+  xhr.send(f);
+}
+</script>
+</body>
+</html>

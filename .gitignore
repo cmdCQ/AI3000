@@ -1,0 +1,19 @@
+# ── 依赖 / 缓存 ──────────────────────────────────────────────
+node_modules/
+__pycache__/
+*.pyc
+
+# ── 凭据：绝不入库 ──────────────────────────────────────────
+# 线上密码/API key 一律走环境变量（见 build/backend/config.js 的 requireEnv）
+.env
+.env.*
+*.pem
+*.key
+id_ed25519*
+known_hosts*
+
+# ── 对拍中间产物 ────────────────────────────────────────────
+# js_*.json 是被验方输出，跑 `node run_js_*.js` 即可复现，不入库。
+# golden_*.json 反之**必须入库**：它是 shushu 金标准的唯一留存记录，
+# 也是 README 里说的「每组样例同时是将来回归的 fixture」。
+duipan/js_*.json

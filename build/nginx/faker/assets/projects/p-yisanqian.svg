@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="750" viewBox="0 0 1200 750">
+  
+  <defs>
+    <pattern id="g" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M 48 0 L 0 0 0 48" fill="none" stroke="rgba(255,255,255,0.045)" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="750" fill="#0b0d11"/>
+  <rect width="1200" height="750" fill="url(#g)"/>
+  <radialGradient id="sg" cx="50%" cy="45%" r="60%">
+    <stop offset="0%" stop-color="rgba(98,214,208,0.10)"/>
+    <stop offset="100%" stop-color="rgba(98,214,208,0)"/>
+  </radialGradient>
+  <rect width="1200" height="750" fill="url(#sg)"/>
+  
+  <filter id="pg" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="26" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <circle cx="600" cy="375" r="180" fill="none" stroke="#62d6d0" stroke-width="2" opacity="0.35"/>
+  <circle cx="600" cy="375" r="120" fill="none" stroke="#62d6d0" stroke-width="1.5" opacity="0.55"/>
+  <circle cx="600" cy="375" r="56" fill="#62d6d0" opacity="0.14"/>
+  <circle cx="600" cy="375" r="10" fill="#62d6d0" filter="url(#pg)"/>
+  <path d="M 600 375 m -200 0 a 200 200 0 1 0 400 0 a 200 200 0 1 0 -400 0" fill="none" stroke="#62d6d0" stroke-width="1" stroke-dasharray="6 10" opacity="0.5" transform="rotate(-25 600 375)"/>
+  <circle cx="600" cy="375" r="8" fill="#e8eaed"/>
+  <rect x="52" y="52" width="4" height="4" fill="#62d6d0"/>
+  <rect x="1144" y="52" width="4" height="4" fill="#62d6d0"/>
+  <rect x="52" y="694" width="4" height="4" fill="#62d6d0"/>
+  <rect x="1144" y="694" width="4" height="4" fill="#62d6d0"/>
+  <text x="60" y="660" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="22" letter-spacing="6" fill="#5b6270">ONLINE // 001</text>
+  <text x="60" y="700" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="30" letter-spacing="4" fill="#e8eaed">易三千</text>
+  <text x="60" y="120" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" letter-spacing="3" fill="#62d6d0">YI SAN QIAN · AI</text>
+</svg>
