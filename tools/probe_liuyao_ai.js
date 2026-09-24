@@ -51,7 +51,9 @@ console.log('=== 用户实际收到的 user prompt（' + prompt.length + ' 字�
 console.log(prompt);
 
 const KEYS = ['月建', '日辰', '旬空', '六神', '世', '应', '卦身', '伏神', '用神',
-              '六冲', '三合', '六亲', '白虎', '妻财', '回头克', '日合', '动爻', '变爻'];
+              '六冲', '三合', '六亲', '白虎', '妻财', '回头克', '日辰:合', '动爻', '变爻',
+              // 2026-09-24 起 formatChart 改接 relations.js 后新增的读数
+              '月令:', '月长生:', '日长生:', '综合:', '卦势', '纳甲'];
 const missing = KEYS.filter((k) => prompt.indexOf(k) < 0);
 console.log('\n关键术语覆盖: ' + (KEYS.length - missing.length) + '/' + KEYS.length
             + (missing.length ? '  缺: ' + missing.join(',') : '  ✅ 无缺'));
@@ -92,5 +94,5 @@ const body = {
   const miss = ['父母', '兄弟', '官鬼', '妻财', '子孙'].filter((k) => out.indexOf(k) < 0);
   console.log('六亲覆盖: ' + (5 - miss.length) + '/5' + (miss.length ? '  缺: ' + miss.join(',') : ''));
   // 三段式：结论先行 → 逐项分析 → 建议
-  console.log('分段标记数（应为 3 段左右的标题）: ' + (out.match(/^#{1,4}\s|^\*\*[^*]+\*\*/gm) || []).length);
+  console.log('分段标记数（应为 3 段左右的标题）: ' + (out.match(/^#{1,4}\s*|^\*\*[^*]+\*\*/gm) || []).length);
 })();
