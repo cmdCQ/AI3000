@@ -2596,16 +2596,17 @@ function buildLiuyaoChart(hexagrams, lunarInfo, topic) {
   const bg = hexagrams.benGua || {}, bng = hexagrams.bianGua || {};
   if (!bg.upper || !bg.lower) return null;
   const li = lunarInfo || {};
-  const chart = liuyaoPaipan.buildChart({
+  // 用神（含伏神/世身/四神五行）由 buildChart 内部按 shushu 口径取定，
+  // 不再在此处外挂粗配表——见 paipan/yongshen.js。
+  return liuyaoPaipan.buildChart({
     topic: topic || '',
     gender: hexagrams.gender || '',
+    isProxy: !!hexagrams.isProxy,
     benUpper: bg.upper, benLower: bg.lower,
     bianUpper: bng.upper, bianLower: bng.lower,
     yearGZ: li.yearGZ || '', monthGZ: li.monthGZ || '',
     dayGZ: li.dayGZ || '', hourGZ: li.hourGZ || '',
   });
-  if (chart) chart.yongShen = liuyaoPaipan.suggestYongShen(topic, hexagrams.gender || '');
-  return chart;
 }
 
 // 六爻模板变量提取

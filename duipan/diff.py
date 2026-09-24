@@ -7,6 +7,12 @@
 申报偏差（allow）必须写明理由，且**仍会打印实际值**——这样偏差本身
 若发生变化也能看见，不会变成一个藏 bug 的黑洞。
 
+申报按**路径前缀**生效，切在路径分隔处（`.` 或 `[`）：
+申报 `例.summary` 同时覆盖 `例.summary[0]`、`例.summary[2]`。
+这条不是便利、是必需：列表一处加长会让后面每一项都换下标，
+逐下标申报等于每改一次内容就得重刷一遍白名单，白名单迟早变成噪声。
+（`例.summaryX` 不会被 `例.summary` 覆盖——前缀必须切在分隔处。）
+
 用法：
     python diff.py golden.json other.json [--allow allow.json] [--max 20] [--case-keys]
 `--case-keys`：顶层键是样例 id（本 harness 的 golden_*.json 都是这个形状）时
@@ -22,25 +28,51 @@ from collections import Counter
 from pathlib import Path
 
 
+def declared(path: str, allow) -> bool:
+    """path 是否命中某条申报 —— 申报按**路径前缀**生效，切在分隔处。
+
+    申报 `例.summary` 要能盖住 `例.summary[0]`：列表一处加长会让后面每一项
+    都换下标，逐下标申报等于改一次内容就重刷一遍白名单。
+    但 `例.summaryX` / `例.summaryY` 不算命中 —— 前缀必须切在 `.` 或 `[`，
+    否则 `例.a` 会顺手盖掉 `例.ab`，白名单就宽到没意义了。
+    """
+    if path in allow:
+        return True
+    for k in allow:
+        if path.startswith(k) and path[len(k):len(k) + 1] in (".", "["):
+            return True
+    return False
+
+
+def reason_of(path: str, allow) -> str:
+    """取该路径命中那条申报的理由（与 declared 同一套前缀规则）。"""
+    if path in allow:
+        return allow[path]
+    for k in allow:
+        if path.startswith(k) and path[len(k):len(k) + 1] in (".", "["):
+            return allow[k]
+    return ""
+
+
 def walk(a, b, path, out, allow):
     """递归比对，把差异收集到 out（(path, a, b, declared)）。"""
     if isinstance(a, dict) and isinstance(b, dict):
         for k in sorted(set(a) | set(b)):
             p = f"{path}.{k}" if path else str(k)
             if k not in a:
-                out.append((p, "<缺>", b[k], p in allow))
+                out.append((p, "<缺>", b[k], declared(p, allow)))
             elif k not in b:
-                out.append((p, a[k], "<缺>", p in allow))
+                out.append((p, a[k], "<缺>", declared(p, allow)))
             else:
                 walk(a[k], b[k], p, out, allow)
     elif isinstance(a, list) and isinstance(b, list):
         if len(a) != len(b):
-            out.append((path, f"len={len(a)}", f"len={len(b)}", path in allow))
+            out.append((path, f"len={len(a)}", f"len={len(b)}", declared(path, allow)))
         for i in range(min(len(a), len(b))):
             walk(a[i], b[i], f"{path}[{i}]", out, allow)
     else:
         if a != b:
-            out.append((path, a, b, path in allow))
+            out.append((path, a, b, declared(path, allow)))
 
 
 def field_of(path: str) -> str:
@@ -116,7 +148,7 @@ def main() -> int:
     if declared:
         print(f"\n── 已申报偏差（{len(declared)} 处，仍需人工确认实际值未漂移）──")
         # 按「字段 + 理由」聚合（不按精确路径，否则每例一行、成百上千行没信息量）
-        byr = Counter((agg(d[0]), allow.get(d[0], "")) for d in declared)
+        byr = Counter((agg(d[0]), reason_of(d[0], allow)) for d in declared)
         for (f, why), n in byr.most_common():
             print(f"  {n:4d}× {f}   理由：{why}")
         # 取值分布：申报的偏差本身也可能漂移（比如同一字段冒出新的取值组合）

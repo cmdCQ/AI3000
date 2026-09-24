@@ -39,12 +39,20 @@ for (const [cid, g] of Object.entries(golden)) {
   const bianName = shortOf(C.getHexName(bt.upper, bt.lower));
 
   const s = g.sizhu;
+  // topic/gender 与金标准的 divine 请求一致（见 gen_golden_dynamic.py 的请求体），
+  // 层 6 的用神层靠它取用神；两侧全用神不同的话，比出来没有意义。
   const chart = buildChart({
+    topic: '求财', gender: 'male',
     benUpper: bu, benLower: bl,
     bianUpper: bt.upper, bianLower: bt.lower,
     yearGZ: s.year_gz, monthGZ: s.month_gz, dayGZ: s.day_gz, hourGZ: s.hour_gz,
   });
   if (!chart) { problems.push(`${cid}: buildChart 返回 null`); continue; }
+  // 层 6：key_lines 里每条爻按语义取子集（两侧爻的键集不同，见 gen 侧注释）
+  const keyLines = {};
+  for (const [k, v] of Object.entries(chart.deep.key_lines || {})) {
+    keyLines[k] = v.map((l) => ({ position: l.position, liu_qin: l.liu_qin, branch: l.branch }));
+  }
 
   const p = chart.ben.palace;
   const gs = (chart.guaShen || {}).dizhi;
@@ -87,7 +95,14 @@ for (const [cid, g] of Object.entries(golden)) {
     deep_relations: {
       line_details: chart.deep.line_details,
       changing_relations: chart.deep.changing_relations,
+      // 层 6：用神相关的那三块
+      yong_yuan_ji_chou: chart.deep.yong_yuan_ji_chou,
+      summary: chart.deep.summary,
+      key_lines: keyLines,
     },
+    // 层 6：伏神（按用神取）与世身
+    fu_shen: chart.yongShen.fu_shen,
+    shi_shen: chart.yongShen.shi_shen,
     yaos: chart.yaos.map((y) => ({
       position: y.position,
       stem: y.tiangan,

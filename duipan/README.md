@@ -23,7 +23,36 @@
 | `gen_golden_*.py` | 从 shushu 导出金标准 JSON |
 | `run_js_*.js` | 用 ai3000 `build/backend/paipan/*.js` 产出同形 JSON |
 | `diff.py` | 通用深层 JSON 比对，按字段聚合，`--allow` 申报偏差，`--case-keys` 折样例 id |
+| `allow_yongshen_common.py` | 层 6a/6b **共用**的申报判据（见下「申报偏差的判据」） |
+| `coverage_yongshen.py` | 层 6 的**覆盖度断言**：证明全绿不是空绿（分支真被跑到 + 申报集≡金标准空值集） |
 | `verify_format_chart.js` | **shushu 侧没有对拍物**的那一层：ai3000 独有的 `formatChart` 文本，用「旧版 vs 新版」归类校验收紧 |
+
+### 申报偏差的判据（层 6）
+
+申报最怕「按跑出来的差异反向拟合白名单」——那样白名单会随 bug 一起漂移，
+看着全绿其实什么都没验。所以 `allow_yongshen_common.py` 的判据**独立于实跑差异**，
+只由 shushu 自己的取法推出：**shushu 按它的算法注定取不到用神五行**才算申报。
+
+shushu `analyze_liuyao_deep_relations` 取用神五行只有一条路——在**已现身**的爻里
+反查 `liu_qin`。故取不到只有两种：
+
+| 情形 | 覆盖层 | 理由（`allow_*.json` 里逐条写明） |
+|---|---|---|
+| 用神是**位置名**（世爻/应爻） | 6b 为主 | shushu 只按六亲名找爻，`yong_yuan_ji_chou`/`key_lines`/`summary` 三块恒空 |
+| 用神六亲**不上卦** | 6a/6b 都有 | 只在已现身的爻里反查，取不到 |
+
+ai3000 侧两条都补上了（`paipan/yongshen.js::resolveYongShen`）：位置名解析成该爻五行；
+不上卦则由「宫五行反读六亲」定五行（六亲↔五行在固定宫下是一一对应，
+即 `getLiuQin` 那张表倒读，与伏神五行同源）。
+**其余情形（用神在卦中显象）shushu 能取到，故一律不许申报**——出现差异就是 bug。
+补全后并非「自造取值」：用神在卦中显象时两侧逐字节相同（层 6b 256 例、层 6a 550 例，
+见下）。
+
+> **申报按路径前缀生效**（`diff.py::declared`，切在 `.` 或 `[` 处）：申报
+> `例.summary` 同时盖住 `例.summary[0]`。这不是便利而是必需——列表一处加长会让
+> 后面每一项都换下标，逐下标申报等于改一次内容就重刷一遍白名单。
+> 但 `例.summaryX` **不**被盖住（前缀必须切在分隔处），否则 `例.a` 会顺手盖掉
+> `例.ab`，白名单就宽到没意义了。此处有自测用例。
 
 ## 用法
 
@@ -34,20 +63,38 @@ cd /home/cqsomt/Projects/ai3000/duipan
 $PY gen_golden_zhuang_gua.py && node run_js_zhuang_gua.js
 $PY diff.py golden_zhuang_gua.json js_zhuang_gua.json --case-keys
 
-# 装卦层 + 卦体关系层（共用 golden_dynamic.json；金标准约 65 秒，JS 侧约 0.3 秒）
+# 动态装卦层 + 卦体关系层 + 用神层 6a（共用 golden_dynamic.json；
+# 金标准约 65 秒，JS 侧约 0.3 秒。gen 会**顺带重写** allow_dynamic.json）
 $PY gen_golden_dynamic.py && node run_js_dynamic.js
-$PY diff.py golden_dynamic.json js_dynamic.json --case-keys
+$PY diff.py golden_dynamic.json js_dynamic.json --allow allow_dynamic.json --case-keys
 
 # 历法层（约 5 秒；gen 会**顺带重写** allow_calendar.json）
 $PY gen_golden_calendar.py && node run_js_calendar.js
 $PY diff.py golden_calendar.json js_calendar.json --allow allow_calendar.json --case-keys
 
+# 用神层 6b：事项/性别/代占 覆盖（448 例；gen 会**顺带重写** allow_yongshen.json）
+$PY gen_golden_yongshen.py && node run_js_yongshen.js
+$PY diff.py golden_yongshen.json js_yongshen.json --allow allow_yongshen.json --case-keys
+
+# 用神层 6c：事项取定表（纯函数，不经 divine 管线，无申报）
+$PY gen_golden_topics.py && node run_js_topics.js
+$PY diff.py golden_topics.json js_topics.json --case-keys
+
+# 层 6 覆盖度断言（证明全绿不是空绿；读上面产出的 json 与 allow）
+$PY coverage_yongshen.py
+
 # formatChart 文本层（ai3000 独有；需先备好旧版，见下「层 5」）
-mkdir -p /tmp/oldliuyao && git -C .. show HEAD:build/backend/paipan/liuyao.js > /tmp/oldliuyao/liuyao_old.js
+mkdir -p /tmp/oldliuyao
+git -C .. show 3b2d04c:build/backend/paipan/liuyao.js > /tmp/oldliuyao/liuyao_old.js
 ln -sf "$PWD/../build/backend/paipan/constants.js" /tmp/oldliuyao/constants.js
+ln -sf "$PWD/../build/backend/paipan/relations.js"  /tmp/oldliuyao/relations.js
 node verify_format_chart.js
 ```
 
+> 层 5 的旧版**不能取 `HEAD`**：`baacf62` 就是那次重构本身，故 HEAD 已是新版。
+> 固定的 `3b2d04c` 是重构前最后一版（硬编码哈希，不随 HEAD 移动）。
+> 旧文件 `require('./constants')`，故同目录得有符号链接；缺谁补谁。
+>
 > `--case-keys`：顶层键是样例 id（本 harness 的 `golden_*.json` 都是这个形状）
 > 时，聚合路径里的样例 id 折成 `<例>`。不加则逐例一行，几千行没信息量。
 > 这是显式开关而非隐式猜测——若顶层键本身就是字段名，猜错会把字段名抹掉。
@@ -214,8 +261,9 @@ vs 新增 `paipan/relations.js`（六个纯函数，逐字移植）：
 `formatChart` 的产物**就是**注入六爻 AI prompt 的那段盘面文本
 （`auth-server.js:2624` → 默认模板 `:2726`）。shushu 没有对应实现，故不能对拍
 shushu，改用**「旧版 vs 新版」逐例归类收紧**：
-`git show HEAD:build/backend/paipan/liuyao.js > /tmp/oldliuyao/liuyao_old.js`
+`git show 3b2d04c:build/backend/paipan/liuyao.js > /tmp/oldliuyao/liuyao_old.js`
 （同目录要有 `constants.js` 符号链接，见脚本头注），再 `node verify_format_chart.js`。
+**`3b2d04c` 是重构前最后一版**，不能用 `HEAD`——`baacf62` 就是那次重构本身。
 
 2026-09-24 把 `formatChart` 从「自造近似判定」改接到 `relations.js` 之后的结果：
 **720 例，所有差异逐类通过，无行为回退。**
@@ -244,3 +292,94 @@ shushu，改用**「旧版 vs 新版」逐例归类收紧**：
 > `R.analyzeDongJing(...)` 等，现在直接读 `buildChart` 产出的 `chart.deep.*`。
 > 于是层 4 验的不再只是 `relations.js` 本身，而是**`buildChart` 把这一层接对了没有**
 > ——即生产代码真正走的那条路径。改后重跑 174262 个叶子值仍 0 差异。
+
+### 6. 用神层 — ✅ 通过（三个子层 + 覆盖断言）
+
+移植对象是 shushu 的**用神相关**的那一半：`interpreter.py` 的事项/用神取定
+（`_TOPIC_MAP` / `_TOPIC_YONG_SHEN` / `get_yong_shen`）、`_find_fu_shen`、
+`relations.py::analyze_liuyao_deep_relations`、`advanced_features.py::get_shi_shen`。
+
+**模块边界**（与层 4 同一套纪律）：`relations.js` 只管**用神无关**的部分，
+新增的 `paipan/yongshen.js` 只管**用神相关**的部分，且 `analyzeLiuyaoDeepRelations`
+把两块用神无关的（`line_details` / `changing_relations`）**委派回** `relations.js`
+——同一个东西只有一份实现，不出现「两处各算一遍然后祈祷一致」。
+
+| 子层 | 金标准 | 样例 | 叶子值 | 申报 | 未申报 |
+|---|---|---|---|---|---|
+| 6a 用神三块 + 伏神 + 世身（`golden_dynamic.json`） | divine 管线 | 720（topic 恒「求财」） | 193864 | 1750 | **0** ✅ |
+| 6b 事项/性别/代占覆盖（`golden_yongshen.json`） | divine 管线 | 448（7 事项 × 64 卦） | 14925 | 2400 | **0** ✅ |
+| 6c 事项取定表（`golden_topics.json`） | **纯函数**，不经管线 | 307 例 | 386 | 0 | **0** ✅ |
+
+6c 直接调 shushu 的 `get_yong_shen` / `_match_topic` 与 JS 侧的 `matchTopic` /
+`resolveTopic` 对拍，三组共 307 例 / 386 个叶子值：
+
+| 组 | 例数 | 内容 |
+|---|---|---|
+| `match` | 150 | `_TOPIC_MAP` 的**每个关键词**各作一问（146 条）＋ 4 组无关键词的提问（必须都判成「综合」） |
+| `yong_shen` | 150 | `_TOPIC_YONG_SHEN` 的 12 个事项 ＋ 3 个表外事项名（`天气占候`／不存在的怪事项／空串）× 5 种性别写法（`male`/`female`/`女`/`''`/`MALE`）× 2 种代占 |
+| `priority` | 7 | `resolveTopic` 的**三条分支**各来几例（含「显式事项不在表内但关键词能认出」这一夹缝） |
+
+#### 申报偏差只有两条理由，各有实测例数
+
+| 理由 | 6a | 6b | 说明 |
+|---|---|---|---|
+| 用神是**位置名**（世爻/应爻） | 0 | 192 | 求医疾病 64 + 综合 64 + 天气占候 64 |
+| 用神六亲**不上卦** | 170 | 48 | 求财 16 + 求官仕途 8 + 婚姻感情 8 + 求子嗣 16 |
+| **两侧逐字相同（无偏差）** | **550** | **208** | ← 这条是关键：用神在卦中显象时**零差异** |
+
+判据出自 `allow_yongshen_common.shushu_unresolved`，**不看实跑差异**（见前文
+「申报偏差的判据」）。补全后并非自造取值：用神一旦在卦中显象，两侧逐字节相同
+（550 + 208 = 758 例），说明 `resolveYongShen` 与 shushu 的原取法**等价**，
+只是把它取不到的两处按同一张表补完。
+
+#### 结构性事实：伏神 6 个分支只有 4 个可达（穷举证明）
+
+六亲 ↔ 五行在**固定宫五行**下是一一对应（`C.getLiuQin` 把 5 个五行映到
+兄弟/父母/子孙/妻财/官鬼，是双射）。故在 `findFuShen` 里，
+**飞神五行 === 宫五行 ⟺ 飞神六亲 === 宫六亲**，而后者意味着用神本就现身、
+`findFuShen` 根本不会被调用。于是「飞伏比和」与「正伏」两支**结构上取不到**。
+
+`coverage_yongshen.py` 把这条写成断言：两层的实跑 `emerge_type` 取值集合
+必须恰好等于可达的 4 支，且与不可达的 2 支**零交集**。
+⇒ 将来若有人声称「伏神 6 分支全覆盖」，那是假的；**4/6 就是全**。
+
+| 实跑命中 | 6a | 6b |
+|---|---|---|
+| 伏克飞 / 伏生飞 / 飞克伏 / 飞生伏 | 20 / 70 / 40 / 40 | 14 / 12 / 20 / 18 |
+| 飞伏比和 / 正伏 | **0 / 0** ✅ | **0 / 0** ✅ |
+
+#### 覆盖断言（防「空绿」）
+
+对拍全绿只说明「跑到的那些没差」。`coverage_yongshen.py` 要求每个分支都真被跑到，
+并做一条**独立交叉检查**：申报集**必须等于**金标准侧的空值集 ——
+申报是按 shushu 取法**算**出来的，空值是**实测**出来的，两条独立的路必须碰在
+同一个集合上（实测 170 ≡ 170、240 ≡ 240）。对不上就说明有一侧错了。
+
+| 断言 | 实测 |
+|---|---|
+| 被验方用神五行五类齐全 | 土170 木180 水180 火100 金90 ✅ |
+| 世身旺衰五档齐全 | 旺203 相115 休118 囚146 死138 ✅ |
+| 世身「上卦/不上卦」都出现 | 两种都有 ✅ |
+| `summary` 长度分布 | len1…len8 **8 种**（含空）✅ |
+| `key_lines` 四神各自都非空过 | 用神550 原神560 忌神650 仇神620 ✅ |
+| 「认不出的事项→退回关键词」分支 | 天气占候 64 例全部退到位置名支 ✅ |
+| 申报集 ≡ 金标准空值集 | 6a 170≡170；6b 240≡240 ✅ |
+
+> 天气占候这一条得小心：它**在** `_TOPIC_MAP` 里但**不在** `_TOPIC_YONG_SHEN` 里，
+> 故事项定夺会走「显式事项认不出 → 退回关键词」那一支。但退回后
+> `resolved_topic` 仍**等于输入**（关键词表里有「天气」），所以
+> `resolved ≠ 输入` **不能**用作判据；可观测的后果是它落进位置名支。
+> 这条断言最初就写错了侧（查了被验方，而缺口在 shushu 侧），已改正。
+
+#### `formatChart` 的【用神】【伏神】两段
+
+`auth-server.js` 里原先那张外挂的**粗配表已删除**，用神现在唯一来源是
+`buildChart`（`auth-server.js` 的注释里写明了）。新增两段文本：
+【用神】给出取定理由、位置名提示、用神在卦中的状态、`deep.summary`（**逐字照抄
+shushu 的 `summary`，不另造措辞**）、世身；【伏神】渲染 `fu_shen.desc` + 飞伏关系，
+或用神已在卦中时说明为何无伏神。
+
+**两套「伏神」不要混**：`yongShen.fu_shen` 是**用神限定**的伏神（shushu 语义，
+命理上说的就是它），`fuShenAbsent` 是「本卦未现身的六亲各自伏于哪一爻」的
+参考表。二者含义不同，`formatChart` 里把前者作正文、后者标成「参考」。
+`liuyao.js` 头注专门写了这一节。

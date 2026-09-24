@@ -14,24 +14,26 @@
  *   - 断卦关系层（十二长生 / 进退神 / 化变五关系 / 化合化冲 / 三合三会 / 动静）
  *     → ./relations.js。该层逐字移植 shushu 并经四层对拍，
  *     **本文件不再自造这批判定**，一律调用之。
+ *   - 用神层（事项匹配 / 用神取定 / 原神忌神仇神 / 伏神 / 世身）
+ *     → ./yongshen.js。同样逐字移植并经对拍（层 6）。
  *
  *   本文件仅存的自家判定只有两处，且都由上面那批**已核的地支关系表**
  *   （LIU_CHONG / LIU_HE / SHENG / KE）直接推出，不带独立口径：
  *     ① 月建/日辰与本爻的初级关系（临月建 / 月破 / 临日辰 / 日破 / 日合 / 日生 / 日克）
  *     ② 卦型（六冲卦 / 六合卦）
- *   另有一处 `suggestYongShen` 是按事项关键词粗配用神，属**临时占位**，
- *   待用神层（shushu `interpreter.py`）落地后整体替换。
  *
- * ── 伏神的已知口径差（不是 bug，是还没做） ─────────────────────
- *   本文件的 `fuShen` 是「本卦所缺六亲的全体」；shushu 的 `fu_shen` 是
- *   **按用神取伏神**（用神不现才取）。两者语义不同，改动会牵动用神层，
- *   故此处**保持原样**，等用神层一并重做，别单独动它。
+ * ── 两套「伏神」不要混（2026-09-24 用神层落地后） ─────────────────
+ *   - `yongShen.fu_shen`：**按用神取**的伏神，shushu 口径，带飞伏关系与 severity。
+ *     用神已在卦中显象时为 null。命理上的「伏神」指的就是这个。
+ *   - `fuShenAbsent`：本卦**未现身**的全部六亲及其伏位，仅是那张表的附产物，
+ *     供参考（例如用神是官鬼而妻财不上卦，仍值得知道）。**不是**断卦意义上的伏神。
  */
 
 'use strict';
 
 const C = require('./constants');
 const R = require('./relations');
+const Y = require('./yongshen');
 
 const YAO_NAMES = ['初爻', '二爻', '三爻', '四爻', '五爻', '上爻'];
 
@@ -66,6 +68,10 @@ function guaHeChong(branches) {
  * @param {string} [o.yearGZ]  @param {string} [o.monthGZ]
  * @param {string} [o.dayGZ]   @param {string} [o.hourGZ]
  * @param {boolean} [o.liuShen] 是否计算六神（默认 true）
+ * @param {string} [o.topic]  求测事项（显式指定，优先于 question 关键词）
+ * @param {string} [o.question] 用户问句，用于推断事项
+ * @param {string} [o.gender]  'male' | 'female'（默认 male，同 shushu）
+ * @param {boolean} [o.isProxy] 是否代占
  * @returns {Object} 完整盘面
  */
 function buildChart(o) {
@@ -82,6 +88,11 @@ function buildChart(o) {
   const dayGan = dayGZ ? dayGZ[0] : '';
   const dayZhi = dayGZ ? dayGZ[1] : '';
   const kong = dayGZ ? C.getKongWang(dayGZ) : [];
+
+  // 求测事项 / 性别 / 代占 —— 用神层需要，取法同 shushu interpreter.interpret
+  const topic = Y.resolveTopic(o.topic, o.question);
+  const gender = o.gender || 'male';
+  const isProxy = !!o.isProxy;
 
   // 本卦结构
   const palace = C.getPalace(benUpper, benLower);
@@ -161,18 +172,19 @@ function buildChart(o) {
     yaos.push(yao);
   }
 
-  // 伏神：本卦缺失的六亲，从本宫首卦（八纯卦）同爻位取。
-  // ⚠ 口径与 shushu 的「按用神取伏神」不同，见文件头注，等用神层重做。
+  // 本卦**未现身**的六亲及其伏位（从本宫首卦八纯卦同爻位取）。
+  // ⚠ 这不是断卦意义上的「伏神」——按用神取的伏神在 chart.yongShen.fu_shen，
+  //   见文件头注「两套伏神不要混」。这里只作参考信息。
   const present = new Set(yaos.map((y) => y.liuqin));
-  const fuShen = [];
+  const fuShenAbsent = [];
   const pureNajia = C.NAJIA[palace.palace].slice();
   for (let i = 0; i < 6; i++) {
     const fz = pureNajia[i];
     const fw = C.DIZHI_WUXING[fz];
     const fq = C.getLiuQin(palace.palaceElement, fw);
     if (!present.has(fq)) {
-      if (yaos[i].liuqin !== fq && fuShen.every((x) => x.liuqin !== fq)) {
-        fuShen.push({
+      if (yaos[i].liuqin !== fq && fuShenAbsent.every((x) => x.liuqin !== fq)) {
+        fuShenAbsent.push({
           liuqin: fq, dizhi: fz, wuxing: fw, underPosition: i + 1,
           underYaoName: YAO_NAMES[i], underLiujin: yaos[i].liuqin,
         });
@@ -197,6 +209,28 @@ function buildChart(o) {
     branch: y.changed ? y.changed.dizhi : y.dizhi,
     liu_qin: y.liuqin,
   }));
+
+  // ── 用神层 ──────────────────────────────────────────────────
+  const ys = Y.resolveYongShen(yaos, palace, topic, gender, isProxy);
+  // 用神相关的那三块（四神五行 / key_lines / summary）。
+  // ⚠ 传 wuxing 是 ai3000 侧的补全（见 yongshen.js 头注 a）：用神为「世爻/应爻」
+  //   时 shushu 只传 liuqin，四神恒空；这里把位置名解析成该爻的五行再传。
+  //   用神为六亲名时两者取值完全一致（层 6 对拍已证）。
+  const deepRel = Y.analyzeLiuyaoDeepRelations(
+    yaoIn, changedIn,
+    { liuqin: ys.primary, wuxing: ys.wuxing },
+    monthZhi, dayZhi);
+
+  // 伏神（按用神取，shushu 口径）：用神六亲不现于卦时才取；
+  // 「综合」不取（其用神即世爻，永在卦中，伏神无意义），同 shushu interpreter.py:805
+  let fuShen = null;
+  if (topic && topic !== '综合') {
+    const fl = Y.fuShenLiqinOf(topic, gender);
+    if (fl) fuShen = Y.findFuShen(yaoIn, palace.palace, palace.palaceElement, fl);
+  }
+
+  const shiYao = yaos[palace.shi - 1];
+  const shiShen = Y.getShiShen(palace.shi, shiYao.dizhi, yaoIn, monthZhi, dayZhi);
 
   return {
     topic: o.topic || '',
@@ -223,8 +257,23 @@ function buildChart(o) {
     } : null,
     yaos,
     moving,
-    fuShen,
+    fuShenAbsent,
     heChong,
+    // 用神层（shushu interpreter.py 口径）
+    yongShen: {
+      topic, gender, is_proxy: isProxy,
+      names: ys.names,        // 用神名列表，首项为主用神
+      primary: ys.primary,
+      kind: ys.kind,          // '六亲' | '世应'
+      on_chart: !!ys.yao,
+      position: ys.yao ? ys.yao.position : null,
+      liuqin: ys.liuqin, branch: ys.branch, wuxing: ys.wuxing,
+      // 兼容旧字段（auth-server 模板变量 yongshen / yongshenWhy 在用）
+      yong: ys.primary,
+      why: yongShenWhy(topic, ys),
+      fu_shen: fuShen,
+      shi_shen: shiShen,
+    },
     guaShen: (function () {
       const shiYao = yaos[palace.shi - 1];
       return { dizhi: C.getGuaShen(palace.shi, shiYao.yinYang), shiPosition: palace.shi };
@@ -236,8 +285,22 @@ function buildChart(o) {
       dong_jing_analysis: R.analyzeDongJing(yaoIn),
       hua_he_chong: R.analyzeHuaHeChong(yaoIn),
       sanhe_sanhui: R.detectSanheSanhui(yaoIn),
+      // 用神相关的那三块，字段名照抄 shushu deep_relations
+      yong_yuan_ji_chou: deepRel.yong_yuan_ji_chou,
+      key_lines: deepRel.key_lines,
+      summary: deepRel.summary,
     },
   };
+}
+
+/** 用神取定的一句白话理由（给 prompt 用）。纯按表拼装，不含表外说法。 */
+function yongShenWhy(topic, ys) {
+  const extra = (ys.names || []).slice(1).filter((n) => n !== '世爻' && n !== '应爻');
+  const pos = ys.yao ? '（在' + YAO_NAMES[ys.yao.position - 1] + '）' : '（不上卦）';
+  let s = `事项「${topic || '综合'}」以${ys.primary}为用神`;
+  if (ys.kind === '六亲') s += pos;
+  if (extra.length) s += `，次看${extra.join('、')}`;
+  return s;
 }
 
 /**
@@ -339,15 +402,50 @@ function formatChart(chart) {
     L.push(row);
   }
 
-  if (chart.fuShen.length) {
+  // ── 【用神】────────────────────────────────────────────────
+  // 全盘断卦的主线：先定用神，再看四神（原神/忌神/仇神），再看伏神与世身。
+  const ys = chart.yongShen;
+  if (ys) {
     L.push('');
-    L.push('【伏神】');
-    for (const f of chart.fuShen) {
-      L.push('　' + f.liuqin + ' ' + f.dizhi + f.wuxing + ' 伏于' + f.underYaoName + '（' + f.underLiujin + '）之下');
+    L.push('【用神】');
+    L.push('用神：' + ys.primary + '　' + ys.why);
+    if (ys.kind === '世应') {
+      L.push('（用神取「' + ys.primary + '」——位置名而非六亲名，即卦中'
+           + YAO_NAMES[ys.position - 1] + ' ' + ys.branch + ys.wuxing + '，'
+           + '依事项表取定）');
+    } else if (ys.on_chart) {
+      const uy = chart.yaos[ys.position - 1];
+      L.push('用神在卦中：' + YAO_NAMES[ys.position - 1] + ' ' + ys.branch + ys.wuxing
+           + '（' + stateFlags(uy, details[ys.position - 1], chart.monthZhi, dayZhi).join('·') + '）');
+    } else {
+      L.push('用神不在卦中（' + ys.liuqin + '不上卦）——须看伏神');
     }
+
+    // 四神五行与关键爻位一律照抄 shushu 的 summary 原文（零归一，勿另造措辞）
+    for (const s of (deep.summary || [])) L.push('　' + s);
+
+    if (ys.shi_shen && ys.shi_shen.he_zhi) {
+      L.push('世身：' + ys.shi_shen.desc + '（' + ys.shi_shen.source + '）');
+    }
+
+    if (chart.fuShenAbsent && chart.fuShenAbsent.length) {
+      L.push('参考：本卦未现身的六亲 → ' + chart.fuShenAbsent.map(
+        (f) => f.liuqin + f.dizhi + f.wuxing + '伏' + f.underYaoName).join('、')
+        + '（仅供参看，非按用神所取之伏神）');
+    }
+  }
+
+  // ── 【伏神】（按用神取，shushu 口径）────────────────────────
+  L.push('');
+  const fu = ys && ys.fu_shen;
+  if (fu) {
+    L.push('【伏神】' + fu.desc);
+    L.push('　飞伏关系：' + fu.emerge_type + '（' + fu.emerge_severity + '）');
+  } else if (ys && ys.primary) {
+    L.push('【伏神】无——用神' + ys.primary
+         + (ys.kind === '世应' ? '即' + ys.primary + '本身，永在卦中' : '已在卦中显象'));
   } else {
-    L.push('');
-    L.push('【伏神】六亲俱全，无伏神');
+    L.push('【伏神】无');
   }
 
   const hc = chart.heChong;
@@ -375,26 +473,7 @@ function formatChart(chart) {
   return L.join('\n');
 }
 
-/** 按求测事项粗定用神（临时占位：待用神层落地后整体替换） */
-function suggestYongShen(topic, gender) {
-  const t = topic || '';
-  const isMale = gender !== 'female';
-  if (/财|钱|收入|生意|投资|买卖|债|薪|奖/.test(t)) return { yong: '妻财', why: '问财以妻财为用神' };
-  if (/官|职|工作|事业|升|考|公务员|诉讼|官司|名/.test(t)) return { yong: '官鬼', why: '问官贵事业以官鬼为用神' };
-  if (/婚|感情|对象|恋爱|妻|夫|配偶|男朋友|女朋友/.test(t)) {
-    return isMale
-      ? { yong: '妻财', why: '男问婚以妻财为用神' }
-      : { yong: '官鬼', why: '女问婚以官鬼为用神' };
-  }
-  if (/病|健康|身体|疾|医/.test(t)) return { yong: '官鬼', why: '问病以官鬼为用神（官鬼为病爻）' };
-  if (/房|车|物业|置产|买|合同|契约/.test(t)) return { yong: '父母', why: '问房产文书以父母为用神' };
-  if (/子|女|孩|孕|生育|后代/.test(t)) return { yong: '子孙', why: '问子嗣以子孙为用神' };
-  if (/出行|走|搬家|迁移|旅|外出/.test(t)) return { yong: '父母', why: '问出行以父母为用神（父母为车船）' };
-  if (/兄弟|朋友|合伙|竞争|同事/.test(t)) return { yong: '兄弟', why: '问同辈以兄弟为用神' };
-  return { yong: '', why: '' };
-}
-
 module.exports = {
-  buildChart, formatChart, suggestYongShen,
+  buildChart, formatChart, yongShenWhy,
   guaHeChong, YAO_NAMES,
 };

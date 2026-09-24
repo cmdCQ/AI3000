@@ -30,6 +30,7 @@ from fastapi.testclient import TestClient                                  # noq
 import main as shushu_app                                                   # noqa: E402
 from core.calendar.current_moment import current_sizhu                     # noqa: E402
 from core.liuyao.hexagram_data import HEXAGRAM_DATA, HEXAGRAM_TRIGRAM_MAPPING  # noqa: E402
+from allow_yongshen_common import declare, shushu_unresolved             # noqa: E402
 
 TRI_LINES = {
     "乾": "111", "兑": "110", "离": "101", "震": "100",
@@ -128,6 +129,8 @@ def main() -> int:
 
     golden = {}
     bad = []
+    liuqins = {}      # cid → 本卦六亲（申报判据要用，见 allow_yongshen_common）
+    allow = {}
     for i, (cid, num, mv, qt) in enumerate(cases):
         yv = yao_values(num, mv)
         r = client.post("/api/v1/liuyao/divine", json={
@@ -145,6 +148,7 @@ def main() -> int:
         bnum, bup, blo = bian_of(num, mv)
         lo_n, up_n = HEXAGRAM_TRIGRAM_MAPPING[num]
         sz = current_sizhu(datetime.fromisoformat(qt))
+        liuqins[cid] = [y.get("liu_qin", "") for y in d["yaos"]]
         golden[cid] = {
             "case": cid,
             "query_time": qt,
@@ -170,13 +174,34 @@ def main() -> int:
             "dong_jing_analysis": d["dong_jing_analysis"],
             "hua_he_chong": d["hua_he_chong"],
             "sanhe_sanhui": d["sanhe_sanhui"],
-            # deep_relations 只取这两块：其余键（yong_yuan_ji_chou / key_lines /
-            # summary）都依赖用神，属下一层。这是**分层取子集**，不是归一——
-            # 被取的两块本身照样逐字比。
+            # deep_relations 全量五键：
+            #   line_details / changing_relations 用神无关（层 4 已验）
+            #   yong_yuan_ji_chou / key_lines / summary 用神相关（层 6）
+            # key_lines 里的每条是**原样展开的爻**，两侧爻的键集不同（金标准是
+            # shushu 响应里的爻，JS 侧是喂进函数的瘦爻），故按**语义取子集**：
+            # 只比 position / liu_qin / branch —— 恰好是 summary 实际消费的三个字段。
+            # 这是分层取子集，不是归一：被取的三个字段逐字比。
             "deep_relations": {
                 "line_details": (d.get("deep_relations") or {}).get("line_details", []),
                 "changing_relations": (d.get("deep_relations") or {}).get("changing_relations", []),
+                "yong_yuan_ji_chou": (d.get("deep_relations") or {}).get("yong_yuan_ji_chou", {}),
+                "summary": (d.get("deep_relations") or {}).get("summary", []),
+                "key_lines": {
+                    k: [
+                        {"position": l.get("position"),
+                         "liu_qin": l.get("liu_qin", ""),
+                         "branch": l.get("branch", "")}
+                        for l in v
+                    ]
+                    for k, v in ((d.get("deep_relations") or {}).get("key_lines") or {}).items()
+                },
             },
+            # ── 层 6：用神层（用神取定 / 伏神 / 世身）──────────────
+            # 本层金标准的 topic 恒为「求财」（见上方 divine 请求），即用神层
+            # 只被验了「用神＝妻财」这一条路径；其余事项/性别/代占另由
+            # verify_yongshen_topics.js 走 shushu 纯函数对拍（不经 divine 管线）。
+            "fu_shen": d.get("fu_shen"),
+            "shi_shen": d.get("shi_shen"),
             "yaos": [
                 {
                     "position": y["position"],
@@ -206,6 +231,18 @@ def main() -> int:
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(golden, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"已写 {out}（{len(golden)} 条）")
+
+    # 层 6a 的申报偏差：本文件 topic 恒为「求财」，故只会撞上「用神不上卦」那一条。
+    # 判据出自 shushu 自己的取法（见 allow_yongshen_common），不看实跑差异。
+    for cid, num, mv, qt in cases:
+        if cid not in golden:
+            continue
+        declare(allow, cid, shushu_unresolved("求财", "male", False, liuqins.get(cid, [])),
+                prefix="deep_relations.")
+    if allow:
+        ap_out = out.with_name("allow_dynamic.json")
+        ap_out.write_text(json.dumps(allow, ensure_ascii=False, indent=1), encoding="utf-8")
+        print(f"已写 {ap_out}（申报偏离 {len(allow)} 条路径）")
     if bad:
         print(f"失败 {len(bad)} 条：")
         for s in bad[:10]:
