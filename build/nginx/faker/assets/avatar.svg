@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="720" viewBox="0 0 600 720">
+  
+  <defs>
+    <pattern id="g" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.045)" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="600" height="720" fill="#0b0d11"/>
+  <rect width="600" height="720" fill="url(#g)"/>
+  <rect x="0" y="0" width="600" height="720" fill="url(#g)"/>
+  <radialGradient id="vg" cx="50%" cy="42%" r="70%">
+    <stop offset="0%" stop-color="rgba(98,214,208,0.16)"/>
+    <stop offset="100%" stop-color="rgba(98,214,208,0)"/>
+  </radialGradient>
+  <rect width="600" height="720" fill="url(#vg)"/>
+  
+  <filter id="ag" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="26" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <text x="300" y="430" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace, 'PingFang SC', 'Microsoft YaHei'" font-size="300" font-weight="800" fill="#62d6d0" text-anchor="middle" filter="url(#ag)" opacity="0.92">C</text>
+  <text x="300" y="600" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="26" letter-spacing="10" fill="#e8eaed" text-anchor="middle">FAKER.REN</text>
+  <text x="300" y="642" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" letter-spacing="4" fill="#5b6270" text-anchor="middle">高三 · DEVELOPER</text>
+  <path d="M 14 14 l 14 0" stroke="#a7adb8" stroke-width="1.5" opacity="0.55"/>
+<path d="M 14 14 l 0 14" stroke="#a7adb8" stroke-width="1.5" opacity="0.55"/>
+<path d="M 586 14 l -14 0" stroke="#a7adb8" stroke-width="1.5" opacity="0.55"/>
+<path d="M 586 14 l 0 14" stroke="#a7adb8" stroke-width="1.5" opacity="0.55"/>
+<path d="M 14 706 l 14 0" stroke="#a7adb8" stroke-width="1.5" opacity="0.55"/>
+<path d="M 14 706 l 0 -14" stroke="#a7adb8" stroke-width="1.5" opacity="0.55"/>
+<path d="M 586 706 l -14 0" stroke="#a7adb8" stroke-width="1.5" opacity="0.55"/>
+<path d="M 586 706 l 0 -14" stroke="#a7adb8" stroke-width="1.5" opacity="0.55"/>
+  <rect x="40" y="560" width="130" height="2" fill="#62d6d0" opacity="0.7"/>
+  <line x1="0" y1="588" x2="600" y2="588" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+</svg>

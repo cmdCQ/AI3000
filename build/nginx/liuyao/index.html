@@ -350,7 +350,7 @@ html,body { background:var(--bg); color:var(--text); font-family:var(--sans); mi
 </div>
 
 <script src="/js/lunar.min.js"></script>
-<script src="/js/auth.js?v=1781834000"></script>
+<script src="/js/auth.js?v=1787305221"></script>
 <script>
 // ===== 八卦数据 =====
 var TRIGRAMS = {
@@ -532,7 +532,8 @@ function enrichTimeInfo() {
       
       var solar, lunar;
       if (isLunar && typeof Lunar !== 'undefined') {
-        lunar = Lunar.fromYmd(y, m, d);
+        // 农历输入也要带时辰，否则时柱恒为子时
+        lunar = Lunar.fromYmdHms(y, m, d, h, min || 0, 0);
         solar = lunar.getSolar();
       } else {
         solar = Solar.fromYmdHms(y, m, d, h, min || 0, 0);
@@ -541,17 +542,13 @@ function enrichTimeInfo() {
       info.lunarYear = lunar.getYearInChinese();
       info.lunarMonth = lunar.getMonthInChinese();
       info.lunarDay = lunar.getDayInChinese();
-      info.yearGZ = lunar.getYearInGanZhi();
+      // 年柱以立春换年（getYearInGanZhi 用正月初一为界，命理上不对）
+      info.yearGZ = lunar.getYearInGanZhiByLiChun();
       info.monthGZ = lunar.getMonthInGanZhi();
       info.hourGZ = lunar.getTimeInGanZhi();
-      // 子时(23:00+)日柱算次日
-      if (h >= 23) {
-        var nextDay = new Date(solar.getYear(), solar.getMonth()-1, solar.getDay()+1);
-        var tmLunar = Solar.fromDate(nextDay).getLunar();
-        info.dayGZ = tmLunar.getDayInGanZhi();
-      } else {
-        info.dayGZ = lunar.getDayInGanZhi();
-      }
+      // 晚子时(23:00-23:59)日柱进位次日。用库自带的 Exact 版：
+      // 它与 getTimeInGanZhi() 同源（时干由进位后的日干推），两者不会脱节
+      info.dayGZ = lunar.getDayInGanZhiExact();
       // 空亡：四柱各自推算
       info.xkYear = xunKongFromDayGZ(info.yearGZ);
       info.xkMonth = xunKongFromDayGZ(info.monthGZ);
@@ -977,7 +974,7 @@ async function startDivination(e) {
   // 事项为空 → 临时排盘，不保存记录
   if (!topic) {
     localStorage.setItem('liuyao_result', JSON.stringify(result));
-    window.location.href = '/liuyao/result.html?v=3';
+    window.location.href = '/liuyao/result.html?v=4';
     return;
   }
 
@@ -995,13 +992,13 @@ async function startDivination(e) {
     });
     var saved = await resp.json();
     if (resp.ok) {
-      window.location.href = '/liuyao/result.html?v=3&id=' + saved.id;
+      window.location.href = '/liuyao/result.html?v=4&id=' + saved.id;
     } else {
-      window.location.href = '/liuyao/result.html?v=3';
+      window.location.href = '/liuyao/result.html?v=4';
     }
   } catch(e) {
     localStorage.setItem('liuyao_result', JSON.stringify(result));
-    window.location.href = '/liuyao/result.html?v=3';
+    window.location.href = '/liuyao/result.html?v=4';
   }
 }
 

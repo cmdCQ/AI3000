@@ -123,7 +123,7 @@
   <button class="mc-nav-item" onclick="location.href='/my/'">我的</button>
 </nav>
 
-<script src="/js/auth.js?v=1781834000"></script>
+<script src="/js/auth.js?v=1787305221"></script>
 <script src="/js/lunar.min.js"></script>
 <script src="/js/charts-store.js?v=4"></script>
 <script>
@@ -456,7 +456,7 @@ window.doDelete = async function(id) {
 function renderEmpty(icon,title,desc,link,btnText) {
   var btn;
   if (link === '/login/') {
-    btn = '<a href="javascript:void(0)" onclick="showAuthModal()" class="empty-btn">'+btnText+'</a>';
+    btn = '<a href="javascript:void(0)" onclick="openAuthModal(\'login\')" class="empty-btn">'+btnText+'</a>';
   } else {
     btn = '<a href="'+link+'" class="empty-btn">'+btnText+'</a>';
   }

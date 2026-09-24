@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>文件中转 · 后台</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(135deg,#1e293b,#0f172a); color:#e2e8f0;
+    min-height:100vh; padding:16px; }
+  .wrap { max-width:820px; margin:0 auto; }
+  .card { background:#1e293b; border:1px solid #334155; border-radius:16px;
+    padding:24px; box-shadow:0 20px 50px rgba(0,0,0,.4); }
+  h1 { font-size:20px; margin-bottom:4px; }
+  .sub { font-size:13px; color:#94a3b8; margin-bottom:18px; }
+  .field { margin-bottom:14px; display:flex; gap:8px; }
+  input[type=password] { flex:1; padding:10px 12px; background:#0f172a; border:1px solid #334155;
+    border-radius:8px; color:#e2e8f0; font-size:15px; }
+  button { padding:10px 16px; border:none; border-radius:8px; background:#38bdf8; color:#08111f;
+    font-size:14px; font-weight:600; cursor:pointer; }
+  button:active { opacity:.8; }
+  button.ghost { background:transparent; border:1px solid #475569; color:#cbd5e1; }
+  button.danger { background:transparent; border:1px solid #f87171; color:#f87171; padding:5px 10px; font-size:12px; }
+  .stat { font-size:13px; color:#94a3b8; margin:12px 0; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:10px 8px; border-bottom:1px solid #273449; vertical-align:middle; }
+  th { color:#94a3b8; font-weight:600; }
+  td.name { font-weight:600; word-break:break-all; max-width:260px; }
+  .acts { display:flex; gap:6px; flex-wrap:wrap; }
+  a.dl, .copy { font-size:12px; text-decoration:none; padding:5px 10px; border-radius:6px; cursor:pointer; }
+  a.dl { color:#38bdf8; border:1px solid #38bdf8; }
+  .copy { color:#a5b4fc; border:1px solid #6366f1; }
+  .err { color:#f87171; font-size:13px; margin-top:8px; }
+  .empty { color:#64748b; text-align:center; padding:30px; }
+  .left { color:#fbbf24; white-space:nowrap; }
+  .upbar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:6px 0 14px;
+    padding:14px; background:#0f172a; border:1px solid #334155; border-radius:10px; }
+  select { padding:8px 10px; background:#1e293b; border:1px solid #334155; border-radius:8px; color:#e2e8f0; font-size:13px; }
+  .tip { font-size:12px; color:#64748b; }
+  #uplist { display:flex; flex-direction:column; gap:8px; margin-bottom:12px; }
+  .up-item { background:#0f172a; border:1px solid #334155; border-radius:8px; padding:8px 10px; font-size:12px; }
+  .up-item .n { font-weight:600; word-break:break-all; }
+  .up-bar { height:5px; background:#334155; border-radius:3px; overflow:hidden; margin-top:5px; }
+  .up-bar > i { display:block; height:100%; width:0; background:#4ade80; transition:width .2s; }
+  .badge { display:inline-block; font-size:11px; padding:1px 7px; border-radius:10px; background:#166534; color:#bbf7d0; margin-left:6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>🗂 文件中转 · 后台</h1>
+    <div class="sub">查看当前所有暂存文件 · 复制外链 · 下载 / 删除</div>
+
+    <div class="field">
+      <input type="password" id="pw" placeholder="后台密码" autocomplete="off">
+      <button id="login">进入</button>
+      <button class="ghost" id="refresh" style="display:none">刷新</button>
+      <button class="ghost" id="logout" style="display:none">退出</button>
+    </div>
+    <div id="err" class="err"></div>
+
+    <div id="uploadBox" style="display:none">
+      <div class="upbar">
+        <button id="pick">＋ 上传常驻文件</button>
+        <select id="ttl">
+          <option value="0">永久保存</option>
+          <option value="168">保留 7 天</option>
+          <option value="72">保留 3 天</option>
+          <option value="24">保留 24 小时</option>
+        </select>
+        <span class="tip">常驻文件不受 2G 限制，也不会被自动清理删除</span>
+        <input type="file" id="afile" multiple style="display:none">
+      </div>
+      <div id="uplist"></div>
+    </div>
+
+    <div id="stat" class="stat"></div>
+    <div id="content"></div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const API = '/api/up';
+const pwEl = $('#pw'), errEl = $('#err'), statEl = $('#stat'), content = $('#content');
+
+$('#login').onclick = doLogin;
+$('#refresh').onclick = load;
+$('#logout').onclick = doLogout;
+pwEl.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+// 常驻文件上传
+$('#pick').onclick = () => $('#afile').click();
+$('#afile').addEventListener('change', () => { [...$('#afile').files].forEach(adminUpload); $('#afile').value=''; });
+
+function adminUpload(f) {
+  const hours = $('#ttl').value;
+  const item = document.createElement('div');
+  item.className = 'up-item';
+  item.innerHTML = `<div class="n">${f.name} <span style="color:#64748b">(${fmt(f.size)})</span> <span class="st">上传中…</span></div><div class="up-bar"><i></i></div>`;
+  $('#uplist').prepend(item);
+  const bar = item.querySelector('.up-bar > i'), st = item.querySelector('.st');
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', API + '/admin/upload?hours=' + hours + '&name=' + encodeURIComponent(f.name));
+  xhr.upload.onprogress = e => { if (e.lengthComputable) bar.style.width = (e.loaded/e.total*100)+'%'; };
+  xhr.onload = () => {
+    if (xhr.status === 401) { st.textContent = '登录已过期'; enterGuest(); return; }
+    let r = {}; try { r = JSON.parse(xhr.responseText); } catch(_){}
+    if (xhr.status === 200 && r.ok) { bar.style.width='100%'; st.textContent='✔ 已上传'; st.style.color='#4ade80'; load(); }
+    else { st.textContent = '✖ ' + (r.error || ('失败 '+xhr.status)); st.style.color='#f87171'; }
+  };
+  xhr.onerror = () => { st.textContent='网络错误'; st.style.color='#f87171'; };
+  xhr.send(f);
+}
+
+function fmt(n){ if(n<1024)return n+'B'; if(n<1048576)return (n/1024).toFixed(1)+'KB'; return (n/1048576).toFixed(1)+'MB'; }
+function fmtLeft(min){ if(min>=60){const h=Math.floor(min/60),m=min%60; return h+' 小时'+(m?(' '+m+' 分'):'');} return min+' 分钟'; }
+
+// 登录：种 cookie，成功后免密 24h
+async function doLogin() {
+  const pw = pwEl.value.trim();
+  if (!pw) { errEl.textContent = '请输入后台密码'; return; }
+  errEl.textContent = '登录中…';
+  try {
+    const r = await fetch(API + '/admin/login?pw=' + encodeURIComponent(pw), { method: 'POST' });
+    if (!r.ok) { const d = await r.json().catch(()=>({})); errEl.textContent = d.error || ('登录失败 ' + r.status); return; }
+    pwEl.value = '';
+    enterLogged();
+    load();
+  } catch (e) { errEl.textContent = '网络错误'; }
+}
+
+function enterLogged() {
+  $('#pw').style.display = 'none';
+  $('#login').style.display = 'none';
+  $('#refresh').style.display = 'inline-block';
+  $('#logout').style.display = 'inline-block';
+  $('#uploadBox').style.display = 'block';
+}
+function enterGuest() {
+  $('#pw').style.display = '';
+  $('#login').style.display = '';
+  $('#refresh').style.display = 'none';
+  $('#logout').style.display = 'none';
+  $('#uploadBox').style.display = 'none';
+  statEl.textContent = '';
+  content.innerHTML = '';
+}
+
+async function doLogout() {
+  await fetch(API + '/admin/logout', { method: 'POST' }).catch(()=>{});
+  enterGuest();
+  errEl.textContent = '已退出';
+}
+
+async function load() {
+  errEl.textContent = '加载中…';
+  try {
+    const r = await fetch(API + '/admin/list');
+    if (r.status === 401) { errEl.textContent = '登录已过期，请重新登录'; enterGuest(); return; }
+    const d = await r.json();
+    if (!r.ok) { errEl.textContent = d.error || ('错误 ' + r.status); return; }
+    errEl.textContent = '';
+    render(d);
+  } catch (e) { errEl.textContent = '网络错误'; }
+}
+
+function render(d) {
+  const pinnedCount = d.items.filter(x => x.pinned).length;
+  statEl.innerHTML = `共 ${d.total} 个文件 · 常驻 ${pinnedCount} 个`
+    + ` · 临时占用 ${fmt(d.normalSize||0)} / ${fmt(d.maxTotal|| (2*1024*1024*1024))}`;
+  if (!d.items.length) { content.innerHTML = '<div class="empty">暂无文件</div>'; return; }
+  const rows = d.items.map(it => `
+    <tr data-id="${it.id}">
+      <td class="name">${it.name}${it.pinned ? '<span class="badge">常驻</span>' : ''}</td>
+      <td>${fmt(it.size)}</td>
+      <td class="left">${it.leftMin < 0 ? '永久' : fmtLeft(it.leftMin)}</td>
+      <td><div class="acts">
+        <a class="dl" href="${it.url}" target="_blank">下载</a>
+        <span class="copy" data-url="${location.origin + it.url}">📋 外链</span>
+        <button class="danger" data-del="${it.id}">删除</button>
+      </div></td>
+    </tr>`).join('');
+  content.innerHTML = `<table>
+    <thead><tr><th>文件名</th><th>大小</th><th>剩余</th><th>操作</th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
+
+  content.querySelectorAll('.copy').forEach(el => el.onclick = () => {
+    navigator.clipboard.writeText(el.dataset.url).then(() => { el.textContent = '✔ 已复制'; setTimeout(()=>el.textContent='📋 外链',1500); });
+  });
+  content.querySelectorAll('[data-del]').forEach(el => el.onclick = async () => {
+    if (!confirm('确定删除该文件？')) return;
+    const r = await fetch(API + '/admin/del?id=' + el.dataset.del, { method: 'POST' });
+    if (r.status === 401) { errEl.textContent = '登录已过期，请重新登录'; enterGuest(); return; }
+    if (r.ok) load(); else alert('删除失败');
+  });
+}
+
+// 打开页面时先检查 cookie 是否还有效
+(async () => {
+  try {
+    const r = await fetch(API + '/admin/check');
+    if (r.ok) { enterLogged(); load(); }
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>

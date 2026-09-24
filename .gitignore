@@ -19,3 +19,6 @@ docker/volumes/
 
 # Node
 node_modules/
+
+# 独立博客应用，非本项目内容（含第三方 jar/主题，39M）
+halo/

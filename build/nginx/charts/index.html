@@ -568,7 +568,7 @@
 </div>
 
 <script src="/js/lunar.min.js"></script>
-<script src="/js/auth.js?v=1781834000"></script>
+<script src="/js/auth.js?v=1787305221"></script>
 <script src="/js/charts-store.js?v=4"></script>
 <script src="/js/china-regions.js?v=2"></script>
 <script>
@@ -576,7 +576,7 @@
   'use strict';
 
   // ===== 登录检查 =====
-  if (!AUTH.isLoggedIn()) { showAuthModal(); return; }
+  if (!AUTH.isLoggedIn()) { openAuthModal('login'); return; }
 
   // ===== 工具 =====
   function pad(n) { return String(n).padStart(2, '0'); }

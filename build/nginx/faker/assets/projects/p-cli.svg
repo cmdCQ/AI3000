@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="750" viewBox="0 0 1200 750">
+  
+  <defs>
+    <pattern id="g" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M 48 0 L 0 0 0 48" fill="none" stroke="rgba(255,255,255,0.045)" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="750" fill="#0b0d11"/>
+  <rect width="1200" height="750" fill="url(#g)"/>
+  <rect x="240" y="170" width="720" height="410" rx="12" fill="#0e1117" stroke="rgba(255,255,255,0.14)" stroke-width="1.5"/>
+  <line x1="240" y1="222" x2="960" y2="222" stroke="rgba(255,255,255,0.08)"/>
+  <circle cx="282" cy="196" r="7" fill="#ff5f57" opacity="0.85"/>
+  <circle cx="314" cy="196" r="7" fill="#febc2e" opacity="0.85"/>
+  <circle cx="346" cy="196" r="7" fill="#28c840" opacity="0.85"/>
+  <text x="600" y="205" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" letter-spacing="3" fill="#5b6270" text-anchor="middle">toolkit — zsh</text>
+  
+  <filter id="cg" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="26" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <text x="284" y="292" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="22" fill="#5b6270">$</text>
+  <text x="308" y="292" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="22" fill="#e8eaed">toolkit rename *.png --prefix daily_</text>
+  <text x="284" y="350" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="22" fill="#5b6270">→</text>
+  <text x="308" y="350" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="22" fill="#62d6d0">12 files renamed in 0.03s</text>
+  <text x="284" y="420" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="22" fill="#5b6270">$</text>
+  <text x="308" y="420" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="22" fill="#e8eaed">toolkit todo add "build this site"</text>
+  <text x="284" y="478" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="22" fill="#5b6270">→</text>
+  <text x="308" y="478" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="22" fill="#62d6d0">done. 4 open · 12 closed</text>
+  <rect x="308" y="486" width="12" height="24" fill="#62d6d0" filter="url(#cg)">
+    <animate attributeName="opacity" values="1;0;1" dur="1.2s" repeatCount="indefinite"/>
+  </rect>
+  <text x="60" y="660" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="22" letter-spacing="6" fill="#5b6270">TOOLKIT // 002</text>
+  <text x="60" y="700" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="30" letter-spacing="4" fill="#e8eaed">终端工具箱</text>
+</svg>

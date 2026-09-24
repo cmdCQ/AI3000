@@ -22,19 +22,67 @@ const AUTH = {
 window.AUTH = AUTH;
 
 // ═══════════════════════════════════════════════
+// 401 统一处理：清除错误内容 + 弹出登录窗口
+// ═══════════════════════════════════════════════
+// 用法：在 XHR onloadend 里调用 handleApiUnauthorized(xhr, el)
+// 返回 true 表示已处理 401（调用方应直接 return）
+function handleApiUnauthorized(xhr, el) {
+  if (!xhr || xhr.status !== 401) return false;
+  if (el) {
+    el.innerHTML = '<div style="text-align:center;padding:1.5rem 1rem">' +
+      '<div style="font-size:1.2rem;margin-bottom:0.5rem">🔒</div>' +
+      '<div style="font-size:0.9rem;font-weight:600;color:var(--text);margin-bottom:0.3rem">登录已过期，请重新登录</div>' +
+      '<div style="font-size:0.75rem;color:var(--text-dim);line-height:1.7;margin-bottom:1rem">登录后即可使用全部 AI 功能</div>' +
+      '<a href="javascript:void(0)" onclick="openAuthModal(\'login\')" class="ai-start-btn" style="display:inline-block;text-decoration:none">去登录</a>' +
+      '</div>';
+  }
+  try { openAuthModal('login'); } catch(e) {}
+  return true;
+}
+window.handleApiUnauthorized = handleApiUnauthorized;
+
+// ═══════════════════════════════════════════════
 // 嵌入式登录/注册弹窗
 // ═══════════════════════════════════════════════
 
 var _authModalInjected = false;
 var _authSmsTimer = 0;
+var _authModalCssPromise = null;
+
+function _ensureAuthModalCSS() {
+  if (_authModalCssPromise) return _authModalCssPromise;
+  _authModalCssPromise = new Promise(function(resolve) {
+    var existing = document.querySelector('link[data-auth-modal-css]');
+    if (existing) {
+      if (existing.dataset.loaded === '1' || existing.sheet) {
+        existing.dataset.loaded = '1';
+        resolve();
+        return;
+      }
+      existing.addEventListener('load', function() {
+        existing.dataset.loaded = '1';
+        resolve();
+      }, { once: true });
+      existing.addEventListener('error', function() { resolve(); }, { once: true });
+      return;
+    }
+
+    var link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = '/css/auth-modal.css?v=' + Date.now();
+    link.setAttribute('data-auth-modal-css', '1');
+    link.onload = function() {
+      link.dataset.loaded = '1';
+      resolve();
+    };
+    link.onerror = function() { resolve(); };
+    document.head.appendChild(link);
+  });
+  return _authModalCssPromise;
+}
 
 function _injectAuthModalCSS() {
-  if (_authModalInjected) return;
-  _authModalInjected = true;
-  var link = document.createElement('link');
-  link.rel = 'stylesheet';
-  link.href = '/css/auth-modal.css?v=' + Date.now();
-  document.head.appendChild(link);
+  _ensureAuthModalCSS();
 }
 
 function _injectAuthModalHTML() {
@@ -42,7 +90,7 @@ function _injectAuthModalHTML() {
   _injectAuthModalCSS();
 
   var html = '';
-  html += '<div class="auth-modal-overlay" id="authModalOverlay">';
+  html += '<div class="auth-modal-overlay" id="authModalOverlay" hidden aria-hidden="true">';
   html += '  <div class="auth-modal-card" id="authModalCard">';
   html += '    <button class="auth-modal-close" onclick="hideAuthModal()">✕</button>';
   html += '    <div class="auth-modal-h1">易三千</div>';
@@ -52,7 +100,6 @@ function _injectAuthModalHTML() {
   html += '      <button class="auth-modal-tab" data-tab="register" onclick="switchAuthTab(\'register\')">注册</button>';
   html += '    </div>';
 
-  // ———— 登录表单 ————
   html += '    <div id="authModalLogin">';
   html += '      <div class="auth-modal-form">';
   html += '        <label>手机号</label>';
@@ -69,7 +116,6 @@ function _injectAuthModalHTML() {
   html += '      </div>';
   html += '    </div>';
 
-  // ———— 注册表单 ————
   html += '    <div id="authModalRegister" style="display:none">';
   html += '      <div class="auth-modal-form">';
   html += '        <label>手机号</label>';
@@ -98,17 +144,14 @@ function _injectAuthModalHTML() {
   div.innerHTML = html;
   document.body.appendChild(div.firstElementChild);
 
-  // ESC 关闭
   document.addEventListener('keydown', function _authEsc(e) {
     if (e.key === 'Escape') hideAuthModal();
   });
 
-  // 点击遮罩关闭
   document.getElementById('authModalOverlay').addEventListener('click', function(e) {
     if (e.target === this) hideAuthModal();
   });
 
-  // 回车提交
   document.getElementById('authPhoneLogin').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') submitAuthLogin();
   });
@@ -129,57 +172,53 @@ function _injectAuthModalHTML() {
   });
 }
 
-/* 显示登录弹窗 */
-function showAuthModal() {
+function openAuthModal(tab) {
+  tab = tab === 'register' ? 'register' : 'login';
   try {
     _injectAuthModalHTML();
-    switchAuthTab('login');
-    var overlay = document.getElementById('authModalOverlay');
-    if (!overlay) { window.location.href = '/login/'; return; }
-    overlay.classList.add('open');
-    document.body.style.overflow = 'hidden';
-    setTimeout(function() {
-      var phoneInput = document.getElementById('authPhoneLogin');
-      if (phoneInput) phoneInput.focus();
-    }, 300);
+    _ensureAuthModalCSS().then(function() {
+      var overlay = document.getElementById('authModalOverlay');
+      if (!overlay) {
+        window.location.href = tab === 'register' ? '/register/' : '/login/';
+        return;
+      }
+      switchAuthTab(tab);
+      overlay.hidden = false;
+      overlay.classList.add('open');
+      document.body.style.overflow = 'hidden';
+      setTimeout(function() {
+        var phoneInput = document.getElementById(tab === 'register' ? 'authPhoneReg' : 'authPhoneLogin');
+        if (phoneInput) phoneInput.focus();
+      }, 0);
+    });
   } catch(e) {
-    window.location.href = '/login/';
+    window.location.href = tab === 'register' ? '/register/' : '/login/';
   }
 }
+window.openAuthModal = openAuthModal;
+
+function showAuthModal() { openAuthModal('login'); }
 window.showAuthModal = showAuthModal;
 
-/* 显示注册弹窗 */
-function showRegisterModal() {
-  try {
-    _injectAuthModalHTML();
-    switchAuthTab('register');
-    var overlay = document.getElementById('authModalOverlay');
-    if (!overlay) { window.location.href = '/register/'; return; }
-    overlay.classList.add('open');
-    document.body.style.overflow = 'hidden';
-    setTimeout(function() {
-      var phoneInput = document.getElementById('authPhoneReg');
-      if (phoneInput) phoneInput.focus();
-    }, 300);
-  } catch(e) {
-    window.location.href = '/register/';
-  }
-}
+function showRegisterModal() { openAuthModal('register'); }
 window.showRegisterModal = showRegisterModal;
 
 window.getCookie = getCookie;
 window.setCookie = setCookie;
 window.removeCookie = removeCookie;
 
-/* 关闭弹窗 */
 function hideAuthModal() {
   try {
     var overlay = document.getElementById('authModalOverlay');
-    if (overlay) overlay.classList.remove('open');
+    if (overlay) {
+      overlay.classList.remove('open');
+      overlay.hidden = true;
+    }
     document.body.style.overflow = '';
   } catch(e) {}
 }
 window.hideAuthModal = hideAuthModal;
+
 
 /* 切换 Tab */
 function switchAuthTab(tab) {

@@ -1,0 +1,395 @@
+# AI三千问 - Nginx 配置（安全加固版）
+
+upstream backend {
+    server backend:3301;
+}
+upstream rag {
+    server rag:8800;
+}
+upstream upload {
+    server upload:3401;
+}
+
+# 限流区域
+limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
+limit_req_zone $binary_remote_addr zone=sms_limit:10m rate=2r/m;
+limit_req_zone $binary_remote_addr zone=login_limit:10m rate=5r/m;
+
+# HTTP → HTTPS（所有域名统一跳转）
+server {
+    listen 80;
+    server_name sqw.somtfly.com somtfly.com www.somtfly.com cheak.somtfly.com;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /usr/share/nginx/html;
+        default_type text/plain;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# ============================================================
+# somtfly.com / www.somtfly.com — 个人站
+# ============================================================
+server {
+    listen 443 ssl http2;
+    server_name somtfly.com www.somtfly.com;
+
+    ssl_certificate     /host_letsencrypt/live/somtfly.com/fullchain.pem;
+    ssl_certificate_key /host_letsencrypt/live/somtfly.com/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305;
+    ssl_prefer_server_ciphers off;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    root /usr/share/nginx/html/personal;
+    index index.html;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /usr/share/nginx/html;
+        default_type text/plain;
+    }
+
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml;
+    gzip_min_length 256;
+
+    # Prevent Cloudflare from caching JS/CSS (forces fresh load on each deploy)
+    location ~* \.(js|css)$ {
+        expires -1;
+        add_header Cache-Control "no-cache, must-revalidate";
+    }
+
+    # API 代理 — 个人站 AI 对话
+    location /api/personal/ {
+        limit_req zone=api_limit burst=10 nodelay;
+        proxy_pass http://backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 10s;
+        proxy_connect_timeout 3s;
+    }
+
+    # 临时文件中转服务
+    location /api/up/ {
+        proxy_pass http://upload;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        client_max_body_size 210m;
+        proxy_request_buffering off;
+        proxy_read_timeout 600s;
+    }
+
+    # Redirect /music → /music/
+    location = /music {
+        return 301 /music/;
+    }
+
+    # Sonic Topography 音乐可视化 (^~ prevents regex location hijacking)
+    location ^~ /music/ {
+        alias /usr/share/nginx/html/music/;
+        try_files $uri /music/index.html;
+    }
+
+    # 音乐 API — 网易云代理
+    location /api/netease/ {
+        proxy_pass http://music-api:4173/api/netease/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_read_timeout 15s;
+    }
+    location /api/playlists {
+        proxy_pass http://music-api:4173/api/playlists;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+}
+
+# ============================================================
+# sqw.somtfly.com — AI三千问
+# ============================================================
+server {
+    listen 443 ssl http2;
+    server_name sqw.somtfly.com;
+
+    ssl_certificate     /host_letsencrypt/live/somtfly.com/fullchain.pem;
+    ssl_certificate_key /host_letsencrypt/live/somtfly.com/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305;
+    ssl_prefer_server_ciphers off;
+
+    # 安全头
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'self';" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /usr/share/nginx/html;
+        default_type text/plain;
+    }
+
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml;
+    gzip_min_length 256;
+
+    # 拒绝敏感路径
+    location ~ /\.(git|env|svn|hg|DS_Store) { deny all; return 404; }
+    location ~* \.(bak|old|backup|sql|dump|swp)$ { deny all; return 404; }
+    location ~ /(Dockerfile|nginx-default\.conf|docker-compose\.yml)$ { deny all; return 404; }
+
+    # API 代理
+    location /api/ {
+        limit_req zone=api_limit burst=20 nodelay;
+        proxy_pass http://backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_buffering off;
+        proxy_read_timeout 300s;
+    }
+
+    # 临时文件中转服务
+    location /api/up/ {
+        proxy_pass http://upload;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        client_max_body_size 210m;
+        proxy_request_buffering off;
+        proxy_read_timeout 600s;
+    }
+
+    # 短信发送限流
+    location /api/send-sms-code {
+        limit_req zone=sms_limit burst=3 nodelay;
+        proxy_pass http://backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # 登录限流
+    location /api/login {
+        limit_req zone=login_limit burst=5 nodelay;
+        proxy_pass http://backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # SPA fallback — $uri/ handles subdirectory index.html files
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+
+
+# ============================================================
+# FAKER.REN — 赛博人物志（赛博人物百科）
+# ============================================================
+server {
+    listen 80;
+    server_name faker.ren www.faker.ren;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /usr/share/nginx/html;
+        default_type text/plain;
+    }
+
+    location / {
+        return 301 https://faker.ren$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name faker.ren www.faker.ren;
+
+    ssl_certificate     /host_letsencrypt/live/faker.ren/fullchain.pem;
+    ssl_certificate_key /host_letsencrypt/live/faker.ren/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305;
+    ssl_prefer_server_ciphers off;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    root /usr/share/nginx/html/faker;
+    index index.html;
+
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml;
+    gzip_min_length 256;
+
+    # 百科静态站：SPA 风格路由回退
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+
+
+# ============================================================
+# SOMT.TOP Grav - Minecraft server guide CMS
+# ============================================================
+server {
+    listen 80;
+    server_name somt.top www.somt.top;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /usr/share/nginx/html;
+        default_type text/plain;
+    }
+
+    location / {
+        return 301 https://somt.top$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name somt.top;
+
+    ssl_certificate     /host_letsencrypt/live/somt.top/fullchain.pem;
+    ssl_certificate_key /host_letsencrypt/live/somt.top/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305;
+    ssl_prefer_server_ciphers off;
+
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    client_max_body_size 110m;
+
+    location / {
+        proxy_pass http://172.18.0.1:18080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_redirect off;
+    }
+}
+
+# ---- FreeP panel (freep.somt.top) ----
+server {
+    listen 80;
+    server_name freep.somt.top;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /usr/share/nginx/html;
+        default_type text/plain;
+    }
+
+    location / {
+        return 301 https://freep.somt.top$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name freep.somt.top;
+
+    ssl_certificate     /host_letsencrypt/live/freep.somt.top/fullchain.pem;
+    ssl_certificate_key /host_letsencrypt/live/freep.somt.top/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305;
+    ssl_prefer_server_ciphers off;
+
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    client_max_body_size 20m;
+
+    location / {
+        proxy_pass http://172.18.0.1:18899;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_redirect off;
+    }
+}
+
+# ============================================================
+# cheak.somtfly.com — Check time 单词抽查 (纯前端, 2026-09-20 柒柒)
+# ============================================================
+server {
+    listen 443 ssl http2;
+    server_name cheak.somtfly.com;
+
+    ssl_certificate     /host_letsencrypt/live/cheak.somtfly.com/fullchain.pem;
+    ssl_certificate_key /host_letsencrypt/live/cheak.somtfly.com/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305;
+    ssl_prefer_server_ciphers off;
+
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'self';" always;
+
+    root /usr/share/nginx/html/check;
+    index index.html;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /usr/share/nginx/html;
+        default_type text/plain;
+    }
+
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript application/xml;
+    gzip_min_length 1024;
+
+    location = /index.html {
+        expires -1;
+        add_header Cache-Control "no-cache, must-revalidate";
+    }
+
+    location /assets/ {
+        expires 30d;
+        add_header Cache-Control "public, max-age=2592000, immutable";
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

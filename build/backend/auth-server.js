@@ -11,6 +11,7 @@ const mysql = require('mysql2/promise');
 const { Solar } = require('lunar-javascript');
 const config = require('./config.js');
 const chatProxy = require('./chat-proxy.js');
+const liuyaoPaipan = require('./paipan/liuyao.js');
 
 // ===== 阿里云号码认证服务（PNVS）短信验证码 =====
 const DypnsapiClient = require('@alicloud/dypnsapi20170525').default;
@@ -1330,7 +1331,7 @@ async function handle(req, res) {
 
   // POST /api/liuyao/ai-analyze — 六爻AI智能解卦（SSE流式 + RAG检索）
   if (req.method === 'POST' && pathname === '/api/liuyao/ai-analyze') {
-    const { topic, hexagrams, followUp, context, recordId } = body;
+    const { topic, hexagrams, followUp, context, recordId, lunarInfo } = body;
     if (!hexagrams) return json(res, { error: '缺少必要参数' }, 400);
 
     const payload = checkAuth(req);
@@ -1395,8 +1396,8 @@ ${r.text}`).join('\n\n');
     } catch (e) { console.error('Liuyao RAG error:', e.message); }
 
     const prompt = followUp
-      ? (topic ? buildLiuyaoFollowUpPrompt(topic, followUp, context, hexagrams) : buildLiuyaoPrompt(followUp, hexagrams))
-      : buildLiuyaoPrompt(topic, hexagrams, ragContext);
+      ? (topic ? buildLiuyaoFollowUpPrompt(topic, followUp, context, hexagrams, lunarInfo) : buildLiuyaoPrompt(followUp, hexagrams, '', lunarInfo))
+      : buildLiuyaoPrompt(topic, hexagrams, ragContext, lunarInfo);
 
     res.writeHead(200, {
       'Content-Type': 'text/event-stream; charset=utf-8',
@@ -2418,9 +2419,9 @@ function buildDivinationChatPrompt(cardType, cardData, message) {
   } else if (cardType === 'liuyao' && cardData) {
     systemPrompt = prompts.liuyao_system || systemPrompt;
     if (followUp) {
-      userPrompt = buildLiuyaoFollowUpPrompt(topic || '此卦', followUp, followUpContext, cardData.hexagrams);
+      userPrompt = buildLiuyaoFollowUpPrompt(topic || '此卦', followUp, followUpContext, cardData.hexagrams, cardData.lunarInfo);
     } else {
-      userPrompt = buildLiuyaoPrompt(topic, cardData.hexagrams, ragContext);
+      userPrompt = buildLiuyaoPrompt(topic, cardData.hexagrams, ragContext, cardData.lunarInfo);
       if (message && message !== topic && !message.startsWith('帮我解析')) {
         userPrompt += '\n\n用户补充提问：' + message;
       }
@@ -2465,6 +2466,7 @@ function buildMhysPrompt(topic, hexagrams, ragContext) {
 
 【体用】体卦：${ti.tri.name}（${ti.tri.element}）｜用卦：${yong.tri.name}（${yong.tri.element}）
 生克：${hexagrams.verdict.text} — ${hexagrams.verdict.desc}
+体用吉凶分级（已按《梅花易数·体用总诀》定妥，请以此为准，勿另立吉凶）：${hexagrams.verdict.level || '（未分级）'}
 `;
 
   if (bg.movingYao && bg.movingYao.length) {
@@ -2478,7 +2480,9 @@ function buildMhysPrompt(topic, hexagrams, ragContext) {
 请严格按以下顺序输出，每段以"---"分隔：
 
 【参考古籍】
-- 如果上方提供了【参考古籍】内容，请先在回答最开头列出本次实际参考的古籍名称，不要放到末尾，也不要重复古籍段落。
+- 若上方确有【参考古籍】内容，请在回答最开头列出本次实际检索到的古籍名称。
+- 若上方没有【参考古籍】内容（本次未检索到），**不要凭印象列书名**，这一段直接写"本次未检索到相关古籍，以下依卦理分析"即可。
+- 古籍段落只放开头，不要放到末尾，也不要重复。
 
 【一、回答答案】
 - 直接回答用户最想知道的结果。
@@ -2497,7 +2501,8 @@ function buildMhysPrompt(topic, hexagrams, ragContext) {
 要求：
 - 前两段以用户最容易看懂为先。
 - 第三段再讲术数依据。
-- 避免绝对化断语（"必然""注定""大吉""大凶"），多用"可能""倾向"。
+- 体用生克的吉凶分级（如"用生体 · 大吉"）是《体用总诀》的定则，照实引用即可；但不要把它推成"必然""注定"这类宿命断语，多用"可能""倾向"。
+- 除上述体用分级外，避免其他绝对化断语。
 - 语言简洁、明确，不空泛，不神叨。
 - 用**加粗**标结论重点（会显示金色），###子标题适度。
 
@@ -2577,24 +2582,48 @@ function mhysTemplateVars(topic, hexagrams) {
     zongGuaName: zg.name || '', zongGuaUpper: (zg.upperTri || {}).name || '', zongGuaLower: (zg.lowerTri || {}).name || '',
     tiName: (ti.tri || {}).name || '', tiElement: (ti.tri || {}).element || '',
     yongName: (yong.tri || {}).name || '', yongElement: (yong.tri || {}).element || '',
-    tiyongVerdict: v.text || '', tiyongDesc: v.desc || '',
+    tiyongVerdict: v.text || '', tiyongDesc: v.desc || '', tiyongLevel: v.level || '',
     movingYao: movingYao,
     ragContext: '',
   };
 }
 
+// 六爻装卦：由「本卦/变卦上下卦号 + 四柱」装出完整盘面。
+// 前端只负责起卦（给出卦号与四柱），六亲/六神/世应/旬空/旺衰/伏神一律后端算，
+// 避免前端算错或送错字段。
+function buildLiuyaoChart(hexagrams, lunarInfo, topic) {
+  if (!hexagrams) return null;
+  const bg = hexagrams.benGua || {}, bng = hexagrams.bianGua || {};
+  if (!bg.upper || !bg.lower) return null;
+  const li = lunarInfo || {};
+  const chart = liuyaoPaipan.buildChart({
+    topic: topic || '',
+    gender: hexagrams.gender || '',
+    benUpper: bg.upper, benLower: bg.lower,
+    bianUpper: bng.upper, bianLower: bng.lower,
+    yearGZ: li.yearGZ || '', monthGZ: li.monthGZ || '',
+    dayGZ: li.dayGZ || '', hourGZ: li.hourGZ || '',
+  });
+  if (chart) chart.yongShen = liuyaoPaipan.suggestYongShen(topic, hexagrams.gender || '');
+  return chart;
+}
+
 // 六爻模板变量提取
-function liuyaoTemplateVars(topic, hexagrams) {
+function liuyaoTemplateVars(topic, hexagrams, lunarInfo) {
   const bg = hexagrams.benGua || {}, bng = hexagrams.bianGua || {};
   var gender = hexagrams.gender;
   var genderLabel = '未知';
   if (gender === 'male') genderLabel = '男';
   else if (gender === 'female') genderLabel = '女';
+  var chart = buildLiuyaoChart(hexagrams, lunarInfo, topic);
   return {
     topic: topic || '',
     gender: genderLabel,
     benGuaName: bg.name || '', benGuaUpper: (bg.upperTri || {}).name || '', benGuaLower: (bg.lowerTri || {}).name || '',
     bianGuaName: bng.name || '', bianGuaUpper: (bng.upperTri || {}).name || '', bianGuaLower: (bng.lowerTri || {}).name || '',
+    paipan: chart ? liuyaoPaipan.formatChart(chart) : '',
+    yongshen: (chart && chart.yongShen && chart.yongShen.yong) ? chart.yongShen.yong : '',
+    yongshenWhy: (chart && chart.yongShen) ? (chart.yongShen.why || '') : '',
     ragContext: '',
   };
 }
@@ -2628,7 +2657,7 @@ async function streamDeepSeek(prompt, res, maxOutputChars, req) {
   });
 
   var custom = readPrompts();
-  var systemPrompt = custom.mhys_system || '你是梅花易数解卦师。回答顺序固定为：参考古籍→回答答案→你的现状→解卦逻辑。先给结果，再讲现状，最后解释依据。回答清晰、理性、简洁，避免绝对化断语，多用”可能””倾向”。';
+  var systemPrompt = custom.mhys_system || '你是梅花易数解卦师。回答顺序固定为：参考古籍→回答答案→你的现状→解卦逻辑。先给结果，再讲现状，最后解释依据。回答清晰、理性、简洁。体用生克的吉凶分级是《体用总诀》的定则，照实引用；除此之外避免绝对化断语，多用”可能””倾向”。';
 
   var controller = new AbortController();
   if (req) req.on('close', () => { if (!res.writableEnded) controller.abort(); });
@@ -2666,43 +2695,53 @@ async function streamDeepSeek(prompt, res, maxOutputChars, req) {
   return fullText;
 }
 
-function buildLiuyaoPrompt(topic, hexagrams, ragContext) {
+function buildLiuyaoPrompt(topic, hexagrams, ragContext, lunarInfo) {
   var custom = readPrompts();
 
   if (!topic) {
     var noTopicTpl = custom.liuyao_notopic;
-    if (noTopicTpl) return renderPrompt(noTopicTpl, liuyaoTemplateVars('', hexagrams));
+    if (noTopicTpl) return renderPrompt(noTopicTpl, liuyaoTemplateVars('', hexagrams, lunarInfo));
     return '你是一位六爻纳甲解卦师。用户还没说问什么事，请先回应排盘数据（本卦变卦名+世应位置），然后用一句话询问求测事项。';
   }
 
-  var vars = liuyaoTemplateVars(topic, hexagrams);
+  var vars = liuyaoTemplateVars(topic, hexagrams, lunarInfo);
   vars.ragContext = ragContext || '';
 
   var tpl = custom.liuyao_prompt;
   if (tpl) return renderPrompt(tpl, vars);
 
   // ↓↓↓ 默认模板 ↓↓↓
-  const bg = hexagrams.benGua || {};
-  const bng = hexagrams.bianGua || {};
   var gender = hexagrams.gender;
   var genderLabel = '未知';
   if (gender === 'male') genderLabel = '男';
   else if (gender === 'female') genderLabel = '女';
 
+  var chart = buildLiuyaoChart(hexagrams, lunarInfo, topic);
+
   let p = '以下是一组六爻排盘数据。请按传统六爻断法分析，不可脱离用神主线泛讲六亲六神。\n\n';
   p += '【求测事项】' + topic + '\n';
   p += '【求测者性别】' + genderLabel + '\n\n';
-  p += '【卦象】\n';
-  p += '本卦：' + (bg.name || '未知') + '\n';
-  p += '变卦：' + (bng.name || '未知') + '\n';
-  p += ((bg.upperTri && bg.upperTri.name) || '未知') + '上' + ((bg.lowerTri && bg.lowerTri.name) || '未知') + '下\n';
-  p += ((bng.upperTri && bng.upperTri.name) || '未知') + '上' + ((bng.lowerTri && bng.lowerTri.name) || '未知') + '下\n\n';
+
+  if (chart) {
+    p += liuyaoPaipan.formatChart(chart) + '\n\n';
+    if (chart.yongShen && chart.yongShen.yong) {
+      p += '【用神参考】' + chart.yongShen.why + '（即' + chart.yongShen.yong + '）。若与卦中实际衰旺、动静冲突，以卦理为准，不必强套。\n\n';
+    }
+  } else {
+    // 装卦失败时的兜底：至少别让 AI 收到空数据
+    const bg = hexagrams.benGua || {}, bng = hexagrams.bianGua || {};
+    p += '【卦象】\n';
+    p += '本卦：' + (bg.name || '未知') + '　变卦：' + (bng.name || '未知') + '\n';
+    p += '（注意：本次排盘数据不完整，六亲六神世应未能装出，请在解读中说明并只作卦名卦意的粗断。）\n\n';
+  }
 
   p += '断法要求：先定用神，再看月建日辰旺衰，再看世应、动爻、变爻、生克冲合、空破墓绝。月建为提纲，日辰为主宰；世为己，应为人；动为始，变为终。六神只作辅助，不可压过用神主线。\n\n';
 
   p += '请严格按以下顺序输出，每段以"---"分隔：\n\n';
   p += '【参考古籍】\n';
-  p += '- 如果上方提供了【参考古籍】内容，请先在回答最开头列出本次实际参考的古籍名称，不要放到末尾，也不要重复古籍段落。\n\n';
+  p += '- 若上方确有【参考古籍】内容，请在回答最开头列出本次实际检索到的古籍名称。\n';
+  p += '- 若上方没有【参考古籍】内容（本次未检索到），**不要凭印象列书名**，开头【参考古籍】一段直接写"本次未检索到相关古籍，以下依卦理分析"即可。\n';
+  p += '- 古籍段落只放开头，不要放到末尾，也不要重复。\n\n';
   p += '【一、回答答案】\n';
   p += '- 直接说结果、倾向、成败、快慢。\n';
   p += '- 不要先讲原理，不要先铺垫。\n';
@@ -2723,16 +2762,18 @@ function buildLiuyaoPrompt(topic, hexagrams, ragContext) {
   return p;
 }
 
-function buildLiuyaoFollowUpPrompt(topic, followUp, context, hexagrams) {
+function buildLiuyaoFollowUpPrompt(topic, followUp, context, hexagrams, lunarInfo) {
   var custom = readPrompts();
   var tpl = custom.liuyao_followup;
   if (tpl) {
-    var vars = liuyaoTemplateVars(topic, hexagrams);
+    var vars = liuyaoTemplateVars(topic, hexagrams, lunarInfo);
     vars.followUp = followUp || '';
     vars.context = (context || '').slice(-1200);
     return renderPrompt(tpl, vars);
   }
   var p = '针对「' + topic + '」的追问：\n\n';
+  var chart = buildLiuyaoChart(hexagrams, lunarInfo, topic);
+  if (chart) p += liuyaoPaipan.formatChart(chart) + '\n\n';
   p += '【之前解读】' + ((context || '').slice(-1200)) + '\n\n';
   p += '【追问】' + followUp + '\n\n';
   p += '直接回答追问，不重复完整七层分析。聚焦追问涉及的层面（如问应期则重点推应期，问空亡则重点辨空亡真假）。结构：\n【回答】——结论和建议，不用卦象术语。\n【依据】——简短推演依据（1-3句，引用原卦爻位）。';

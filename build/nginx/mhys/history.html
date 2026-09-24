@@ -131,7 +131,7 @@ html,body { background:var(--bg); color:var(--text); font-family:var(--sans); mi
   </div>
 </div>
 
-<script src="/js/auth.js?v=1781834000"></script>
+<script src="/js/auth.js?v=1787305221"></script>
 <script>
 var allRecords = [];
 var manageMode = false;
@@ -317,7 +317,7 @@ async function loadRecords() {
   var area = document.getElementById('contentArea');
   // 未登录用户 → 引导登录
   if (!AUTH.isLoggedIn()) {
-    area.innerHTML = '<div class="empty-state"><div class="empty-icon">👤</div><p style="margin-bottom:0.5rem;color:var(--text)">登录后查看排盘记录</p><p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:1rem">登录后可查看历史排盘和AI解读记录</p><a href="javascript:void(0)" onclick="showAuthModal()" class="guest-btn primary" style="display:inline-block;padding:0.5rem 1.5rem;font-size:0.82rem;font-family:inherit;border-radius:14px;cursor:pointer;text-decoration:none;letter-spacing:0.04em;font-weight:500;color:#fff;background:var(--accent);border:none;box-shadow:0 2px 8px rgba(184,150,10,0.25)">去登录</a></div>';
+    area.innerHTML = '<div class="empty-state"><div class="empty-icon">👤</div><p style="margin-bottom:0.5rem;color:var(--text)">登录后查看排盘记录</p><p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:1rem">登录后可查看历史排盘和AI解读记录</p><a href="javascript:void(0)" onclick="openAuthModal(\'login\')" class="guest-btn primary" style="display:inline-block;padding:0.5rem 1.5rem;font-size:0.82rem;font-family:inherit;border-radius:14px;cursor:pointer;text-decoration:none;letter-spacing:0.04em;font-weight:500;color:#fff;background:var(--accent);border:none;box-shadow:0 2px 8px rgba(184,150,10,0.25)">去登录</a></div>';
     return;
   }
   try {

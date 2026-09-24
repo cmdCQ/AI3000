@@ -294,7 +294,7 @@ html,body { background:var(--bg); color:var(--text); font-family:var(--sans); mi
 </div>
 
 <script src="/js/lunar.min.js"></script>
-<script src="/js/auth.js?v=1781834000"></script>
+<script src="/js/auth.js?v=1787305221"></script>
 <script>
 // ===== 八卦数据 =====
 var TRIGRAMS = {
@@ -355,11 +355,14 @@ function buildLines(upper,lower,movingPos) {
 function calcGua(upperNum, lowerNum, moveNum) {
   var uTri=TRIGRAMS[upperNum], lTri=TRIGRAMS[lowerNum];
   var hexName=HEX64[upperNum+'_'+lowerNum];
+  var benLinesData=buildLines(upperNum,lowerNum,moveNum);
   var benGua={
     upper:upperNum, lower:lowerNum,
     upperTri:uTri, lowerTri:lTri,
     name:hexName,
-    lines:buildLines(upperNum,lowerNum,moveNum)
+    lines:benLinesData,
+    // 由爻象本身反推动爻，不从 moveNum 另抄一份，免得两处哪天不一致
+    movingYao:benLinesData.filter(function(l){return l.moving;}).map(function(l){return l.pos;})
   };
   var benLines=guaToLines(upperNum,lowerNum);
   // benLines顺序: [上爻(6),五爻(5),四爻(4),三爻(3),二爻(2),初爻(1)]
@@ -389,12 +392,14 @@ function calcGua(upperNum, lowerNum, moveNum) {
   else{ tiNum=lowerNum; yongNum=upperNum; }
   var tiTri=TRIGRAMS[tiNum], yongTri=TRIGRAMS[yongNum];
   var relation=wuxingShengKe(tiTri.element, yongTri.element);
+  // 吉凶分级取自《梅花易数·体用总诀》：用生体最吉，比和/体克用为吉，体生用/用克体为凶。
+  // 判词顺序与分级参照 shushu core/meihua/analyzer.py 的 _RELATION_TEXT。
   var verdict;
-  if(relation==='被生') verdict={text:'用生体',cls:'verdict-neutral',desc:'用卦生体卦，外部能量滋养自身，有外力相助之象。宜顺势而为，借力而行。'};
-  else if(relation==='生') verdict={text:'体生用',cls:'verdict-neutral',desc:'体卦生用卦，自身能量外泄滋养外事。需量力而行，有所取舍。'};
-  else if(relation==='比和') verdict={text:'体用比和',cls:'verdict-neutral',desc:'内外和谐共振，能量流通无碍。守正持中，顺势而行。'};
-  else if(relation==='克') verdict={text:'体克用',cls:'verdict-neutral',desc:'体卦克用卦，自身克制外事。以己之力影响事态，但需适度，过刚易折。'};
-  else verdict={text:'用克体',cls:'verdict-neutral',desc:'用卦克体卦，外部压力克制自身。宜守不宜攻，以柔克刚，待机而行。'};
+  if(relation==='被生') verdict={text:'用生体 · 大吉',level:'大吉',score:2,cls:'v-daiji',desc:'外部力量来帮你，事情顺、容易成。宜顺势而为，借力而行。'};
+  else if(relation==='比和') verdict={text:'体用比和 · 吉',level:'吉',score:1,cls:'v-ji',desc:'内外和谐、彼此不相克，和顺可成。守正持中，顺势而行。'};
+  else if(relation==='克') verdict={text:'体克用 · 吉',level:'吉',score:1,cls:'v-ji',desc:'主动权在你手上，事情能成，但要费些力气。宜适度，过刚易折。'};
+  else if(relation==='生') verdict={text:'体生用 · 凶',level:'凶',score:-1,cls:'v-xiong',desc:'你在往外耗力气，费力而未必讨好。宜量力而行，有所取舍。'};
+  else verdict={text:'用克体 · 凶',level:'凶',score:-1,cls:'v-xiong',desc:'外部压力压在身上，受制于外、多有阻碍。宜守不宜攻，以柔克刚，待机而行。'};
   // 错卦：六爻全变（阴阳互变）
   var cuoLines=benLines.slice();
   for (var ci=0;ci<6;ci++) cuoLines[ci]=cuoLines[ci]===1?0:1;
@@ -470,7 +475,8 @@ function enrichTimeInfo() {
       
       var solar, lunar;
       if (isLunar && typeof Lunar !== 'undefined') {
-        lunar = Lunar.fromYmd(y, m, d);
+        // 农历输入也要带时辰，否则时柱恒为子时
+        lunar = Lunar.fromYmdHms(y, m, d, h, min || 0, 0);
         solar = lunar.getSolar();
       } else {
         solar = Solar.fromYmdHms(y, m, d, h, min || 0, 0);
@@ -479,17 +485,13 @@ function enrichTimeInfo() {
       info.lunarYear = lunar.getYearInChinese();
       info.lunarMonth = lunar.getMonthInChinese();
       info.lunarDay = lunar.getDayInChinese();
-      info.yearGZ = lunar.getYearInGanZhi();
+      // 年柱以立春换年（getYearInGanZhi 用正月初一为界，命理上不对）
+      info.yearGZ = lunar.getYearInGanZhiByLiChun();
       info.monthGZ = lunar.getMonthInGanZhi();
       info.hourGZ = lunar.getTimeInGanZhi();
-      // 子时(23:00+)日柱算次日
-      if (h >= 23) {
-        var nextDay = new Date(solar.getYear(), solar.getMonth()-1, solar.getDay()+1);
-        var tmLunar = Solar.fromDate(nextDay).getLunar();
-        info.dayGZ = tmLunar.getDayInGanZhi();
-      } else {
-        info.dayGZ = lunar.getDayInGanZhi();
-      }
+      // 晚子时(23:00-23:59)日柱进位次日。用库自带的 Exact 版：
+      // 它与 getTimeInGanZhi() 同源（时干由进位后的日干推），两者不会脱节
+      info.dayGZ = lunar.getDayInGanZhiExact();
       // 空亡：四柱各自推算
       info.xkYear = xunKongFromDayGZ(info.yearGZ);
       info.xkMonth = xunKongFromDayGZ(info.monthGZ);
@@ -528,36 +530,45 @@ function timeDivination() {
   var y = selectedTime.year, m = selectedTime.month, d = selectedTime.day;
   var h = selectedTime.hour;
   var isLunar = selectedTime.calendar === 'lunar';
+  // 无农历库时**不能**拿公历年月日顶替农历 —— 那会算出一个「看着正常的错卦」，
+  // 用户分辨不出卦是错的，比直接报错危险。起卦公式依赖农历，没有农历就不占。
+  if (typeof Solar === 'undefined' || (isLunar && typeof Lunar === 'undefined')) {
+    alert('农历数据未加载完成，无法起卦。请刷新页面后重试。');
+    return null;
+  }
   // 获取 shichen 和农历信息
   var sc = getShichen(h);
-  var lunarMonth = m, lunarDay = d;
+  var solar, lunar, calcLunar;
   try {
-    if (typeof Solar !== 'undefined') {
-      var solar, lunar;
-      if (isLunar && typeof Lunar !== 'undefined') {
-        lunar = Lunar.fromYmd(y, m, d);
-        solar = lunar.getSolar();
-      } else {
-        solar = Solar.fromYmdHms(y, m, d, h, 0, 0);
-        lunar = solar.getLunar();
-      }
-      lunarMonth = lunar.getMonth();
-      lunarDay = lunar.getDay();
+    if (isLunar) {
+      lunar = Lunar.fromYmdHms(y, m, d, h, 0, 0);
+      solar = lunar.getSolar();
+    } else {
+      solar = Solar.fromYmdHms(y, m, d, h, 0, 0);
+      lunar = solar.getLunar();
     }
-  } catch(e) {}
-  // 年支数（干支编号：子1 丑2 ... 亥12）
-  var yearZhiNum = ((y - 4) % 12 + 12) % 12 + 1;
-  // 子时（23:00-00:59）日柱算次日
-  var calcDay = sc.num === 1 ? lunarDay + 1 : lunarDay;
-  var upperRaw = yearZhiNum + lunarMonth + calcDay;
-  var lowerRaw = yearZhiNum + lunarMonth + calcDay + sc.num;
-  var moveRaw = yearZhiNum + lunarMonth + calcDay + sc.num;
+    // 晚子时(23:00-23:59)换日：农历月/日/年支一律取次日，与六爻日柱口径一致。
+    // 走库的 next(1) 而非 lunarDay+1，月末/年末进位才不会溢出。
+    calcLunar = h >= 23 ? solar.next(1).getLunar() : lunar;
+  } catch(e) {
+    alert('农历换算失败，无法起卦：' + (e && e.message ? e.message : e));
+    return null;
+  }
+  var lunarMonth = Math.abs(calcLunar.getMonth());  // 闰月库返回负数，取绝对值（闰月按本月序数计）
+  var lunarDay = calcLunar.getDay();
+  // 年支数（子1 丑2 ... 亥12）—— 用**农历**年支，不是公历年
+  var ZHI = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+  var yearZhiNum = ZHI.indexOf(calcLunar.getYearZhi()) + 1;
+  var upperRaw = yearZhiNum + lunarMonth + lunarDay;
+  var lowerRaw = yearZhiNum + lunarMonth + lunarDay + sc.num;
+  var moveRaw  = yearZhiNum + lunarMonth + lunarDay + sc.num;
   var upper = upperRaw % 8; if(upper===0) upper=8;
   var lower = lowerRaw % 8; if(lower===0) lower=8;
   var move = moveRaw % 6; if(move===0) move=6;
   return {
     method:'time',
     calc: {
+      yearZhiNum:yearZhiNum, lunarMonth:lunarMonth, lunarDay:lunarDay, shichenNum:sc.num,
       upperRaw:upperRaw, upper:upper,
       lowerRaw:lowerRaw, lower:lower,
       moveRaw:moveRaw, move:move
@@ -567,9 +578,14 @@ function timeDivination() {
 }
 
 function manualDivination() {
-  var u=parseInt(document.getElementById('manualUpper').value);
-  var l=parseInt(document.getElementById('manualLower').value);
-  var m=parseInt(document.getElementById('manualMove').value);
+  var u=parseInt(document.getElementById('manualUpper').value,10);
+  var l=parseInt(document.getElementById('manualLower').value,10);
+  var m=parseInt(document.getElementById('manualMove').value,10);
+  // 手动指定必须校验：空值/越界会让 NaN 一路传到 calcGua，排出一个空卦
+  if (!(u>=1&&u<=8) || !(l>=1&&l<=8) || !(m>=1&&m<=6)) {
+    alert('请填写：上卦 1-8、下卦 1-8、动爻 1-6');
+    return null;
+  }
   return { method:'manual', gua:calcGua(u,l,m) };
 }
 
@@ -586,7 +602,8 @@ function num1Divination() {
   var upper=sum1%8; if(upper===0) upper=8;
   var lower=sum2%8; if(lower===0) lower=8;
   
-  var moveRaw=upper+lower;
+  // 动爻从**原始和**取模，不能用已取模的上卦/下卦（否则动爻被 8 的余数污染）
+  var moveRaw=sum1+sum2;
   var timeInfo=null;
   if(addShichen){
     timeInfo=getLunarInfo();
@@ -610,7 +627,8 @@ function num2Divination() {
   var n1=parseInt(digits[0]), n2=parseInt(digits[1]), n3=parseInt(digits[2]);
   var upper=n1%8; if(upper===0) upper=8;
   var lower=n2%8; if(lower===0) lower=8;
-  var moveRaw=n3;
+  // 古法：上卦=第一数÷8，下卦=第二数÷8，动爻=**三数之和**÷6（不是第三个数本身）
+  var moveRaw=n1+n2+n3;
   var timeInfo=null;
   if(document.getElementById('num2AddShichen').checked){
     timeInfo=getLunarInfo();
@@ -688,13 +706,13 @@ function renderMethodParams() {
     case 'num1':
       h += '<div style="margin-top:0.6rem">'+
           '<div class="num-input-row"><input type="text" id="num1Input" placeholder="连续输入数字，如 386 或 1234" inputmode="numeric" style="flex:1"><label class="cb-inline"><input type="checkbox" id="num1AddShichen" checked> 动爻加时辰</label></div>'+
-          '<div class="algo-text">起卦算法：取输入的每一位数字，平分为前后两半，前一半之和 ÷8 得余数为上卦，后一半之和 ÷8 得余数为下卦，上下卦数相加 ÷6 得余数为动爻。若数字个数为奇数，前部分比后部分少一个。</div>'+
+          '<div class="algo-text">起卦算法（古法）：取输入的每一位数字，平分为前后两半，前一半之和 ÷8 得余数为上卦，后一半之和 ÷8 得余数为下卦，前后两半和数之和 ÷6 得余数为动爻。若数字个数为奇数，前部分比后部分少一个。</div>'+
           '</div>';
       break;
     case 'num2':
       h += '<div style="margin-top:0.6rem">'+
           '<div class="num-input-row"><input type="text" id="num2Input" placeholder="输入三个数字，如 386" maxlength="3" inputmode="numeric" style="flex:1;text-align:center"><label class="cb-inline"><input type="checkbox" id="num2AddShichen" checked> 动爻加时辰</label></div>'+
-          '<div class="algo-text">起卦算法：第1个数 ÷8 得余数为上卦，第2个数 ÷8 得余数为下卦，第3个数 ÷6 得余数为动爻。</div>'+
+          '<div class="algo-text">起卦算法（古法）：第1个数 ÷8 得余数为上卦，第2个数 ÷8 得余数为下卦，三个数之和 ÷6 得余数为动爻。</div>'+
           '</div>';
       break;
     case 'auto':
@@ -743,6 +761,7 @@ async function startDivination(e) {
     case 'auto': result = autoDivination(); break;
     default: resetBtn(); return;
   }
+  if (!result || !result.gua) { resetBtn(); return; }
 
   // ===== 3. 统一：topic / 起卦时间 / 农历 / 跳转 =====
   var topic = document.getElementById('topicInput').value.trim();
@@ -760,7 +779,7 @@ async function startDivination(e) {
   // 事项为空 → 临时排盘，不保存记录
   if (!topic) {
     localStorage.setItem('mhys_result', JSON.stringify(result));
-    window.location.href = '/mhys/result.html?v=3';
+    window.location.href = '/mhys/result.html?v=4';
     return;
   }
 
@@ -778,13 +797,13 @@ async function startDivination(e) {
     });
     var saved = await resp.json();
     if (resp.ok) {
-      window.location.href = '/mhys/result.html?v=3&id=' + saved.id;
+      window.location.href = '/mhys/result.html?v=4&id=' + saved.id;
     } else {
-      window.location.href = '/mhys/result.html?v=3';
+      window.location.href = '/mhys/result.html?v=4';
     }
   } catch(e) {
     localStorage.setItem('mhys_result', JSON.stringify(result));
-    window.location.href = '/mhys/result.html?v=3';
+    window.location.href = '/mhys/result.html?v=4';
   }
 }
 

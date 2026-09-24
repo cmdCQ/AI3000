@@ -82,6 +82,12 @@ html,body { background:var(--bg); color:var(--text); font-family:var(--sans); mi
 .tiyong-badge.yong { background:rgba(100,140,200,0.12); color:#5a7fa0; }
 .tiyong-verdict { margin-top:0.5rem; padding:0.5rem 0.8rem; border-radius:var(--radius-sm); font-size:0.82rem; font-weight:500; text-align:center; }
 .verdict-neutral { background:var(--accent-bg); color:var(--accent); border:1px solid rgba(184,150,10,0.15); }
+/* 体用吉凶分级：深字浅底，对比度均 ≥4.5:1（原先五种关系全是 verdict-neutral，只有 2.68:1 且无吉凶） */
+.v-daiji { background:#e8f5ec; color:#146b2b; border:1px solid #bfe0c8; }
+.v-ji { background:#f0f7f2; color:#1a7d33; border:1px solid #d3e8da; }
+.v-ping { background:var(--accent-bg); color:#7a6408; border:1px solid rgba(184,150,10,0.25); }
+.v-xiong { background:#fdf1ef; color:#a33a2c; border:1px solid #f0d5d0; }
+.v-daxiong { background:#fbeae8; color:#8f2b1c; border:1px solid #eec7c1; }
 
 .load-state { text-align:center; padding:3rem 0; color:var(--text-dim); }
 .load-state p { margin-top:0.5rem; font-size:0.85rem; }
@@ -403,7 +409,7 @@ html,body { background:var(--bg); color:var(--text); font-family:var(--sans); mi
   </div>
 </div>
 
-<script src="/js/auth.js?v=1781834000"></script>
+<script src="/js/auth.js?v=1787305221"></script>
 <script src="/js/hexagrams_data.js?v=1"></script>
 <script>
 // ===== 八卦数据 =====
@@ -922,6 +928,8 @@ async function sendFollowUp() {
     input.disabled = false;
     input.focus();
     fbar.classList.add('show');
+    // 401 → 清除错误内容并弹出登录窗口
+    if (handleApiUnauthorized(xhr, item)) return;
     // 未登录用户标记已使用追问次数
     if (!AUTH.isLoggedIn()) {
       localStorage.setItem('mhys_anon_followup', '1');
@@ -971,8 +979,8 @@ function showLoginPrompt(respEl) {
     '<div style="font-size:0.9rem;font-weight:600;color:var(--text);margin-bottom:0.3rem">免费解析次数已用完</div>' +
     '<div style="font-size:0.75rem;color:var(--text-dim);line-height:1.7;margin-bottom:1rem">注册登录后即可使用全部功能<br>登录可享最少 <strong style="color:var(--accent)">100 次</strong> AI 解析</div>' +
     '<div style="display:flex;gap:0.5rem;justify-content:center">' +
-      '<a href="javascript:void(0)" onclick="showRegisterModal()" class="ai-start-btn" style="display:inline-block;text-decoration:none">注册</a>' +
-      '<a href="javascript:void(0)" onclick="showAuthModal()" class="ai-start-btn" style="display:inline-block;text-decoration:none;background:#fff;color:var(--accent);border:1px solid var(--accent);box-shadow:none">登录</a>' +
+      '<a href="javascript:void(0)" onclick="openAuthModal(\'register\')" class="ai-start-btn" style="display:inline-block;text-decoration:none">注册</a>' +
+      '<a href="javascript:void(0)" onclick="openAuthModal(\'login\')" class="ai-start-btn" style="display:inline-block;text-decoration:none;background:#fff;color:var(--accent);border:1px solid var(--accent);box-shadow:none">登录</a>' +
     '</div>' +
     '</div>';
 }
@@ -1046,6 +1054,9 @@ async function startAIStream() {
       if (fbar) fbar.classList.add('show');
       var body = document.getElementById('aiPanelBody');
       if (body) setTimeout(function(){ body.scrollTop = body.scrollHeight; }, 100);
+
+      // 401 → 清除错误内容并弹出登录窗口
+      if (handleApiUnauthorized(xhr, respDiv)) return;
 
       var analysisText = fullText;
       if (analysisText) {

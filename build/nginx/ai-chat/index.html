@@ -256,7 +256,7 @@ html,body { background:var(--bg); color:var(--text); font-family:var(--sans); he
 
 
 
-<script src="/js/auth.js?v=1781834000"></script>
+<script src="/js/auth.js?v=1787305221"></script>
 <script src="/js/hexagrams_data.js?v=2"></script>
 <script>
 // ===== 八卦/六爻帮助函数 =====
@@ -277,7 +277,7 @@ var pendingCard = null;  // {type:'mhys'|'liuyao', cardData:{...}}
 document.addEventListener('DOMContentLoaded', function() {
   // 检查登录状态
   if (!AUTH.isLoggedIn()) {
-    showAuthModal();
+    openAuthModal('login');
     return;
   }
 });
@@ -600,16 +600,20 @@ async function sendMessage() {
     appendMessageDOM(cardMsg, true);
   }
 
-  // 检测是否包含三个数字 → 自动起卦（仅在非卡片模式下）
+  // 检测数字自动起卦（仅在非卡片模式下）
   if (!card) {
-    var nums = extractThreeNumbers(text);
-    if (nums) {
+    var digits = extractDigits(text);
+    if (digits && digits.length >= 2) {
       // 添加纯文字消息
       var userMsg = { role: 'user', content: text, type: 'text', createdAt: Date.now() };
       allMessages.push(userMsg);
       appendMessageDOM(userMsg, true);
-      // 自动起卦（内部会处理后续的 AI 请求）
-      doAutoDivination(nums[0], nums[1], nums[2]);
+      // 2个数字 → 数字起卦1（加动爻）；3个数字 → 数字起卦2；4+个 → 数字起卦1
+      if (digits.length === 3) {
+        doAutoDivination(digits[0], digits[1], digits[2], text);
+      } else {
+        doAutoDivinationNum1(digits, text);
+      }
       return;
     }
     
@@ -667,6 +671,10 @@ async function sendMessage() {
       
       var loading = document.getElementById('aiLoading');
       if (loading) loading.remove();
+
+      // 401 → 清除错误内容并弹出登录窗口
+      var streamEl401 = document.querySelector('.msg-ai.streaming');
+      if (handleApiUnauthorized(xhr, streamEl401)) return;
 
       if (fullText) {
         // 提取 token 信息
@@ -1245,52 +1253,15 @@ function getShichenNum() {
 }
 
 // 从消息中检测三个数字（1-9），返回 [n1,n2,n3] 或 null
-function extractThreeNumbers(text) {
-  var digits = text.replace(/[^1-9]/g, '').split('').map(Number);
-  if (digits.length === 3) return digits;
-  // 也支持类似 "12 34 56" 的两位数
-  var nums = text.match(/\d+/g);
-  if (nums && nums.length === 3) {
-    var parsed = nums.map(Number).filter(function(n){ return n >= 1 && n <= 99; });
-    if (parsed.length === 3) return parsed;
-  }
+function extractDigits(text) {
+  // 提取所有连续数字字符
+  var digits = text.replace(/[^0-9]/g, '').split('').map(Number).filter(function(n){ return !isNaN(n); });
+  if (digits.length >= 2) return digits;
   return null;
 }
 
-// 执行自动起卦并发送卡片
-function doAutoDivination(n1, n2, n3) {
-  var upper = n1 % 8; if (upper === 0) upper = 8;
-  var lower = n2 % 8; if (lower === 0) lower = 8;
-  var moveRaw = n3;
-  moveRaw += getShichenNum();
-  var move = moveRaw % 6; if (move === 0) move = 6;
-
-  var hexData = calcQuickGuaData(upper, lower, move);
-
-  // 计算变卦
-  var upLines = triToLinesArr(upper);
-  var loLines = triToLinesArr(lower);
-  var all = [upLines[2], upLines[1], upLines[0], loLines[2], loLines[1], loLines[0]];
-  var moveIdx = 6 - move;
-  all[moveIdx] = all[moveIdx] === 1 ? 0 : 1;
-  var newUpper = linesToTriNum([all[0], all[1], all[2]]);
-  var newLower = linesToTriNum([all[3], all[4], all[5]]);
-
-  hexData.bianGua = {
-    upper: newUpper, lower: newLower,
-    name: getHexagramName(newUpper, newLower),
-    upperTri: TRIGRAMS[String(newUpper)] || {name:'?',symbol:'?'},
-    lowerTri: TRIGRAMS[String(newLower)] || {name:'?',symbol:'?'}
-  };
-
-  var cardData = {
-    topic: '起卦：' + n1 + ' ' + n2 + ' ' + n3,
-    divinationTime: new Date().toLocaleString('zh-CN'),
-    method: '数字起卦2',
-    hexagrams: hexData
-  };
-
-  // 添加到消息列表并显示
+// 发送排盘卡片给 AI 解析（数字起卦 1 & 2 共用）
+function sendDivinationCard(cardData, userText) {
   var cardMsg = { role: 'user', type: 'mhys', cardData: cardData, content: '', createdAt: Date.now() };
   allMessages.push(cardMsg);
 
@@ -1342,6 +1313,10 @@ function doAutoDivination(n1, n2, n3) {
     var loading = document.getElementById('aiLoading');
     if (loading) loading.remove();
 
+    // 401 → 清除错误内容并弹出登录窗口
+    var streamEl401 = document.querySelector('.msg-ai.streaming');
+    if (handleApiUnauthorized(xhr, streamEl401)) return;
+
     if (fullText) {
       var tokenInfo = '';
       var tokenIdx = fullText.lastIndexOf('\n消耗 Token：');
@@ -1368,7 +1343,97 @@ function doAutoDivination(n1, n2, n3) {
     scrollToBottom();
   };
 
-  xhr.send(JSON.stringify({ message: '', cardType: 'mhys', cardData: cardData }));
+  xhr.send(JSON.stringify({ message: userText || '', cardType: 'mhys', cardData: cardData }));
+}
+
+// 数字起卦1：任意位数，前后半求和作为上下卦，动爻=上+下（+时辰）
+function doAutoDivinationNum1(digits, userText) {
+  var half = Math.floor(digits.length / 2);
+  var firstHalf = digits.slice(0, half);
+  var secondHalf = digits.slice(half);
+  var sum1 = firstHalf.reduce(function(a,b){return a+b;}, 0);
+  var sum2 = secondHalf.reduce(function(a,b){return a+b;}, 0);
+  var upper = sum1 % 8; if (upper === 0) upper = 8;
+  var lower = sum2 % 8; if (lower === 0) lower = 8;
+  var moveRaw = upper + lower + getShichenNum();
+  var move = moveRaw % 6; if (move === 0) move = 6;
+
+  var hexData = calcQuickGuaData(upper, lower, move);
+
+  // 计算变卦
+  var upLines = triToLinesArr(upper);
+  var loLines = triToLinesArr(lower);
+  var all = [upLines[2], upLines[1], upLines[0], loLines[2], loLines[1], loLines[0]];
+  var moveIdx = 6 - move;
+  all[moveIdx] = all[moveIdx] === 1 ? 0 : 1;
+  var newUpper = linesToTriNum([all[2], all[1], all[0]]);
+  var newLower = linesToTriNum([all[5], all[4], all[3]]);
+
+  hexData.bianGua = {
+    upper: newUpper, lower: newLower,
+    name: getHexagramName(newUpper, newLower),
+    upperTri: TRIGRAMS[String(newUpper)] || {name:'?',symbol:'?'},
+    lowerTri: TRIGRAMS[String(newLower)] || {name:'?',symbol:'?'}
+  };
+
+  // 从用户原文提取求测事项
+  var topic = '起卦：' + upper + ' ' + lower + ' (数字' + digits.length + '位)';
+  if (userText) {
+    var cleanTopic = userText.replace(/\d+/g, '').replace(/\s+/g, ' ').trim();
+    if (cleanTopic) topic = cleanTopic;
+  }
+
+  var cardData = {
+    topic: topic,
+    divinationTime: new Date().toLocaleString('zh-CN'),
+    method: '数字起卦1',
+    hexagrams: hexData
+  };
+
+  sendDivinationCard(cardData, userText);
+}
+
+// 数字起卦2：三位数字，n1=上卦 n2=下卦 n3=动爻（+时辰）
+function doAutoDivination(n1, n2, n3, userText) {
+  var upper = n1 % 8; if (upper === 0) upper = 8;
+  var lower = n2 % 8; if (lower === 0) lower = 8;
+  var moveRaw = n3;
+  moveRaw += getShichenNum();
+  var move = moveRaw % 6; if (move === 0) move = 6;
+
+  var hexData = calcQuickGuaData(upper, lower, move);
+
+  // 计算变卦
+  var upLines = triToLinesArr(upper);
+  var loLines = triToLinesArr(lower);
+  var all = [upLines[2], upLines[1], upLines[0], loLines[2], loLines[1], loLines[0]];
+  var moveIdx = 6 - move;
+  all[moveIdx] = all[moveIdx] === 1 ? 0 : 1;
+  var newUpper = linesToTriNum([all[2], all[1], all[0]]);
+  var newLower = linesToTriNum([all[5], all[4], all[3]]);
+
+  hexData.bianGua = {
+    upper: newUpper, lower: newLower,
+    name: getHexagramName(newUpper, newLower),
+    upperTri: TRIGRAMS[String(newUpper)] || {name:'?',symbol:'?'},
+    lowerTri: TRIGRAMS[String(newLower)] || {name:'?',symbol:'?'}
+  };
+
+  // 从用户原文提取求测事项：去掉数字，保留文字
+  var topic = '起卦：' + n1 + ' ' + n2 + ' ' + n3;
+  if (userText) {
+    var cleanTopic = userText.replace(/\d+/g, '').replace(/\s+/g, ' ').trim();
+    if (cleanTopic) topic = cleanTopic;
+  }
+
+  var cardData = {
+    topic: topic,
+    divinationTime: new Date().toLocaleString('zh-CN'),
+    method: '数字起卦2',
+    hexagrams: hexData
+  };
+
+  sendDivinationCard(cardData, userText);
 }
 
 </script>

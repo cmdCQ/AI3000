@@ -20,7 +20,7 @@ services:
       retries: 5
 
   rag:
-    build: ../build/rag
+    image: docker-rag:latest
     container_name: ai3000-rag
     restart: unless-stopped
     environment:
@@ -39,7 +39,7 @@ services:
       retries: 3
 
   backend:
-    build: ../build/backend
+    image: docker-backend:latest
     container_name: ai3000-backend
     restart: unless-stopped
     command: pm2-runtime start auth-server.js --name ai3000-auth
@@ -63,6 +63,9 @@ services:
       - /var/www/sqw.somtfly.com/build/backend/auth-server.js:/app/auth-server.js:ro
       - /var/www/sqw.somtfly.com/build/backend/config.js:/app/config.js:ro
       - /var/www/sqw.somtfly.com/build/backend/chat-proxy.js:/app/chat-proxy.js:ro
+      # 排盘/装卦模块（六爻纳甲、八宫世应、旬空、旺衰、伏神、卦身）。只读挂载；
+      # 改这里要 `docker compose up -d backend` 重建容器（backend 无热重载）
+      - /var/www/sqw.somtfly.com/build/backend/paipan:/app/paipan:ro
     networks:
       - ai3000_net
     depends_on:
@@ -75,7 +78,7 @@ services:
       retries: 5
 
   music-api:
-    build: ../build/music-api
+    image: docker-music-api:latest
     container_name: ai3000-music-api
     restart: unless-stopped
     environment:
@@ -90,12 +93,29 @@ services:
       timeout: 5s
       retries: 3
 
+  upload:
+    image: docker-upload:latest
+    container_name: ai3000-upload
+    restart: unless-stopped
+    environment:
+      UPLOAD_TOKEN: ${UPLOAD_TOKEN}
+      UPLOAD_ADMIN_PW: ${UPLOAD_ADMIN_PW}
+    volumes:
+      - ai3000_upload_data:/data
+    networks:
+      - ai3000_net
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3401/health',r=>{process.exit(r.statusCode===200?0:1)})"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+
   nginx:
-    build: ../build/nginx
+    image: docker-nginx:latest
     container_name: ai3000-nginx
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "8080:80"
       - "443:443"
     volumes:
       - ai3000_nginx_certs:/etc/letsencrypt
@@ -105,6 +125,7 @@ services:
       - ai3000_net
     depends_on:
       - backend
+      - upload
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80/"]
       interval: 15s
@@ -130,3 +151,5 @@ volumes:
     name: ai3000_huggingface_cache
   ai3000_music_data:
     name: ai3000_music_data
+  ai3000_upload_data:
+    name: ai3000_upload_data

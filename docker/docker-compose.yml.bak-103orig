@@ -1,0 +1,152 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: ai3000-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ai3000
+      MYSQL_USER: ai3000
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - ai3000_mysql_data:/var/lib/mysql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    networks:
+      - ai3000_net
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rag:
+    build: ../build/rag
+    container_name: ai3000-rag
+    restart: unless-stopped
+    environment:
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+      DEEPSEEK_BASE_URL: https://api.deepseek.com/v1
+      RAG_EMBEDDING_MODE: local
+    volumes:
+      - ai3000_rag_vector_db:/app/vector_db
+      - ai3000_huggingface_cache:/root/.cache/huggingface
+    networks:
+      - ai3000_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8800/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  backend:
+    build: ../build/backend
+    container_name: ai3000-backend
+    restart: unless-stopped
+    command: pm2-runtime start auth-server.js --name ai3000-auth
+    environment:
+      NODE_ENV: production
+      MYSQL_HOST: mysql
+      MYSQL_USER: ai3000
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ai3000
+      RAG_URL: http://rag:8800
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+      DEEPSEEK_BASE_URL: https://api.deepseek.com/v1
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      ALIBABA_ACCESS_KEY_ID: ${ALIBABA_ACCESS_KEY_ID}
+      ALIBABA_ACCESS_KEY_SECRET: ${ALIBABA_ACCESS_KEY_SECRET}
+      ALIBABA_SIGN_NAME: 速通互联验证码
+      ALIBABA_TEMPLATE_CODE: "100001"
+      WECHAT_APP_SECRET: ${WECHAT_APP_SECRET}
+    volumes:
+      - /var/www/sqw.somtfly.com/data:/data:rw
+      - /var/www/sqw.somtfly.com/build/backend/auth-server.js:/app/auth-server.js:ro
+      - /var/www/sqw.somtfly.com/build/backend/config.js:/app/config.js:ro
+      - /var/www/sqw.somtfly.com/build/backend/chat-proxy.js:/app/chat-proxy.js:ro
+    networks:
+      - ai3000_net
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3301/api/me',r=>{process.exit(r.statusCode===200||r.statusCode===401?0:1)})"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  music-api:
+    build: ../build/music-api
+    container_name: ai3000-music-api
+    restart: unless-stopped
+    environment:
+      PORT: "4173"
+    volumes:
+      - ai3000_music_data:/app/data
+    networks:
+      - ai3000_net
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:4173/api/playlists',r=>{process.exit(r.statusCode===200?0:1)})"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  upload:
+    build: ../build/upload
+    container_name: ai3000-upload
+    restart: unless-stopped
+    environment:
+      UPLOAD_TOKEN: ${UPLOAD_TOKEN}
+      UPLOAD_ADMIN_PW: ${UPLOAD_ADMIN_PW}
+    volumes:
+      - ai3000_upload_data:/data
+    networks:
+      - ai3000_net
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3401/health',r=>{process.exit(r.statusCode===200?0:1)})"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+
+  nginx:
+    build: ../build/nginx
+    container_name: ai3000-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ai3000_nginx_certs:/etc/letsencrypt
+      - /etc/letsencrypt:/host_letsencrypt:ro
+      - /var/www/sqw.somtfly.com/build/nginx:/usr/share/nginx/html:ro
+    networks:
+      - ai3000_net
+    depends_on:
+      - backend
+      - upload
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+networks:
+  ai3000_net:
+    external: true
+    name: ai3000_net
+
+volumes:
+  ai3000_mysql_data:
+    external: true
+    name: ai3000_mysql_data
+  ai3000_rag_vector_db:
+    external: true
+    name: ai3000_rag_vector_db
+  ai3000_nginx_certs:
+    external: true
+    name: ai3000_nginx_certs
+  ai3000_huggingface_cache:
+    name: ai3000_huggingface_cache
+  ai3000_music_data:
+    name: ai3000_music_data
+  ai3000_upload_data:
+    name: ai3000_upload_data

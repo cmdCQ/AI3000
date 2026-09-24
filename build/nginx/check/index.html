@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#2563eb">
+<title>Check time · 单词抽查</title>
+<link rel="stylesheet" href="styles.css?v=2">
+</head>
+<body>
+<div class="page">
+
+  <header class="topbar">
+    <div class="wrap clearfix">
+      <div class="brand"><span class="dot"></span>Check&nbsp;time<span class="brand-sub">单词抽查</span></div>
+      <div class="actions">
+        <button type="button" class="btn ghost" id="btnReupload" style="display:none">重新上传</button>
+        <button type="button" class="btn ghost" id="btnFull">全屏</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+
+    <!-- ============ 上传 ============ -->
+    <section id="viewUpload" class="view">
+      <div class="dropzone" id="dropzone">
+        <div class="dz-icon">+</div>
+        <div class="dz-title">拖拽 Excel 到这里</div>
+        <div class="dz-sub">或点击选择文件 · 支持 .xlsx / .xls</div>
+        <div class="dz-hint">第一列形如「56 excel」，自动读取序号与单词</div>
+        <div class="dz-sample"><a href="sample.xlsx" download>下载示例 Excel</a></div>
+      </div>
+      <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none">
+      <div class="error" id="errorBox" style="display:none"></div>
+    </section>
+
+    <!-- ============ 预览 ============ -->
+    <section id="viewReady" class="view" style="display:none">
+      <div class="stats clearfix">
+        <div class="stat"><div class="stat-inner"><div class="stat-num" id="statTotal">0</div><div class="stat-label">总单词数</div></div></div>
+        <div class="stat"><div class="stat-inner"><div class="stat-num" id="statDrawn">0</div><div class="stat-label">已抽</div></div></div>
+        <div class="stat"><div class="stat-inner"><div class="stat-num" id="statLeft">0</div><div class="stat-label">剩余</div></div></div>
+      </div>
+      <div class="file-chip" id="fileChip"></div>
+      <div class="grid clearfix" id="grid"></div>
+      <div class="ready-actions">
+        <button type="button" class="btn primary xl" id="btnStart">开始抽查</button>
+        <div class="secondary"><button type="button" class="btn ghost" id="btnReset1">重置抽取记录</button></div>
+      </div>
+    </section>
+
+    <!-- ============ 抽查 ============ -->
+    <section id="viewDraw" class="view" style="display:none">
+      <div class="word-box">
+        <div class="no" id="wordNo"></div>
+        <div class="word" id="wordText"></div>
+      </div>
+      <div class="done" id="doneBox" style="display:none">
+        <div class="done-text">已全部抽完</div>
+        <div class="done-sub" id="doneSub"></div>
+      </div>
+      <div class="progress" id="progress"></div>
+      <div class="draw-actions">
+        <button type="button" class="btn primary xl" id="btnDraw">随机抽查</button>
+        <div class="secondary">
+          <button type="button" class="btn ghost" id="btnReset2">重置抽取记录</button>
+          <button type="button" class="btn ghost" id="btnList">查看列表</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script src="xlsx.full.min.js"></script>
+<script src="app.js?v=2"></script>
+</body>
+</html>
