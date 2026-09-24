@@ -17,3 +17,10 @@ known_hosts*
 # golden_*.json 反之**必须入库**：它是 shushu 金标准的唯一留存记录，
 # 也是 README 里说的「每组样例同时是将来回归的 fixture」。
 duipan/js_*.json
+
+# ── 线上留存的旧版页面备份 ──────────────────────────────────
+# 文件本身留在工作区以保持本地镜像与服务器逐文件一致，但不入库：
+# 它没有日期/用途标签，只是某一时刻的旧页面，入库存放会让人改错文件
+# （同 constants.js.bak-align 的教训）。用户自己在服务器上做的、
+# 带日期语义的备份（nginx-default.conf.bak-20260911-faker 等）不在此列，照常入库。
+build/nginx/ai-chat/index.html.bak
