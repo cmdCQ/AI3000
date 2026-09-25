@@ -29,8 +29,15 @@ fi
 
 ss() { sh "$HERE/ss.sh" "$@"; }
 
-# 要部署的文件（相对 build/backend/）。relations.js 本批未改，不列，避免无谓覆盖。
-FILES="paipan/yongshen.js paipan/liuyao.js auth-server.js"
+# 要部署的文件（相对 build/backend/）。
+# **列整个 paipan/ 目录**，而不是「本批改过的那几个」：目录是整体挂载的，
+# 逐个列会漏——2026-09-24 就漏过一次（baacf62 改了 relations.js 却只传了
+# liuyao.js/auth-server.js，线上长期留着旧版；那次差异恰好只是注释才没出事）。
+# 整目录核对能把这类漂移直接照出来。
+# 注意用 echo 而非 ls：`ls` 在非 TTY 下**按行**输出，$(...) 会把换行带进来，
+# 远端于是把文件名单当命令逐行执行（报 `zsh:2: 权限不够: paipan/ganzhi.js`）。
+FILES=$(cd "$REPO/build/backend" && echo paipan/*.js paipan/*.json)
+FILES="$FILES auth-server.js"
 for f in $FILES; do
   [ -f "$REPO/build/backend/$f" ] || { echo "缺文件：build/backend/$f"; exit 1; }
 done
@@ -46,12 +53,27 @@ preflight_container() {
 
 case "$MODE" in
   --check)
-    echo "── 本地（待部署）"
-    manifest | sed 's/^/  /'
-    echo "── 线上宿主机挂载源 $REMOTE_BUILD"
-    ss "cd $REMOTE_BUILD && md5sum $FILES 2>&1 | sed 's/^/  /'"
-    echo "── 线上容器内（实际运行的即此份）"
-    ss "docker exec $CONTAINER sh -c 'cd /app && md5sum $FILES 2>&1' | sed 's/^/  /'"
+    # 只报**不一致**，不逐文件刷屏；缺文件单独标出来。
+    # 末尾的 `|| true` 是必需的：线上缺某个文件时 md5sum 返回非零，
+    # 而本脚本是 `set -e`，不加会在打印任何东西之前就退出（排查过一次）。
+    ss "cd $REMOTE_BUILD && md5sum $FILES 2>/dev/null || true" > /tmp/ai3000-remote.md5
+    ss "docker exec $CONTAINER sh -c 'cd /app && md5sum $FILES 2>/dev/null || true'" > /tmp/ai3000-container.md5
+
+    report() {
+      label=$1; file=$2
+      echo "── $label"
+      if [ ! -s "$file" ]; then echo "  （取不到）"; return; fi
+      ( cd "$REPO/build/backend" && md5sum -c "$file" 2>/dev/null ) \
+        | awk -F': ' '{ if ($2=="OK") ok++; else print "  ✗ 不一致或缺失: "$1 } END { printf "  一致 %d 个\n", ok }'
+      # 线上没有、本地有的文件（md5sum -c 只在**线上清单**里找，故要反向再查一次）
+      for f in $FILES; do
+        grep -q " $f\$" "$file" || echo "  ✗ 线上缺失: $f"
+      done
+    }
+    report "宿主机挂载源 $REMOTE_BUILD" /tmp/ai3000-remote.md5
+    report "容器内（实际运行的即此份）" /tmp/ai3000-container.md5
+    echo
+    echo "本地待部署共 $(echo $FILES | wc -w) 个文件。"
     ;;
 
   --probe)
