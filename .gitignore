@@ -26,3 +26,8 @@ duipan/probe_*.json
 # （同 constants.js.bak-align 的教训）。用户自己在服务器上做的、
 # 带日期语义的备份（nginx-default.conf.bak-20260911-faker 等）不在此列，照常入库。
 build/nginx/ai-chat/index.html.bak
+
+# 派生桶（`diff_bazi_chart.py` 按原因切出来给 diff.py 用的中间产物）：
+# 与 js_*.json 同理 —— 跑一次对拍脚本即可复现，且它是 golden_bazi.json 的**子集**，
+# 入库等于同一份数据存两处，改了一处另一处就成假基准。
+duipan/golden_bazi_strict.json

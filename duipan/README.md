@@ -743,3 +743,55 @@ shushu 侧自相矛盾可作旁证：它的 `month_dizhi_at` 走的是**交节�
 ⇒ 教训：**静默 fallback 会把 harness 自己的错伪装成被验方的错**。现在调用说明里的
 `dt` 一律是 ISO 字符串（唯一能跨语言原样传的形态），两侧各自还原，并在
 `gen_golden_meihua.py` 里写明了这个坑。
+
+---
+
+### 8. 八字排盘核（3.5.1a）— ✅ 通过（405 例 / 19699 个叶子值 / **未申报差异 0 / 申报 0**）
+
+移植对象：shushu `core/bazi/chart.py` 的 `build_chart` / `build_pillar` /
+`_get_renyuan_siling`（四柱、藏干、纳音、胎元、命宫、身宫、人元司令）。
+
+落地：新增 `paipan/bazi.js`（排盘核）+ `paipan/bazi_tables.js`（**生成文件**）。
+八字专用的表不手抄 —— 纳音 60 + 十神 100 + 藏干 12 手抄一遍就是 172 次静默出错机会，
+故由 `duipan/gen_bazi_tables.py` 从 shushu `core/constants.py` 生成，可复跑：
+
+    cd shushu && .venv/bin/python ../ai3000/duipan/gen_bazi_tables.py
+
+`gen_bazi_tables.py` 顺带把**两侧共有的表**（若将来加断言）当漂移检测点。
+`constants.js` 里已有的 `TIANGAN/DIZHI/五行/生克` **不重复定义**（铁律：不要重复造轮子）。
+
+**口径**（3.5.0 已钉，实测见 `gen_bazi_sizhu_probe.py` + `probe_bazi_jieqi_offset.py`）：
+四柱一律走 `ganzhi.js`（精确交节），**不搬 shushu 的 `solar_terms.py`** ——
+后者系统性偏早 3–7 分钟（2025–2026 全部 24 个节无一例外）。晚子时换日按
+2026-09-24 拍板（属已决定派别偏离）。
+
+跑法：
+
+    node duipan/run_js_bazi.js > duipan/js_bazi.json
+    python3 duipan/diff_bazi_chart.py
+
+**为什么不是单纯跑一次 `diff.py`**：1185 例里 623 例落在交节窗口、若干落在晚子时。
+把历书不同源造成的差异混进来，就只能写一张覆盖 `例.year_pillar` 的申报表 ——
+那是**撒胡椒面**，会连带盖住真 bug。故按**原因**分桶，严格段一条申报都不给：
+
+| 桶 | 例数 | 要求 |
+|---|---|---|
+| 严格段（非交节、非晚子时） | 405 | **0 差异，0 申报** |
+| 申报段 · 交节 | 623 | 差异只许出现在月/年柱及其派生（胎元/命宫/身宫/人元司令） |
+| 申报段 · 晚子时 | 182 | 差异只许出现在日柱及其派生（日主/时柱） |
+| 未纳入 · 真太阳时（城市/经度） | 4 | **显式计数**，不静默跳过 |
+
+（交节与晚子时**可同时成立**，交集 29 例，故两列相加多于申报段总数 776；
+ 405 + 776 + 4 = 1185 = 样例总数。）
+
+申报段放行的是**原因带出的字段闭包**（`REASON_FIELDS`），不是「这些字段可以不一样」：
+换成别的原因出现同样字段不放行。
+
+**两处 shushu 侧缺陷（已实测，尚未动 shushu 本体）**：
+1. `analyzer._rich_desc` 查 `ZIPING_GE_FULL["月刃格"]`，而该表键为 `阳刃格` ——
+   106 字章旨**永远取不到**，静默退化成一句短语。属 3.5.1b 范围。
+2. `_get_renyuan_siling` 拿**公历日号**比分野天数，而分野应自**交节**起算。
+   实测 672 天里 **291 天（43%）司令取错**，偏移 −7~+27 天
+   （`duipan/probe_bazi_renyuan.py` 可复跑）。移植时**照搬**以求对拍字面一致；
+   是否改 shushu 本体待定 —— 动基准前须先到古籍原文里取判据
+   （见 memory: verify-tables-against-classical-corpus）。
