@@ -120,26 +120,10 @@ html,body { background:var(--bg); color:var(--text); font-family:var(--sans); mi
 .hex-keywords { display:flex; flex-wrap:wrap; gap:0.3rem; }
 .hex-keywords span { font-size:0.62rem; padding:0.1rem 0.5rem; border-radius:8px; background:var(--bg); color:var(--text-muted); opacity:0.7; }
 
-/* ===== AI 智能解析按钮（嵌入标题栏） ===== */
-.ai-title-btn {
-  display:inline-flex; align-items:center; gap:0.25rem;
-  width:100%; justify-content:center;
-  padding:0.4rem 0.7rem;
-  font-family:var(--sans);
-  font-size:0.82rem; font-weight:500;
-  color:#fff;
-  background:linear-gradient(135deg, #b8960a, #d4a91c);
-  border:none; border-radius:10px;
-  cursor:pointer;
-  white-space:nowrap;
-  transition:all 0.2s;
-  box-shadow:0 2px 8px rgba(184,150,10,0.3);
-  text-shadow:0 1px 1px rgba(0,0,0,0.1);
-  -webkit-tap-highlight-color:transparent;
-  user-select:none;
-}
-.ai-title-btn:hover { opacity:0.88; box-shadow:0 3px 10px rgba(184,150,10,0.4); }
-.ai-title-btn:active { transform:scale(0.97); }
+/* 注：这里原来有一套 `.ai-title-btn`（页头那颗「☯ 看不懂？试试自动解析」的金色按钮），
+   2026-09-25 用户拍板删掉 —— 原话「我不想要这个按钮，折叠功能你完全可以添加在那个
+   ai 解析的板块里面」。现在「有卦就有 AI 块」由引擎的 `refreshAIPanel()` 保证，页头不再
+   需要按钮，所以样式一并清掉（留着是死代码，下一个人会以为还有页面在用）。 */
 
 /* AI 面板 */
 .ai-panel-overlay {
@@ -192,12 +176,32 @@ html,body { background:var(--bg); color:var(--text); font-family:var(--sans); mi
   color:var(--text);
   flex-shrink:0;
 }
-.ai-panel-close {
-  cursor:pointer; font-size:1.2rem;
-  color:var(--text-muted); opacity:0.5;
-  transition:opacity 0.2s; line-height:1;
+/* 折叠控件（标题栏右侧那颗）—— 点它**只把正文折起来**，标题栏始终留着，
+   所以折起来之后仍然看得见「☯ 自动解析 / 展开 ▸」，点一下就能展开回来。
+   文案与八字那块的 `.bz-caret` 逐字相同（「收起 ▾」/「展开 ▸」），用户在两个页面
+   看到的是同一个控件。
+   ⚠ `.ai-panel.folded .ai-panel-body{display:none}` **只是 CSS**：正在跑的那次解析
+   XHR 一个字节都不碰，正文照写进隐藏的 DOM，展开回来一个字不丢。
+   见 `ai_panel.js::toggleAIPanelFold()` —— 那里写明了**绝不能**改成调 `closeAIPanel()`。 */
+.ai-fold-btn {
+  display:inline-flex; align-items:center;
+  padding:0.15rem 0.55rem;
+  font-family:var(--sans);
+  font-size:0.72rem; font-weight:500;
+  color:var(--text-dim);
+  background:var(--bg);
+  border:1px solid var(--border);
+  border-radius:8px;
+  cursor:pointer;
+  white-space:nowrap;
+  transition:color 0.2s, border-color 0.2s;
+  -webkit-tap-highlight-color:transparent;
+  user-select:none;
 }
-.ai-panel-close:hover { opacity:1; }
+.ai-fold-btn:hover { color:var(--accent); border-color:var(--border-active); }
+.ai-panel.folded .ai-panel-body { display:none; }
+/* 折起来时表头自己收口，不留一截空 padding */
+.ai-panel.folded .ai-panel-header { padding-bottom:0.9rem; }
 
 .ai-panel-body {
   padding:0 1.1rem 1rem;

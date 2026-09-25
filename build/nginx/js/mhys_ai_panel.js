@@ -10,7 +10,6 @@ window.AI_PANEL_CONF = {
   recordsPath: '/api/mhys-records',
   anonUsedKey: 'mhys_anon_used',
   anonFollowKey: 'mhys_anon_followup',
-  barBtnId: 'aiBarBtn',
   noChartHint: '先起一卦，再来看解析',
   // 有卦才放行：`g` 由 `mhys_render.js` 的 renderResult() 设好
   hasChart: function(){ return typeof g !== 'undefined' && !!g; },

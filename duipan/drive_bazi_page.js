@@ -46,6 +46,11 @@ const SERVER = path.join(ROOT, 'build', 'backend', 'auth-server.js');
 const baziFull = require(path.join(ROOT, 'build', 'backend', 'paipan', 'bazi_full.js'));
 const baziPromptLib = require(path.join(ROOT, 'build', 'backend', 'paipan', 'bazi_prompt.js'));
 const baziFortuneLib = require(path.join(ROOT, 'build', 'backend', 'paipan', 'bazi_fortune.js'));
+// 排盘那段（`baziChartFromParams`）里渲染 `text` 用的是它 —— 2026-09-25 换新输出规格时
+// 后端接上了 `bazi_report.js`，本脚本没跟着注入，于是整条驱动在切片里跑成
+// `baziReportLib is not defined`、端点回 400、后面每条用例连红（`smoke_bazi_endpoint.js`
+// 那天同步改了，这里漏了）。注入的参数表必须和后端 require 的那一份对齐。
+const baziReportLib = require(path.join(ROOT, 'build', 'backend', 'paipan', 'bazi_report.js'));
 const ganzhiLib = require(path.join(ROOT, 'build', 'backend', 'paipan', 'ganzhi.js'));
 const paipanConst = require(path.join(ROOT, 'build', 'backend', 'paipan', 'constants.js'));
 
@@ -97,7 +102,7 @@ function loadPaipan() {
     }
   }
   return new Function('req', 'res', 'body', 'pathname', 'json',
-    'baziFull', 'baziPromptLib', 'baziFortuneLib', 'ganzhiLib', 'paipanConst',
+    'baziFull', 'baziPromptLib', 'baziReportLib', 'baziFortuneLib', 'ganzhiLib', 'paipanConst',
     helpers + '\n' + endpoint + '\n;return false;');
 }
 const runPaipan = loadPaipan();
@@ -120,7 +125,7 @@ function askPaipan(birth) {
   runPaipan({ method: 'POST', headers: {}, socket: {} }, res, birth,
     '/api/bazi/paipan',
     (r, obj, status) => { captured = { obj, status: status || 200 }; return r; },
-    baziFull, baziPromptLib, baziFortuneLib, ganzhiLib, paipanConst);
+    baziFull, baziPromptLib, baziReportLib, baziFortuneLib, ganzhiLib, paipanConst);
   return captured;
 }
 

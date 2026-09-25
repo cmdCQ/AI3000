@@ -513,13 +513,22 @@ async function main() {
     check('存了记录也不跳走（原地出结果）',
       await js(m, `return !/result\\.html/.test(location.href);`), await js(m, `return location.href;`));
 
-    // ── ⑧ 结果出来自动开始解读，cardData 是新形态 ────────────────
-    console.log('\n⑧ 原地出结果后 AI 面板自动打开，并把新形态的 cardData 送上去');
+    // ── ⑧ 结果出来 AI 块自己出现（**但不自动开跑**），点了才送 cardData ──
+    // 2026-09-25 用户拍板改的形态：块自己出现在卦象下面（页头那颗按钮删了），
+    // 但**不许替用户点「开始解卦」**（自动开跑 = 替用户做决定 + 花他的额度）。
+    console.log('\n⑧ 原地出结果后 AI 块自己出现在卦象下面；点「开始解卦」才发请求');
     check('排盘页挂了 AI 面板（引擎自己 mount，页面里已无那段标注）',
       await js(m, `return !!(document.getElementById('aiPanel')
         && document.getElementById('aiPanelOverlay')
         && document.getElementById('aiFollowBar'));`), '页面上找不到 aiPanel');
     check('结果出来后面板自动打开了（不用用户再点）', await L.panelOpen(m), '面板没打开');
+    check('块里是「开始解卦」，而且**一个请求都还没发**（不替用户做决定）',
+      (await chat()).length === 0
+      && await js(m, `return !!document.querySelector('.ai-start-btn');`),
+      '块里没有开始按钮，或者已经偷偷发过请求了');
+    check('页头那颗「☯ 看不懂？试试自动解析」不在了（用户点名删掉）',
+      await js(m, `return !document.getElementById('aiBarBtn');`), '按钮又回来了');
+    await js(m, `document.querySelector('.ai-start-btn').click(); return true;`);
     const aiTxt = await L.panelTextUntil(m, /【三、建议】/, 8000);
     check('面板把流式正文全程收完并渲染（桩文本三段都在）',
       /【一、结论】/.test(aiTxt) && /【三、建议】/.test(aiTxt), JSON.stringify(aiTxt).slice(0, 200));
@@ -577,15 +586,22 @@ async function main() {
     check('老形状记录也渲染出卦（艮为山 → 火风鼎，盘面由后端重装）',
       /艮为山/.test(rtext) && /火风鼎/.test(rtext),
       JSON.stringify(rtext.replace(/\s+/g, ' ').slice(0, 260)));
-    // 结果页**不**自动开面板（与梅花结果页一致：历史记录是「回头看」，不该一进来
-    // 就弹浮层、还替用户花掉一次解读）。要验的是它**能**解：卦被认出来了、记录 id
-    // 也认对了 —— 这两样少了任一个，用户点「自动解析」不是解不了就是解完存不回记录。
+    // 结果页的块**自己出现**（2026-09-25 起「有盘就有块」，页头按钮已删）。旧注释里
+    // 那条顾虑仍然要守：历史记录是「回头看」，**不许替用户花掉一次解读** ——
+    // 所以这里判「块在、但一个请求都没发」，再点才开始。
     //
     // 先清 localStorage：上一条用例已经真跑过一次解读，游客标记 `liuyao_anon_used`
-    // 落下了 —— 不清的话这里点开就是「游客免费次数用完」的登录引导（**这是对的**），
+    // 落下了 —— 不清的话块里就是「游客免费次数用完」的登录引导（**这是对的**），
     // 但那样就验不到「记录页能不能解」了。两件事分开验。
+    //
+    // ⚠ 清完要**重新加载**：页头那颗按钮删掉之后，没有别的入口能让块按新状态重画。
     await js(m, `window.localStorage.clear(); return true;`);
-    await js(m, `document.getElementById('aiBarBtn').click(); return true;`);
+    await goto(m, `${ORIGIN}/liuyao/result.html?id=999`);
+    await L.textOf(m, '#contentArea', 8000, 30);
+    const n9 = (await chat()).length;
+    check('结果页的块也自己出现（有盘就有块），但**没有**替用户发请求',
+      await L.panelOpen(m) && (await chat()).length === n9,
+      JSON.stringify({ open: await L.panelOpen(m), 请求数: (await chat()).length }));
     await js(m, `document.querySelector('.ai-start-btn').click(); return true;`);
     check('老记录也解得动（判据是「有没有卦」，不是「记录是哪个形状」）',
       await L.panelOpen(m), '老记录的卦没被认出来');
@@ -603,28 +619,33 @@ async function main() {
       ptOld.length >= 2 && ptOld[ptOld.length - 1].path === '/api/liuyao-records/999/ai',
       JSON.stringify(ptOld.map((x) => x.path)));
 
-    // ── ⑩ 起卦前点「自动解析」：只提示，不发请求 ────────────────
-    console.log('\n⑩ 还没起卦就点解析 → 只提示、不发 AI 请求');
+    // ── ⑩ 还没起卦：页面上根本没有 AI 块（入口随页头按钮一起删了）──
+    console.log('\n⑩ 还没起卦：页头没有那颗按钮，页面上也没有块');
     await setStub(true);
     await reset(m);
-    await js(m, `document.getElementById('aiBarBtn').click(); return true;`);
-    await js(m, `document.querySelector('.ai-start-btn').click(); return true;`);
+    check('页头那颗「☯ 看不懂？试试自动解析」不在了（用户点名删掉）',
+      await js(m, `return !document.getElementById('aiBarBtn');`), '按钮又回来了');
+    check('没卦就没块（不会被谁提前摆出来）',
+      !(await L.panelOpen(m)), '还没起卦就把块摆出来了');
+    // 引擎里那道「没卦就别解」的门还在，现在只有八字页会走到它（命盘没排出来时块是
+    // 摆着的、那颗按钮点得动）。这里直接调引擎那个入口点它一下。
+    await js(m, `${W} W.startButtonClicked(); return true;`);
     await L.sleep(400);
-    check('没起卦就点解析 → 不发 AI 请求',
+    check('没卦时按「开始解卦」→ 不发 AI 请求',
       (await chat()).length === 0, JSON.stringify(await chat()));
     check('提示语是「先起一卦」',
       await js(m, `return document.body.innerText.indexOf('先起一卦') >= 0;`), '没看到提示语');
 
-    // ── ⑪ 解析中途收起面板（用户 2026-09-25 报：「卡住了」「叉掉之后不能重启」）──
-    // 先把「跑歪的那种状态」量出来：慢流走一半时收起面板，再点表头按钮回去，
-    // 看 ①那个请求停了没有 ②面板上还认不认得出「正在解析」③点重来会发几次请求。
+    // ── ⑪ 解析中途折叠（用户 2026-09-25 要的那个「折起来看下面的盘」）──
+    // 这一条守的是这块**最容易写错**的地方：折叠 = 只藏正文，既不是收起、更不是中止。
     //
-    // ⚠ 2026-09-25 改：表头那颗 ✕ **已被删除**（用户点名，理由见 ai_panel.js 里
-    //   MH_AI_PANEL_HTML 上方那段：八字页是页内面板，✕ 一按就是死路）。所以这里
-    //   改走**页面级那颗表头按钮**（`☯ 看不懂？试试自动解析` → toggleAIPanel）——
-    //   它本来就是六爻/梅花上「收起/打开」的正路，且**能再打开**。
-    //   顺带把「✕ 不该回来」也钉住：它回来了这条会红。
-    console.log('\n⑪ 解析中途收起再回来：请求停没停、面板还能不能重来');
+    // 旧版本这里验的是「收起是真的取消」（页头按钮开关 + ✕）。那两条路 2026-09-25
+    // 全删了：用户要的是「块必须出现，折叠也不是让你隐藏它」，页内块**关不掉**，
+    // 「收起」在 UI 上只剩块里那颗折叠控件。所以判据换成三条：
+    //   ① 折着的时候流照跑到完（服务端看到第二段照写、连接没被取消）；
+    //   ② 展开后正文一字不少；
+    //   ③ 这一遍真看完了才记账（不白扣用户次数）。
+    console.log('\n⑪ 解析中途折叠：请求不许被掐、正文不许丢、记账不许错');
     await setStub(true);
     await reset(m);
     await setChatDelay(2500, 2000);   // 首段等 2 秒、第二段再等 2.5 秒（像线上的慢流）
@@ -632,96 +653,81 @@ async function main() {
     await setManual(m, MANUAL_A);
     await setTime(m, 2026, 9, 25, 8, 30);
     await clickStart(m);
+    // 块是**自己出现**的（不用点任何东西）
     await L.until(m, `return document.getElementById('aiPanel').classList.contains('open');`,
       (t) => t === true, 8000);
-    await L.sleep(1300);   // 首段还没来 —— 这段空窗正是用户看到「卡住」的那一段
     const waiting = await js(m, `${W}
       var r = document.getElementById('aiResponse');
       return { loading: !!(r && r.querySelector('.ai-loading')),
+               hasStart: !!document.querySelector('.ai-start-btn'),
                text: r ? (r.innerText || '').replace(/\\s+/g, ' ') : '' };`);
-    console.log('   · 首字节还没来时的等待态：' + JSON.stringify(waiting));
+    console.log('   · 块刚出来时：' + JSON.stringify(waiting));
+    check('块自己出来后先摆「开始解卦」（**没有**自动开跑）',
+      waiting.hasStart === true && waiting.loading === false, JSON.stringify(waiting));
+    await js(m, `document.querySelector('.ai-start-btn').click(); return true;`);
+    const abortsBefore = (await chatLive()).aborts.length;
+    await L.sleep(1300);   // 首段还没来 —— 这段空窗正是用户当年看到「卡住」的那一段
+    const waiting2 = await js(m, `${W}
+      var r = document.getElementById('aiResponse');
+      return { loading: !!(r && r.querySelector('.ai-loading')),
+               text: r ? (r.innerText || '').replace(/\\s+/g, ' ') : '' };`);
     check('模型还没出字时，屏幕上是**有秒数**的等待态（不是死转圈）',
-      waiting.loading && /已等 \d+ 秒/.test(waiting.text), JSON.stringify(waiting));
+      waiting2.loading && /已等 \d+ 秒/.test(waiting2.text), JSON.stringify(waiting2));
     await L.panelTextUntil(m, /【一、结论】/, 8000);
     check('首段到了就渲染出来（等待态换成正文）', await L.panelOpen(m), '面板没打开');
 
-    const closeBtn = await js(m, `return !!document.querySelector('.ai-panel-close');`);
-    check('表头那颗只关不开的 ✕ 已经不在了（2026-09-25 用户点名删掉）', closeBtn === false,
+    check('表头那颗只关不开的 ✕ 已经不在了（2026-09-25 用户点名删掉）',
+      (await js(m, `return !!document.querySelector('.ai-panel-close');`)) === false,
       '✕ 又回来了：它按下去面板收起来，而这颗按钮只关不开 —— 见 ai_panel.js 里那段说明');
-    await js(m, `document.getElementById('aiBarBtn').click(); return true;`);
-    await L.sleep(250);
-    const closedState = await js(m, `${W}
-      var p = document.getElementById('aiPanel');
-      return { open: !!p && p.classList.contains('open'),
-               display: p ? getComputedStyle(p).display : 'none' };`);
 
-    await js(m, `document.getElementById('aiBarBtn').click(); return true;`);
+    // ⚠ 折叠：块标题栏里那颗控件。折的是**正文**，块和标题栏都留着
+    await js(m, `document.getElementById('aiFoldBtn').click(); return true;`);
     await L.sleep(250);
-    const reopened = await js(m, `${W}
+    const folded = await js(m, `${W}
       var p = document.getElementById('aiPanel');
-      var r = document.getElementById('aiResponse');
+      var b = document.getElementById('aiPanelBody');
+      var t = document.getElementById('aiPanelTitle');
+      var btn = document.getElementById('aiFoldBtn');
       return { open: !!p && p.classList.contains('open'),
-               hasStart: !!document.querySelector('.ai-start-btn'),
-               text: r ? (r.innerText || '').replace(/\\s+/g, ' ').slice(0, 100) : '' };`);
+               folded: !!p && p.classList.contains('folded'),
+               bodyHidden: b ? getComputedStyle(b).display === 'none' : null,
+               titleVisible: !!t && !!t.offsetParent,
+               caret: btn ? (btn.innerText || '').replace(/\\s+/g, ' ').trim() : null };`);
+    console.log('   · 折叠之后：' + JSON.stringify(folded));
+    check('折叠只把正文收起来：块还开着、标题栏还在、控件变成「展开 ▸」',
+      folded.open === true && folded.folded === true && folded.bodyHidden === true
+      && folded.titleVisible === true && /展开/.test(folded.caret || ''), JSON.stringify(folded));
 
-    await L.sleep(4500);   // 老流（第二段在 2500ms）跑完
+    // 折着的时候等第二段。⚠ 读的必须是 textContent：正文此刻 display:none，
+    // `innerText` 返回**空串**，于是「流没动」与「块折着」在判据上长得一模一样。
+    const rawFolded = await L.until(m, `var r = document.getElementById('aiResponse');
+      return r ? (r.textContent || '') : '';`, (t) => /【三、建议】/.test(t || ''), 9000);
     const live = await chatLive();
-    const done = await js(m, `${W}
-      var r = document.getElementById('aiResponse');
-      return { hasStart: !!document.querySelector('.ai-start-btn'),
-               text: r ? (r.innerText || '').replace(/\\s+/g, ' ').slice(0, 100) : '' };`);
+    check('折着的时候流**照跑到完**：服务端第二段照写、连接没被取消',
+      /【三、建议】/.test(rawFolded) && live.aborts.length === abortsBefore
+      && live.live[0] && live.live[0].at2 === true,
+      JSON.stringify({ 折着时的正文尾: String(rawFolded).slice(-40),
+        新增中断: live.aborts.length - abortsBefore, live: live.live[0] }));
 
-    console.log('   · 收起之后：' + JSON.stringify(closedState));
-    console.log('   · 再打开时：  ' + JSON.stringify(reopened));
-    console.log('   · 服务端看到的流：' + JSON.stringify(live));
-    console.log('   · 老流跑完后：' + JSON.stringify(done));
-
-    check('收起面板（点页面那颗表头按钮）', closedState.open === false && closedState.display === 'none',
-      JSON.stringify(closedState));
-    check('收起是**真**取消：服务端看到连接被掐、第二段不再写',
-      live.aborts.indexOf(1) >= 0 && live.live[0].at2 === false, JSON.stringify(live));
-    check('被取消的那次不记账：游客「已用过一次」没被置位',
-      !(await js(m, `return localStorage.getItem('liuyao_anon_used');`)),
-      '游客标记被置位了 —— 用户没看见的解析不该扣次数');
-    check('重开面板时状态跟实际一致（此刻没有流在跑，所以摆的就是「开始解卦」）',
-      reopened.open && reopened.hasStart, JSON.stringify(reopened));
-    check('屏幕上是等待态而不是残留假正文（老流那一段不该冒出来）',
-      !/【一、结论】/.test(done.text), JSON.stringify(done.text));
-
-    // 用户的下一个动作：点那颗「开始解卦」
-    const clicked = await js(m, `${W}
-      var b = document.querySelector('.ai-start-btn');
-      if (!b) return false;
-      b.click(); return true;`);
-    await L.sleep(1600);
-    const afterClick = await js(m, `${W}
-      var r = document.getElementById('aiResponse');
-      return { text: r ? (r.innerText || '').replace(/\\s+/g, ' ').slice(0, 100) : '',
-               loading: !!(r && r.querySelector('.ai-loading')) };`);
-    check('点了「开始解卦」进入等待态（不是又摆一个按钮）',
-      clicked === true && afterClick.loading === true, JSON.stringify(afterClick));
-
-    await L.sleep(5500);
-    const live2 = await chatLive();
-    check('重来是真的重跑一次（发了第 2 次请求，不是把空面板摆着）',
-      (await chat()).length === 2 && live2.live.length === 2, JSON.stringify(live2));
-    check('第 2 次的正文照样收完',
-      live2.live[1] && live2.live[1].at2 === true, JSON.stringify(live2.live));
-
+    await js(m, `document.getElementById('aiFoldBtn').click(); return true;`);
+    await L.sleep(250);
     const finalText = await js(m, `${W}
       var r = document.getElementById('aiResponse');
-      return r ? (r.innerText || '').replace(/\\s+/g, ' ').slice(0, 160) : '';`);
-    check('屏幕上显示的是**这一次**的正文（桩第 2 次，不是上一次残留）',
-      /桩第2次/.test(finalText) && /【三、建议】/.test(finalText), JSON.stringify(finalText));
-    check('这次看完了，才记上「游客已用过一次」',
+      return r ? (r.innerText || '').replace(/\\s+/g, ' ') : '';`);
+    check('展开后是**全文**，一字不少（桩第1次三段都在）',
+      /【一、结论】/.test(finalText) && /【二、依据】/.test(finalText)
+      && /【三、建议】/.test(finalText) && /桩第1次/.test(finalText),
+      JSON.stringify(finalText.slice(0, 140)));
+    check('真看完了才记上「游客已用过一次」（折叠不影响记账 —— 只有被掐平的流才不记）',
       (await js(m, `return localStorage.getItem('liuyao_anon_used');`)) === '1',
       '真跑完的一次没记账，游客可以刷无限次');
+    await setChatDelay(150);
 
     // ── ⑫ 记录页（从历史列表点进来）：解析要在页内，不能是盖住盘的浮层 ──
     // 用户 2026-09-25 报：「点开的排盘记录不是把 AI 解析介入页面，而是叠在页面上面」。
     // 根因：面板找宿主只认 `#resultArea`（排盘页的容器名），记录页用的是 `#contentArea`，
     // 找不到就退回 position:fixed 的浮层。梅花记录页同一份代码、同一个病。
-    console.log('\n⑫ 记录页点「自动解析」：面板要在正文流里（页内），不是浮层');
+    console.log('\n⑫ 记录页（从历史列表点进来）：块要在正文流里（页内），不是盖住盘的浮层');
     await reset(m);
     await js(m, `window.localStorage.clear(); return true;`);
     state.savedRecords.push({
@@ -735,9 +741,12 @@ async function main() {
     });
     await goto(m, `${ORIGIN}/liuyao/result.html?id=999`);
     await L.textOf(m, '#contentArea', 8000, 30);
-    check('记录页一进来**不**自动开面板（历史记录是回头看，不替用户花一次解读）',
-      !(await L.panelOpen(m)), '记录页一进来就把面板弹开了');
-    await js(m, `document.getElementById('aiBarBtn').click(); return true;`);
+    // 「有盘就有块」：块自己出现。但**不许替用户发请求**（历史记录是回头看，
+    // 不该一进来就花掉一次解读）—— 与梅花结果页同一条规矩。
+    const n12 = (await chat()).length;
+    check('记录页一进来块就自己出现，且**没有**替用户发请求',
+      await L.panelOpen(m) && (await chat()).length === n12,
+      JSON.stringify({ open: await L.panelOpen(m), 请求数: (await chat()).length }));
     await L.sleep(300);
     const recPanel = await js(m, `${W}
       var p = document.getElementById('aiPanel');

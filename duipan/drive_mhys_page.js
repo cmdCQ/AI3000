@@ -490,8 +490,10 @@ async function main() {
     check('结果页的次要文字颜色与原地结果一致（rgb(26,26,26)）',
       dimColor === dimOnIndex && dimColor === 'rgb(26, 26, 26)', dimColor + ' vs 原地 ' + dimOnIndex);
 
-    // ── ⑩ 结果出来自动开始解读 ────────────────────────────────
-    console.log('\n⑩ 原地出结果后 AI 面板自动打开并开始解读');
+    // ── ⑩ 结果出来 AI 块自己出现（**但不自动开跑**），点了才解读 ──
+    // 2026-09-25 用户拍板改的形态：块自己出现在卦象下面（页头那颗按钮删了），
+    // 但**不许替用户点「开始解卦」**（自动开跑 = 替用户做决定 + 花他的额度）。
+    console.log('\n⑩ 原地出结果后 AI 块自己出现；点「开始解卦」才发请求');
     await stub(m, STUB_GUA);
     await reset(m);
     check('排盘页也挂了 AI 面板（共享件自己 mount，页面里已无那段标注）',
@@ -500,22 +502,32 @@ async function main() {
         && document.getElementById('aiFollowBar'));`), '页面上找不到 aiPanel');
     check('起卦前面板是关着的', !(await panelOpen(m)), '面板一开始就开着');
 
-    // 起卦前点「开始解卦」：没有卦可解，应该说一句就回去，而不是发一个空请求
-    await js(m, `document.getElementById('aiBarBtn').click(); return true;`);
-    await js(m, `document.querySelector('.ai-start-btn').click(); return true;`);
+    check('页头那颗「☯ 看不懂？试试自动解析」不在了（2026-09-25 用户点名删掉）',
+      await js(m, `return !document.getElementById('aiBarBtn');`), '按钮又回来了');
+    // 引擎里那道「没卦就别解」的门还在（现在只有八字页会走到它：命盘没排出来时
+    // 那块是摆着的、按钮点得动），这里直接调引擎那个入口点它一下。
+    // ⚠ 页面里的函数得从 wrappedJSObject 上取 —— 注入脚本的沙箱看不见页面全局（老坑）
+    await js(m, `${W} W.startButtonClicked(); return true;`);
     await new Promise((r2) => setTimeout(r2, 400));
-    check('没起卦就点解析 → 只提示、不发 AI 请求',
+    check('没卦时按「开始解卦」→ 只提示、不发 AI 请求',
       (await chat()).length === 0, JSON.stringify(await chat()));
     check('提示语是「先起一卦」',
       await js(m, `return document.body.innerText.indexOf('先起一卦') >= 0;`), '没看到提示语');
-    // 页面里的函数得从 wrappedJSObject 上取 —— 注入脚本的沙箱看不见页面全局（老坑）
-    await js(m, `${W} W.closeAIPanel(); return true;`);
 
     await selectMethod(m, 'time');
     await setTime(m, 2026, 9, 25, 8, 30);
+    // ⚠ **必须填事项**：不填这一卦不入库，⑪ 去 `result.html?id=999` 只会拿到 404
+    //   「排盘记录不存在或已删除」—— 那一屏照样有 `#contentArea`，旧版的断言在那上面
+    //   全是假绿（块是点了按钮才摆出来的，跟「有盘就有块」不是一回事）。
+    await js(m, `document.getElementById('topicInput').value = '记录页要看的那一卦'; return true;`);
     await clickStart(m);
     r = await waitResult(m, 10000);
     check('结果出来后面板自动打开了（不用用户再点）', await panelOpen(m), '面板没打开');
+    check('块里是「开始解卦」，而且**一个请求都还没发**（不替用户做决定）',
+      (await chat()).length === 0
+      && await js(m, `return !!document.querySelector('.ai-start-btn');`),
+      '块里没有开始按钮，或者已经偷偷发过请求了');
+    await js(m, `document.querySelector('.ai-start-btn').click(); return true;`);
     const aiTxt = await panelTextUntil(m, /【三、建议】/, 8000);
     check('面板把流式正文全程收完并渲染（桩文本三段都在）',
       /【一、结论】/.test(aiTxt) && /【三、建议】/.test(aiTxt), JSON.stringify(aiTxt).slice(0, 200));
@@ -534,19 +546,28 @@ async function main() {
     // 用户 2026-09-25 报六爻「点开的排盘记录不是把 AI 解析介入页面，而是叠在页面
     // 上面」，并说「我估计梅花也有这个问题」—— 确实有：两个记录页的正文容器都叫
     // `#contentArea`，而面板原先只认排盘页那个 `#resultArea`，认不出就退回 fixed 浮层。
-    // 「收起面板」的语义（真取消 / 不扣游客次数 / 能再打开）在共用引擎里，由六爻驱动 ⑪ 覆盖。
-    // 表头那颗 ✕ 已于 2026-09-25 删除（用户点名），收起改走页面那颗表头按钮。
-    console.log('\n⑪ 记录页点「自动解析」：面板要在正文流里（页内），不是浮层');
+    // 「折叠」的语义（只藏正文 / 不停流 / 不白扣次数）在共用引擎里，由六爻驱动 ⑪ 覆盖。
+    // 表头那颗 ✕ 与页头那颗按钮都已在 2026-09-25 删除（用户点名）；现在「有盘就有块」，
+    // 块自己出现在正文流里，收起只剩块标题栏那颗折叠控件。
+    console.log('\n⑪ 记录页：块自己出现，且要在正文流里（页内），不是浮层');
+    // 这条记录是 ⑩ 起的那一卦（⑩ 现在填了事项 ⇒ 真入库了）。取不到记录时这一屏
+    // 只剩「记录不存在」，那时再去判「块在不在、只做加法」就是自己骗自己。
     await js(m, `window.localStorage.clear(); return true;`);
     await goto(m, `${ORIGIN}/mhys/result.html?id=999`);
-    await js(m, `return document.body.innerText.length > 20;`);
+    // ⚠ 必须**等记录渲染完**再判：块是在 `load()` 里 `renderResult()` 之后才摆出来的，
+    //   跳过来就读等于在读上一页的残影（第一版这么写过：报「块没出现」，其实只是没等）。
+    await L.until(m, `var p = document.getElementById('aiPanel');
+      return !!p && p.classList.contains('open');`, (t) => t === true, 8000, 150);
     // 卦名不写死：这条记录是 ⑩ 自己起的那一卦（夹具记录已被 ⑩ 的 reset 清掉），
-    // 写死卦名只会写错。要验的是**面板只做加法**：开面板前后原有内容一字不少。
-    const recBefore = await js(m, `return document.body.innerText || '';`);
-    check('记录页一进来**不**自动开面板（历史记录是回头看，不替用户花一次解读）',
-      !(await panelOpen(m)), '记录页一进来就把面板弹开了');
-    await js(m, `document.getElementById('aiBarBtn').click(); return true;`);
-    await new Promise((r2) => setTimeout(r2, 300));
+    // 写死卦名只会写错。要验的是**块只做加法**：摆出来前后原有那屏一字不少。
+    const recBefore = await js(m, `var c = document.getElementById('contentArea');
+      return c ? (c.innerText || '') : '';`);
+    // 「有盘就有块」：块自己出现。但**不许替用户发请求**（历史记录是回头看，
+    // 不该一进来就花掉他一次解读）。
+    const nRec = (await chat()).length;
+    check('记录页一进来块就自己出现，且**没有**替用户发请求',
+      (await panelOpen(m)) && (await chat()).length === nRec,
+      JSON.stringify({ open: await panelOpen(m), 请求数: (await chat()).length }));
     const recPanel = await js(m, `${W}
       var p = document.getElementById('aiPanel');
       var o = document.getElementById('aiPanelOverlay');
@@ -594,6 +615,7 @@ async function main() {
     await js(m, `document.getElementById('topicInput').value = '版面试探'; return true;`);
     await clickStart(m);
     r = await waitResult(m, 10000);
+    await js(m, `document.querySelector('.ai-start-btn').click(); return true;`);
     await panelTextUntil(m, /【三、建议】/, 8000);
     const idxOrder = await js(m, `${W}
       function rect(sel) { var e = document.querySelector(sel); if (!e) return null;
@@ -634,8 +656,9 @@ async function main() {
     await goto(m, `${ORIGIN}/mhys/result.html?id=999`);
     await L.until(m, `var a = document.getElementById('analysisArea');
       return a ? (a.innerText || '').length : 0;`, (n) => n > 20, 8000, 150);
-    await js(m, `document.getElementById('aiBarBtn').click(); return true;`);
-    await new Promise((r2) => setTimeout(r2, 300));
+    // 块自己出现（「有盘就有块」），不用点任何东西
+    await L.until(m, `var p = document.getElementById('aiPanel');
+      return !!p && p.classList.contains('open');`, (t) => t === true, 8000, 150);
     const recOrder = await js(m, `${W}
       function rect(sel) { var e = document.querySelector(sel); if (!e) return null;
         var r = e.getBoundingClientRect(); return { top: Math.round(r.top + window.scrollY),

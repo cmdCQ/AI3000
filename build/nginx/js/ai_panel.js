@@ -15,7 +15,6 @@
 //     recordsPath:   '/api/mhys-records',    // 解析存回哪个记录
 //     anonUsedKey:   'mhys_anon_used',       // 游客「已用过一次」的标记
 //     anonFollowKey: 'mhys_anon_followup',   // 游客「已追问过一次」的标记
-//     barBtnId:      'aiBarBtn',             // 表头那颗按钮（流结束后改它的状态）
 //     noChartHint:   '先起一卦，再来看解析',   // 还没卦就点面板时说的话
 //     hasChart:  function(){ return …; },    // 有没有卦可解（决定放不放行）
 //     topic:     function(){ return …; },    // 求测事项（当 message 发给后端）
@@ -42,15 +41,34 @@
 // （发哪个端点、怎么拼请求、非 2xx 怎么办）。抄一份的话，日后修面板的 bug（比如
 // 2026-09-25 那个「收起面板是假中断」）就得改两遍，而第二遍一定会忘。
 
-// ⚠⚠ 表头**故意没有关闭按钮（原来有个 ✕，2026-09-25 用户点名删掉）**。
-//   他当时的话是「ai解读还是可以叉掉，叉掉之后又他妈打不开解析了，这个 x 的意义在哪」。
-//   查下来是这样：八字页的面板是**页内**的（见 aiInlineHost），`BaziAI.mount()` 一进来
-//   就 openAIPanel()；✕ 一按只剩 `display:none`，而**方面按钮还在页面上、还点得动** ——
-//   点下去 select() 只把内容画进那块看不见的区域，用户看到的是「点了没反应」。
-//   六爻/梅花两页本来就有页面级按钮（`☯ 看不懂？试试自动解析` → toggleAIPanel）
-//   可以开关，✕ 对它们纯属重复；两页的浮层还能点遮罩关掉（见文件末的 overlay 监听）。
-//   故整块删掉：**没有「只能进不能出」的口子，也没有「关了就没救」的口子**。
-//   还需要「收起」的地方走 toggleAIPanel()（它能再打开），不要另加只关不开的按钮。
+// ⚠⚠ 这块面板**只进不出**：页面上不存在任何「把解析块收起来」的入口。
+//
+//   ① 关闭按钮（✕）2026-09-25 删掉。用户当时的话：「ai解读还是可以叉掉，叉掉之后又他妈
+//      打不开解析了，这个 x 的意义在哪」。查下来：八字页那块是**页内**的（见
+//      aiInlineHost），`BaziAI.mount()` 一进来就 openAIPanel()；✕ 一按只剩
+//      `display:none`，而**方面按钮还在页面上、还点得动** —— 点下去 select() 只把内容
+//      画进那块看不见的区域，用户看到的是「点了没反应」。
+//   ② 页面级那颗按钮（`☯ 看不懂？试试自动解析`，配置项 `barBtnId`）同日一并删掉。
+//      两个理由：一是面板开着时它会 toggle 成关闭，用户报的「点『试试解析』，解析块
+//      反而消失」就是它；二是用户拍板（原文）「我不想要这个按钮，折叠功能你完全可以
+//      添加在那个 ai 解析的板块里面」—— 控件该长在它作用的那块东西里，不是长在页头。
+//      今天起「有卦就有块」：页面排完盘直接调 `refreshAIPanel()`，块自己出现在卦象下面，
+//      内容默认是「开始解卦」那一颗按钮，**点了才发请求**。
+//   ③ `closeAIPanel()` 只剩**浮层模式点遮罩**这一条路（见文件末的 overlay 监听）。
+//      页内模式（六爻/梅花/八字三页都是页内）没有遮罩可点，所以那三页上的块**关不掉**
+//      —— 这是故意的：AI 块是排盘结果的一部分，盘在，块就在。用户原话：「ai 块是必须
+//      出现的，不需要隐藏」。
+//
+// 「字太多想收起来看下面的盘」这个需求改由 `toggleAIPanelFold()` 承担：只折**正文**，
+// 表头与「展开 ▸」控件始终留在屏幕上。⚠ **收起 ≠ 不看**，所以折叠绝不调 `closeAIPanel()`
+// （那里面有 `abortAIStream()`，会把正在跑的解析真掐掉、游客那唯一一次免费机会随之作废）。
+// 八字那块（`bazi_ai_panel.js::setCollapsed()`）早就是这么做的，两处语义必须一致。
+
+// 追问按钮的文案。**只有这一处定义**：它同时被 `sendFollowUp()`（发完要还原）、
+// `refreshAIPanel()`（换卦要还原）用到，抄成两份的话改了模板里那份、
+// 另一份就会把按钮还原成旧字（`aiTxt` 那套配置没有这一项）。
+var AI_FOLLOW_SEND_TEXT = '发送';
+
 var MH_AI_PANEL_HTML = `
 <!-- AI 面板背景遮罩 -->
 <div class="ai-panel-overlay" id="aiPanelOverlay"></div>
@@ -58,7 +76,13 @@ var MH_AI_PANEL_HTML = `
 <!-- AI 面板 -->
 <div class="ai-panel" id="aiPanel">
   <div class="ai-panel-header">
-    <span>☯ 自动解析</span>
+    <span id="aiPanelTitle">☯ 自动解析</span>
+    <!-- 折叠控件：长文挡住下面的盘时收起来用。**只折正文，不停解析** —— 见
+         ai_panel.js 的 toggleAIPanelFold()。文案与八字那块的 .bz-caret 逐字相同。
+         ⚠ 这段注释在**模板字符串里面**：不许出现反引号，会把整个模板截断。 -->
+    <button type="button" class="ai-fold-btn" id="aiFoldBtn"
+            onclick="toggleAIPanelFold()" aria-expanded="true" aria-controls="aiPanelBody">
+      <span class="ai-caret">收起 ▾</span></button>
   </div>
   <div class="ai-panel-body" id="aiPanelBody">
     <div class="ai-response" id="aiResponse"></div>
@@ -66,7 +90,7 @@ var MH_AI_PANEL_HTML = `
     <div class="ai-followup-bar" id="aiFollowBar">
       <textarea class="ai-followup-input" id="aiFollowInput" placeholder="追问…" rows="2"></textarea>
       <div class="ai-followup-row">
-        <button class="ai-followup-send" id="aiFollowBtn" onclick="sendFollowUp()">发送</button>
+        <button class="ai-followup-send" id="aiFollowBtn" onclick="sendFollowUp()">${AI_FOLLOW_SEND_TEXT}</button>
       </div>
     </div>
   </div>
@@ -245,8 +269,72 @@ function showFollowBar() {
   if (fbar) fbar.classList.add('show');
 }
 
-function toggleAIPanel() {
-  if (aiPanelOpen) { closeAIPanel(); return; }
+/**
+ * 折叠 / 展开 AI 块 —— **只折正文，绝不停解析**。
+ *
+ * ⚠ 这是这块面板最容易写错的地方，写错的样子是「用户看着正在跑的解析，点了一下折叠，
+ *   解析没了（或跑完了屏幕上一直空着），额度还扣了」。所以这里**只切一个 class**
+ *   （`folded`），隐藏交给 CSS（`.ai-panel.folded .ai-panel-body{display:none}`）：
+ *   XHR 一个字节都不碰、DOM 照写不误，展开回来是完整正文，一个字不丢。
+ *   **绝不**在这里调 `closeAIPanel()` —— 那里面有 `abortAIStream()`。
+ *   八字那块（`bazi_ai_panel.js::setCollapsed()`）是同一套语义，改一处要想另一处。
+ *
+ * 为什么要有折叠：解析一大段，把下面的盘挤到屏幕外，用户得来回滚。折起来＝
+ * 「我看盘的时候你别占地方」，不是「我不看了」。
+ */
+function setAIPanelFolded(c) {
+  var p = document.getElementById('aiPanel');
+  if (!p) return;
+  p.classList.toggle('folded', !!c);
+  var btn = document.getElementById('aiFoldBtn');
+  if (!btn) return;
+  // 无障碍：按钮说得出自己现在按下去会发生什么（与 bazi 那块一致）
+  btn.setAttribute('aria-expanded', c ? 'false' : 'true');
+  var caret = btn.querySelector('.ai-caret');
+  if (caret) caret.textContent = c ? '展开 ▸' : '收起 ▾';
+}
+
+function toggleAIPanelFold() {
+  var p = document.getElementById('aiPanel');
+  if (!p) return;
+  setAIPanelFolded(!p.classList.contains('folded'));
+}
+
+/**
+ * 页面**换了一份盘**（梅花/六爻的「原地再排一次」）之后叫它一声。
+ *
+ * 为什么要叫：面板里的正文是**上一卦**的。换卦时数据层已经把它清空了
+ * （`mhys_render.js::renderResult()` 重置 `savedAnalysis`），但**屏幕上那块 DOM 还在**
+ * —— 用户看到的是「第二卦的盘 + 第一卦的解读」。形式完全正常、内容是错的，
+ * 这是最坏的一种错（用户会照着上一卦的建议去做事），所以必须在展示层也盖掉。
+ *
+ * 四件事：
+ *   1. 正在跑的那次解析**属于上一卦**：掐掉。它跑完只会把上一卦的正文重新填回
+ *      `savedAnalysis`，把刚清掉的旧绑定又粘回来。
+ *   2. 追问历史属于上一卦：清掉（它跟正文不是同一个 DOM 节点，不会被 `showAIHome()` 覆盖）。
+ *   3. 按**当前**这一卦重画首页视图（没解过 → 「开始解卦」；游客已用 → 登录引导；
+ *      记录页带进来的已存解析 → 直接展示）。
+ *   4. **把块摆出来**（`openAIPanel()`），并且**展开**。
+ *
+ * ⚠ 第 4 条是新约定（2026-09-25 用户拍板：「ai 块是必须出现的，不需要隐藏」）：页面
+ *   排完盘就调它，块自己出现在卦象下面，页头不再有那颗按钮。所以这里**不再看
+ *   `aiPanelOpen`** —— 「有盘就有块」由引擎保证，页面不必先判断面板状态。
+ *   折叠是用户对**上一卦那段长文**做的动作，新盘的正文是新的，顺手展开：
+ *   否则用户会看到「刚排完盘，块在、但是空的」，跟块没出现一样懵。
+ *
+ * ⚠ 这里**只是摆出来**，不发起任何请求：请求要用户自己点「开始解卦」。
+ */
+function refreshAIPanel() {
+  abortAIStream();
+  var hist = document.getElementById('aiFollowHist');
+  if (hist) hist.innerHTML = '';
+  var input = document.getElementById('aiFollowInput');
+  if (input) { input.value = ''; input.disabled = false; }
+  var btn = document.getElementById('aiFollowBtn');
+  if (btn) { btn.disabled = false; btn.textContent = AI_FOLLOW_SEND_TEXT; }
+  var fbar = document.getElementById('aiFollowBar');
+  if (fbar) fbar.classList.remove('show');
+  setAIPanelFolded(false);
   showAIHome();
   openAIPanel();
 }
@@ -306,13 +394,13 @@ function openAIPanel() {
 /**
  * 收起面板 —— **并且真的停掉正在跑的那次解析**。
  *
- * 走这里的是「面板已经开着时再点一次表头按钮」(`toggleAIPanel`)，以及
- * 六爻/梅花浮层上点遮罩（文件末的 overlay 监听）。语义是：**收起 = 不看了，停掉**。
+ * 走这里的是**浮层模式**点遮罩（文件末的 overlay 监听）。语义是：**收起 = 不看了，停掉**。
  * 所以收起之后不再有「后台偷偷跑完」的那次解析，也就不会再出现
  * 「屏幕上是空的、额度却被扣掉」。
  *
- * ⚠ 注意 `toggleAIPanel()` 是**能再打开**的（这是它存在的理由）；表头那颗只关不开的
- * ✕ 已在 2026-09-25 删掉（见 MH_AI_PANEL_HTML 上面那段），别再加回来。
+ * ⚠ 页内模式（六爻/梅花/八字三页）**没有遮罩可点**，所以那三页的块关不掉 ——
+ * 故意的，见文件头那段（「ai 块是必须出现的，不需要隐藏」）。想少占地方请走
+ * `toggleAIPanelFold()`：折正文、不停流。**别拿它当收起用**。
  *
  * （若哪天想改成「收起但让它跑完、回来接着看」，只需把下面这行
  * `abortAIStream()` 删掉 —— 其余状态机已经能处理「面板关着而流在跑」，
@@ -431,7 +519,7 @@ async function sendFollowUp() {
 
 function showAIHome() {
   var resp = document.getElementById('aiResponse');
-  var hdr = document.querySelector('.ai-panel-header span:first-child');
+  var hdr = document.getElementById('aiPanelTitle');
   if (hdr) hdr.textContent = aiTxt('title', '☯ 自动解析');
   resp.className = 'ai-response show';
 
@@ -446,15 +534,21 @@ function showAIHome() {
   }
 
   var anonUsedKey = AIC().anonUsedKey || '';
-  // 未登录用户且已使用过解析次数 → 引导注册
-  if (!AUTH.isLoggedIn() && anonUsedKey && localStorage.getItem(anonUsedKey)) {
-    showLoginPrompt(resp);
+
+  // 已有保存的解析 → 直接展示，并显示追问栏。
+  // ⚠ **这一条必须在下面那道游客门之前。** 游客那一次免费机会已经**花在这段解析上**了，
+  // 它是用户付过的东西。原先门在前，于是「关掉面板再打开」看到的是登录引导块、
+  // 自己刚跑出来的解析没了 —— 用户报的「原来的 AI 解析块消失了」有一半就是它。
+  // 「游客只能解一次」那道门在 `startButtonClicked()` 里还有一道，那边拦得住「再解一次」；
+  // 这里放行只是**给他看已经解出来的那一份**，不是再送一次。
+  if (aiSaved()) {
+    showSavedAnalysis();
     return;
   }
 
-  // 已有保存的解析 → 直接展示，并显示追问栏
-  if (aiSaved()) {
-    showSavedAnalysis();
+  // 未登录用户且已使用过解析次数 → 引导注册
+  if (!AUTH.isLoggedIn() && anonUsedKey && localStorage.getItem(anonUsedKey)) {
+    showLoginPrompt(resp);
     return;
   }
 
@@ -502,7 +596,7 @@ function showSavedAnalysis() {
   // 存的正文里带着记账行，切出来显示成小字（老记录没有记账行 → 什么都不显示）
   resp.innerHTML = '<div class="ai-result">' + renderMarkdown(stripTokenTrailer(aiSaved()))
     + pointsHtml(aiSaved()) + '</div>';
-  var hdr = document.querySelector('.ai-panel-header span:first-child');
+  var hdr = document.getElementById('aiPanelTitle');
   if (hdr) hdr.textContent = aiTxt('doneTitle', '☯ 已保存的解析');
   // 显示追问输入栏（页面用 noFollowUp 关掉时不显示）
   showFollowBar();
@@ -609,8 +703,6 @@ async function startAIStream() {
       if (fullText) {
         var saved = analysisText || fullText;
         aiSetSaved(saved);
-        var barBtn = document.getElementById(AIC().barBtnId || '');
-        if (barBtn) barBtn.innerHTML = '<span class="ai-icon">☯</span><span>看不懂？试试自动解析</span>';
         var anonUsedKey = AIC().anonUsedKey || '';
         if (!AUTH.isLoggedIn() && anonUsedKey) {
           localStorage.setItem(anonUsedKey, '1');
@@ -641,8 +733,9 @@ async function startAIStream() {
 // 已经点过「解读这一方面」，只是中途被登录弹窗打断，回来接着跑 —— 是「接着做」，
 // 不是「替他做决定」。别顺手把它也删了。
 
-// overlay 点击关闭（用 JS 监听避免误触）—— 原来写在 result.html 的 checkBar 里，
-// 搬到面板自己的文件里：面板在哪一页就在哪一页生效，不必每页各写一次。
+// overlay 点击关闭（用 JS 监听避免误触）—— 原先各页各写一份（result.html 那个
+// `setTimeout(checkBar)` 定时器，2026-09-25 随页头按钮一起删了），现在搬到面板
+// 自己的文件里：面板在哪一页就在哪一页生效，不必每页各写一次。
 (function bindOverlayClose() {
   function bind() {
     var overlay = document.getElementById('aiPanelOverlay');

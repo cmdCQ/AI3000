@@ -32,6 +32,10 @@
 | `frozen_mhys_frontend.js` | 迁移**前**梅花页起卦实现的冻结原文（程序化切出，**不许编辑**）：`verify_qigua_vs_front.js` 的外部判据 |
 | `verify_qigua_vs_front.js` | 后端取数 ↔ 迁移前前端取数，逐例核对；兼「迁移完成闸门」（活页面里再出现起卦实现即退出 1） |
 | `drive_mhys_page.js` | **迁移后**的驱页验收：本机静态服务 + 无头 Firefox 驱真页面（桩卦 / 抓包 / 手算值三个独立判据） |
+| `drive_mhys_twice.js` | 梅花页**二次排盘**的驱页验收：AI 块自动出现 / 折叠不停流 / 换卦作废旧解析（见文末 `regress_pages.sh`） |
+| `drive_liuyao_page.js` / `drive_bazi_page.js` | 六爻排盘页+记录页 / 八字详情页的驱页验收 |
+| `mutate_mhys_twice.js` | 把 `drive_mhys_twice.js` 里九处改动逐个改回坏的（证明那些断言不是橡皮章） |
+| `regress_pages.sh` | **页面层回归**：上面四个驱动 + 变异套件串一轮（见文末） |
 | `smoke_paipan_endpoints.js` | 两个排盘端点的函数体冒烟（状态码、字段名、「端点的 text ≡ AI 读到的 `{{paipan}}`」） |
 | `../build/nginx/js/mhys_render.js` | 梅花渲染层（**被验的前端产物**，非对拍脚本）：由 `result.html` 整段搬出，排盘页/结果页共用 |
 | `../build/nginx/js/mhys_ai_panel.js` | 梅花 AI 面板（同上，含面板 DOM 的自挂载） |
@@ -1425,3 +1429,29 @@ PROBE_JUDGE_FILE=/tmp/sse_dump.json node duipan/live_smoke_bazi_sse.js  # 拿存
 控制头、客户端根本收不到；拿「输入+输出」的合计去比 `max_tokens` —— 那个上限只管**输出**）。
 **所以存稿与离线复判必须先有**：没有它，改一条判据要再花一次真调用，于是明知判据不对也会凑合留着。
 9 个变异全部离线复核过（全部被抓）。
+
+#### `regress_pages.sh`（页面层回归：四个页面驱动 + 变异套件）
+
+```sh
+sh duipan/regress_pages.sh          # 全跑（约 20 分钟）
+sh duipan/regress_pages.sh fast     # 跳过变异套件（约 10 分钟）
+```
+
+四个驱动各起一个无头 Firefox + 本机静态站（端口互不冲突，但**串行**跑）：
+
+| 层 | 脚本 | 钉住什么 |
+| --- | --- | --- |
+| `mhys-twice` | `drive_mhys_twice.js` | 排完盘 AI 块**自动出现**且**不发请求**；折叠只折正文、不掐流；换卦自动展开并作废上一卦的解析 |
+| `mhys-page` | `drive_mhys_page.js` | 排盘页与记录页：桩卦/抓包/手算值三个独立判据 + 记录页带出已存解读 |
+| `liuyao` | `drive_liuyao_page.js` | 排盘页与记录页同上；另判「排盘前既没有块也没有那颗页头按钮」 |
+| `bazi` | `drive_bazi_page.js` | 详情页只渲染不算盘、追问不落库、页内不浮层、收起不停流 |
+| `mutate-mhys-twice` | `mutate_mhys_twice.js` | 把 `mhys-twice` 里九处做好的改动逐个改回坏的，看断言抓不抓得住 |
+
+退出码 2（**没测到东西**：站点起不来 / 切片标记失效）与 1（**测出来是坏的**）分开报，
+汇总里也不混着写 —— 这两件事的处置相反。
+
+⚠ 它存在的理由是 2026-09-25 那次：引擎（`js/ai_panel.js` + 各页配置）一天里改了三次形态，
+每次都只手动跑过一两个驱动，`drive_bazi_page.js` 因此烂了**一整天没人知道** ——
+后端把排盘那段接上 `bazi_report.js` 之后，驱动注入的依赖表没跟着补，
+于是整条从第一条用例起就在红（症状是「页面上的盘是旧快照」，与真因隔了三层）。
+手动维护的检查等于没有检查：**改完引擎就把本脚本跑一遍**。

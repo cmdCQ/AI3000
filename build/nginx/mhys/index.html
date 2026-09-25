@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
 <!-- 结果页的样式与渲染层跟本页共用一份（原地出结果），别在本页再抄一份 -->
-<link rel="stylesheet" href="/css/mhys_result.css?v=3">
+<link rel="stylesheet" href="/css/mhys_result.css?v=4">
 <style>
 :root {
   --bg: #faf8f5;
@@ -211,7 +211,10 @@ html,body { background:var(--bg); color:var(--text); font-family:var(--sans); mi
   <div class="mh-header">
     <a href="/" class="mh-back">← 返回</a>
     <h1 class="mh-title">梅花易数</h1>
-    <button class="ai-title-btn" id="aiBarBtn" onclick="toggleAIPanel()">☯ 看不懂？试试自动解析</button>
+    <!-- 2026-09-25 删掉页头那颗「☯ 看不懂？试试自动解析」：用户拍板
+         「我不想要这个按钮，折叠功能你完全可以添加在那个 ai 解析的板块里面」。
+         现在排完盘 AI 块自己出现在卦象下面（`showResultHere` → `refreshAIPanel`），
+         收起/展开那颗控件长在块的标题栏里（`js/ai_panel.js` 的 `aiFoldBtn`）。 -->
   </div>
 
   <!-- 1. 事项内容 -->
@@ -323,9 +326,9 @@ html,body { background:var(--bg); color:var(--text); font-family:var(--sans); mi
 <!-- 渲染层与结果页共用一份。TRIGRAMS 也在 mhys_render.js 里，本页不再另抄一份
      （原先两边各抄一份，改一处漏一处就会悄悄对不上）。 -->
 <script src="/js/hexagrams_data.js?v=1"></script>
-<script src="/js/mhys_render.js?v=2"></script>
-<script src="/js/ai_panel.js?v=4"></script>
-<script src="/js/mhys_ai_panel.js?v=1"></script>
+<script src="/js/mhys_render.js?v=3"></script>
+<script src="/js/ai_panel.js?v=6"></script>
+<script src="/js/mhys_ai_panel.js?v=2"></script>
 <script>
 var HEX64 = {};
 (function(){
@@ -786,6 +789,7 @@ async function startDivination(e) {
   if (!topic) { showResultHere(result); return; }
 
   // 有事项 → 存一条记录。存不上不影响看结果（只是记录列表里没有这条）。
+  var newRecordId = null;
   try {
     var sresp = await fetch('/api/mhys-records', {
       method: 'POST',
@@ -800,10 +804,14 @@ async function startDivination(e) {
     });
     if (sresp.ok) {
       var saved = await sresp.json();
-      currentRecordId = saved.id;
+      newRecordId = saved.id;
     }
   } catch(e) {}
   showResultHere(result);
+  // ⚠ 认记录 id 要**等 showResultHere 渲染完**再说：renderResult() 里会把
+  //   `currentRecordId` 清空（它属于上一卦，见那个函数里的注释）。先设就被清掉了 ——
+  //   那样这一卦的解读不会回写记录，而界面上一点异常都看不出来。
+  currentRecordId = newRecordId;
 }
 
 // 结果就渲染在本页下面（原先这里是跳 /mhys/result.html）。
@@ -822,6 +830,12 @@ function showResultHere(result) {
   var area = document.getElementById('resultArea');
   area.innerHTML = renderResult(result);  // 顺手设好全局 g / currentTopic / currentGua
   renderAnalysis();                       // 必须在插进 DOM 之后，它要找 #analysisArea
+  // 换卦了：让 AI 面板也按**这一卦**重画。数据层已经清空（`renderResult()` 里），
+  // 但屏幕上的 DOM 还是上一卦的正文 —— 不叫这一声，用户就会看到
+  // 「第二卦的盘 + 第一卦的解读」。面板关着时它是空操作。
+  // （`typeof` 兜一下：页面与引擎分属两个文件，万一线上留了一版旧引擎，
+  //  这里宁可少做一件事，也不要让整页因为一个未定义的函数停在这儿。）
+  if (typeof refreshAIPanel === 'function') refreshAIPanel();
   resetBtn();
   if (area.scrollIntoView) area.scrollIntoView({ behavior:'smooth', block:'start' });
   // 结果一出来**不**自动解读。2026-09-25 用户拍板：「三个的 ai 解析都不要自动开始了，

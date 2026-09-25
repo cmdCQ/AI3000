@@ -7,7 +7,6 @@ window.AI_PANEL_CONF = {
   recordsPath: '/api/liuyao-records',
   anonUsedKey: 'liuyao_anon_used',
   anonFollowKey: 'liuyao_anon_followup',
-  barBtnId: 'aiBarBtn',
   noChartHint: '先起一卦，再来看解析',
   // 有卦才放行：`currentChart` 由 `js/liuyao_render.js` 的 renderLiuyaoResult() 设好
   hasChart: function(){ return !!currentChart; },

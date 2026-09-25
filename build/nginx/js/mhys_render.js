@@ -256,6 +256,22 @@ function renderResult(result) {
   g = result.gua;
   currentTopic = result.topic || '';
   currentGua = 'ben';
+  // ⚠ 换一卦 = 与**上一卦**绑定的东西全部作废，不只是上面这三个。
+  //
+  // 原先这里只重置 g / currentTopic / currentGua，`savedAnalysis` 与 `currentRecordId`
+  // 一直留着两卦之间 —— 于是**同一个页面上排第二次盘**之后（梅花/六爻都是原地出结果）：
+  //   · AI 块里还是**上一卦**的解析：第二卦的盘配第一卦的解读。形式完全正常、内容是错的，
+  //     用户会照着上一卦的建议去做事 —— 这是最坏的一种错（用户 2026-09-25 报的
+  //     「用了两次之后…原来的 ai 解析块就消失了」就是这一族）。
+  //   · 点「开始解卦」也拿不到新的：面板里 `aiSaved()` 为真就直接把旧的**再贴一遍**。
+  //   · 若这一卦没存记录（没填事项），`currentRecordId` 还是上一卦的 id，
+  //     这一卦的解析会被 PATCH 到**上一卦的记录**上，覆盖掉人家原来的解读（数据被改坏）。
+  //
+  // ⚠ 调用方要挂「本来就已经存在的解析」（记录页从 `/api/mhys-records/<id>` 取回的
+  // `ai_analysis`）必须在**渲染之后**再挂 —— 顺序反过来就会被这里清掉。
+  // 六爻那边 `renderLiuyaoResult()` 是同样的形状（`meta` 里逐项重设），别只改一边。
+  savedAnalysis = null;
+  currentRecordId = null;
   var h = '';
 
   // ===== 排盘信息表格 =====

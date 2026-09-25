@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
 <!-- 设计系统与梅花结果页同一份（令牌/卡片/AI 面板/爻符），六爻盘面另加一份，必须引在后面 -->
-<link rel="stylesheet" href="/css/mhys_result.css?v=3">
+<link rel="stylesheet" href="/css/mhys_result.css?v=4">
 <link rel="stylesheet" href="/css/liuyao_result.css?v=1">
 </head>
 <body>
@@ -19,7 +19,8 @@
   <div class="mh-header">
     <a href="/liuyao/" class="mh-back">← 返回排盘</a>
     <h1 class="mh-title">排盘结果</h1>
-    <button class="ai-title-btn" id="aiBarBtn" onclick="toggleAIPanel()">☯ 看不懂？试试自动解析</button>
+    <!-- 页头那颗「试试自动解析」已删（2026-09-25 用户拍板）：这一页的块由 load() 里的
+         `refreshAIPanel()` 摆出来，收起/展开那颗控件长在块的标题栏里。 -->
   </div>
 
   <div id="contentArea">
@@ -143,19 +144,17 @@ async function load() {
     lunarInfo: card.lunarInfo,
     savedAnalysis: data.ai_analysis || ''
   });
-  // 有存过的解读，面板一开就能看到 —— 按钮状态跟着变（引擎在 /js/ai_panel.js）
-  if (data.ai_analysis) {
-    var barBtn = document.getElementById('aiBarBtn');
-    if (barBtn) barBtn.innerHTML = '<span class="ai-icon">☯</span><span>看不懂？试试自动解析</span>';
-  }
+  // 盘已经在了 → 把 AI 块摆出来（存过解读就直接展示，没有就是「开始解卦」）。
+  // `savedAnalysis` 是 renderLiuyaoResult() 从 meta 里设好的，故这一句放它后面。
+  if (typeof refreshAIPanel === 'function') refreshAIPanel();
 }
 
 load();
 </script>
 
 <!-- AI 面板引擎与六爻的配置（引擎与梅花页共用一份） -->
-<script src="/js/ai_panel.js?v=4"></script>
-<script src="/js/liuyao_ai_panel.js?v=1"></script>
+<script src="/js/ai_panel.js?v=6"></script>
+<script src="/js/liuyao_ai_panel.js?v=2"></script>
 
 </body>
 </html>

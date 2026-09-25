@@ -95,6 +95,18 @@ var BaziAI = (function () {
     '.bz-ai-toggle .bz-caret{flex:none;font-size:0.7rem;font-weight:400;letter-spacing:0;color:var(--text-dim,#6b6b6b)}',
     '#baziAiSec.collapsed #baziAiBody{display:none}',
     '#baziAiSec.collapsed .bz-ai-toggle{margin-bottom:0}',
+    // ── 引擎那块面板的**表头行**在本页藏掉（2026-09-25）────────────────────
+    // 本页这块 AI 区自己就有一行标题（`#baziAiToggle`：「☯ AI 解读 ——— 收起 ▾」），
+    // 引擎插进来的面板又画一行「☯ AI 解读」——同一个标题叠两遍。原来只是难看；
+    // 引擎给表头加上折叠控件之后，屏幕上会并排出现**两颗「收起」**（本页这颗折
+    // `#baziAiBody`、引擎那颗折 `.ai-panel-body`），用户不知道该点哪颗。
+    // 一个 AI 块只能有一颗折叠控件 —— 留本页那颗（因为它折的范围更大，含方面条），
+    // 引擎那行整行藏掉（它承载的标题/「正在解读」在下面正文里本来就看得见）。
+    // ⚠ 别改成藏 `#baziAiArea`：那会把面板正文一起藏了。只藏表头这一行。
+    '#baziAiBody .ai-panel-header{display:none}',
+    // 表头本来还兼着正文的顶部留白（`.ai-panel-body` 只有左右下三边内边距），
+    // 藏了它正文会贴着面板上边，故补回来。
+    '#baziAiBody .ai-panel-body{padding-top:0.5rem}',
   ].join('');
 
   function injectCss() {
@@ -148,7 +160,6 @@ var BaziAI = (function () {
       // 他刚看完免费那一份，正是最想问一句的时候，此刻拦人比藏起来有用）。
       anonUsedKey: ANON_USED_KEY,
       anonFollowKey: '',
-      barBtnId: '',
       recordsPath: '/api/bazi-analyses',   // recordId() 返回 null，故引擎不会去 PATCH 它
       cardType: 'bazi',
 

@@ -9,7 +9,7 @@
 <title>排盘结果 · 梅花易数</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/mhys_result.css?v=3">
+<link rel="stylesheet" href="/css/mhys_result.css?v=4">
 </head>
 <body>
 
@@ -17,7 +17,8 @@
   <div class="mh-header">
     <a href="/mhys/" class="mh-back">← 返回排盘</a>
     <h1 class="mh-title">排盘结果</h1>
-    <button class="ai-title-btn" id="aiBarBtn" onclick="toggleAIPanel()">☯ 看不懂？试试自动解析</button>
+    <!-- 页头那颗「试试自动解析」已删（理由见 `mhys/index.html` 同一处注释）：
+         这一页的块由 load() 里的 `refreshAIPanel()` 摆出来。 -->
   </div>
 
   <div id="contentArea">
@@ -41,7 +42,7 @@
 <script src="/js/auth.js?v=1787305221"></script>
 <script src="/js/ui_common.js?v=1"></script>
 <script src="/js/hexagrams_data.js?v=1"></script>
-<script src="/js/mhys_render.js?v=2"></script>
+<script src="/js/mhys_render.js?v=3"></script>
 <script>
 // ===== 加载数据 =====
 async function load() {
@@ -65,7 +66,6 @@ async function load() {
         area.innerHTML = '<div class="load-state"><p>排盘记录不存在或已删除</p></div>';
         return;
       }
-      currentRecordId = id;
       var data = await resp.json();
       var result = typeof data.result_data === 'string' ? JSON.parse(data.result_data) : data.result_data;
       result.topic = data.topic;
@@ -79,14 +79,16 @@ async function load() {
         numbers: result.numbers || '',
         lunarInfo: result.lunarInfo || {}
       };
-      savedAnalysis = data.ai_analysis || '';
       area.innerHTML = renderResult(result);
       renderAnalysis();
-      // 有保存的AI解读则在状态栏显示
-      if (savedAnalysis) {
-        var barBtn = document.getElementById('aiBarBtn');
-        if (barBtn) barBtn.innerHTML = '<span class="ai-icon">☯</span><span>看不懂？试试自动解析</span>';
-      }
+      // ⚠ 这两项**必须在 renderResult() 之后**挂：那个函数会把与「上一卦」绑定的
+      //   状态清空（savedAnalysis / currentRecordId，理由写在它里面）。
+      //   顺序反过来 = 从记录点进来时既看不到已存的解读、解析也没法回写这条记录。
+      currentRecordId = id;
+      savedAnalysis = data.ai_analysis || '';
+      // 盘已经在了 → 把 AI 块摆出来（有存过的解读就直接展示，没有就是「开始解卦」）。
+      // 必须在上面两行**之后**：早了 panel 认不到这份解析，画的还是「开始解卦」。
+      if (typeof refreshAIPanel === 'function') refreshAIPanel();
     } catch(e) {
       area.innerHTML = '<div class="load-state"><p>加载失败，请重试</p></div>';
     }
@@ -110,27 +112,30 @@ async function load() {
     };
     area.innerHTML = renderResult(result);
     renderAnalysis();
+    // ⚠ 这个分支**没有 await**（数据直接从 localStorage 读），所以跑到这儿时页面还在
+    //    解析中，末尾的 `/js/ai_panel.js` 很可能还没执行 —— 直接调会静默什么都不发生。
+    //    等 DOMContentLoaded：解析阻塞型脚本全都执行完之后才触发，那时引擎一定在了。
+    //    （上面 id 分支有 fetch 的 await，那时 DOM 早已就绪，直接调即可。）
+    //    —— 顺带一提：现在没有页面往 localStorage 写 `mhys_result` 了（排盘改成原地出
+    //    结果），这条路是旧版留下的，留着是为了别让老链接白屏。
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function() {
+        if (typeof refreshAIPanel === 'function') refreshAIPanel();
+      });
+    } else if (typeof refreshAIPanel === 'function') {
+      refreshAIPanel();
+    }
   }
 }
 
 load();
-
-// 等 load 渲染完成后更新 AI bar 状态
-setTimeout(function checkBar() {
-  var barBtn = document.getElementById('aiBarBtn');
-  if (!barBtn) { setTimeout(checkBar, 100); return; }
-  if (currentTopic) {
-    barBtn.classList.remove('ai-disabled');
-    barBtn.setAttribute('title', '点击打开AI解析');
-  }
-}, 200);
 </script>
 
 <!-- AI 面板引擎与梅花的配置（引擎与六爻页共用一份）。
      overlay 的点击关闭在引擎里绑，本页不再绑一次 —— 绑两处会关两次，
      看着一样，但那是两份 DOM 监听在各自为政。 -->
-<script src="/js/ai_panel.js?v=4"></script>
-<script src="/js/mhys_ai_panel.js?v=1"></script>
+<script src="/js/ai_panel.js?v=6"></script>
+<script src="/js/mhys_ai_panel.js?v=2"></script>
 
 </body>
 </html>
