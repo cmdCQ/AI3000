@@ -31,11 +31,10 @@
 'use strict';
 
 const fs = require('fs');
-const http = require('http');
-const net = require('net');
-const os = require('os');
 const path = require('path');
-const { spawn } = require('child_process');
+
+// 真浏览器 + 本机站点 + 操作原语都在 `drive_lib.js` 里（六爻页的驱动脚本共用一份）
+const L = require('./drive_lib');
 
 const ROOT = path.join(__dirname, '..');
 const WEB = path.join(ROOT, 'build', 'nginx');
@@ -76,226 +75,82 @@ const runEndpoint = loadEndpoint();
 // 桩：设了就按它回（① 独立判据）；同时把每个进来的请求体存下来（② 独立判据）
 const state = { stub: null, captured: [], savedRecords: [], chat: [] };
 
-const MIME = {
-  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8',
-  '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg',
-  '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.woff': 'font/woff',
-};
+// 控制面 + 桩 + 真端点切片。站点的静态文件与浏览器部分在 `drive_lib.js` 里。
+async function api(req, res, pathname) {
+  if (pathname === '/__stub') {
+    state.stub = (await L.readBody(req)).qigua || null;
+    return L.sendJson(res, { ok: true, stub: state.stub }), true;
+  }
+  if (pathname === '/__captured') return L.sendJson(res, { captured: state.captured }), true;
+  if (pathname === '/__reset') {
+    state.captured = []; state.savedRecords = []; state.chat = [];
+    return L.sendJson(res, { ok: true }), true;
+  }
+  if (pathname === '/__saved') return L.sendJson(res, { saved: state.savedRecords }), true;
+  if (pathname === '/__chat') return L.sendJson(res, { chat: state.chat }), true;
 
-function readBody(req) {
-  return new Promise((resolve) => {
-    let b = '';
-    req.on('data', (c) => { b += c; });
-    req.on('end', () => {
-      try { resolve(b ? JSON.parse(b) : {}); } catch (e) { resolve({}); }
+  // AI 解读：`startAIStream()` 用 XHR 读**流式正文**（onprogress 逐段渲染），
+  // 所以这里分两次 write、中间隔一下，好让驱动看到「边收边渲染」而不是一次性结果。
+  if (req.method === 'POST' && pathname === '/api/chat/send') {
+    const body = await L.readBody(req);
+    state.chat.push(body);
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache' });
+    res.write('【一、结论】\n（桩）这一卦先说结论。\n');
+    setTimeout(() => { res.write('\n【二、依据】\n（桩）再看依据。\n\n【三、建议】\n（桩）最后给建议。'); res.end(); }, 150);
+    return true;
+  }
+
+  if (req.method === 'POST' && pathname === '/api/meihua/paipan') {
+    const body = await L.readBody(req);
+    state.captured.push(body);
+    if (state.stub) {
+      // 桩只回页面真正要用的东西：卦号 + 一个形状完整的 qigua。
+      // 页面**只能**照这些数渲染 —— 它自己算不出 3/6/5。
+      const q = state.stub;
+      L.sendJson(res, {
+        paipan: { stub: true }, sizhu: null,
+        qigua: { method: body.method, upper_num: q.upper_num, lower_num: q.lower_num, moving: q.moving },
+        text: '(桩)',
+      });
+      return true;
+    }
+    runEndpoint(req, res, body, pathname, L.sendJson, promptLib, LY);
+    return true;
+  }
+
+  if (req.method === 'POST' && pathname === '/api/mhys-records') {
+    const body = await L.readBody(req);
+    state.savedRecords.push(body);
+    return L.sendJson(res, { id: 999 }), true;
+  }
+  // 结果页按 id 取记录（`result.html` 读的是 result_data/topic/created_at 三个字段）
+  if (req.method === 'GET' && /^\/api\/mhys-records\/\d+$/.test(pathname)) {
+    const last = state.savedRecords[state.savedRecords.length - 1];
+    if (!last) return L.sendJson(res, { error: '没有记录' }, 404), true;
+    L.sendJson(res, {
+      id: 999, topic: last.topic, method: last.method,
+      result_data: last.resultData, ai_analysis: '', created_at: new Date().toISOString(),
     });
-  });
-}
-
-function sendJson(res, obj, status) {
-  const s = JSON.stringify(obj);
-  res.writeHead(status || 200, { 'Content-Type': 'application/json; charset=utf-8' });
-  res.end(s);
-  return obj;
+    return true;
+  }
+  // 别的 /api/* 一律空回，免得页面上的鉴权/记录请求把水搅浑
+  if (pathname.startsWith('/api/')) return L.sendJson(res, {}), true;
+  return false;
 }
 
 function startServer() {
-  const server = http.createServer(async (req, res) => {
-    const url = new URL(req.url, ORIGIN);
-    const pathname = url.pathname;
-
-    // 控制面（驱动脚本自用，页面不会碰）
-    if (pathname === '/__stub') {
-      state.stub = (await readBody(req)).qigua || null;
-      return sendJson(res, { ok: true, stub: state.stub });
-    }
-    if (pathname === '/__captured') return sendJson(res, { captured: state.captured });
-    if (pathname === '/__reset') {
-      state.captured = []; state.savedRecords = []; state.chat = [];
-      return sendJson(res, { ok: true });
-    }
-    if (pathname === '/__saved') return sendJson(res, { saved: state.savedRecords });
-    if (pathname === '/__chat') return sendJson(res, { chat: state.chat });
-
-    // AI 解读：`startAIStream()` 用 XHR 读**流式正文**（onprogress 逐段渲染），
-    // 所以这里分两次 write、中间隔一下，好让驱动看到「边收边渲染」而不是一次性结果。
-    if (req.method === 'POST' && pathname === '/api/chat/send') {
-      const body = await readBody(req);
-      state.chat.push(body);
-      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache' });
-      res.write('【一、结论】\n（桩）这一卦先说结论。\n');
-      setTimeout(() => { res.write('\n【二、依据】\n（桩）再看依据。\n\n【三、建议】\n（桩）最后给建议。'); res.end(); }, 150);
-      return;
-    }
-
-    if (req.method === 'POST' && pathname === '/api/meihua/paipan') {
-      const body = await readBody(req);
-      state.captured.push(body);
-      if (state.stub) {
-        // 桩只回页面真正要用的东西：卦号 + 一个形状完整的 qigua。
-        // 页面**只能**照这些数渲染 —— 它自己算不出 3/6/5。
-        const q = state.stub;
-        return sendJson(res, {
-          paipan: { stub: true }, sizhu: null,
-          qigua: { method: body.method, upper_num: q.upper_num, lower_num: q.lower_num, moving: q.moving },
-          text: '(桩)',
-        });
-      }
-      return runEndpoint(req, res, body, pathname, sendJson, promptLib, LY);
-    }
-
-    if (req.method === 'POST' && pathname === '/api/mhys-records') {
-      const body = await readBody(req);
-      state.savedRecords.push(body);
-      return sendJson(res, { id: 999 });
-    }
-    // 结果页按 id 取记录（`result.html` 读的是 result_data/topic/created_at 三个字段）
-    if (req.method === 'GET' && /^\/api\/mhys-records\/\d+$/.test(pathname)) {
-      const last = state.savedRecords[state.savedRecords.length - 1];
-      if (!last) return sendJson(res, { error: '没有记录' }, 404);
-      return sendJson(res, {
-        id: 999, topic: last.topic, method: last.method,
-        result_data: last.resultData, ai_analysis: '', created_at: new Date().toISOString(),
-      });
-    }
-    // 别的 /api/* 一律空回，免得页面上的鉴权/记录请求把水搅浑
-    if (pathname.startsWith('/api/')) return sendJson(res, {});
-
-    // 静态文件
-    let p = path.join(WEB, decodeURIComponent(pathname));
-    if (!p.startsWith(WEB)) { res.writeHead(403); return res.end(); }
-    try {
-      if (fs.statSync(p).isDirectory()) p = path.join(p, 'index.html');
-      const buf = fs.readFileSync(p);
-      res.writeHead(200, { 'Content-Type': MIME[path.extname(p)] || 'application/octet-stream' });
-      return res.end(buf);
-    } catch (e) {
-      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-      return res.end('404');
-    }
-  });
-  return new Promise((resolve) => server.listen(PORT, '127.0.0.1', () => resolve(server)));
+  return L.startServer({ port: PORT, origin: ORIGIN, web: WEB, api });
 }
 
 // ─────────────────────────────────────────────────────────────
-// 2. Marionette 线协议（长度前缀 JSON，协议 v3）
-//
-// 本机没有 pip（`marionette-driver` 装不上），故直接实现线协议 —— 它很短：
-// 每个报文是 `<UTF-8 字节数>:<JSON>`，**命令报文是数组** `[0, id, name, params]`，
-// 应答是 `[1, id, error, result]`。第一帧是 Firefox 主动发的问候对象
-// `{"applicationType":"gecko","marionetteProtocol":3}`（没有 id，丢掉即可）。
-//
-// 踩过的坑：命令写成对象 `{id,name,params}` 会让 Firefox 回
-// 「Unable to unmarshal packet data」并且**不报错给你**，只是永远不回话 ——
-// 表现是脚本静默挂住（第一版就是这么卡死的）。长度按字节算，中文报文会差。
+// 2. 浏览器与操作原语（都在 `drive_lib.js` 里，两个驱动脚本共用）
 // ─────────────────────────────────────────────────────────────
-class Marionette {
-  constructor(sock) {
-    this.sock = sock; this.buf = Buffer.alloc(0); this.id = 0; this.waiters = [];
-    sock.on('data', (c) => {
-      this.buf = Buffer.concat([this.buf, c]);
-      this.drain();
-    });
-  }
+const js = L.js;
+const W = L.W;
+const goto = L.goto;
 
-  drain() {
-    for (;;) {
-      const sep = this.buf.indexOf(0x3a);
-      if (sep < 0) return;
-      const len = parseInt(this.buf.slice(0, sep).toString('utf8'), 10);
-      if (!Number.isFinite(len)) throw new Error('marionette: 报文头解析失败');
-      if (this.buf.length < sep + 1 + len) return;
-      const payload = this.buf.slice(sep + 1, sep + 1 + len).toString('utf8');
-      this.buf = this.buf.slice(sep + 1 + len);
-      const msg = JSON.parse(payload);
-      if (!Array.isArray(msg)) continue;              // 问候帧
-      const [, id, error, result] = msg;
-      const w = this.waiters.shift();
-      if (!w) continue;
-      if (error) w.reject(new Error(`${error.error || 'marionette 错误'}：${error.message || ''}`));
-      else w.resolve(result);
-    }
-  }
-
-  send(name, params) {
-    const id = ++this.id;
-    const payload = Buffer.from(JSON.stringify([0, id, name, params || {}]), 'utf8');
-    this.sock.write(Buffer.concat([Buffer.from(`${payload.length}:`, 'utf8'), payload]));
-    return new Promise((resolve, reject) => this.waiters.push({ resolve, reject }));
-  }
-}
-
-// 连上就**留住这条连接**（不要再单独探端口：探完即断的那条连接虽无害，但留着
-// 一条开着的连接更简单，也少一次「谁才是客户端」的疑问）
-function connectMarionette(port, timeoutMs) {
-  const t0 = Date.now();
-  return new Promise((resolve, reject) => {
-    const tick = () => {
-      const s = net.connect(port, '127.0.0.1');
-      s.once('connect', () => resolve(s));
-      s.once('error', () => {
-        s.destroy();
-        if (Date.now() - t0 > timeoutMs) reject(new Error(`等 marionette 端口 ${port} 超时`));
-        else setTimeout(tick, 250);
-      });
-    };
-    tick();
-  });
-}
-
-async function launchFirefox() {
-  const bin = ['/usr/bin/firefox', '/usr/lib/firefox/firefox'].find((p) => fs.existsSync(p));
-  if (!bin) { console.error('❌ 找不到 firefox —— 本脚本要真页面，不接受替代。'); process.exit(2); }
-  const prof = fs.mkdtempSync(path.join(os.tmpdir(), 'mhys-prof-'));
-  const child = spawn(bin, ['--headless', '--new-instance', '--marionette', '-profile', prof,
-    '--no-remote', 'about:blank'], { stdio: 'ignore' });
-  const child_exit = new Promise((r) => child.once('exit', (c) => r(c)));
-  const sock = await connectMarionette(MARIONETTE_PORT, 25000).catch((e) => {
-    child.kill('SIGKILL');
-    console.error(`❌ ${e.message}（Firefox 起不来？）`);
-    process.exit(2);
-  });
-  const m = new Marionette(sock);
-  // 先让问候帧进来，再开会话（问候帧没有 id，drain 里会丢掉）
-  await new Promise((r) => setTimeout(r, 200));
-  const sess = await m.send('WebDriver:NewSession', { capabilities: {} });
-  if (!sess || !sess.sessionId) {
-    child.kill('SIGKILL');
-    console.error('❌ 开 marionette 会话失败：' + JSON.stringify(sess));
-    process.exit(2);
-  }
-  return { child, child_exit, m, sessionId: sess.sessionId, prof };
-}
-
-// ─────────────────────────────────────────────────────────────
-// 3. 页面操作原语
-// ─────────────────────────────────────────────────────────────
-async function js(m, script, args) {
-  const r = await m.send('WebDriver:ExecuteScript', { script, args: args || [], sandbox: 'default' });
-  return r.value;
-}
-
-// ExecuteScript 跑在**沙箱**里，看页面是 Xray 视角：页面自己用 `function f(){}`
-// 定义的全局（selectMethod、selectedTime、TRIGRAMS…）**看不见**，直接写
-// `selectMethod(...)` 会报 `ReferenceError: selectMethod is not defined`。
-// 要摸到它们必须走 `window.wrappedJSObject`。故本文件所有脚本都先取 `W`。
-// （误诊过一次：以为是页面没加载完/被字体请求卡住，其实是看不见。）
-const W = 'var W = window.wrappedJSObject || window;';
-
-async function goto(m, url) {
-  await m.send('WebDriver:Navigate', { url });
-  // 页面上的 alert 会**阻塞** marionette 会话，故导航后立刻换成记录器；
-  // 顺便记未捕获异常 —— 页面报错时看得见，不至于只看到「用例失败」。
-  await js(m, `${W}
-    W.__alerts = [];
-    var rec = function (msg) { W.__alerts.push(String(msg)); };
-    W.alert = rec;
-    try { window.alert = rec; } catch (e) {}
-    W.__errs = [];
-    window.addEventListener('error', function (e) { W.__errs.push(String(e.message)); });
-    return true;
-  `);
+function launchFirefox() {
+  return L.launchFirefox({ port: MARIONETTE_PORT, profilePrefix: 'mhys-prof' });
 }
 
 async function selectMethod(m, method) {
@@ -373,47 +228,16 @@ async function saved() {
 async function chat() {
   return (await (await fetch(`${ORIGIN}/__chat`)).json()).chat;
 }
-async function panelOpen(m) {
-  return js(m, `var p = document.getElementById('aiPanel');
-    return !!p && p.classList.contains('open');`);
-}
-async function panelText(m, timeoutMs) {
-  const t0 = Date.now();
-  for (;;) {
-    const t = await js(m, `var r = document.getElementById('aiResponse');
-      return r ? (r.innerText || '') : '';`);
-    if (t && t.length > 10) return t;
-    if (Date.now() - t0 > timeoutMs) return t;
-    await new Promise((r2) => setTimeout(r2, 150));
-  }
-}
-// 流是一段一段来的，只看「有字了」会在第一段就返回（桩的第二段 150ms 后才到）。
-// 要判据就等到正文匹配目标为止。
-async function panelTextUntil(m, re, timeoutMs) {
-  const t0 = Date.now();
-  let last = '';
-  for (;;) {
-    last = await js(m, `var r = document.getElementById('aiResponse');
-      return r ? (r.innerText || '') : '';`);
-    if (re.test(last)) return last;
-    if (Date.now() - t0 > timeoutMs) return last;
-    await new Promise((r2) => setTimeout(r2, 150));
-  }
-}
+const panelOpen = L.panelOpen;
+const panelText = L.panelText;
+const panelTextUntil = L.panelTextUntil;
 
 // 结果区的正文：**卦是照后端卦号渲染出来的**，所以正文就是判据。
 // 只能读 #resultArea，不能读 document.body —— 输入卡片也在 body 里，正文一上来就
 // 超过长度门槛，会在结果渲染出来之前就返回（第一版读过 localStorage，更糟：
 // `result.html` 一到就把 `mhys_result` 读掉并删除，读回来永远是 null）。
-async function resultText(m, timeoutMs) {
-  const t0 = Date.now();
-  for (;;) {
-    const t = await js(m, `var a = document.getElementById('resultArea');
-      return a ? (a.innerText || '') : '';`);
-    if (t && t.length > 30) return t;
-    if (Date.now() - t0 > timeoutMs) return t;
-    await new Promise((r) => setTimeout(r, 150));
-  }
+function resultText(m, timeoutMs) {
+  return L.textOf(m, '#resultArea', timeoutMs, 30);
 }
 
 // 桩卦：上 3 下 6 动 5。64 卦表里 上3下6 = 火水未济（独立于页面代码的判据）
