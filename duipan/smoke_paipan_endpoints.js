@@ -197,6 +197,73 @@ function check(label, cond, detail) {
   check('六爻：装卦失败走 400',
     call('/api/liuyao/paipan', { hexagrams: { benGua: {} } }).status === 400,
     '缺上下卦号时没回 400');
+
+  // `display`：盘面显示补充（农历/节气/旬空/神煞/变卦整列）。它**不进 text**，
+  // 所以这一组与上面那条「逐字相同」互不冲突 —— 两条一起绿才算既给了页面
+  // 要的东西、又没动 AI 读到的正文。
+  const d = r.payload && r.payload.display;
+  check('六爻：有 display', !!d, '缺 display');
+  if (d) {
+    check('六爻：四柱旬空四格齐全',
+      ['year', 'month', 'day', 'hour'].every((k) => d.kong[k]), JSON.stringify(d.kong));
+    check('六爻：日柱旬空与 chart.kong 同值',
+      d.kong.day === (r.payload.chart.kong || []).join(''),
+      `display ${d.kong.day} vs chart ${(r.payload.chart.kong || []).join('')}`);
+    check('六爻：神煞三项齐（驿马/桃花/日禄）',
+      !!(d.shensha.yiMa && d.shensha.taoHua && d.shensha.riLu), JSON.stringify(d.shensha));
+    check('六爻：无动爻时变卦列为空（本卦无变，何来变列）',
+      r.payload.chart.bian === null ? d.bianLines.length === 0 : d.bianLines.length === 6,
+      `bian=${r.payload.chart.bian === null ? 'null' : '有'} bianLines=${d.bianLines.length}`);
+    check('六爻：农历与节气区间都取到了',
+      !!d.lunar && !!(d.jieQi && d.jieQi.name && d.jieQi.at && d.jieQi.nextName),
+      `lunar=${d.lunar} jieQi=${JSON.stringify(d.jieQi)}`);
+    check('六爻：display 的东西没混进 AI 正文',
+      !/驿马|桃花|日禄|节气/.test(r.payload.text),
+      'display 的字段漏进 text 了 —— AI 读到的正文就不再是基准那一份');
+  }
+}
+
+// 有动爻的那条路：真有变卦，变卦列必须整列都在，且六亲**以本卦之宫论**。
+// 这一例是用户 2026-09-25 给的参考图那一卦（艮为山 二四爻动 → 火风鼎），
+// 图上的变卦列逐字是「父巳火 己／兄未土 己／孙酉金 己／孙酉金 辛／财亥水 辛／兄丑土 辛」。
+{
+  const card = {
+    topic: '我能不能和我喜欢的女生在一起',
+    divinationTime: '2026-09-24 19:49:00',
+    method: '手动指定',
+    lunarInfo: { yearGZ: '丙午', monthGZ: '丁酉', dayGZ: '辛丑', hourGZ: '戊戌' },
+    hexagrams: { benGua: { upper: 7, lower: 7 }, bianGua: { upper: 3, lower: 5 } },
+  };
+  const r = call('/api/liuyao/paipan', card);
+  const d = r.payload && r.payload.display;
+  check('参考图例：200 且有 display', r.status === 200 && !!d, `状态 ${r.status}`);
+  if (d) {
+    const at = (p) => (d.bianLines || []).find((y) => y.position === p) || {};
+    check('参考图例：变卦列整列 6 爻', d.bianLines.length === 6, `bianLines=${d.bianLines.length}`);
+    check('参考图例：变卦六亲以本卦之宫（艮宫土）论',
+      at(6).liuqin === '父母' && at(4).liuqin === '子孙' && at(2).liuqin === '妻财'
+      && at(1).liuqin === '兄弟',
+      [6, 4, 2, 1].map((p) => p + ':' + at(p).liuqin).join(' '));
+    check('参考图例：变卦纳甲干随变卦半卦（离外取己、巽内取辛）',
+      at(4).tiangan === '己' && at(2).tiangan === '辛',
+      `四爻 ${at(4).tiangan} 二爻 ${at(2).tiangan}`);
+    check('参考图例：卦身巳、驿马亥、桃花午、日禄酉（与图逐字相同）',
+      d.shensha.guaShen === '巳' && d.shensha.yiMa === '亥'
+      && d.shensha.taoHua === '午' && d.shensha.riLu === '酉',
+      JSON.stringify(d.shensha));
+    check('参考图例：本卦 艮为山（艮宫）判为六冲卦',
+      d.ben.palaceName === '艮' && d.ben.isChongGua === true,
+      `${d.ben.palaceName} chong=${d.ben.isChongGua}`);
+    check('参考图例：变卦 火风鼎（离宫）',
+      d.bian.name === '火风鼎' && d.bian.palaceName === '离',
+      `${d.bian.name}(${d.bian.palaceName})`);
+    check('参考图例：四柱旬空 寅卯/辰巳/辰巳/辰巳（与图逐字相同）',
+      d.kong.year === '寅卯' && d.kong.month === '辰巳'
+      && d.kong.day === '辰巳' && d.kong.hour === '辰巳',
+      JSON.stringify(d.kong));
+    check('参考图例：农历八月十四',
+      d.lunar === '八月十四', d.lunar);
+  }
 }
 
 if (fails.length) {

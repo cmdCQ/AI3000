@@ -1866,8 +1866,13 @@ async function handle(req, res) {
       }
       // `chart` 给前端分层渲染，`text` 与 AI 收到的排盘正文**逐字相同** ——
       // 用户看到的盘面与 AI 读到的盘面必须是同一份，否则解读对不上画面。
+      //
+      // `display` 是**盘面显示专用的补充项**（农历、节气区间、四柱旬空、神煞、
+      // 变卦整列纳甲）：放在后端算是因为全是历法/术数口径，前端再算一份就是
+      // 又一处漂移源。它**不进** `text`，故 AI 读到的那一段逐字未变。
       return json(res, {
         chart: built.chart, sizhu: built.sizhu,
+        display: liuyaoPaipan.displayMeta(card, built.chart),
         text: liuyaoPaipan.formatChart(built.chart),
       });
     } catch (e) {

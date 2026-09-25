@@ -174,4 +174,42 @@ function monthDizhiAt(input) {
   return gz && gz.length > 1 ? gz[1] : '';
 }
 
-module.exports = { sizhu, normalize, ZHI_HOUR_NAME, monthDizhiAt, lunarOf, lunarOfNextDay };
+/**
+ * 当前统辖的节气 + 下一个节气 —— 盘面「节气」那一行要的是一个**区间**
+ * （如「秋分2026.09.23 08:04 ~ 寒露2026.10.08 14:28」）。
+ *
+ * 与 `sizhu().solar_term` 同源（都是 `getPrevJieQi(true)`：只取十二「节」，
+ * 跳过「气」—— 月建只随「节」换）。这里多给一个「下一个节」用于显示区间。
+ * 时刻截到**分**：秒位来自天文算法，各家万年历印到分即可，多印几位
+ * 反而会与用户手上那本对不上，像是错了。
+ *
+ * 起卦时刻不可解析时抛错，调用方自行兜底（盘面上少一行，比印个错的好）。
+ */
+function jieQiRange(input) {
+  const t = normalize(input);
+  const lun = Solar.fromYmdHms(t.y, t.mo, t.d, t.h, t.mi, 0).getLunar();
+  const p = lun.getPrevJieQi(true);
+  const n = lun.getNextJieQi(true);
+  const at = (jq) => {
+    const s = jq && typeof jq.getSolar === 'function' ? jq.getSolar() : null;
+    return s ? s.toYmdHms().slice(0, 16) : '';
+  };
+  return {
+    name: (p && p.getName && p.getName()) || '',
+    at: at(p),
+    nextName: (n && n.getName && n.getName()) || '',
+    nextAt: at(n),
+  };
+}
+
+/**
+ * 农历「月日」文本，如「八月十四」「闰六月初八」。
+ * 直接取库的 `getMonthInChinese()`——**闰月它自带「闰」字**，
+ * 不要再自己判 `getMonth() < 0` 拼一次，那样会得到「闰闰六月」。
+ */
+function lunarText(input) {
+  const lun = lunarOf(input);
+  return lun.getMonthInChinese() + '月' + lun.getDayInChinese();
+}
+
+module.exports = { sizhu, normalize, ZHI_HOUR_NAME, monthDizhiAt, lunarOf, lunarOfNextDay, jieQiRange, lunarText };

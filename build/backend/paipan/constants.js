@@ -217,6 +217,31 @@ const KONG_WANG_BY_XUN = [
   ['辰', '巳'], ['寅', '卯'], ['子', '丑'],
 ];
 
+// ── 神煞（盘面用）──────────────────────────────────────────
+// 移植自 shushu `core/constants.py`：`禄`（第 348 行起）、`驿马`（第 358 行起）、
+// `桃花`（第 490 行起），口诀与《三命通会》通行取法一致——
+//   驿马：申子辰马在寅、寅午戌马在申、巳酉丑马在亥、亥卯未马在巳
+//   桃花：同三合局取「四正」（申子辰在酉、寅午戌在卯、巳酉丑在午、亥卯未在子）
+//   禄：日干临官之位（甲寅、乙卯、丙戊巳、丁己午、庚申、辛酉、壬亥、癸子）
+// **只按日支/日干取**：六爻盘面的神煞行以日辰为准（年支另取会得到另一个字）。
+// 这三项**不进 `formatChart` 正文**，只随 `displayMeta` 给页面渲染用。
+const YI_MA_BY_ZHI = {
+  申: '寅', 子: '寅', 辰: '寅',
+  寅: '申', 午: '申', 戌: '申',
+  巳: '亥', 酉: '亥', 丑: '亥',
+  亥: '巳', 卯: '巳', 未: '巳',
+};
+const TAO_HUA_BY_ZHI = {
+  申: '酉', 子: '酉', 辰: '酉',
+  寅: '卯', 午: '卯', 戌: '卯',
+  巳: '午', 酉: '午', 丑: '午',
+  亥: '子', 卯: '子', 未: '子',
+};
+const LU_BY_GAN = {
+  甲: '寅', 乙: '卯', 丙: '巳', 丁: '午', 戊: '巳',
+  己: '午', 庚: '申', 辛: '酉', 壬: '亥', 癸: '子',
+};
+
 // ── 四时旺相休囚死（严格派，六爻断旺衰用）──────────────────
 // 春（寅卯辰）木旺火相水休金囚土死，余季类推。
 const STRENGTH_STRICT = {
@@ -322,6 +347,17 @@ function getKongWang(dayGZ) {
   return KONG_WANG_BY_XUN[Math.floor(idx / 10) % 6].slice();
 }
 
+/** 日柱 → 神煞三件（驿马、桃花按日支，日禄按日干）。取不到日柱则三项皆空串 */
+function getShenSha(dayGZ) {
+  const gan = dayGZ ? dayGZ[0] : '';
+  const zhi = dayGZ && dayGZ.length > 1 ? dayGZ[1] : '';
+  return {
+    yiMa: YI_MA_BY_ZHI[zhi] || '',
+    taoHua: TAO_HUA_BY_ZHI[zhi] || '',
+    riLu: LU_BY_GAN[gan] || '',
+  };
+}
+
 /** 五行在某月支下的旺相休囚死 */
 function getStrength(wuxing, monthZhi) {
   const row = STRENGTH_STRICT[wuxing];
@@ -421,9 +457,10 @@ module.exports = {
   LIUSHEN, LIUSHEN_START, PALACE_ELEMENT, PALACE_TABLE,
   PALACE_POS_TYPE, PALACE_POS_OF, PALACE_POS_NAME,
   KONG_WANG_BY_XUN, STRENGTH_STRICT,
+  YI_MA_BY_ZHI, TAO_HUA_BY_ZHI, LU_BY_GAN,
   CHANGSHENG_START, CHANGSHENG_ORDER, GAN_YINYANG, HEX64_NAME,
   TRIGRAM_CLASSICAL, HEX64_MAP, HEX64_TRIGRAMS, getHexNumber, getHexTrigrams,
-  ganzhiIndex, getKongWang, getStrength, getChangsheng,
+  ganzhiIndex, getKongWang, getStrength, getChangsheng, getShenSha,
   getLiuQin, getLiuShen, getHexName, getPalace,
   guaLines, changedLines, linesToTrigrams, getGuaShen, getShiShen,
 };

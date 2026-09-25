@@ -32,6 +32,7 @@
 'use strict';
 
 const C = require('./constants');
+const G = require('./ganzhi');
 const R = require('./relations');
 const Y = require('./yongshen');
 
@@ -473,7 +474,101 @@ function formatChart(chart) {
   return L.join('\n');
 }
 
+/**
+ * 单个卦的宫与卦型 —— 盘面上卦名后面那个括号与底部那行标注要用。
+ *
+ * 本卦的这两项 `chart.ben.palace` / `chart.heChong` 已有；此处补**变卦**那一列
+ * （变卦也要标宫名与六冲/六合）。六冲/六合按**本卦自己的纳甲地支**判
+ * （`guaHeChong` 吃的是该卦的六个地支），与 `chart.heChong` 同一处口径。
+ */
+function guaMeta(hex) {
+  if (!hex || !hex.upper || !hex.lower) return null;
+  const pal = C.getPalace(hex.upper, hex.lower);
+  const branches = C.NAJIA[hex.lower].slice(0, 3).concat(C.NAJIA[hex.upper].slice(3, 6));
+  const hc = guaHeChong(branches);
+  return {
+    name: hex.name || C.getHexName(hex.upper, hex.lower),
+    upperName: hex.upperName || (C.TRIGRAMS[hex.upper] || {}).name || '',
+    lowerName: hex.lowerName || (C.TRIGRAMS[hex.lower] || {}).name || '',
+    palaceName: pal ? pal.palaceName : '',
+    palaceElement: pal ? pal.palaceElement : '',
+    generation: pal ? pal.generation : '',
+    isChongGua: hc.isChongGua,
+    isHeGua: hc.isHeGua,
+  };
+}
+
+/**
+ * 盘面显示补充 —— **只给页面渲染，不进 AI 正文**。
+ *
+ * 用户 2026-09-25 给了六爻排盘的参考样式，其中这几项断卦正文不需要、
+ * 而页面上有：农历、节气区间、四柱各自的旬空、神煞（驿马/桃花/日禄/卦身）、
+ * 变卦整列的纳甲（地支·五行·纳甲干·六亲）、变卦的宫与卦型。
+ *
+ * 放进后端而不是让前端自己算：这几项全是历法与术数口径，前端再写一份就是
+ * 又一处漂移源 —— 而「两边各算一份、慢慢对不上」正是本项目最痛的问题。
+ *
+ * **刻意不并进 `formatChart`**：那段正文必须与 AI 读到的那一段逐字相同，
+ * 且已过对拍基准；在这里加行会动到基准。要让它进 AI 视野应另案，
+ * 不要在「页面想显示某字段」的需求里夹带。
+ *
+ * @param {Object} cardData 起卦时的 card（要 `divinationTime` / `createdAt` 取节气）
+ * @param {Object} chart    `buildChart` 的产物
+ */
+function displayMeta(cardData, chart) {
+  const card = cardData || {};
+  const c = chart || {};
+  const out = {
+    lunar: '', jieQi: null,
+    kong: { year: '', month: '', day: '', hour: '' },
+    shensha: { guaShen: '', yiMa: '', taoHua: '', riLu: '' },
+    ben: guaMeta(c.ben), bian: guaMeta(c.bian),
+    bianLines: [],
+  };
+
+  // 起卦时刻：与 `prompt.sizhuFromCard` 同一取法（divinationTime 优先，退回 createdAt）
+  const when = card.divinationTime || card.createdAt || '';
+  if (when) {
+    try { out.jieQi = G.jieQiRange(when); } catch (e) { out.jieQi = null; }
+    try { out.lunar = G.lunarText(when); } catch (e) { out.lunar = ''; }
+  }
+
+  // 四柱旬空：各柱各按自己的干支起旬。日柱那一格与 `chart.kong` 必然同值
+  // （同一个 `getKongWang(dayGZ)`），并排显示时不会打架。
+  const pillars = [['year', c.yearGZ], ['month', c.monthGZ], ['day', c.dayGZ], ['hour', c.hourGZ]];
+  for (const [k, gz] of pillars) out.kong[k] = C.getKongWang(gz).join('');
+
+  const ss = C.getShenSha(c.dayGZ);
+  out.shensha = {
+    guaShen: (c.guaShen && c.guaShen.dizhi) || '',
+    yiMa: ss.yiMa, taoHua: ss.taoHua, riLu: ss.riLu,
+  };
+
+  // 变卦整列：六亲**以本卦之宫论**（与 `chart.yaos[].changed.liu_qin` 同一条通则）
+  const bian = c.bian;
+  if (bian && bian.upper && bian.lower) {
+    const palaceElement = (c.ben && c.ben.palace && c.ben.palace.palaceElement) || '';
+    const gan = C.NAJIA_GAN[bian.lower].inner, ganOuter = C.NAJIA_GAN[bian.upper].outer;
+    const zhis = C.NAJIA[bian.lower].slice(0, 3).concat(C.NAJIA[bian.upper].slice(3, 6));
+    for (let i = 0; i < 6; i++) {
+      const tiangan = i < 3 ? gan : ganOuter;
+      out.bianLines.push({
+        position: i + 1,
+        yaoName: YAO_NAMES[i],
+        yinYang: bian.lines[i],
+        tiangan,
+        dizhi: zhis[i],
+        ganzhi: tiangan + zhis[i],
+        wuxing: C.DIZHI_WUXING[zhis[i]] || '',
+        liuqin: C.getLiuQin(palaceElement, C.DIZHI_WUXING[zhis[i]] || ''),
+      });
+    }
+  }
+
+  return out;
+}
+
 module.exports = {
   buildChart, formatChart, yongShenWhy,
-  guaHeChong, YAO_NAMES,
+  guaHeChong, YAO_NAMES, guaMeta, displayMeta,
 };
