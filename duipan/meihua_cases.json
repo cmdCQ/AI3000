@@ -1,0 +1,6108 @@
+{
+ "time|2024-01-15T00:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2024,
+   "month": 1,
+   "day": 15,
+   "hour": 0,
+   "minute": 0
+  }
+ },
+ "time|2024-01-15T05:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2024,
+   "month": 1,
+   "day": 15,
+   "hour": 5,
+   "minute": 0
+  }
+ },
+ "time|2024-01-15T11:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2024,
+   "month": 1,
+   "day": 15,
+   "hour": 11,
+   "minute": 0
+  }
+ },
+ "time|2024-01-15T17:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2024,
+   "month": 1,
+   "day": 15,
+   "hour": 17,
+   "minute": 0
+  }
+ },
+ "time|2024-01-15T23:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2024,
+   "month": 1,
+   "day": 15,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2024-05-20T00:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2024,
+   "month": 5,
+   "day": 20,
+   "hour": 0,
+   "minute": 0
+  }
+ },
+ "time|2024-05-20T05:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2024,
+   "month": 5,
+   "day": 20,
+   "hour": 5,
+   "minute": 0
+  }
+ },
+ "time|2024-05-20T11:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2024,
+   "month": 5,
+   "day": 20,
+   "hour": 11,
+   "minute": 0
+  }
+ },
+ "time|2024-05-20T17:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2024,
+   "month": 5,
+   "day": 20,
+   "hour": 17,
+   "minute": 0
+  }
+ },
+ "time|2024-05-20T23:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2024,
+   "month": 5,
+   "day": 20,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2024-09-10T00:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2024,
+   "month": 9,
+   "day": 10,
+   "hour": 0,
+   "minute": 0
+  }
+ },
+ "time|2024-09-10T05:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2024,
+   "month": 9,
+   "day": 10,
+   "hour": 5,
+   "minute": 0
+  }
+ },
+ "time|2024-09-10T11:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2024,
+   "month": 9,
+   "day": 10,
+   "hour": 11,
+   "minute": 0
+  }
+ },
+ "time|2024-09-10T17:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2024,
+   "month": 9,
+   "day": 10,
+   "hour": 17,
+   "minute": 0
+  }
+ },
+ "time|2024-09-10T23:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2024,
+   "month": 9,
+   "day": 10,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2025-01-15T00:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2025,
+   "month": 1,
+   "day": 15,
+   "hour": 0,
+   "minute": 0
+  }
+ },
+ "time|2025-01-15T05:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2025,
+   "month": 1,
+   "day": 15,
+   "hour": 5,
+   "minute": 0
+  }
+ },
+ "time|2025-01-15T11:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2025,
+   "month": 1,
+   "day": 15,
+   "hour": 11,
+   "minute": 0
+  }
+ },
+ "time|2025-01-15T17:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2025,
+   "month": 1,
+   "day": 15,
+   "hour": 17,
+   "minute": 0
+  }
+ },
+ "time|2025-01-15T23:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2025,
+   "month": 1,
+   "day": 15,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2025-05-20T00:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2025,
+   "month": 5,
+   "day": 20,
+   "hour": 0,
+   "minute": 0
+  }
+ },
+ "time|2025-05-20T05:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2025,
+   "month": 5,
+   "day": 20,
+   "hour": 5,
+   "minute": 0
+  }
+ },
+ "time|2025-05-20T11:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2025,
+   "month": 5,
+   "day": 20,
+   "hour": 11,
+   "minute": 0
+  }
+ },
+ "time|2025-05-20T17:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2025,
+   "month": 5,
+   "day": 20,
+   "hour": 17,
+   "minute": 0
+  }
+ },
+ "time|2025-05-20T23:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2025,
+   "month": 5,
+   "day": 20,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2025-09-10T00:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2025,
+   "month": 9,
+   "day": 10,
+   "hour": 0,
+   "minute": 0
+  }
+ },
+ "time|2025-09-10T05:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2025,
+   "month": 9,
+   "day": 10,
+   "hour": 5,
+   "minute": 0
+  }
+ },
+ "time|2025-09-10T11:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2025,
+   "month": 9,
+   "day": 10,
+   "hour": 11,
+   "minute": 0
+  }
+ },
+ "time|2025-09-10T17:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2025,
+   "month": 9,
+   "day": 10,
+   "hour": 17,
+   "minute": 0
+  }
+ },
+ "time|2025-09-10T23:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2025,
+   "month": 9,
+   "day": 10,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2026-01-15T00:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 1,
+   "day": 15,
+   "hour": 0,
+   "minute": 0
+  }
+ },
+ "time|2026-01-15T05:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 1,
+   "day": 15,
+   "hour": 5,
+   "minute": 0
+  }
+ },
+ "time|2026-01-15T11:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 1,
+   "day": 15,
+   "hour": 11,
+   "minute": 0
+  }
+ },
+ "time|2026-01-15T17:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 1,
+   "day": 15,
+   "hour": 17,
+   "minute": 0
+  }
+ },
+ "time|2026-01-15T23:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 1,
+   "day": 15,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2026-05-20T00:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 5,
+   "day": 20,
+   "hour": 0,
+   "minute": 0
+  }
+ },
+ "time|2026-05-20T05:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 5,
+   "day": 20,
+   "hour": 5,
+   "minute": 0
+  }
+ },
+ "time|2026-05-20T11:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 5,
+   "day": 20,
+   "hour": 11,
+   "minute": 0
+  }
+ },
+ "time|2026-05-20T17:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 5,
+   "day": 20,
+   "hour": 17,
+   "minute": 0
+  }
+ },
+ "time|2026-05-20T23:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 5,
+   "day": 20,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2026-09-10T00:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 9,
+   "day": 10,
+   "hour": 0,
+   "minute": 0
+  }
+ },
+ "time|2026-09-10T05:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 9,
+   "day": 10,
+   "hour": 5,
+   "minute": 0
+  }
+ },
+ "time|2026-09-10T11:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 9,
+   "day": 10,
+   "hour": 11,
+   "minute": 0
+  }
+ },
+ "time|2026-09-10T17:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 9,
+   "day": 10,
+   "hour": 17,
+   "minute": 0
+  }
+ },
+ "time|2026-09-10T23:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 9,
+   "day": 10,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2027-01-15T00:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2027,
+   "month": 1,
+   "day": 15,
+   "hour": 0,
+   "minute": 0
+  }
+ },
+ "time|2027-01-15T05:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2027,
+   "month": 1,
+   "day": 15,
+   "hour": 5,
+   "minute": 0
+  }
+ },
+ "time|2027-01-15T11:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2027,
+   "month": 1,
+   "day": 15,
+   "hour": 11,
+   "minute": 0
+  }
+ },
+ "time|2027-01-15T17:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2027,
+   "month": 1,
+   "day": 15,
+   "hour": 17,
+   "minute": 0
+  }
+ },
+ "time|2027-01-15T23:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2027,
+   "month": 1,
+   "day": 15,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2027-05-20T00:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2027,
+   "month": 5,
+   "day": 20,
+   "hour": 0,
+   "minute": 0
+  }
+ },
+ "time|2027-05-20T05:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2027,
+   "month": 5,
+   "day": 20,
+   "hour": 5,
+   "minute": 0
+  }
+ },
+ "time|2027-05-20T11:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2027,
+   "month": 5,
+   "day": 20,
+   "hour": 11,
+   "minute": 0
+  }
+ },
+ "time|2027-05-20T17:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2027,
+   "month": 5,
+   "day": 20,
+   "hour": 17,
+   "minute": 0
+  }
+ },
+ "time|2027-05-20T23:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2027,
+   "month": 5,
+   "day": 20,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2027-09-10T00:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2027,
+   "month": 9,
+   "day": 10,
+   "hour": 0,
+   "minute": 0
+  }
+ },
+ "time|2027-09-10T05:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2027,
+   "month": 9,
+   "day": 10,
+   "hour": 5,
+   "minute": 0
+  }
+ },
+ "time|2027-09-10T11:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2027,
+   "month": 9,
+   "day": 10,
+   "hour": 11,
+   "minute": 0
+  }
+ },
+ "time|2027-09-10T17:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2027,
+   "month": 9,
+   "day": 10,
+   "hour": 17,
+   "minute": 0
+  }
+ },
+ "time|2027-09-10T23:00": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2027,
+   "month": 9,
+   "day": 10,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2026-03-15T00:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 0,
+   "minute": 0
+  }
+ },
+ "time|2026-03-15T01:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 1,
+   "minute": 0
+  }
+ },
+ "time|2026-03-15T02:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 2,
+   "minute": 0
+  }
+ },
+ "time|2026-03-15T03:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 3,
+   "minute": 0
+  }
+ },
+ "time|2026-03-15T04:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 4,
+   "minute": 0
+  }
+ },
+ "time|2026-03-15T05:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 5,
+   "minute": 0
+  }
+ },
+ "time|2026-03-15T06:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 6,
+   "minute": 0
+  }
+ },
+ "time|2026-03-15T07:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 7,
+   "minute": 0
+  }
+ },
+ "time|2026-03-15T08:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 8,
+   "minute": 0
+  }
+ },
+ "time|2026-03-15T09:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 9,
+   "minute": 0
+  }
+ },
+ "time|2026-03-15T10:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 10,
+   "minute": 0
+  }
+ },
+ "time|2026-03-15T11:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 11,
+   "minute": 0
+  }
+ },
+ "time|2026-03-15T12:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 12,
+   "minute": 0
+  }
+ },
+ "time|2026-03-15T13:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 13,
+   "minute": 0
+  }
+ },
+ "time|2026-03-15T14:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 14,
+   "minute": 0
+  }
+ },
+ "time|2026-03-15T15:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 15,
+   "minute": 0
+  }
+ },
+ "time|2026-03-15T16:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 16,
+   "minute": 0
+  }
+ },
+ "time|2026-03-15T17:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 17,
+   "minute": 0
+  }
+ },
+ "time|2026-03-15T18:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 18,
+   "minute": 0
+  }
+ },
+ "time|2026-03-15T19:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 19,
+   "minute": 0
+  }
+ },
+ "time|2026-03-15T20:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 20,
+   "minute": 0
+  }
+ },
+ "time|2026-03-15T21:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 21,
+   "minute": 0
+  }
+ },
+ "time|2026-03-15T22:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 22,
+   "minute": 0
+  }
+ },
+ "time|2026-03-15T23:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2026-09-20T00:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 9,
+   "day": 20,
+   "hour": 0,
+   "minute": 0
+  }
+ },
+ "time|2026-09-20T01:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 9,
+   "day": 20,
+   "hour": 1,
+   "minute": 0
+  }
+ },
+ "time|2026-09-20T02:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 9,
+   "day": 20,
+   "hour": 2,
+   "minute": 0
+  }
+ },
+ "time|2026-09-20T03:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 9,
+   "day": 20,
+   "hour": 3,
+   "minute": 0
+  }
+ },
+ "time|2026-09-20T04:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 9,
+   "day": 20,
+   "hour": 4,
+   "minute": 0
+  }
+ },
+ "time|2026-09-20T05:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 9,
+   "day": 20,
+   "hour": 5,
+   "minute": 0
+  }
+ },
+ "time|2026-09-20T06:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 9,
+   "day": 20,
+   "hour": 6,
+   "minute": 0
+  }
+ },
+ "time|2026-09-20T07:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 9,
+   "day": 20,
+   "hour": 7,
+   "minute": 0
+  }
+ },
+ "time|2026-09-20T08:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 9,
+   "day": 20,
+   "hour": 8,
+   "minute": 0
+  }
+ },
+ "time|2026-09-20T09:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 9,
+   "day": 20,
+   "hour": 9,
+   "minute": 0
+  }
+ },
+ "time|2026-09-20T10:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 9,
+   "day": 20,
+   "hour": 10,
+   "minute": 0
+  }
+ },
+ "time|2026-09-20T11:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 9,
+   "day": 20,
+   "hour": 11,
+   "minute": 0
+  }
+ },
+ "time|2026-09-20T12:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 9,
+   "day": 20,
+   "hour": 12,
+   "minute": 0
+  }
+ },
+ "time|2026-09-20T13:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 9,
+   "day": 20,
+   "hour": 13,
+   "minute": 0
+  }
+ },
+ "time|2026-09-20T14:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 9,
+   "day": 20,
+   "hour": 14,
+   "minute": 0
+  }
+ },
+ "time|2026-09-20T15:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 9,
+   "day": 20,
+   "hour": 15,
+   "minute": 0
+  }
+ },
+ "time|2026-09-20T16:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 9,
+   "day": 20,
+   "hour": 16,
+   "minute": 0
+  }
+ },
+ "time|2026-09-20T17:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 9,
+   "day": 20,
+   "hour": 17,
+   "minute": 0
+  }
+ },
+ "time|2026-09-20T18:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 9,
+   "day": 20,
+   "hour": 18,
+   "minute": 0
+  }
+ },
+ "time|2026-09-20T19:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 9,
+   "day": 20,
+   "hour": 19,
+   "minute": 0
+  }
+ },
+ "time|2026-09-20T20:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 9,
+   "day": 20,
+   "hour": 20,
+   "minute": 0
+  }
+ },
+ "time|2026-09-20T21:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 9,
+   "day": 20,
+   "hour": 21,
+   "minute": 0
+  }
+ },
+ "time|2026-09-20T22:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 9,
+   "day": 20,
+   "hour": 22,
+   "minute": 0
+  }
+ },
+ "time|2026-09-20T23:00|整点": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 9,
+   "day": 20,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2026-01-15T23:00|子丑界": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 1,
+   "day": 15,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2026-01-15T23:30|子丑界": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 1,
+   "day": 15,
+   "hour": 23,
+   "minute": 30
+  }
+ },
+ "time|2026-01-15T23:59|子丑界": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 1,
+   "day": 15,
+   "hour": 23,
+   "minute": 59
+  }
+ },
+ "time|2026-01-15T00:00|子丑界": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 1,
+   "day": 15,
+   "hour": 0,
+   "minute": 0
+  }
+ },
+ "time|2026-01-15T00:30|子丑界": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 1,
+   "day": 15,
+   "hour": 0,
+   "minute": 30
+  }
+ },
+ "time|2026-01-15T00:59|子丑界": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 1,
+   "day": 15,
+   "hour": 0,
+   "minute": 59
+  }
+ },
+ "time|2026-01-15T01:00|子丑界": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 1,
+   "day": 15,
+   "hour": 1,
+   "minute": 0
+  }
+ },
+ "time|2026-06-15T23:00|子丑界": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 6,
+   "day": 15,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2026-06-15T23:30|子丑界": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 6,
+   "day": 15,
+   "hour": 23,
+   "minute": 30
+  }
+ },
+ "time|2026-06-15T23:59|子丑界": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 6,
+   "day": 15,
+   "hour": 23,
+   "minute": 59
+  }
+ },
+ "time|2026-06-15T00:00|子丑界": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 6,
+   "day": 15,
+   "hour": 0,
+   "minute": 0
+  }
+ },
+ "time|2026-06-15T00:30|子丑界": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 6,
+   "day": 15,
+   "hour": 0,
+   "minute": 30
+  }
+ },
+ "time|2026-06-15T00:59|子丑界": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 6,
+   "day": 15,
+   "hour": 0,
+   "minute": 59
+  }
+ },
+ "time|2026-06-15T01:00|子丑界": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 6,
+   "day": 15,
+   "hour": 1,
+   "minute": 0
+  }
+ },
+ "time|2025-07-25T02:00|闰6月初一": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2025,
+   "month": 7,
+   "day": 25,
+   "hour": 2,
+   "minute": 0
+  }
+ },
+ "time|2025-07-25T10:00|闰6月初一": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2025,
+   "month": 7,
+   "day": 25,
+   "hour": 10,
+   "minute": 0
+  }
+ },
+ "time|2025-07-25T22:00|闰6月初一": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2025,
+   "month": 7,
+   "day": 25,
+   "hour": 22,
+   "minute": 0
+  }
+ },
+ "time|2025-08-08T02:00|闰6月十五": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2025,
+   "month": 8,
+   "day": 8,
+   "hour": 2,
+   "minute": 0
+  }
+ },
+ "time|2025-08-08T10:00|闰6月十五": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2025,
+   "month": 8,
+   "day": 8,
+   "hour": 10,
+   "minute": 0
+  }
+ },
+ "time|2025-08-08T22:00|闰6月十五": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2025,
+   "month": 8,
+   "day": 8,
+   "hour": 22,
+   "minute": 0
+  }
+ },
+ "time|2025-08-22T02:00|闰6月廿九": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2025,
+   "month": 8,
+   "day": 22,
+   "hour": 2,
+   "minute": 0
+  }
+ },
+ "time|2025-08-22T10:00|闰6月廿九": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2025,
+   "month": 8,
+   "day": 22,
+   "hour": 10,
+   "minute": 0
+  }
+ },
+ "time|2025-08-22T22:00|闰6月廿九": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2025,
+   "month": 8,
+   "day": 22,
+   "hour": 22,
+   "minute": 0
+  }
+ },
+ "time|2026-01-05T00:00|小寒": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 1,
+   "day": 5,
+   "hour": 0,
+   "minute": 0
+  }
+ },
+ "time|2026-01-05T12:00|小寒": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 1,
+   "day": 5,
+   "hour": 12,
+   "minute": 0
+  }
+ },
+ "time|2026-01-05T23:00|小寒": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 1,
+   "day": 5,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2026-02-04T00:00|立春": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 2,
+   "day": 4,
+   "hour": 0,
+   "minute": 0
+  }
+ },
+ "time|2026-02-04T12:00|立春": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 2,
+   "day": 4,
+   "hour": 12,
+   "minute": 0
+  }
+ },
+ "time|2026-02-04T23:00|立春": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 2,
+   "day": 4,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2026-03-05T00:00|惊蛰": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 5,
+   "hour": 0,
+   "minute": 0
+  }
+ },
+ "time|2026-03-05T12:00|惊蛰": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 5,
+   "hour": 12,
+   "minute": 0
+  }
+ },
+ "time|2026-03-05T23:00|惊蛰": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 5,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2026-04-05T00:00|清明": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 4,
+   "day": 5,
+   "hour": 0,
+   "minute": 0
+  }
+ },
+ "time|2026-04-05T12:00|清明": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 4,
+   "day": 5,
+   "hour": 12,
+   "minute": 0
+  }
+ },
+ "time|2026-04-05T23:00|清明": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 4,
+   "day": 5,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2026-05-05T00:00|立夏": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 5,
+   "day": 5,
+   "hour": 0,
+   "minute": 0
+  }
+ },
+ "time|2026-05-05T12:00|立夏": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 5,
+   "day": 5,
+   "hour": 12,
+   "minute": 0
+  }
+ },
+ "time|2026-05-05T23:00|立夏": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 5,
+   "day": 5,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2026-06-05T00:00|芒种": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 6,
+   "day": 5,
+   "hour": 0,
+   "minute": 0
+  }
+ },
+ "time|2026-06-05T12:00|芒种": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 6,
+   "day": 5,
+   "hour": 12,
+   "minute": 0
+  }
+ },
+ "time|2026-06-05T23:00|芒种": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 6,
+   "day": 5,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2026-07-07T00:00|小暑": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 7,
+   "day": 7,
+   "hour": 0,
+   "minute": 0
+  }
+ },
+ "time|2026-07-07T12:00|小暑": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 7,
+   "day": 7,
+   "hour": 12,
+   "minute": 0
+  }
+ },
+ "time|2026-07-07T23:00|小暑": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 7,
+   "day": 7,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2026-08-07T00:00|立秋": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 8,
+   "day": 7,
+   "hour": 0,
+   "minute": 0
+  }
+ },
+ "time|2026-08-07T12:00|立秋": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 8,
+   "day": 7,
+   "hour": 12,
+   "minute": 0
+  }
+ },
+ "time|2026-08-07T23:00|立秋": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 8,
+   "day": 7,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2026-09-07T00:00|白露": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 9,
+   "day": 7,
+   "hour": 0,
+   "minute": 0
+  }
+ },
+ "time|2026-09-07T12:00|白露": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 9,
+   "day": 7,
+   "hour": 12,
+   "minute": 0
+  }
+ },
+ "time|2026-09-07T23:00|白露": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 9,
+   "day": 7,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2026-10-08T00:00|寒露": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 10,
+   "day": 8,
+   "hour": 0,
+   "minute": 0
+  }
+ },
+ "time|2026-10-08T12:00|寒露": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 10,
+   "day": 8,
+   "hour": 12,
+   "minute": 0
+  }
+ },
+ "time|2026-10-08T23:00|寒露": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 10,
+   "day": 8,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2026-11-07T00:00|立冬": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 11,
+   "day": 7,
+   "hour": 0,
+   "minute": 0
+  }
+ },
+ "time|2026-11-07T12:00|立冬": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 11,
+   "day": 7,
+   "hour": 12,
+   "minute": 0
+  }
+ },
+ "time|2026-11-07T23:00|立冬": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 11,
+   "day": 7,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2026-12-07T00:00|大雪": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 12,
+   "day": 7,
+   "hour": 0,
+   "minute": 0
+  }
+ },
+ "time|2026-12-07T12:00|大雪": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 12,
+   "day": 7,
+   "hour": 12,
+   "minute": 0
+  }
+ },
+ "time|2026-12-07T23:00|大雪": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 12,
+   "day": 7,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2026-02-03T00:00|立春前后": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 2,
+   "day": 3,
+   "hour": 0,
+   "minute": 0
+  }
+ },
+ "time|2026-02-03T12:00|立春前后": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 2,
+   "day": 3,
+   "hour": 12,
+   "minute": 0
+  }
+ },
+ "time|2026-02-03T23:00|立春前后": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 2,
+   "day": 3,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2026-02-04T00:00|立春前后": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 2,
+   "day": 4,
+   "hour": 0,
+   "minute": 0
+  }
+ },
+ "time|2026-02-04T12:00|立春前后": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 2,
+   "day": 4,
+   "hour": 12,
+   "minute": 0
+  }
+ },
+ "time|2026-02-04T23:00|立春前后": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 2,
+   "day": 4,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2026-02-05T00:00|立春前后": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 2,
+   "day": 5,
+   "hour": 0,
+   "minute": 0
+  }
+ },
+ "time|2026-02-05T12:00|立春前后": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 2,
+   "day": 5,
+   "hour": 12,
+   "minute": 0
+  }
+ },
+ "time|2026-02-05T23:00|立春前后": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 2,
+   "day": 5,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2026-01-01|hour缺省": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 1,
+   "day": 1
+  }
+ },
+ "time|2026-07-07|hour缺省": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 7,
+   "day": 7
+  }
+ },
+ "time|2026-11-11|hour缺省": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 11,
+   "day": 11
+  }
+ },
+ "time|2026-03-15T10:00|月支子": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 10,
+   "minute": 0,
+   "month_dizhi": "子"
+  }
+ },
+ "time|2026-03-15T10:00|月支丑": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 10,
+   "minute": 0,
+   "month_dizhi": "丑"
+  }
+ },
+ "time|2026-03-15T10:00|月支寅": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 10,
+   "minute": 0,
+   "month_dizhi": "寅"
+  }
+ },
+ "time|2026-03-15T10:00|月支卯": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 10,
+   "minute": 0,
+   "month_dizhi": "卯"
+  }
+ },
+ "time|2026-03-15T10:00|月支辰": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 10,
+   "minute": 0,
+   "month_dizhi": "辰"
+  }
+ },
+ "time|2026-03-15T10:00|月支巳": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 10,
+   "minute": 0,
+   "month_dizhi": "巳"
+  }
+ },
+ "time|2026-03-15T10:00|月支午": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 10,
+   "minute": 0,
+   "month_dizhi": "午"
+  }
+ },
+ "time|2026-03-15T10:00|月支未": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 10,
+   "minute": 0,
+   "month_dizhi": "未"
+  }
+ },
+ "time|2026-03-15T10:00|月支申": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 10,
+   "minute": 0,
+   "month_dizhi": "申"
+  }
+ },
+ "time|2026-03-15T10:00|月支酉": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 10,
+   "minute": 0,
+   "month_dizhi": "酉"
+  }
+ },
+ "time|2026-03-15T10:00|月支戌": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 10,
+   "minute": 0,
+   "month_dizhi": "戌"
+  }
+ },
+ "time|2026-03-15T10:00|月支亥": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 3,
+   "day": 15,
+   "hour": 10,
+   "minute": 0,
+   "month_dizhi": "亥"
+  }
+ },
+ "time|2026-02-03T23:00|月支自动": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 2,
+   "day": 3,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2026-08-07T23:00|月支自动": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 8,
+   "day": 7,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "time|2026-12-21T23:00|月支自动": {
+  "kind": "api",
+  "body": {
+   "method": "time",
+   "year": 2026,
+   "month": 12,
+   "day": 21,
+   "hour": 23,
+   "minute": 0
+  }
+ },
+ "number|1|1|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 1,
+   "num3": null
+  }
+ },
+ "number|1|1|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 1,
+   "num3": 1
+  }
+ },
+ "number|1|1|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 1,
+   "num3": 5
+  }
+ },
+ "number|1|1|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 1,
+   "num3": 6
+  }
+ },
+ "number|1|1|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 1,
+   "num3": 7
+  }
+ },
+ "number|1|1|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 1,
+   "num3": 12
+  }
+ },
+ "number|1|1|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 1,
+   "num3": 13
+  }
+ },
+ "number|1|2|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 2,
+   "num3": null
+  }
+ },
+ "number|1|2|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 2,
+   "num3": 1
+  }
+ },
+ "number|1|2|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 2,
+   "num3": 5
+  }
+ },
+ "number|1|2|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 2,
+   "num3": 6
+  }
+ },
+ "number|1|2|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 2,
+   "num3": 7
+  }
+ },
+ "number|1|2|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 2,
+   "num3": 12
+  }
+ },
+ "number|1|2|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 2,
+   "num3": 13
+  }
+ },
+ "number|1|7|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 7,
+   "num3": null
+  }
+ },
+ "number|1|7|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 7,
+   "num3": 1
+  }
+ },
+ "number|1|7|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 7,
+   "num3": 5
+  }
+ },
+ "number|1|7|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 7,
+   "num3": 6
+  }
+ },
+ "number|1|7|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 7,
+   "num3": 7
+  }
+ },
+ "number|1|7|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 7,
+   "num3": 12
+  }
+ },
+ "number|1|7|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 7,
+   "num3": 13
+  }
+ },
+ "number|1|8|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 8,
+   "num3": null
+  }
+ },
+ "number|1|8|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 8,
+   "num3": 1
+  }
+ },
+ "number|1|8|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 8,
+   "num3": 5
+  }
+ },
+ "number|1|8|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 8,
+   "num3": 6
+  }
+ },
+ "number|1|8|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 8,
+   "num3": 7
+  }
+ },
+ "number|1|8|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 8,
+   "num3": 12
+  }
+ },
+ "number|1|8|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 8,
+   "num3": 13
+  }
+ },
+ "number|1|9|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 9,
+   "num3": null
+  }
+ },
+ "number|1|9|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 9,
+   "num3": 1
+  }
+ },
+ "number|1|9|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 9,
+   "num3": 5
+  }
+ },
+ "number|1|9|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 9,
+   "num3": 6
+  }
+ },
+ "number|1|9|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 9,
+   "num3": 7
+  }
+ },
+ "number|1|9|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 9,
+   "num3": 12
+  }
+ },
+ "number|1|9|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 9,
+   "num3": 13
+  }
+ },
+ "number|1|16|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 16,
+   "num3": null
+  }
+ },
+ "number|1|16|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 16,
+   "num3": 1
+  }
+ },
+ "number|1|16|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 16,
+   "num3": 5
+  }
+ },
+ "number|1|16|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 16,
+   "num3": 6
+  }
+ },
+ "number|1|16|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 16,
+   "num3": 7
+  }
+ },
+ "number|1|16|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 16,
+   "num3": 12
+  }
+ },
+ "number|1|16|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 16,
+   "num3": 13
+  }
+ },
+ "number|1|17|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 17,
+   "num3": null
+  }
+ },
+ "number|1|17|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 17,
+   "num3": 1
+  }
+ },
+ "number|1|17|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 17,
+   "num3": 5
+  }
+ },
+ "number|1|17|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 17,
+   "num3": 6
+  }
+ },
+ "number|1|17|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 17,
+   "num3": 7
+  }
+ },
+ "number|1|17|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 17,
+   "num3": 12
+  }
+ },
+ "number|1|17|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 17,
+   "num3": 13
+  }
+ },
+ "number|2|1|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 1,
+   "num3": null
+  }
+ },
+ "number|2|1|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 1,
+   "num3": 1
+  }
+ },
+ "number|2|1|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 1,
+   "num3": 5
+  }
+ },
+ "number|2|1|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 1,
+   "num3": 6
+  }
+ },
+ "number|2|1|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 1,
+   "num3": 7
+  }
+ },
+ "number|2|1|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 1,
+   "num3": 12
+  }
+ },
+ "number|2|1|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 1,
+   "num3": 13
+  }
+ },
+ "number|2|2|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 2,
+   "num3": null
+  }
+ },
+ "number|2|2|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 2,
+   "num3": 1
+  }
+ },
+ "number|2|2|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 2,
+   "num3": 5
+  }
+ },
+ "number|2|2|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 2,
+   "num3": 6
+  }
+ },
+ "number|2|2|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 2,
+   "num3": 7
+  }
+ },
+ "number|2|2|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 2,
+   "num3": 12
+  }
+ },
+ "number|2|2|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 2,
+   "num3": 13
+  }
+ },
+ "number|2|7|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 7,
+   "num3": null
+  }
+ },
+ "number|2|7|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 7,
+   "num3": 1
+  }
+ },
+ "number|2|7|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 7,
+   "num3": 5
+  }
+ },
+ "number|2|7|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 7,
+   "num3": 6
+  }
+ },
+ "number|2|7|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 7,
+   "num3": 7
+  }
+ },
+ "number|2|7|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 7,
+   "num3": 12
+  }
+ },
+ "number|2|7|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 7,
+   "num3": 13
+  }
+ },
+ "number|2|8|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 8,
+   "num3": null
+  }
+ },
+ "number|2|8|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 8,
+   "num3": 1
+  }
+ },
+ "number|2|8|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 8,
+   "num3": 5
+  }
+ },
+ "number|2|8|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 8,
+   "num3": 6
+  }
+ },
+ "number|2|8|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 8,
+   "num3": 7
+  }
+ },
+ "number|2|8|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 8,
+   "num3": 12
+  }
+ },
+ "number|2|8|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 8,
+   "num3": 13
+  }
+ },
+ "number|2|9|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 9,
+   "num3": null
+  }
+ },
+ "number|2|9|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 9,
+   "num3": 1
+  }
+ },
+ "number|2|9|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 9,
+   "num3": 5
+  }
+ },
+ "number|2|9|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 9,
+   "num3": 6
+  }
+ },
+ "number|2|9|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 9,
+   "num3": 7
+  }
+ },
+ "number|2|9|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 9,
+   "num3": 12
+  }
+ },
+ "number|2|9|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 9,
+   "num3": 13
+  }
+ },
+ "number|2|16|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 16,
+   "num3": null
+  }
+ },
+ "number|2|16|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 16,
+   "num3": 1
+  }
+ },
+ "number|2|16|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 16,
+   "num3": 5
+  }
+ },
+ "number|2|16|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 16,
+   "num3": 6
+  }
+ },
+ "number|2|16|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 16,
+   "num3": 7
+  }
+ },
+ "number|2|16|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 16,
+   "num3": 12
+  }
+ },
+ "number|2|16|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 16,
+   "num3": 13
+  }
+ },
+ "number|2|17|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 17,
+   "num3": null
+  }
+ },
+ "number|2|17|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 17,
+   "num3": 1
+  }
+ },
+ "number|2|17|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 17,
+   "num3": 5
+  }
+ },
+ "number|2|17|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 17,
+   "num3": 6
+  }
+ },
+ "number|2|17|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 17,
+   "num3": 7
+  }
+ },
+ "number|2|17|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 17,
+   "num3": 12
+  }
+ },
+ "number|2|17|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 17,
+   "num3": 13
+  }
+ },
+ "number|7|1|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 1,
+   "num3": null
+  }
+ },
+ "number|7|1|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 1,
+   "num3": 1
+  }
+ },
+ "number|7|1|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 1,
+   "num3": 5
+  }
+ },
+ "number|7|1|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 1,
+   "num3": 6
+  }
+ },
+ "number|7|1|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 1,
+   "num3": 7
+  }
+ },
+ "number|7|1|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 1,
+   "num3": 12
+  }
+ },
+ "number|7|1|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 1,
+   "num3": 13
+  }
+ },
+ "number|7|2|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 2,
+   "num3": null
+  }
+ },
+ "number|7|2|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 2,
+   "num3": 1
+  }
+ },
+ "number|7|2|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 2,
+   "num3": 5
+  }
+ },
+ "number|7|2|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 2,
+   "num3": 6
+  }
+ },
+ "number|7|2|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 2,
+   "num3": 7
+  }
+ },
+ "number|7|2|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 2,
+   "num3": 12
+  }
+ },
+ "number|7|2|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 2,
+   "num3": 13
+  }
+ },
+ "number|7|7|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 7,
+   "num3": null
+  }
+ },
+ "number|7|7|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 7,
+   "num3": 1
+  }
+ },
+ "number|7|7|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 7,
+   "num3": 5
+  }
+ },
+ "number|7|7|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 7,
+   "num3": 6
+  }
+ },
+ "number|7|7|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 7,
+   "num3": 7
+  }
+ },
+ "number|7|7|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 7,
+   "num3": 12
+  }
+ },
+ "number|7|7|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 7,
+   "num3": 13
+  }
+ },
+ "number|7|8|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 8,
+   "num3": null
+  }
+ },
+ "number|7|8|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 8,
+   "num3": 1
+  }
+ },
+ "number|7|8|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 8,
+   "num3": 5
+  }
+ },
+ "number|7|8|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 8,
+   "num3": 6
+  }
+ },
+ "number|7|8|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 8,
+   "num3": 7
+  }
+ },
+ "number|7|8|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 8,
+   "num3": 12
+  }
+ },
+ "number|7|8|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 8,
+   "num3": 13
+  }
+ },
+ "number|7|9|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 9,
+   "num3": null
+  }
+ },
+ "number|7|9|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 9,
+   "num3": 1
+  }
+ },
+ "number|7|9|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 9,
+   "num3": 5
+  }
+ },
+ "number|7|9|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 9,
+   "num3": 6
+  }
+ },
+ "number|7|9|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 9,
+   "num3": 7
+  }
+ },
+ "number|7|9|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 9,
+   "num3": 12
+  }
+ },
+ "number|7|9|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 9,
+   "num3": 13
+  }
+ },
+ "number|7|16|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 16,
+   "num3": null
+  }
+ },
+ "number|7|16|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 16,
+   "num3": 1
+  }
+ },
+ "number|7|16|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 16,
+   "num3": 5
+  }
+ },
+ "number|7|16|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 16,
+   "num3": 6
+  }
+ },
+ "number|7|16|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 16,
+   "num3": 7
+  }
+ },
+ "number|7|16|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 16,
+   "num3": 12
+  }
+ },
+ "number|7|16|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 16,
+   "num3": 13
+  }
+ },
+ "number|7|17|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 17,
+   "num3": null
+  }
+ },
+ "number|7|17|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 17,
+   "num3": 1
+  }
+ },
+ "number|7|17|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 17,
+   "num3": 5
+  }
+ },
+ "number|7|17|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 17,
+   "num3": 6
+  }
+ },
+ "number|7|17|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 17,
+   "num3": 7
+  }
+ },
+ "number|7|17|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 17,
+   "num3": 12
+  }
+ },
+ "number|7|17|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 17,
+   "num3": 13
+  }
+ },
+ "number|8|1|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 1,
+   "num3": null
+  }
+ },
+ "number|8|1|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 1,
+   "num3": 1
+  }
+ },
+ "number|8|1|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 1,
+   "num3": 5
+  }
+ },
+ "number|8|1|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 1,
+   "num3": 6
+  }
+ },
+ "number|8|1|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 1,
+   "num3": 7
+  }
+ },
+ "number|8|1|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 1,
+   "num3": 12
+  }
+ },
+ "number|8|1|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 1,
+   "num3": 13
+  }
+ },
+ "number|8|2|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 2,
+   "num3": null
+  }
+ },
+ "number|8|2|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 2,
+   "num3": 1
+  }
+ },
+ "number|8|2|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 2,
+   "num3": 5
+  }
+ },
+ "number|8|2|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 2,
+   "num3": 6
+  }
+ },
+ "number|8|2|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 2,
+   "num3": 7
+  }
+ },
+ "number|8|2|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 2,
+   "num3": 12
+  }
+ },
+ "number|8|2|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 2,
+   "num3": 13
+  }
+ },
+ "number|8|7|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 7,
+   "num3": null
+  }
+ },
+ "number|8|7|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 7,
+   "num3": 1
+  }
+ },
+ "number|8|7|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 7,
+   "num3": 5
+  }
+ },
+ "number|8|7|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 7,
+   "num3": 6
+  }
+ },
+ "number|8|7|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 7,
+   "num3": 7
+  }
+ },
+ "number|8|7|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 7,
+   "num3": 12
+  }
+ },
+ "number|8|7|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 7,
+   "num3": 13
+  }
+ },
+ "number|8|8|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 8,
+   "num3": null
+  }
+ },
+ "number|8|8|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 8,
+   "num3": 1
+  }
+ },
+ "number|8|8|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 8,
+   "num3": 5
+  }
+ },
+ "number|8|8|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 8,
+   "num3": 6
+  }
+ },
+ "number|8|8|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 8,
+   "num3": 7
+  }
+ },
+ "number|8|8|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 8,
+   "num3": 12
+  }
+ },
+ "number|8|8|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 8,
+   "num3": 13
+  }
+ },
+ "number|8|9|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 9,
+   "num3": null
+  }
+ },
+ "number|8|9|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 9,
+   "num3": 1
+  }
+ },
+ "number|8|9|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 9,
+   "num3": 5
+  }
+ },
+ "number|8|9|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 9,
+   "num3": 6
+  }
+ },
+ "number|8|9|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 9,
+   "num3": 7
+  }
+ },
+ "number|8|9|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 9,
+   "num3": 12
+  }
+ },
+ "number|8|9|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 9,
+   "num3": 13
+  }
+ },
+ "number|8|16|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 16,
+   "num3": null
+  }
+ },
+ "number|8|16|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 16,
+   "num3": 1
+  }
+ },
+ "number|8|16|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 16,
+   "num3": 5
+  }
+ },
+ "number|8|16|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 16,
+   "num3": 6
+  }
+ },
+ "number|8|16|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 16,
+   "num3": 7
+  }
+ },
+ "number|8|16|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 16,
+   "num3": 12
+  }
+ },
+ "number|8|16|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 16,
+   "num3": 13
+  }
+ },
+ "number|8|17|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 17,
+   "num3": null
+  }
+ },
+ "number|8|17|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 17,
+   "num3": 1
+  }
+ },
+ "number|8|17|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 17,
+   "num3": 5
+  }
+ },
+ "number|8|17|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 17,
+   "num3": 6
+  }
+ },
+ "number|8|17|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 17,
+   "num3": 7
+  }
+ },
+ "number|8|17|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 17,
+   "num3": 12
+  }
+ },
+ "number|8|17|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 17,
+   "num3": 13
+  }
+ },
+ "number|9|1|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 1,
+   "num3": null
+  }
+ },
+ "number|9|1|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 1,
+   "num3": 1
+  }
+ },
+ "number|9|1|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 1,
+   "num3": 5
+  }
+ },
+ "number|9|1|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 1,
+   "num3": 6
+  }
+ },
+ "number|9|1|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 1,
+   "num3": 7
+  }
+ },
+ "number|9|1|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 1,
+   "num3": 12
+  }
+ },
+ "number|9|1|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 1,
+   "num3": 13
+  }
+ },
+ "number|9|2|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 2,
+   "num3": null
+  }
+ },
+ "number|9|2|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 2,
+   "num3": 1
+  }
+ },
+ "number|9|2|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 2,
+   "num3": 5
+  }
+ },
+ "number|9|2|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 2,
+   "num3": 6
+  }
+ },
+ "number|9|2|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 2,
+   "num3": 7
+  }
+ },
+ "number|9|2|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 2,
+   "num3": 12
+  }
+ },
+ "number|9|2|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 2,
+   "num3": 13
+  }
+ },
+ "number|9|7|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 7,
+   "num3": null
+  }
+ },
+ "number|9|7|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 7,
+   "num3": 1
+  }
+ },
+ "number|9|7|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 7,
+   "num3": 5
+  }
+ },
+ "number|9|7|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 7,
+   "num3": 6
+  }
+ },
+ "number|9|7|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 7,
+   "num3": 7
+  }
+ },
+ "number|9|7|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 7,
+   "num3": 12
+  }
+ },
+ "number|9|7|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 7,
+   "num3": 13
+  }
+ },
+ "number|9|8|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 8,
+   "num3": null
+  }
+ },
+ "number|9|8|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 8,
+   "num3": 1
+  }
+ },
+ "number|9|8|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 8,
+   "num3": 5
+  }
+ },
+ "number|9|8|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 8,
+   "num3": 6
+  }
+ },
+ "number|9|8|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 8,
+   "num3": 7
+  }
+ },
+ "number|9|8|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 8,
+   "num3": 12
+  }
+ },
+ "number|9|8|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 8,
+   "num3": 13
+  }
+ },
+ "number|9|9|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 9,
+   "num3": null
+  }
+ },
+ "number|9|9|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 9,
+   "num3": 1
+  }
+ },
+ "number|9|9|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 9,
+   "num3": 5
+  }
+ },
+ "number|9|9|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 9,
+   "num3": 6
+  }
+ },
+ "number|9|9|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 9,
+   "num3": 7
+  }
+ },
+ "number|9|9|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 9,
+   "num3": 12
+  }
+ },
+ "number|9|9|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 9,
+   "num3": 13
+  }
+ },
+ "number|9|16|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 16,
+   "num3": null
+  }
+ },
+ "number|9|16|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 16,
+   "num3": 1
+  }
+ },
+ "number|9|16|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 16,
+   "num3": 5
+  }
+ },
+ "number|9|16|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 16,
+   "num3": 6
+  }
+ },
+ "number|9|16|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 16,
+   "num3": 7
+  }
+ },
+ "number|9|16|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 16,
+   "num3": 12
+  }
+ },
+ "number|9|16|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 16,
+   "num3": 13
+  }
+ },
+ "number|9|17|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 17,
+   "num3": null
+  }
+ },
+ "number|9|17|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 17,
+   "num3": 1
+  }
+ },
+ "number|9|17|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 17,
+   "num3": 5
+  }
+ },
+ "number|9|17|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 17,
+   "num3": 6
+  }
+ },
+ "number|9|17|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 17,
+   "num3": 7
+  }
+ },
+ "number|9|17|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 17,
+   "num3": 12
+  }
+ },
+ "number|9|17|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 9,
+   "num2": 17,
+   "num3": 13
+  }
+ },
+ "number|16|1|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 1,
+   "num3": null
+  }
+ },
+ "number|16|1|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 1,
+   "num3": 1
+  }
+ },
+ "number|16|1|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 1,
+   "num3": 5
+  }
+ },
+ "number|16|1|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 1,
+   "num3": 6
+  }
+ },
+ "number|16|1|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 1,
+   "num3": 7
+  }
+ },
+ "number|16|1|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 1,
+   "num3": 12
+  }
+ },
+ "number|16|1|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 1,
+   "num3": 13
+  }
+ },
+ "number|16|2|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 2,
+   "num3": null
+  }
+ },
+ "number|16|2|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 2,
+   "num3": 1
+  }
+ },
+ "number|16|2|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 2,
+   "num3": 5
+  }
+ },
+ "number|16|2|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 2,
+   "num3": 6
+  }
+ },
+ "number|16|2|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 2,
+   "num3": 7
+  }
+ },
+ "number|16|2|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 2,
+   "num3": 12
+  }
+ },
+ "number|16|2|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 2,
+   "num3": 13
+  }
+ },
+ "number|16|7|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 7,
+   "num3": null
+  }
+ },
+ "number|16|7|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 7,
+   "num3": 1
+  }
+ },
+ "number|16|7|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 7,
+   "num3": 5
+  }
+ },
+ "number|16|7|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 7,
+   "num3": 6
+  }
+ },
+ "number|16|7|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 7,
+   "num3": 7
+  }
+ },
+ "number|16|7|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 7,
+   "num3": 12
+  }
+ },
+ "number|16|7|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 7,
+   "num3": 13
+  }
+ },
+ "number|16|8|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 8,
+   "num3": null
+  }
+ },
+ "number|16|8|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 8,
+   "num3": 1
+  }
+ },
+ "number|16|8|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 8,
+   "num3": 5
+  }
+ },
+ "number|16|8|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 8,
+   "num3": 6
+  }
+ },
+ "number|16|8|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 8,
+   "num3": 7
+  }
+ },
+ "number|16|8|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 8,
+   "num3": 12
+  }
+ },
+ "number|16|8|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 8,
+   "num3": 13
+  }
+ },
+ "number|16|9|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 9,
+   "num3": null
+  }
+ },
+ "number|16|9|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 9,
+   "num3": 1
+  }
+ },
+ "number|16|9|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 9,
+   "num3": 5
+  }
+ },
+ "number|16|9|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 9,
+   "num3": 6
+  }
+ },
+ "number|16|9|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 9,
+   "num3": 7
+  }
+ },
+ "number|16|9|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 9,
+   "num3": 12
+  }
+ },
+ "number|16|9|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 9,
+   "num3": 13
+  }
+ },
+ "number|16|16|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 16,
+   "num3": null
+  }
+ },
+ "number|16|16|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 16,
+   "num3": 1
+  }
+ },
+ "number|16|16|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 16,
+   "num3": 5
+  }
+ },
+ "number|16|16|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 16,
+   "num3": 6
+  }
+ },
+ "number|16|16|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 16,
+   "num3": 7
+  }
+ },
+ "number|16|16|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 16,
+   "num3": 12
+  }
+ },
+ "number|16|16|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 16,
+   "num3": 13
+  }
+ },
+ "number|16|17|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 17,
+   "num3": null
+  }
+ },
+ "number|16|17|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 17,
+   "num3": 1
+  }
+ },
+ "number|16|17|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 17,
+   "num3": 5
+  }
+ },
+ "number|16|17|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 17,
+   "num3": 6
+  }
+ },
+ "number|16|17|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 17,
+   "num3": 7
+  }
+ },
+ "number|16|17|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 17,
+   "num3": 12
+  }
+ },
+ "number|16|17|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 16,
+   "num2": 17,
+   "num3": 13
+  }
+ },
+ "number|17|1|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 1,
+   "num3": null
+  }
+ },
+ "number|17|1|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 1,
+   "num3": 1
+  }
+ },
+ "number|17|1|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 1,
+   "num3": 5
+  }
+ },
+ "number|17|1|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 1,
+   "num3": 6
+  }
+ },
+ "number|17|1|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 1,
+   "num3": 7
+  }
+ },
+ "number|17|1|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 1,
+   "num3": 12
+  }
+ },
+ "number|17|1|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 1,
+   "num3": 13
+  }
+ },
+ "number|17|2|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 2,
+   "num3": null
+  }
+ },
+ "number|17|2|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 2,
+   "num3": 1
+  }
+ },
+ "number|17|2|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 2,
+   "num3": 5
+  }
+ },
+ "number|17|2|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 2,
+   "num3": 6
+  }
+ },
+ "number|17|2|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 2,
+   "num3": 7
+  }
+ },
+ "number|17|2|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 2,
+   "num3": 12
+  }
+ },
+ "number|17|2|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 2,
+   "num3": 13
+  }
+ },
+ "number|17|7|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 7,
+   "num3": null
+  }
+ },
+ "number|17|7|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 7,
+   "num3": 1
+  }
+ },
+ "number|17|7|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 7,
+   "num3": 5
+  }
+ },
+ "number|17|7|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 7,
+   "num3": 6
+  }
+ },
+ "number|17|7|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 7,
+   "num3": 7
+  }
+ },
+ "number|17|7|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 7,
+   "num3": 12
+  }
+ },
+ "number|17|7|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 7,
+   "num3": 13
+  }
+ },
+ "number|17|8|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 8,
+   "num3": null
+  }
+ },
+ "number|17|8|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 8,
+   "num3": 1
+  }
+ },
+ "number|17|8|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 8,
+   "num3": 5
+  }
+ },
+ "number|17|8|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 8,
+   "num3": 6
+  }
+ },
+ "number|17|8|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 8,
+   "num3": 7
+  }
+ },
+ "number|17|8|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 8,
+   "num3": 12
+  }
+ },
+ "number|17|8|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 8,
+   "num3": 13
+  }
+ },
+ "number|17|9|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 9,
+   "num3": null
+  }
+ },
+ "number|17|9|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 9,
+   "num3": 1
+  }
+ },
+ "number|17|9|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 9,
+   "num3": 5
+  }
+ },
+ "number|17|9|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 9,
+   "num3": 6
+  }
+ },
+ "number|17|9|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 9,
+   "num3": 7
+  }
+ },
+ "number|17|9|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 9,
+   "num3": 12
+  }
+ },
+ "number|17|9|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 9,
+   "num3": 13
+  }
+ },
+ "number|17|16|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 16,
+   "num3": null
+  }
+ },
+ "number|17|16|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 16,
+   "num3": 1
+  }
+ },
+ "number|17|16|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 16,
+   "num3": 5
+  }
+ },
+ "number|17|16|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 16,
+   "num3": 6
+  }
+ },
+ "number|17|16|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 16,
+   "num3": 7
+  }
+ },
+ "number|17|16|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 16,
+   "num3": 12
+  }
+ },
+ "number|17|16|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 16,
+   "num3": 13
+  }
+ },
+ "number|17|17|无第三数": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 17,
+   "num3": null
+  }
+ },
+ "number|17|17|三数1": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 17,
+   "num3": 1
+  }
+ },
+ "number|17|17|三数5": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 17,
+   "num3": 5
+  }
+ },
+ "number|17|17|三数6": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 17,
+   "num3": 6
+  }
+ },
+ "number|17|17|三数7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 17,
+   "num3": 7
+  }
+ },
+ "number|17|17|三数12": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 17,
+   "num3": 12
+  }
+ },
+ "number|17|17|三数13": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 17,
+   "num2": 17,
+   "num3": 13
+  }
+ },
+ "number|99|100|None": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 99,
+   "num2": 100,
+   "num3": null
+  }
+ },
+ "number|365|24|7": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 365,
+   "num2": 24,
+   "num3": 7
+  }
+ },
+ "number|12345|67890|999": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 12345,
+   "num2": 67890,
+   "num3": 999
+  }
+ },
+ "number|1|1|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 1,
+   "num3": null
+  }
+ },
+ "number|1|2|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 2,
+   "num3": null
+  }
+ },
+ "number|1|3|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 3,
+   "num3": null
+  }
+ },
+ "number|1|4|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 4,
+   "num3": null
+  }
+ },
+ "number|1|5|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 5,
+   "num3": null
+  }
+ },
+ "number|1|6|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 6,
+   "num3": null
+  }
+ },
+ "number|1|7|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 7,
+   "num3": null
+  }
+ },
+ "number|1|8|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 1,
+   "num2": 8,
+   "num3": null
+  }
+ },
+ "number|2|1|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 1,
+   "num3": null
+  }
+ },
+ "number|2|2|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 2,
+   "num3": null
+  }
+ },
+ "number|2|3|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 3,
+   "num3": null
+  }
+ },
+ "number|2|4|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 4,
+   "num3": null
+  }
+ },
+ "number|2|5|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 5,
+   "num3": null
+  }
+ },
+ "number|2|6|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 6,
+   "num3": null
+  }
+ },
+ "number|2|7|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 7,
+   "num3": null
+  }
+ },
+ "number|2|8|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 2,
+   "num2": 8,
+   "num3": null
+  }
+ },
+ "number|3|1|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 3,
+   "num2": 1,
+   "num3": null
+  }
+ },
+ "number|3|2|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 3,
+   "num2": 2,
+   "num3": null
+  }
+ },
+ "number|3|3|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 3,
+   "num2": 3,
+   "num3": null
+  }
+ },
+ "number|3|4|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 3,
+   "num2": 4,
+   "num3": null
+  }
+ },
+ "number|3|5|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 3,
+   "num2": 5,
+   "num3": null
+  }
+ },
+ "number|3|6|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 3,
+   "num2": 6,
+   "num3": null
+  }
+ },
+ "number|3|7|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 3,
+   "num2": 7,
+   "num3": null
+  }
+ },
+ "number|3|8|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 3,
+   "num2": 8,
+   "num3": null
+  }
+ },
+ "number|4|1|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 4,
+   "num2": 1,
+   "num3": null
+  }
+ },
+ "number|4|2|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 4,
+   "num2": 2,
+   "num3": null
+  }
+ },
+ "number|4|3|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 4,
+   "num2": 3,
+   "num3": null
+  }
+ },
+ "number|4|4|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 4,
+   "num2": 4,
+   "num3": null
+  }
+ },
+ "number|4|5|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 4,
+   "num2": 5,
+   "num3": null
+  }
+ },
+ "number|4|6|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 4,
+   "num2": 6,
+   "num3": null
+  }
+ },
+ "number|4|7|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 4,
+   "num2": 7,
+   "num3": null
+  }
+ },
+ "number|4|8|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 4,
+   "num2": 8,
+   "num3": null
+  }
+ },
+ "number|5|1|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 5,
+   "num2": 1,
+   "num3": null
+  }
+ },
+ "number|5|2|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 5,
+   "num2": 2,
+   "num3": null
+  }
+ },
+ "number|5|3|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 5,
+   "num2": 3,
+   "num3": null
+  }
+ },
+ "number|5|4|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 5,
+   "num2": 4,
+   "num3": null
+  }
+ },
+ "number|5|5|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 5,
+   "num2": 5,
+   "num3": null
+  }
+ },
+ "number|5|6|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 5,
+   "num2": 6,
+   "num3": null
+  }
+ },
+ "number|5|7|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 5,
+   "num2": 7,
+   "num3": null
+  }
+ },
+ "number|5|8|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 5,
+   "num2": 8,
+   "num3": null
+  }
+ },
+ "number|6|1|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 6,
+   "num2": 1,
+   "num3": null
+  }
+ },
+ "number|6|2|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 6,
+   "num2": 2,
+   "num3": null
+  }
+ },
+ "number|6|3|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 6,
+   "num2": 3,
+   "num3": null
+  }
+ },
+ "number|6|4|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 6,
+   "num2": 4,
+   "num3": null
+  }
+ },
+ "number|6|5|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 6,
+   "num2": 5,
+   "num3": null
+  }
+ },
+ "number|6|6|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 6,
+   "num2": 6,
+   "num3": null
+  }
+ },
+ "number|6|7|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 6,
+   "num2": 7,
+   "num3": null
+  }
+ },
+ "number|6|8|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 6,
+   "num2": 8,
+   "num3": null
+  }
+ },
+ "number|7|1|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 1,
+   "num3": null
+  }
+ },
+ "number|7|2|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 2,
+   "num3": null
+  }
+ },
+ "number|7|3|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 3,
+   "num3": null
+  }
+ },
+ "number|7|4|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 4,
+   "num3": null
+  }
+ },
+ "number|7|5|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 5,
+   "num3": null
+  }
+ },
+ "number|7|6|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 6,
+   "num3": null
+  }
+ },
+ "number|7|7|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 7,
+   "num3": null
+  }
+ },
+ "number|7|8|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 7,
+   "num2": 8,
+   "num3": null
+  }
+ },
+ "number|8|1|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 1,
+   "num3": null
+  }
+ },
+ "number|8|2|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 2,
+   "num3": null
+  }
+ },
+ "number|8|3|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 3,
+   "num3": null
+  }
+ },
+ "number|8|4|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 4,
+   "num3": null
+  }
+ },
+ "number|8|5|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 5,
+   "num3": null
+  }
+ },
+ "number|8|6|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 6,
+   "num3": null
+  }
+ },
+ "number|8|7|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 7,
+   "num3": null
+  }
+ },
+ "number|8|8|全卦对": {
+  "kind": "api",
+  "body": {
+   "method": "number",
+   "num1": 8,
+   "num2": 8,
+   "num3": null
+  }
+ },
+ "character|一": {
+  "kind": "api",
+  "body": {
+   "method": "character",
+   "text": "一"
+  }
+ },
+ "character|山": {
+  "kind": "api",
+  "body": {
+   "method": "character",
+   "text": "山"
+  }
+ },
+ "character|爨": {
+  "kind": "api",
+  "body": {
+   "method": "character",
+   "text": "爨"
+  }
+ },
+ "character|齉": {
+  "kind": "api",
+  "body": {
+   "method": "character",
+   "text": "齉"
+  }
+ },
+ "character|问财": {
+  "kind": "api",
+  "body": {
+   "method": "character",
+   "text": "问财"
+  }
+ },
+ "character|你好": {
+  "kind": "api",
+  "body": {
+   "method": "character",
+   "text": "你好"
+  }
+ },
+ "character|卜卦": {
+  "kind": "api",
+  "body": {
+   "method": "character",
+   "text": "卜卦"
+  }
+ },
+ "character|梅花易": {
+  "kind": "api",
+  "body": {
+   "method": "character",
+   "text": "梅花易"
+  }
+ },
+ "character|求财运": {
+  "kind": "api",
+  "body": {
+   "method": "character",
+   "text": "求财运"
+  }
+ },
+ "character|梅花易数": {
+  "kind": "api",
+  "body": {
+   "method": "character",
+   "text": "梅花易数"
+  }
+ },
+ "character|心想事成": {
+  "kind": "api",
+  "body": {
+   "method": "character",
+   "text": "心想事成"
+  }
+ },
+ "character|求财问前程": {
+  "kind": "api",
+  "body": {
+   "method": "character",
+   "text": "求财问前程"
+  }
+ },
+ "character|明日出行吉凶": {
+  "kind": "api",
+  "body": {
+   "method": "character",
+   "text": "明日出行吉凶"
+  }
+ },
+ "character|今年财运如何发展": {
+  "kind": "api",
+  "body": {
+   "method": "character",
+   "text": "今年财运如何发展"
+  }
+ },
+ "character|今日所求之事何时能够成就": {
+  "kind": "api",
+  "body": {
+   "method": "character",
+   "text": "今日所求之事何时能够成就"
+  }
+ },
+ "character|请问今年的事业与财运整体走势会如何": {
+  "kind": "api",
+  "body": {
+   "method": "character",
+   "text": "请问今年的事业与财运整体走势会如何"
+  }
+ },
+ "character|梅花 易数": {
+  "kind": "api",
+  "body": {
+   "method": "character",
+   "text": "梅花 易数"
+  }
+ },
+ "character|求财　问事业": {
+  "kind": "api",
+  "body": {
+   "method": "character",
+   "text": "求财　问事业"
+  }
+ },
+ "character|问财|笔画[11, 10]": {
+  "kind": "api",
+  "body": {
+   "method": "character",
+   "text": "问财",
+   "strokes": [
+    11,
+    10
+   ]
+  }
+ },
+ "character|梅|笔画[11]": {
+  "kind": "api",
+  "body": {
+   "method": "character",
+   "text": "梅",
+   "strokes": [
+    11
+   ]
+  }
+ },
+ "core|number|auto月支|2026-05-10T23:00:00": {
+  "kind": "core",
+  "call": {
+   "method": "number",
+   "num1": 3,
+   "num2": 5,
+   "dt": "2026-05-10T23:00:00"
+  }
+ },
+ "core|character|auto月支|2026-05-10T23:00:00": {
+  "kind": "core",
+  "call": {
+   "method": "character",
+   "text": "求财问前程",
+   "dt": "2026-05-10T23:00:00"
+  }
+ },
+ "core|number|auto月支|2026-08-07T09:30:00": {
+  "kind": "core",
+  "call": {
+   "method": "number",
+   "num1": 4,
+   "num2": 6,
+   "dt": "2026-08-07T09:30:00"
+  }
+ },
+ "core|character|auto月支|2026-08-07T09:30:00": {
+  "kind": "core",
+  "call": {
+   "method": "character",
+   "text": "求财问前程",
+   "dt": "2026-08-07T09:30:00"
+  }
+ },
+ "core|number|auto月支|2026-12-21T14:00:00": {
+  "kind": "core",
+  "call": {
+   "method": "number",
+   "num1": 5,
+   "num2": 7,
+   "dt": "2026-12-21T14:00:00"
+  }
+ },
+ "core|character|auto月支|2026-12-21T14:00:00": {
+  "kind": "core",
+  "call": {
+   "method": "character",
+   "text": "求财问前程",
+   "dt": "2026-12-21T14:00:00"
+  }
+ },
+ "err|number|0|1|None": {
+  "kind": "error",
+  "call": {
+   "method": "number",
+   "num1": 0,
+   "num2": 1
+  }
+ },
+ "err|number|1|0|None": {
+  "kind": "error",
+  "call": {
+   "method": "number",
+   "num1": 1,
+   "num2": 0
+  }
+ },
+ "err|number|-1|2|None": {
+  "kind": "error",
+  "call": {
+   "method": "number",
+   "num1": -1,
+   "num2": 2
+  }
+ },
+ "err|number|1|2|0": {
+  "kind": "error",
+  "call": {
+   "method": "number",
+   "num1": 1,
+   "num2": 2,
+   "num3": 0
+  }
+ },
+ "err|number|1.5|2|None": {
+  "kind": "error",
+  "call": {
+   "method": "number",
+   "num1": 1.5,
+   "num2": 2
+  }
+ },
+ "err|character|空文本": {
+  "kind": "error",
+  "call": {
+   "method": "character",
+   "text": "   "
+  }
+ },
+ "err|character|标点不在表|求财，问事业": {
+  "kind": "error",
+  "call": {
+   "method": "character",
+   "text": "求财，问事业"
+  }
+ },
+ "err|character|生僻不在表|龘": {
+  "kind": "error",
+  "call": {
+   "method": "character",
+   "text": "龘"
+  }
+ },
+ "err|character|笔画数不符|问财|[11]": {
+  "kind": "error",
+  "call": {
+   "method": "character",
+   "text": "问财",
+   "strokes": [
+    11
+   ]
+  }
+ },
+ "err|method|不存在起卦法": {
+  "kind": "error",
+  "call": {
+   "method": "不存在的起卦法"
+  }
+ }
+}

@@ -119,4 +119,52 @@ function sizhu(input) {
   };
 }
 
-module.exports = { sizhu, normalize, ZHI_HOUR_NAME };
+/**
+ * 取 lunar 对象（农历侧的原生 API）。
+ *
+ * 只在此处 require 历法库一次：梅花起卦要用**农历**年支/月/日，那些字段
+ * `sizhu()` 不提供（它只给四柱）。与其让 meihua.js 自己再 require 一份
+ * lunar、多一处「库从哪来」的分支，不如从本模块取。
+ */
+function lunarOf(input) {
+  const t = normalize(input);
+  return Solar.fromYmdHms(t.y, t.mo, t.d, t.h, t.mi, 0).getLunar();
+}
+
+/**
+ * 月支（月建）—— **精确到交节时刻**。
+ *
+ * ── 为什么另立一个函数，而不是用上面 sizhu().month_gz ──────────
+ * 两者是**两个不同的东西**，实测有差：
+ *
+ *   sizhu().month_gz = lun.getMonthInGanZhi()       → **日粒度**
+ *   monthDizhiAt()   = lun.getMonthInGanZhiExact()  → 精确到交节时刻
+ *
+ * 日粒度指的是：**交节当日的整天**都算作新月，哪怕交节时刻在当天 16:07。
+ * 于是「2025-01-05 00:00」日粒度给丁丑（丑月），而小寒其实 10:32 才到 ——
+ * 那一刻仍是子月。实测 2024–2026 逐小时扫 26352 小时，两版相差 505 小时
+ * （约 1.9%），**全部**落在交节当日、交节时刻之前。
+ *
+ * 哪个是事实：精确版。两条理由，
+ *  ① 月建随**交节时刻**换（万年历给交节时刻精确到分，就是为此）；
+ *  ② 与库内另一条互不相干的代码路径（`getJieQiTable()` 里十二「节」的时刻表）
+ *     逐点比对一致：8 个交节日前后 ±4 小时每 5 分钟共 776 点，0 处不一致。
+ *     该表的值与官方《天文年历》一致（2025 惊蛰 16:07:18、立春 22:10:28）。
+ *
+ * shushu 侧自相矛盾可作旁证：`solar_terms.get_month_dizhi_at` 走的是**交节时刻**
+ * 口径（docstring 明写 "which Jié boundary has most recently passed"），而它的
+ * `current_sizhu`/`month_ganzhi_at` 走的是日粒度口径 —— 一个项目里两种月支。
+ * 差在交节前后那 8 分钟（shushu 的节气时刻用 ephem 现算，比上面的表早 ~8 分钟）。
+ *
+ * ⚠ 待办：`sizhu().month_gz` 仍是日粒度（沿用历法层已验状态，未动）。
+ * 这是**已知偏差**，改它要重跑历法层对拍并重出申报表，另案处理。
+ * 梅花层（`meihua.js`）用的是本函数。
+ */
+function monthDizhiAt(input) {
+  const t = normalize(input);
+  const gz = Solar.fromYmdHms(t.y, t.mo, t.d, t.h, t.mi, 0)
+    .getLunar().getMonthInGanZhiExact();
+  return gz && gz.length > 1 ? gz[1] : '';
+}
+
+module.exports = { sizhu, normalize, ZHI_HOUR_NAME, monthDizhiAt, lunarOf };

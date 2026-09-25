@@ -17,6 +17,8 @@ known_hosts*
 # golden_*.json 反之**必须入库**：它是 shushu 金标准的唯一留存记录，
 # 也是 README 里说的「每组样例同时是将来回归的 fixture」。
 duipan/js_*.json
+# probe_*.json 同理：`node probe_*.js` 跑得出来，是被验方/探针的输出。
+duipan/probe_*.json
 
 # ── 线上留存的旧版页面备份 ──────────────────────────────────
 # 文件本身留在工作区以保持本地镜像与服务器逐文件一致，但不入库：
