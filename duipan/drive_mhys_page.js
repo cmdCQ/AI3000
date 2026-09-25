@@ -74,7 +74,7 @@ function loadEndpoint() {
 const runEndpoint = loadEndpoint();
 
 // 桩：设了就按它回（① 独立判据）；同时把每个进来的请求体存下来（② 独立判据）
-const state = { stub: null, captured: [], savedRecords: [] };
+const state = { stub: null, captured: [], savedRecords: [], chat: [] };
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -112,10 +112,22 @@ function startServer() {
     }
     if (pathname === '/__captured') return sendJson(res, { captured: state.captured });
     if (pathname === '/__reset') {
-      state.captured = []; state.savedRecords = [];
+      state.captured = []; state.savedRecords = []; state.chat = [];
       return sendJson(res, { ok: true });
     }
     if (pathname === '/__saved') return sendJson(res, { saved: state.savedRecords });
+    if (pathname === '/__chat') return sendJson(res, { chat: state.chat });
+
+    // AI 解读：`startAIStream()` 用 XHR 读**流式正文**（onprogress 逐段渲染），
+    // 所以这里分两次 write、中间隔一下，好让驱动看到「边收边渲染」而不是一次性结果。
+    if (req.method === 'POST' && pathname === '/api/chat/send') {
+      const body = await readBody(req);
+      state.chat.push(body);
+      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache' });
+      res.write('【一、结论】\n（桩）这一卦先说结论。\n');
+      setTimeout(() => { res.write('\n【二、依据】\n（桩）再看依据。\n\n【三、建议】\n（桩）最后给建议。'); res.end(); }, 150);
+      return;
+    }
 
     if (req.method === 'POST' && pathname === '/api/meihua/paipan') {
       const body = await readBody(req);
@@ -312,23 +324,20 @@ async function clickStart(m) {
   return js(m, `document.getElementById('startBtn').click(); return true;`);
 }
 
-// 点完按钮等结果：要么存进 localStorage（事项为空），要么跳到 result.html
+// 点完按钮等结果：结果**就在本页**下面的 #resultArea 里（不再跳 result.html），
+// 所以等的是那个容器的正文；被校验拦下时等到的是一条 alert。
 async function waitResult(m, timeoutMs) {
   const t0 = Date.now();
   for (;;) {
     const r = await js(m, `${W}
-      var s = window.localStorage.getItem('mhys_result');
-      return { href: location.href, stored: s || null,
+      var a = document.getElementById('resultArea');
+      return { href: location.href, result: a ? (a.innerText || '') : '',
         alerts: (W.__alerts || []).slice(), errs: (W.__errs || []).slice() };
     `);
-    if (r.stored || /result\.html/.test(r.href) || r.alerts.length) return r;
+    if (r.result.length > 20 || r.alerts.length) return r;
     if (Date.now() - t0 > timeoutMs) return r;
     await new Promise((r2) => setTimeout(r2, 150));
   }
-}
-
-function parseStored(r) {
-  try { return JSON.parse(r.stored); } catch (e) { return null; }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -350,7 +359,10 @@ async function stub(m, qigua) {
 async function reset(m) {
   await fetch(`${ORIGIN}/__reset`, { method: 'POST' });
   await goto(m, INDEX);
-  await js(m, `window.localStorage.removeItem('mhys_result'); return true;`);
+  // mhys_anon_used 也要清 —— 自动解读跑完一次游客就被标记成「用过免费次数」，
+  // 不清的话下一条用例里自动打开的面板会改成弹登录引导。
+  await js(m, `window.localStorage.removeItem('mhys_result');
+    window.localStorage.removeItem('mhys_anon_used'); return true;`);
 }
 async function captured() {
   return (await (await fetch(`${ORIGIN}/__captured`)).json()).captured;
@@ -358,14 +370,46 @@ async function captured() {
 async function saved() {
   return (await (await fetch(`${ORIGIN}/__saved`)).json()).saved;
 }
+async function chat() {
+  return (await (await fetch(`${ORIGIN}/__chat`)).json()).chat;
+}
+async function panelOpen(m) {
+  return js(m, `var p = document.getElementById('aiPanel');
+    return !!p && p.classList.contains('open');`);
+}
+async function panelText(m, timeoutMs) {
+  const t0 = Date.now();
+  for (;;) {
+    const t = await js(m, `var r = document.getElementById('aiResponse');
+      return r ? (r.innerText || '') : '';`);
+    if (t && t.length > 10) return t;
+    if (Date.now() - t0 > timeoutMs) return t;
+    await new Promise((r2) => setTimeout(r2, 150));
+  }
+}
+// 流是一段一段来的，只看「有字了」会在第一段就返回（桩的第二段 150ms 后才到）。
+// 要判据就等到正文匹配目标为止。
+async function panelTextUntil(m, re, timeoutMs) {
+  const t0 = Date.now();
+  let last = '';
+  for (;;) {
+    last = await js(m, `var r = document.getElementById('aiResponse');
+      return r ? (r.innerText || '') : '';`);
+    if (re.test(last)) return last;
+    if (Date.now() - t0 > timeoutMs) return last;
+    await new Promise((r2) => setTimeout(r2, 150));
+  }
+}
 
-// 结果页的正文：**卦是照后端卦号渲染出来的**，所以正文就是判据。
-// 不能读 localStorage —— `result.html` 一到就把 `mhys_result` 读掉并删除，
-// 读回来永远是 null（第一版就是这么误判「页面没出记录」的）。
+// 结果区的正文：**卦是照后端卦号渲染出来的**，所以正文就是判据。
+// 只能读 #resultArea，不能读 document.body —— 输入卡片也在 body 里，正文一上来就
+// 超过长度门槛，会在结果渲染出来之前就返回（第一版读过 localStorage，更糟：
+// `result.html` 一到就把 `mhys_result` 读掉并删除，读回来永远是 null）。
 async function resultText(m, timeoutMs) {
   const t0 = Date.now();
   for (;;) {
-    const t = await js(m, `return document.body.innerText || '';`);
+    const t = await js(m, `var a = document.getElementById('resultArea');
+      return a ? (a.innerText || '') : '';`);
     if (t && t.length > 30) return t;
     if (Date.now() - t0 > timeoutMs) return t;
     await new Promise((r) => setTimeout(r, 150));
@@ -379,6 +423,7 @@ async function main() {
   const server = await startServer();
   const { child, m, prof } = await launchFirefox();
   let code = 0;
+  let dimOnIndex = '';   // 原地结果区的次要文字颜色，⑨ 拿它跟结果页比
   try {
     // ── ① 桩卦：页面渲染的卦必须来自后端 ────────────────────────
     console.log('\n① 桩卦（上3下6动5）：页面拿后端的卦号渲染，自己不取数');
@@ -393,11 +438,13 @@ async function main() {
     let text = await resultText(m, 8000);
     // 桩卦上3下6动5 → 本卦「火水未济」；动五爻（从下数第五 = 上卦中爻）→ 变卦「天水讼」。
     // 两个卦名都由 64 卦表（事实）与动爻位置决定，页面上任何一个不对都说明它没用后端的数。
-    check('结果页渲染出桩卦的本卦名（火水未济 = 上3下6）',
+    check('结果区渲染出桩卦的本卦名（火水未济 = 上3下6）',
       /火水未济/.test(text), JSON.stringify(text).slice(0, 160));
-    check('结果页渲染出桩卦的变卦名（天水讼 = 动第五爻）',
+    check('结果区渲染出桩卦的变卦名（天水讼 = 动第五爻）',
       /天水讼/.test(text), JSON.stringify(text).slice(0, 160));
-    check('结果页的卦式写中文法名', /时间起卦/.test(text), JSON.stringify(text).slice(0, 160));
+    check('结果区的卦式写中文法名', /时间起卦/.test(text), JSON.stringify(text).slice(0, 160));
+    check('结果就在本页出（location 还是排盘页，没跳 result.html）',
+      /\/mhys\/index\.html/.test(r.href) && !/result\.html/.test(r.href), r.href);
     check('页面里已无起卦实现（运行期检查，不是读源码）',
       await js(m, `${W}
         return [typeof W.timeDivination, typeof W.num1Divination, typeof W.num2Divination,
@@ -515,8 +562,8 @@ async function main() {
       r = await waitResult(m, 8000);
       const c = (await captured())[0] || {};
       draws.push(`${c.upper}-${c.lower}-${c.moving}`);
-      // 记录里写的是哪种起卦法，看结果页的「卦式」那行（它渲染的是存下来的记录）
-      const txt = /result\.html/.test(r.href) ? await resultText(m, 6000) : '';
+      // 记录里写的是哪种起卦法，看结果区「卦式」那行（页面把它渲染成中文）
+      const txt = await resultText(m, 6000);
       check(`自动起卦第 ${i + 1} 次：抽签在页面、按 manual 入后端、记录仍写「自动起卦」`,
         c.method === 'manual' && c.upper >= 1 && c.upper <= 8 && c.lower >= 1 && c.lower <= 8
         && c.moving >= 1 && c.moving <= 6 && /自动起卦/.test(txt),
@@ -548,8 +595,8 @@ async function main() {
     check('变卦 = 山泽损 ⇒ 动爻是第 2 爻（三数之和 14 % 6 = 2；取第三个数的话是山火贲）',
       /山泽损/.test(text) && !/山火贲/.test(text), JSON.stringify(text).slice(0, 200));
 
-    // ── ⑧ 保存路径 ────────────────────────────────────────────
-    console.log('\n⑧ 填了事项 → 存记录 → 跳结果页');
+    // ── ⑧ 保存路径（原地出结果，不再跳结果页）──────────────────
+    console.log('\n⑧ 填了事项 → 存记录 → 结果就地出，留在本页');
     await reset(m);
     await selectMethod(m, 'number');
     await js(m, report743);
@@ -566,12 +613,84 @@ async function main() {
       sv.length === 1 && !!sv[0].resultData.qigua
       && sv[0].resultData.qigua.upper_num === 7 && sv[0].resultData.qigua.moving === 2,
       JSON.stringify(sv[0] && sv[0].resultData && sv[0].resultData.qigua).slice(0, 160));
-    check('跳到结果页并带上记录 id', /result\.html\?v=4&id=999/.test(r.href), r.href);
+    check('存了记录也不跳走（原地出结果）',
+      /\/mhys\/index\.html/.test(r.href) && !/result\.html/.test(r.href), r.href);
 
-    // 结果页渲染不白屏（起卦下沉后 result.html 仍吃 result.gua）
+    // 结果区渲染不白屏，且是本页自己渲染的（结果页的渲染器已被共用）
     text = await resultText(m, 8000);
-    check('结果页有内容且卦式是中文法名',
-      text.length > 30 && /报数起卦/.test(text), JSON.stringify(text).slice(0, 200));
+    check('结果区有内容、卦式是中文法名、桩卦的卦名对',
+      text.length > 30 && /报数起卦/.test(text) && /山雷颐/.test(text),
+      JSON.stringify(text).slice(0, 200));
+    check('结果区是本页填的（#resultArea 有子节点）',
+      await js(m, `var a = document.getElementById('resultArea');
+        return !!a && a.children.length > 0;`), 'resultArea 还是空的');
+    // 原地结果与结果页现在吃同一份 CSS，次要文字的颜色必须一模一样（两页的 :root
+    // 都把这套变量定成 #1a1a1a）。这里钉住它，免得哪天有人只给其中一页加覆盖。
+    dimOnIndex = await js(m, `var e = document.querySelector('#resultArea span[style*="--text-dim"]');
+      return e ? getComputedStyle(e).color : '';`);
+    check('原地结果区的次要文字颜色 = rgb(26,26,26)（与结果页同一套变量）',
+      dimOnIndex === 'rgb(26, 26, 26)', dimOnIndex);
+
+    // ── ⑨ 结果页没被共用件改坏 ────────────────────────────────
+    // 历史记录点进去看的还是 result.html，它现在吃共用的 mhys_render.js +
+    // mhys_result.css。上面那几条全走的是本页原地渲染，一条也覆盖不到它。
+    console.log('\n⑨ 结果页（历史记录入口）仍照旧渲染');
+    await goto(m, `${ORIGIN}/mhys/result.html?id=999`);
+    text = await js(m, `return document.body.innerText || '';`);  // 结果页没有 #resultArea，读正文
+    check('结果页渲染出记录里的卦（山雷颐）',
+      /山雷颐/.test(text), JSON.stringify(text).slice(0, 200));
+    check('结果页渲染出事项与中文卦式',
+      /测试事项/.test(text) && /报数起卦/.test(text), JSON.stringify(text).slice(0, 200));
+    check('结果页有分析区（renderAnalysis 找得到 #analysisArea）',
+      await js(m, `var a = document.getElementById('analysisArea');
+        return !!a && a.innerText.length > 20;`), '分析区空或不存在');
+    check('结果页样式生效（.card 有边框，说明 mhys_result.css 加载了）',
+      await js(m, `var c = document.querySelector('.card');
+        return !!c && getComputedStyle(c).borderTopWidth !== '0px';`), '样式没生效');
+    const dimColor = await js(m, `var e = document.querySelector('#analysisArea span[style*="--text-dim"]');
+      return e ? getComputedStyle(e).color : 'NO-ELEM';`);
+    check('结果页的次要文字颜色与原地结果一致（rgb(26,26,26)）',
+      dimColor === dimOnIndex && dimColor === 'rgb(26, 26, 26)', dimColor + ' vs 原地 ' + dimOnIndex);
+
+    // ── ⑩ 结果出来自动开始解读 ────────────────────────────────
+    console.log('\n⑩ 原地出结果后 AI 面板自动打开并开始解读');
+    await stub(m, STUB_GUA);
+    await reset(m);
+    check('排盘页也挂了 AI 面板（共享件自己 mount，页面里已无那段标注）',
+      await js(m, `return !!(document.getElementById('aiPanel')
+        && document.getElementById('aiPanelOverlay')
+        && document.getElementById('aiFollowBar'));`), '页面上找不到 aiPanel');
+    check('起卦前面板是关着的', !(await panelOpen(m)), '面板一开始就开着');
+
+    // 起卦前点「开始解卦」：没有卦可解，应该说一句就回去，而不是发一个空请求
+    await js(m, `document.getElementById('aiBarBtn').click(); return true;`);
+    await js(m, `document.querySelector('.ai-start-btn').click(); return true;`);
+    await new Promise((r2) => setTimeout(r2, 400));
+    check('没起卦就点解析 → 只提示、不发 AI 请求',
+      (await chat()).length === 0, JSON.stringify(await chat()));
+    check('提示语是「先起一卦」',
+      await js(m, `return document.body.innerText.indexOf('先起一卦') >= 0;`), '没看到提示语');
+    // 页面里的函数得从 wrappedJSObject 上取 —— 注入脚本的沙箱看不见页面全局（老坑）
+    await js(m, `${W} W.closeAIPanel(); return true;`);
+
+    await selectMethod(m, 'time');
+    await setTime(m, 2026, 9, 25, 8, 30);
+    await clickStart(m);
+    r = await waitResult(m, 10000);
+    check('结果出来后面板自动打开了（不用用户再点）', await panelOpen(m), '面板没打开');
+    const aiTxt = await panelTextUntil(m, /【三、建议】/, 8000);
+    check('面板把流式正文全程收完并渲染（桩文本三段都在）',
+      /【一、结论】/.test(aiTxt) && /【三、建议】/.test(aiTxt), JSON.stringify(aiTxt).slice(0, 200));
+    check('正文是按 markdown 渲染的（【一、结论】成了区块标题，不是原文）',
+      await js(m, `var a = document.getElementById('aiResponse');
+        return !!a.querySelector('div[style*="var(--accent)"]');`), '没找到区块标题');
+    check('整串流程没有 JS 报错（少了全局、拆家拆漏了都会在这里冒出来）',
+      r.errs.length === 0, JSON.stringify(r.errs).slice(0, 300));
+    const ch = await chat();
+    check('自动解读把这一卦的排盘数据发给了后端',
+      ch.length === 1 && ch[0].cardType === 'mhys' && !!ch[0].cardData
+      && ch[0].cardData.hexagrams.benGua.name === '火水未济',
+      JSON.stringify(ch[0] && ch[0].cardData && ch[0].cardData.hexagrams.benGua.name));
   } finally {
     try { child.kill('SIGKILL'); } catch (e) { /* 已退出 */ }
     server.close();
@@ -583,7 +702,8 @@ async function main() {
     for (const f of fails) console.log('   ' + f);
     code = 1;
   } else {
-    console.log('\n✅ 梅花页起卦下沉验收通过（本机静态服务 + 真 Firefox；不含线上 nginx/鉴权）');
+    console.log('\n✅ 梅花页验收通过：起卦下沉（页面自己不起卦）+ 结果就地出（不再跳结果页）'
+      + '（本机静态服务 + 真 Firefox；不含线上 nginx/鉴权）');
   }
   process.exit(code);
 }

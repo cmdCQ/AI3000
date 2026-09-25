@@ -33,6 +33,9 @@
 | `verify_qigua_vs_front.js` | 后端取数 ↔ 迁移前前端取数，逐例核对；兼「迁移完成闸门」（活页面里再出现起卦实现即退出 1） |
 | `drive_mhys_page.js` | **迁移后**的驱页验收：本机静态服务 + 无头 Firefox 驱真页面（桩卦 / 抓包 / 手算值三个独立判据） |
 | `smoke_paipan_endpoints.js` | 两个排盘端点的函数体冒烟（状态码、字段名、「端点的 text ≡ AI 读到的 `{{paipan}}`」） |
+| `../build/nginx/js/mhys_render.js` | 梅花渲染层（**被验的前端产物**，非对拍脚本）：由 `result.html` 整段搬出，排盘页/结果页共用 |
+| `../build/nginx/js/mhys_ai_panel.js` | 梅花 AI 面板（同上，含面板 DOM 的自挂载） |
+| `../build/nginx/css/mhys_result.css` | 结果页样式（同上） |
 
 ### 申报偏差的判据（层 6）
 
@@ -664,12 +667,61 @@ shushu 侧自相矛盾可作旁证：它的 `month_dizhi_at` 走的是**交节�
 > 问题（本项目已拍板换日，38 例整例申报）；冻结件钉的是「用户在线上实际得到的卦」。
 > 两者独立，缺一个，那 38 例申报就只有一边的话。
 
+> **先读 `tools/drive_verify.py` 的文件头再写驱页脚本。** 它是本仓早先的驱页脚本，
+> 那 5 条「踩过的坑」正是这次重踩的：`selectMethod` 要传真实元素、`alert` 阻塞会话、
+> navigate 后 prelude 随页面销毁要重装……**这次写 `drive_mhys_page.js` 前没先读它**，
+> 于是自己又踩了一遍，还多绕了一段「页面加载卡住」的弯路。它用的手法更省事：
+> prelude 里 `window.__pick = function(){ selectMethod(...) }` —— 函数体在**页面作用域**
+> 执行，故不需要 `wrappedJSObject`（我这条路也能走通，但那是重复发明）。
+> 它 `from shot import Marionette`（`shot.py` 在 `/tmp/shushu-shots`，重启即失；
+> 本驱动因此自带线协议实现，不依赖那个临时目录）。
+>
 > 驱页踩过的坑（写下来免得下次重踩）：Firefox 的 `ExecuteScript` 跑在**沙箱**里，
 > 看页面是 Xray 视角，页面自己定义的全局（`selectMethod`、`selectedTime`）**看不见**，
 > 直接调用报 `ReferenceError`——要摸它们必须走 `window.wrappedJSObject`。我曾误诊成
 > 「页面没加载完/被 Google Fonts 卡住」，白试了三种 `pageLoadStrategy`。
 > 另：marionette 协议 v3 的命令报文是**数组** `[0,id,name,params]`（对象形式会让
 > Firefox 回「Unable to unmarshal packet data」并且**永远不回话**，表现为脚本静默挂住）。
+
+#### 梅花页原地出结果 + 自动解读（阶段 2.2）—— ✅ 通过（41 项）
+
+用户点名的两条：「单页原地出结果，不再跳 `result.html`」「结果出来后 AI 面板**自动开始**
+解读（不等用户再点）」。做法不是给排盘页再抄一份渲染器，而是把结果页的渲染层与样式
+**整段切出来做成共享件**（用脚本按行切片搬运，不转抄），三处共用：
+
+| 文件 | 从哪来 | 谁用 |
+|---|---|---|
+| `build/nginx/js/mhys_render.js` | `result.html` 的 `TRIGRAMS` + 全部 render 函数（原 415–743 行） | 两个页面 |
+| `build/nginx/css/mhys_result.css` | `result.html` 的整个 `<style>`（原 13–392 行） | 两个页面 |
+| `build/nginx/js/mhys_ai_panel.js` | `result.html` 的 AI 面板标注 + 全部解读/追问逻辑（原 124–440 行 + 444–463 行） | 两个页面；**DOM 由它自己挂**到 body |
+
+排盘页现在的流程：`POST /api/meihua/paipan` 回来 → `#resultArea.innerHTML = renderResult(result)`
+→ `renderAnalysis()` → `autoStartAI()`。结果页（历史记录入口）不动：它照旧 `load()` →
+同一对函数，所以两页的卦象、判词、样式天然一致，不存在「改了这页忘了那页」。
+
+- **「自动打开」不绕关卡**：`autoStartAI()` 只是替用户点了「开始解卦」那一下，
+  游客免费次数、已保存解析、401 弹登录这些判断全在 `startButtonClicked()` 里原样走。
+  代价是游客的第一个卦会**自动用掉**那次免费解析（这是「免费试一次」的应有之义）。
+- **起卦前也能点开面板**（表头那颗按钮）：此时无卦可解，`startButtonClicked()` 有 `!g`
+  守卫，只弹一句「先起一卦」，不发请求（⑩ 有断言）。
+- 三条既有判断都被驱动验过（⑧⑨⑩，共 40 项全绿）：⑧ 原地出结果且 `location` 没跳走、
+  ⑨ 结果页没被共用件改坏（样式加载 + 卦名 + 分析区 + 两页次要文字同色）、
+  ⑩ 面板自动打开、流式正文收完并 markdown 渲染、请求里带着这一卦的排盘数据。
+
+> **搬代码的几个坑（都踩了，写下来免得重踩）**：
+> ① 从 `<script>` 里切走中间一段后，**剩下的那段丢了开标签** —— 浏览器把剩下的 JS 当**正文**
+> 显示出来（症状就是 `body.innerText` 里出现 `// ===== 加载数据 ===== async function load()`，
+> 这个「脚本文本出现在正文里」就是最好的诊断线索）。`result.html` 一度就是这样。
+> ② JS 字符串**不能跨行**：面板标注整个塞进单引号里直接 `SyntaxError` 让整份文件不执行
+> （症状是面板 DOM 根本没挂上）。标注里没有反引号，改用模板字符串即可。`node --check` 一秒就能抓到。
+> ③ `--text-dim` 我按 `history.html` 的值（`#888`）给原地结果区加过一条 `#resultArea` 覆盖，
+> **看错了文件** —— `result.html` 的 `:root` 本来就是 `#1a1a1a`（与排盘页同值）。这条覆盖
+> 只会让原地结果比结果页浅一档，已删；⑨ 现在断言「两页次要文字同色」把这件事钉住。
+> ④ 结果区的判据只能读 `#resultArea`：读 `document.body` 的话，输入卡片一上来就够长，
+> 会在结果渲染出来**之前**就返回（和上一版读 `localStorage` 是同一类错）。
+> ⑤ 流式正文一段段来：断言必须等到**最后一段**（`panelTextUntil`），
+> 只看「有字了」会在第一段就返回，把「收完了」误判成失败。
+> ⑥ 驱动里调页面函数一律走 `window.wrappedJSObject`（沙箱 Xray 老坑，见上一节）。
 
 #### 已知异常（前端语料，本层不改）
 

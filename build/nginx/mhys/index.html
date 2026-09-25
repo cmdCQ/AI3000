@@ -9,6 +9,8 @@
 <title>梅花易数 · 易三千</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
+<!-- 结果页的样式与渲染层跟本页共用一份（原地出结果），别在本页再抄一份 -->
+<link rel="stylesheet" href="/css/mhys_result.css?v=1">
 <style>
 :root {
   --bg: #faf8f5;
@@ -28,10 +30,11 @@
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 html,body { background:var(--bg); color:var(--text); font-family:var(--sans); min-height:100vh; -webkit-font-smoothing:antialiased; }
 .mh-wrapper { max-width:420px; margin:0 auto; padding:1.5rem 1.2rem 4rem; }
-.mh-header { display:flex; align-items:center; gap:0.6rem; margin-bottom:1.2rem; }
-.mh-back { color:var(--text-muted); text-decoration:none; font-size:0.85rem; transition:color 0.2s; }
+/* 表头与结果页对齐（都要放得下右边那颗「自动解析」按钮，窄屏得能换行） */
+.mh-header { display:flex; flex-wrap:wrap; align-items:center; gap:0.4rem 0.6rem; margin-bottom:1.2rem; }
+.mh-back { color:var(--text-muted); text-decoration:none; font-size:0.85rem; transition:color 0.2s; flex-shrink:0; }
 .mh-back:hover { color:var(--text-dim); }
-.mh-title { font-family:var(--serif); font-size:1.25rem; font-weight:600; letter-spacing:0.06em; }
+.mh-title { font-family:var(--serif); font-size:1.25rem; font-weight:600; letter-spacing:0.06em; flex-shrink:0; }
 
 /* Card */
 .card { background:var(--card-bg); border:1px solid var(--border); border-radius:var(--radius); padding:1rem 1.1rem; margin-bottom:0.8rem; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
@@ -208,6 +211,7 @@ html,body { background:var(--bg); color:var(--text); font-family:var(--sans); mi
   <div class="mh-header">
     <a href="/" class="mh-back">← 返回</a>
     <h1 class="mh-title">梅花易数</h1>
+    <button class="ai-title-btn" id="aiBarBtn" onclick="toggleAIPanel()">☯ 看不懂？试试自动解析</button>
   </div>
 
   <!-- 1. 事项内容 -->
@@ -274,6 +278,9 @@ html,body { background:var(--bg); color:var(--text); font-family:var(--sans); mi
     <span class="re-arrow">›</span>
   </a>
 
+  <!-- 6. 结果区：排完盘就地在下面出结果，不再跳结果页。空的时候是空的，不占位。 -->
+  <div id="resultArea"></div>
+
   <!-- 时间选择器弹窗 -->
   <div class="tp-overlay" id="tpOverlay" style="display:none" onclick="closeTimePicker(event)">
     <div class="tp-panel" onclick="event.stopPropagation()">
@@ -302,19 +309,12 @@ html,body { background:var(--bg); color:var(--text); font-family:var(--sans); mi
 
 <script src="/js/lunar.min.js"></script>
 <script src="/js/auth.js?v=1787305221"></script>
+<!-- 渲染层与结果页共用一份。TRIGRAMS 也在 mhys_render.js 里，本页不再另抄一份
+     （原先两边各抄一份，改一处漏一处就会悄悄对不上）。 -->
+<script src="/js/hexagrams_data.js?v=1"></script>
+<script src="/js/mhys_render.js?v=1"></script>
+<script src="/js/mhys_ai_panel.js?v=1"></script>
 <script>
-// ===== 八卦数据 =====
-var TRIGRAMS = {
-  1: { name:'乾', symbol:'☰', full:'乾为天', element:'金', nature:'天' },
-  2: { name:'兑', symbol:'☱', full:'兑为泽', element:'金', nature:'泽' },
-  3: { name:'离', symbol:'☲', full:'离为火', element:'火', nature:'火' },
-  4: { name:'震', symbol:'☳', full:'震为雷', element:'木', nature:'雷' },
-  5: { name:'巽', symbol:'☴', full:'巽为风', element:'木', nature:'风' },
-  6: { name:'坎', symbol:'☵', full:'坎为水', element:'水', nature:'水' },
-  7: { name:'艮', symbol:'☶', full:'艮为山', element:'土', nature:'山' },
-  8: { name:'坤', symbol:'☷', full:'坤为地', element:'土', nature:'地' }
-};
-
 var HEX64 = {};
 (function(){
   var names = [
@@ -771,12 +771,9 @@ async function startDivination(e) {
   if (req.numbers) result.numbers = req.numbers;
 
   // 事项为空 → 临时排盘，不保存记录
-  if (!topic) {
-    localStorage.setItem('mhys_result', JSON.stringify(result));
-    window.location.href = '/mhys/result.html?v=4';
-    return;
-  }
+  if (!topic) { showResultHere(result); return; }
 
+  // 有事项 → 存一条记录。存不上不影响看结果（只是记录列表里没有这条）。
   try {
     var sresp = await fetch('/api/mhys-records', {
       method: 'POST',
@@ -789,16 +786,34 @@ async function startDivination(e) {
         resultData: result
       })
     });
-    var saved = await sresp.json();
     if (sresp.ok) {
-      window.location.href = '/mhys/result.html?v=4&id=' + saved.id;
-    } else {
-      window.location.href = '/mhys/result.html?v=4';
+      var saved = await sresp.json();
+      currentRecordId = saved.id;
     }
-  } catch(e) {
-    localStorage.setItem('mhys_result', JSON.stringify(result));
-    window.location.href = '/mhys/result.html?v=4';
-  }
+  } catch(e) {}
+  showResultHere(result);
+}
+
+// 结果就渲染在本页下面（原先这里是跳 /mhys/result.html）。
+// 结果页 result.html 没废：历史记录点进去看的还是它，两页共用 mhys_render.js。
+function showResultHere(result) {
+  // 这两项 result.html 的 load() 会填，本页也得填 —— AI 面板（下一步）要用
+  currentResultMeta = {
+    divinationTime: result.divinationTime || '',
+    createdAt: result.createdAt || '',
+    method: result.method || ''
+  };
+  currentAiPayload = {
+    numbers: result.numbers || '',
+    lunarInfo: result.lunarInfo || {}
+  };
+  var area = document.getElementById('resultArea');
+  area.innerHTML = renderResult(result);  // 顺手设好全局 g / currentTopic / currentGua
+  renderAnalysis();                       // 必须在插进 DOM 之后，它要找 #analysisArea
+  resetBtn();
+  if (area.scrollIntoView) area.scrollIntoView({ behavior:'smooth', block:'start' });
+  // 结果一出来就开始解读，不用用户再点一次（面板在 /js/mhys_ai_panel.js 里）
+  autoStartAI();
 }
 
 // ===== 初始化 =====
