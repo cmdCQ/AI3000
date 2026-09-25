@@ -320,14 +320,5 @@ function renderResult(result) {
   return h;
 }
 
-function formatTime(date) {
-  return date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0')+'-'+String(date.getDate()).padStart(2,'0')+' '+
-         String(date.getHours()).padStart(2,'0')+':'+String(date.getMinutes()).padStart(2,'0')+':'+String(date.getSeconds()).padStart(2,'0');
-}
-
-function escHtml(s) {
-  if (!s) return '';
-  var d = document.createElement('div');
-  d.textContent = s;
-  return d.innerHTML;
-}
+// `formatTime` / `escHtml` 已搬到 `/js/ui_common.js`（全站共用一份）。
+// 本文件与六爻页的渲染层都从那里取，页面记得先引 ui_common.js。

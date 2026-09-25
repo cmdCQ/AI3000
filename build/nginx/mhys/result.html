@@ -29,6 +29,7 @@
 </div>
 
 <script src="/js/auth.js?v=1787305221"></script>
+<script src="/js/ui_common.js?v=1"></script>
 <script src="/js/hexagrams_data.js?v=1"></script>
 <script src="/js/mhys_render.js?v=1"></script>
 <script>
@@ -112,17 +113,13 @@ setTimeout(function checkBar() {
     barBtn.classList.remove('ai-disabled');
     barBtn.setAttribute('title', '点击打开AI解析');
   }
-  // overlay 点击关闭（用 JS 监听避免误触）
-  var overlay = document.getElementById('aiPanelOverlay');
-  if (overlay) {
-    overlay.addEventListener('click', function(e) {
-      if (e.target === overlay) closeAIPanel();
-    });
-  }
 }, 200);
 </script>
 
-<!-- AI 面板与解读逻辑都在 /js/mhys_ai_panel.js 里（本页与排盘页共用一份） -->
+<!-- AI 面板引擎与梅花的配置（引擎与六爻页共用一份）。
+     overlay 的点击关闭在引擎里绑，本页不再绑一次 —— 绑两处会关两次，
+     看着一样，但那是两份 DOM 监听在各自为政。 -->
+<script src="/js/ai_panel.js?v=1"></script>
 <script src="/js/mhys_ai_panel.js?v=1"></script>
 
 </body>

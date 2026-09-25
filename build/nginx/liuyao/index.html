@@ -9,6 +9,11 @@
 <title>六爻 · 易三千</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
+<!-- 结果页的样式与渲染层跟本页共用一份（原地出结果，不跳 result.html），别在本页再抄一份。
+     mhys_result.css 是**梅花与六爻共用的底**（令牌、卡片、AI 面板、卦象画法），
+     liuyao_result.css 只补六爻盘面独有的部分，必须引在它后面。 -->
+<link rel="stylesheet" href="/css/mhys_result.css?v=1">
+<link rel="stylesheet" href="/css/liuyao_result.css?v=1">
 <style>
 :root {
   --bg: #faf8f5;
@@ -28,10 +33,12 @@
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 html,body { background:var(--bg); color:var(--text); font-family:var(--sans); min-height:100vh; -webkit-font-smoothing:antialiased; }
 .mh-wrapper { max-width:420px; margin:0 auto; padding:1.5rem 1.2rem 4rem; }
-.mh-header { display:flex; align-items:center; gap:0.6rem; margin-bottom:1.2rem; }
-.mh-back { color:var(--text-muted); text-decoration:none; font-size:0.85rem; transition:color 0.2s; }
+/* 表头三项与梅花页逐字一致（flex-wrap 是为了表头那颗 AI 按钮在窄屏换行，
+   而不是把标题挤扁 —— 梅花页当初就是这么修的） */
+.mh-header { display:flex; flex-wrap:wrap; align-items:center; gap:0.4rem 0.6rem; margin-bottom:1rem; }
+.mh-back { color:var(--text-muted); text-decoration:none; font-size:0.85rem; transition:color 0.2s; flex-shrink:0; }
 .mh-back:hover { color:var(--text-dim); }
-.mh-title { font-family:var(--serif); font-size:1.25rem; font-weight:600; letter-spacing:0.06em; }
+.mh-title { font-family:var(--serif); font-size:1.25rem; font-weight:600; letter-spacing:0.06em; flex-shrink:0; }
 
 /* Card */
 .card { background:var(--card-bg); border:1px solid var(--border); border-radius:var(--radius); padding:1rem 1.1rem; margin-bottom:0.8rem; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
@@ -257,6 +264,8 @@ html,body { background:var(--bg); color:var(--text); font-family:var(--sans); mi
   <div class="mh-header">
     <a href="/" class="mh-back">← 返回</a>
     <h1 class="mh-title">六爻</h1>
+    <!-- 起卦前点它只会得到一句提示（面板在 /js/ai_panel.js 里，判断在 startButtonClicked） -->
+    <button class="ai-title-btn" id="aiBarBtn" onclick="toggleAIPanel()">☯ 看不懂？试试自动解析</button>
   </div>
 
   <!-- 1. 事项内容 -->
@@ -315,6 +324,10 @@ html,body { background:var(--bg); color:var(--text); font-family:var(--sans); mi
   <!-- 5. 开始排盘按钮 -->
   <button type="button" class="btn-primary" id="startBtn" onclick="startDivination(event)">开始排盘</button>
 
+  <!-- 盘面就渲染在本页下面（不再跳 result.html）—— 上面的表单保持原样，用户要改
+       起卦方式/时间直接在原处改，不用从结果页退回来 -->
+  <div id="resultArea"></div>
+
   <!-- 6. 排盘记录 -->
   <a href="/liuyao/history.html" class="record-entry">
     <div class="re-left">
@@ -351,43 +364,17 @@ html,body { background:var(--bg); color:var(--text); font-family:var(--sans); mi
 
 <script src="/js/lunar.min.js"></script>
 <script src="/js/auth.js?v=1787305221"></script>
+<script src="/js/ui_common.js?v=1"></script>
+<script src="/js/liuyao_render.js?v=1"></script>
 <script>
-// ===== 八卦数据 =====
-var TRIGRAMS = {
-  1: { name:'乾', symbol:'☰', full:'乾为天', element:'金', nature:'天' },
-  2: { name:'兑', symbol:'☱', full:'兑为泽', element:'金', nature:'泽' },
-  3: { name:'离', symbol:'☲', full:'离为火', element:'火', nature:'火' },
-  4: { name:'震', symbol:'☳', full:'震为雷', element:'木', nature:'雷' },
-  5: { name:'巽', symbol:'☴', full:'巽为风', element:'木', nature:'风' },
-  6: { name:'坎', symbol:'☵', full:'坎为水', element:'水', nature:'水' },
-  7: { name:'艮', symbol:'☶', full:'艮为山', element:'土', nature:'山' },
-  8: { name:'坤', symbol:'☷', full:'坤为地', element:'土', nature:'地' }
-};
-
-var HEX64 = {};
-(function(){
-  var names = [
-    ['乾为天','泽天夬','火天大有','雷天大壮','风天小畜','水天需','山天大畜','地天泰'],
-    ['天泽履','兑为泽','火泽睽','雷泽归妹','风泽中孚','水泽节','山泽损','地泽临'],
-    ['天火同人','泽火革','离为火','雷火丰','风火家人','水火既济','山火贲','地火明夷'],
-    ['天雷无妄','泽雷随','火雷噬嗑','震为雷','风雷益','水雷屯','山雷颐','地雷复'],
-    ['天风姤','泽风大过','火风鼎','雷风恒','巽为风','水风井','山风蛊','地风升'],
-    ['天水讼','泽水困','火水未济','雷水解','风水涣','坎为水','山水蒙','地水师'],
-    ['天山遁','泽山咸','火山旅','雷山小过','风山渐','水山蹇','艮为山','地山谦'],
-    ['天地否','泽地萃','火地晋','雷地豫','风地观','水地比','山地剥','坤为地']
-  ];
-  for (var u=1; u<=8; u++) for (var l=1; l<=8; l++) HEX64[u+'_'+l] = names[l-1][u-1];
-})();
-
-var WUXING = { '金':0, '水':1, '木':2, '火':3, '土':4 };
-function wuxingShengKe(from, to) {
-  var f=WUXING[from], t=WUXING[to];
-  if(f===t) return '比和';
-  if((f+1)%5===t) return '生';
-  if((t+1)%5===f) return '被生';
-  if((f+2)%5===t) return '克';
-  return '被克';
-}
+// ===== 取卦算术（只有卦号 ↔ 三爻，**不含装卦**）=====
+//
+// 摇出的六爻要折成上下卦号才能交给后端 —— 这是取卦，不是装卦。
+// 纳甲、六亲、六神、世应、宫卦身、旺衰、用神一律**后端**算（`/api/liuyao/paipan`）。
+// 改这个文件时请守住这条线：本页一旦自己算一份，用户看到的盘面与 AI 读到的那份
+// 就会慢慢分叉，而两边都长得像「一个卦」，没人分辨得出来。
+// 从前这里有一整份 TRIGRAMS / HEX64 / 纳甲表 / 八宫世应表 + calcGua，还有一套
+// 梅花才用的体用互变错综（六爻页上显示「体用判词」是张冠李戴）—— 全部删掉。
 
 function triToLines(num) {
   var m={1:[1,1,1],2:[1,1,0],3:[1,0,1],4:[1,0,0],5:[0,1,1],6:[0,1,0],7:[0,0,1],8:[0,0,0]};
@@ -397,85 +384,29 @@ function linesToTri(lines) {
   var k=lines.join(''), m={'111':1,'110':2,'101':3,'100':4,'011':5,'010':6,'001':7,'000':8};
   return m[k]||8;
 }
-function guaToLines(upper,lower) {
-  var up=triToLines(upper), lo=triToLines(lower);
-  // 上卦在上 下卦在下: [上爻,五爻,四爻,三爻,二爻,初爻]
-  return [up[2],up[1],up[0],lo[2],lo[1],lo[0]];
-}
-function buildLines(upper,lower,movingPositions) {
-  var lines=guaToLines(upper,lower), r=[];
-  if (typeof movingPositions === 'number') movingPositions = [movingPositions];
-  for(var i=0;i<6;i++) r.push({yang:lines[i]===1,moving:movingPositions.indexOf(6-i)!==-1,pos:6-i});
-  return r;
+
+/**
+ * 六爻（自初爻到上爻）→ 本卦与变卦的上下卦号 + 动爻位置。
+ * @param {Array} lines 长度 6，每项 { yang:Boolean, changing:Boolean }，下标 0 = 初爻
+ */
+function castToTrigrams(lines) {
+  var yangs = [], bianYangs = [], movePositions = [];
+  for (var i = 0; i < 6; i++) {
+    var y = lines[i].yang ? 1 : 0;
+    yangs.push(y);
+    if (lines[i].changing) { movePositions.push(i + 1); bianYangs.push(y ? 0 : 1); }
+    else bianYangs.push(y);
+  }
+  // linesToTri 吃 [下, 中, 上]
+  return {
+    upper: linesToTri([yangs[3], yangs[4], yangs[5]]),
+    lower: linesToTri([yangs[0], yangs[1], yangs[2]]),
+    bianUpper: linesToTri([bianYangs[3], bianYangs[4], bianYangs[5]]),
+    bianLower: linesToTri([bianYangs[0], bianYangs[1], bianYangs[2]]),
+    movePositions: movePositions,
+  };
 }
 
-function calcGua(upperNum, lowerNum, moveNums) {
-  if (typeof moveNums === 'number') moveNums = [moveNums];
-  var uTri=TRIGRAMS[upperNum], lTri=TRIGRAMS[lowerNum];
-  var hexName=HEX64[upperNum+'_'+lowerNum];
-  var benGua={
-    upper:upperNum, lower:lowerNum,
-    upperTri:uTri, lowerTri:lTri,
-    name:hexName,
-    lines:buildLines(upperNum,lowerNum,moveNums)
-  };
-  var benLines=guaToLines(upperNum,lowerNum);
-  // benLines顺序: [上爻(6),五爻(5),四爻(4),三爻(3),二爻(2),初爻(1)]
-  // 下互卦=二三四爻; 上互卦=三四五爻
-  var huLowerNum=linesToTri([benLines[4],benLines[3],benLines[2]]);
-  var huUpperNum=linesToTri([benLines[3],benLines[2],benLines[1]]);
-  var huGua={
-    upper:huUpperNum, lower:huLowerNum,
-    upperTri:TRIGRAMS[huUpperNum], lowerTri:TRIGRAMS[huLowerNum],
-    name:HEX64[huUpperNum+'_'+huLowerNum],
-    lines:buildLines(huUpperNum,huLowerNum,0)
-  };
-  var changedLines=benLines.slice();
-  // benLines[0]=上爻(6)...benLines[5]=初爻(1), moveNum 1-6 → index 6-moveNum
-  for (var mi = 0; mi < moveNums.length; mi++) {
-    var idx = 6 - moveNums[mi];
-    changedLines[idx] = changedLines[idx] === 1 ? 0 : 1;
-  }
-  // linesToTri 期望 [bottom,mid,top]
-  var bianUpperNum=linesToTri([changedLines[2],changedLines[1],changedLines[0]]);
-  var bianLowerNum=linesToTri([changedLines[5],changedLines[4],changedLines[3]]);
-  var bianGua={
-    upper:bianUpperNum, lower:bianLowerNum,
-    upperTri:TRIGRAMS[bianUpperNum], lowerTri:TRIGRAMS[bianLowerNum],
-    name:HEX64[bianUpperNum+'_'+bianLowerNum],
-    lines:buildLines(bianUpperNum,bianLowerNum,0)
-  };
-  var tiNum, yongNum;
-  var firstMove = moveNums.length > 0 ? moveNums[0] : 0;
-  if(firstMove<=3){ tiNum=upperNum; yongNum=lowerNum; }
-  else{ tiNum=lowerNum; yongNum=upperNum; }
-  var tiTri=TRIGRAMS[tiNum], yongTri=TRIGRAMS[yongNum];
-  var relation=wuxingShengKe(tiTri.element, yongTri.element);
-  var verdict;
-  if(relation==='被生') verdict={text:'用生体',cls:'verdict-neutral',desc:'用卦生体卦，外部能量滋养自身，有外力相助之象。宜顺势而为，借力而行。'};
-  else if(relation==='生') verdict={text:'体生用',cls:'verdict-neutral',desc:'体卦生用卦，自身能量外泄滋养外事。需量力而行，有所取舍。'};
-  else if(relation==='比和') verdict={text:'体用比和',cls:'verdict-neutral',desc:'内外和谐共振，能量流通无碍。守正持中，顺势而行。'};
-  else if(relation==='克') verdict={text:'体克用',cls:'verdict-neutral',desc:'体卦克用卦，自身克制外事。以己之力影响事态，但需适度，过刚易折。'};
-  else verdict={text:'用克体',cls:'verdict-neutral',desc:'用卦克体卦，外部压力克制自身。宜守不宜攻，以柔克刚，待机而行。'};
-  // 错卦：六爻全变（阴阳互变）
-  var cuoLines=benLines.slice();
-  for (var ci=0;ci<6;ci++) cuoLines[ci]=cuoLines[ci]===1?0:1;
-  var cuoUpperNum=linesToTri([cuoLines[2],cuoLines[1],cuoLines[0]]);
-  var cuoLowerNum=linesToTri([cuoLines[5],cuoLines[4],cuoLines[3]]);
-  var cuoGua={upper:cuoUpperNum,lower:cuoLowerNum,upperTri:TRIGRAMS[cuoUpperNum],lowerTri:TRIGRAMS[cuoLowerNum],name:HEX64[cuoUpperNum+'_'+cuoLowerNum],lines:buildLines(cuoUpperNum,cuoLowerNum,0)};
-  // 综卦：将本卦上下颠倒（六爻全反转）
-  var zongLines = benLines.slice().reverse();
-  var zongUpperNum=linesToTri([zongLines[2],zongLines[1],zongLines[0]]);
-  var zongLowerNum=linesToTri([zongLines[5],zongLines[4],zongLines[3]]);
-  var zongGua={upper:zongUpperNum,lower:zongLowerNum,upperTri:TRIGRAMS[zongUpperNum],lowerTri:TRIGRAMS[zongLowerNum],name:HEX64[zongUpperNum+'_'+zongLowerNum],lines:buildLines(zongUpperNum,zongLowerNum,0)};
-  return {
-    upper:upperNum, lower:lowerNum, moveNums:moveNums,
-    benGua:benGua, huGua:huGua, bianGua:bianGua,
-    cuoGua:cuoGua, zongGua:zongGua,
-    ti:{num:tiNum,tri:tiTri}, yong:{num:yongNum,tri:yongTri},
-    relation:relation, verdict:verdict
-  };
-}
 
 // ===== 时间计算（农历） =====
 function getShichen(hour) {
@@ -556,36 +487,14 @@ function enrichTimeInfo() {
       // 晚子时(23:00-23:59)日柱进位次日。用库自带的 Exact 版：
       // 它与 getTimeInGanZhi() 同源（时干由进位后的日干推），两者不会脱节
       info.dayGZ = lunar.getDayInGanZhiExact();
-      // 空亡：四柱各自推算
-      info.xkYear = xunKongFromDayGZ(info.yearGZ);
-      info.xkMonth = xunKongFromDayGZ(info.monthGZ);
-      info.xkDay = xunKongFromDayGZ(info.dayGZ);
-      info.xkHour = xunKongFromDayGZ(info.hourGZ);
-      var prev = lunar.getPrevJieQi();
-      var next = lunar.getNextJieQi();
-      if (prev && next) info.jieQi = prev.getName() + ' ~ ' + next.getName();
-      var prevJqTime = prev ? prev.getSolar().toYmd() : '';
-      var nextJqTime = next ? next.getSolar().toYmd() : '';
-      if (prevJqTime && nextJqTime) info.jieQiFull = prev.getName()+' '+prevJqTime+' ~ '+next.getName()+' '+nextJqTime;
+      // 空亡（四柱各自起旬）与节气区间**这里不再算**：它们由后端返回的 `display`
+      // 提供（`paipan/liuyao.js` 的 displayMeta），页面从那一份渲染。
+      // 前端从前各算一份（`xunKongFromDayGZ` + getPrevJieQi），两处口径一旦不同，
+      // 页面上的空亡与断卦用的空亡就会不是一回事 —— 而两行数字看上去都合理。
+      // 这里只留四柱：cardData 要带一份给后端与起卦时刻互证（见 prompt.sizhuFromCard）。
     }
   } catch(e) {}
   return info;
-}
-
-// 干支 → 空亡（旬空）：先定旬，再取末尾二支
-function xunKongFromDayGZ(dayGZ) {
-  if (!dayGZ || dayGZ.length < 2) return '';
-  var stems  = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
-  var branchs = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
-  var s = stems.indexOf(dayGZ.charAt(0));
-  var b = branchs.indexOf(dayGZ.charAt(1));
-  if (s === -1 || b === -1) return '';
-  // 本旬甲所落地支 = 当前地支 - 当前天干偏移（mod 12）
-  var jiaBranch = (b - s + 12) % 12;
-  // 空亡 = 甲落支往后第10、11位
-  var xk1 = (jiaBranch + 10) % 12;
-  var xk2 = (jiaBranch + 11) % 12;
-  return branchs[xk1] + branchs[xk2];
 }
 
 // ===== 铜钱摇卦交互逻辑 =====
@@ -605,6 +514,13 @@ var TYPE_MAP = {
 };
 
 function initCoinToss() {
+  // 它是 `setTimeout(initCoinToss, 50)` 叫起来的（`renderMethodParams` 里），而这
+  // 50 毫秒里用户可能已经切到别的起卦法 —— 那样铜钱那一块 DOM 已经整个被换掉了。
+  // 此时再往下走，`coinResetBtn` 是 null，`null.style` 抛 TypeError。这个错不白屏、
+  // 不挡路，只是控制台里多一条，所以它在页面上活了很久没人发现
+  // （`duipan/drive_liuyao_page.js` 第 ④ 例：导航后立刻点「手动指定」就复现）。
+  // 判据用 `coinRow`：铜钱那一整块在，才谈得上初始化它。
+  if (!document.getElementById('coinRow')) return;
   COIN.state = 'idle';
   COIN.round = 0;
   COIN.results = [];
@@ -730,7 +646,27 @@ function coinReset() {
   initCoinToss();
 }
 
-// 从COIN.results构建卦
+// 摇卦四象名 → 逐爻记录。三种起卦法共用：从前这段在 coin/auto 里各写一遍。
+function linesFromTypes(types) {
+  return types.map(function(t, i){
+    var info = TYPE_MAP[t];
+    return { num:info.num, yang:!!info.yang, changing:!!info.changing, type:t, pos:i+1 };
+  });
+}
+
+// 三种起卦法的**同一个出口**：给出六爻 + 折出的卦号 + 动爻位置。
+// 返回值就是「起卦结果」的全部，没有装卦的东西 —— 装卦在后端。
+function castResult(method, lines) {
+  var tri = castToTrigrams(lines);
+  return {
+    method: method,
+    coinLines: lines,
+    movePositions: tri.movePositions,
+    // 上/下卦号与变卦上/下卦号，直接进 cardData.hexagrams
+    trigrams: tri,
+  };
+}
+
 function coinDivination() {
   if (COIN.results.length !== 6) {
     // 如果还没完成6次，自动补齐
@@ -739,50 +675,15 @@ function coinDivination() {
       COIN.results.push(getLineType(hua));
     }
   }
-  var lines = COIN.results.map(function(t,i){
-    var info = TYPE_MAP[t];
-    return { num:info.num, yang:!!info.yang, changing:!!info.changing, type:t, pos:i+1 };
-  });
-  // 下卦：初爻(0)=bottom, 二爻(1)=mid, 三爻(2)=top
-  var lowerYangs = [lines[0].yang?1:0, lines[1].yang?1:0, lines[2].yang?1:0];
-  var lowerNum = linesToTri(lowerYangs);
-  // 上卦：四爻(3)=bottom, 五爻(4)=mid, 上爻(5)=top
-  var upperYangs = [lines[3].yang?1:0, lines[4].yang?1:0, lines[5].yang?1:0];
-  var upperNum = linesToTri(upperYangs);
-  // 动爻
-  var movePos = [];
-  for (var i = 0; i < 6; i++) {
-    if (lines[i].changing) movePos.push(i+1);
-  }
-  var gua = calcGua(upperNum, lowerNum, movePos.slice());
-  gua.coinLines = lines.slice();
-  gua.movePositions = movePos;
-  return { method:'coin', coinLines:lines.slice(), gua:gua };
+  return castResult('coin', linesFromTypes(COIN.results));
 }
 
 function manualDivination() {
-  var lines = [];
-  for (var i = 0; i < 6; i++) {
-    var type = MANUAL_LINES[i] || 'shaoyin';
-    var yang = (type === 'shaoyang' || type === 'laoyang');
-    var changing = (type === 'laoyin' || type === 'laoyang');
-    var val = type === 'shaoyang' ? 7 : type === 'shaoyin' ? 8 : type === 'laoyang' ? 9 : 6;
-    lines.push({ num:val, yang:yang, changing:changing, type:type });
-  }
-  // 下卦：初爻(0)=bottom, 二爻(1)=mid, 三爻(2)=top
-  var lowerYangs = [lines[0].yang?1:0, lines[1].yang?1:0, lines[2].yang?1:0];
-  var lowerNum = linesToTri(lowerYangs);
-  // 上卦：四爻(3)=bottom, 五爻(4)=mid, 上爻(5)=top
-  var upperYangs = [lines[3].yang?1:0, lines[4].yang?1:0, lines[5].yang?1:0];
-  var upperNum = linesToTri(upperYangs);
-  var movePos = [];
-  for (var i = 0; i < 6; i++) {
-    if (lines[i].changing) movePos.push(i + 1);
-  }
-  var gua = calcGua(upperNum, lowerNum, movePos.slice());
-  gua.coinLines = lines.slice();
-  gua.movePositions = movePos;
-  return { method:'manual', coinLines:lines.slice(), gua:gua };
+  var types = [];
+  for (var i = 0; i < 6; i++) types.push(MANUAL_LINES[i] || 'shaoyin');
+  // 手动指定的四象名是页面自己的交互词汇（少阴/少阳/老阴/老阳），
+  // TYPE_MAP 认的就是它们 —— 交给同一张表转成逐爻记录，不另写一份。
+  return castResult('manual', linesFromTypes(types));
 }
 
 function autoDivination() {
@@ -791,24 +692,7 @@ function autoDivination() {
     var huaCount = Math.floor(Math.random()*4);
     COIN.results.push(getLineType(huaCount));
   }
-  var lines = COIN.results.map(function(t,i){
-    var info = TYPE_MAP[t];
-    return { num:info.num, yang:!!info.yang, changing:!!info.changing, type:t, pos:i+1 };
-  });
-  // 下卦：初爻(0)=bottom, 二爻(1)=mid, 三爻(2)=top
-  var lowerYangs = [lines[0].yang?1:0, lines[1].yang?1:0, lines[2].yang?1:0];
-  var lowerNum = linesToTri(lowerYangs);
-  // 上卦：四爻(3)=bottom, 五爻(4)=mid, 上爻(5)=top
-  var upperYangs = [lines[3].yang?1:0, lines[4].yang?1:0, lines[5].yang?1:0];
-  var upperNum = linesToTri(upperYangs);
-  var movePos = [];
-  for (var i = 0; i < 6; i++) {
-    if (lines[i].changing) movePos.push(i+1);
-  }
-  var gua = calcGua(upperNum, lowerNum, movePos.slice());
-  gua.coinLines = lines.slice();
-  gua.movePositions = movePos;
-  return { method:'auto', coinLines:lines.slice(), gua:gua };
+  return castResult('auto', linesFromTypes(COIN.results));
 }
 
 // ===== 当前选中的方法 =====
@@ -927,6 +811,11 @@ function renderManualLines() {
 }
 
 function fillManualLineSelects() {
+  // 与 initCoinToss 同一处境：它也是 50ms 后叫起来的，那时用户可能已经离开手动指定。
+  // 手动那一块不在就**别动 MANUAL_LINES** —— 否则会在用户看不见的地方把六爻重置成
+  // 全少阴，下次切回手动时他之前点的那六爻已经没了（`renderManualLines` 自己有
+  // 判空，所以这里从前连报错都不报，只是静静地丢）。
+  if (!document.getElementById('manualLines')) return;
   // 兼容旧调用，重置手动行并渲染
   MANUAL_LINES = ['shaoyin','shaoyin','shaoyin','shaoyin','shaoyin','shaoyin'];
   renderManualLines();
@@ -948,65 +837,132 @@ async function startDivination(e) {
     // 手动指定无需验证，已设默认值
   }
 
-  // ===== 2. 计算卦象 =====
+  // ===== 2. 取卦（本页只做这一件事） =====
   var result;
   try {
     switch(currentMethod) {
       case 'coin': result = coinDivination(); break;
       case 'manual': result = manualDivination(); break;
       case 'auto': result = autoDivination(); break;
-      default: resetBtn(); btn.textContent='开始排盘'; return;
+      default: resetBtn(); return;
     }
   } catch(err) {
-    console.error('排盘计算失败:', err);
-    alert('排盘出错：' + (err.message || '未知错误') + '，请刷新后重试');
+    console.error('取卦失败:', err);
+    alert('起卦出错：' + (err.message || '未知错误') + '，请刷新后重试');
     resetBtn();
     return;
   }
 
-  // ===== 3. 统一：topic / gender / 起卦时间 / 农历 / 跳转 =====
-  var topic = document.getElementById('topicInput').value.trim();
-  result.topic = topic;
-  result.gender = currentGender;
-  // 起卦时间
+  var card = buildCard(result);
+
+  // ===== 3. 装卦：交给后端，页面等结果 =====
+  // 盘面里的一切（卦名、宫、纳甲、六亲、六神、世应、卦身、旺衰、用神）都由
+  // `/api/liuyao/paipan` 装出来。这里连「本卦叫什么名字」都不自己查 —— 页面自己
+  // 查一份，AI 读的是后端那份，两者一旦分叉，用户看到「盘上是这个卦、解读里讲的
+  // 是那个卦」，而两边各自看都正常。
+  btn.disabled = true;
+  btn.classList.add('loading');
+  btn.textContent = '排盘中…';
+  var pay;
+  try {
+    var resp = await fetch('/api/liuyao/paipan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(card)
+    });
+    pay = await resp.json();
+    if (!resp.ok) {
+      alert('排盘失败：' + ((pay && pay.error) || ('HTTP ' + resp.status)));
+      resetBtn(); return;
+    }
+  } catch (err) {
+    alert('排盘请求失败，请检查网络后重试。');
+    resetBtn(); return;
+  }
+  if (!pay || !pay.chart) { alert('排盘结果不完整，请重试。'); resetBtn(); return; }
+
+  // ===== 4. 存记录（有事项才存；存不上不影响看结果，只是记录列表里没有这条） =====
+  currentRecordId = null;
+  if (card.topic) {
+    try {
+      var sresp = await fetch('/api/liuyao-records', {
+        method: 'POST',
+        headers: AUTH.isLoggedIn()
+          ? { 'Content-Type':'application/json', 'Authorization':'Bearer '+AUTH.getToken() }
+          : { 'Content-Type':'application/json' },
+        body: JSON.stringify({
+          topic: card.topic,
+          method: card.method,
+          resultData: card   // 记录里存**这份 card**：起卦结果 + 起卦痕迹 + 四柱
+        })
+      });
+      if (sresp.ok) {
+        var saved = await sresp.json();
+        currentRecordId = saved.id;
+      }
+    } catch(e) {}
+  }
+
+  showResultHere(card, pay);
+}
+
+/**
+ * 页面上的起卦结果 → 交给后端的 cardData。
+ *
+ * 只装**起卦结果**（上下卦号）与四柱：卦名、纳甲、六亲、六神、世应、宫、卦身、
+ * 旺衰、用神全部由后端装（`/api/liuyao/paipan` → `prompt.liuyaoChartFromCard`）。
+ *
+ * `lunarInfo` 四柱必须带全：后端拿它跟 `divinationTime` 互证（`prompt.sizhuFromCard`
+ * 要求日柱**与**时柱同时对上才采信后端重算的四柱）。带不上的后果不是报错，而是
+ * 后端静默退回前端四柱 —— 那样「立春换年」这类修正就白做了。
+ */
+function buildCard(result) {
+  var tri = result.trigrams;
+  var dt = '';
   if (selectedTime) {
-    result.divinationTime = selectedTime.year+'-'+String(selectedTime.month).padStart(2,'0')+'-'+String(selectedTime.day).padStart(2,'0')+' '+
+    dt = selectedTime.year+'-'+String(selectedTime.month).padStart(2,'0')+'-'+String(selectedTime.day).padStart(2,'0')+' '+
       String(selectedTime.hour).padStart(2,'0')+':'+String(selectedTime.minute).padStart(2,'0');
   }
-  result.createdAt = new Date().toISOString();
-  // 记录实际排盘时间（按钮点击时间，用于排序）
-  result.recordTime = new Date().toISOString();
-  result.lunarInfo = enrichTimeInfo();
+  return {
+    topic: document.getElementById('topicInput').value.trim(),
+    gender: currentGender,
+    method: result.method,
+    divinationTime: dt,
+    createdAt: new Date().toISOString(),
+    // 记录实际排盘时间（按钮点击时间，用于排序）
+    recordTime: new Date().toISOString(),
+    lunarInfo: enrichTimeInfo(),
+    hexagrams: {
+      gender: currentGender,
+      benGua: { upper: tri.upper, lower: tri.lower },
+      bianGua: { upper: tri.bianUpper, lower: tri.bianLower }
+    },
+    // 起卦痕迹：摇出的六爻与动爻位置。**只留档，不参与装卦** —— 装卦只看上面的
+    // 卦号，爻象由后端从卦号反推。留着是为了「这卦当时是怎么摇出来的」可复查。
+    coinLines: result.coinLines,
+    movePositions: tri.movePositions
+  };
+}
 
-  // 事项为空 → 临时排盘，不保存记录
-  if (!topic) {
-    localStorage.setItem('liuyao_result', JSON.stringify(result));
-    window.location.href = '/liuyao/result.html?v=4';
-    return;
-  }
-
-  try {
-    var resp = await fetch('/api/liuyao-records', {
-      method: 'POST',
-      headers: AUTH.isLoggedIn()
-        ? { 'Content-Type':'application/json', 'Authorization':'Bearer '+AUTH.getToken() }
-        : { 'Content-Type':'application/json' },
-      body: JSON.stringify({
-        topic: topic,
-        method: result.method,
-        resultData: result
-      })
-    });
-    var saved = await resp.json();
-    if (resp.ok) {
-      window.location.href = '/liuyao/result.html?v=4&id=' + saved.id;
-    } else {
-      window.location.href = '/liuyao/result.html?v=4';
-    }
-  } catch(e) {
-    localStorage.setItem('liuyao_result', JSON.stringify(result));
-    window.location.href = '/liuyao/result.html?v=4';
-  }
+// 结果就渲染在本页下面（原先这里是跳 /liuyao/result.html）。
+// result.html 没废：历史记录点进去看的还是它，两页共用 liuyao_render.js。
+function showResultHere(card, pay) {
+  var area = document.getElementById('resultArea');
+  // renderLiuyaoResult 顺手设好全局（currentChart / currentTopic / …），
+  // AI 面板读的就是那几个 —— 必须在 autoStartAI() 之前调用
+  area.innerHTML = renderLiuyaoResult(pay.chart, pay.display, {
+    topic: card.topic,
+    gender: card.gender,
+    method: card.method,
+    divinationTime: card.divinationTime,
+    createdAt: card.createdAt,
+    recordId: currentRecordId,
+    lunarInfo: card.lunarInfo
+  });
+  resetBtn();
+  if (area.scrollIntoView) area.scrollIntoView({ behavior:'smooth', block:'start' });
+  // 结果一出来就开始解读，不用用户再点一次（面板在 /js/liuyao_ai_panel.js 里）
+  autoStartAI();
 }
 
 // ===== 初始化 =====
@@ -1362,5 +1318,10 @@ function confirmTimePicker() {
 
 init();
 </script>
+
+<!-- AI 面板引擎与六爻的配置（引擎与梅花页共用一份） -->
+<script src="/js/ai_panel.js?v=1"></script>
+<script src="/js/liuyao_ai_panel.js?v=1"></script>
+
 </body>
 </html>
