@@ -86,6 +86,14 @@ const METHOD_META = {
     source: '',
     note: '直接指定上卦、下卦与动爻，不经取数',
   },
+  // **shushu 同样没有这一种**，它是前端梅花页的「拆半求和」，为免搬后端时把
+  // 用户可见的起卦法弄丢而在此落地。与 `manual` 同一种情况：
+  // 不参与层 7 对拍，正确性由 `duipan/verify_qigua_vs_front.js` 与前端逐例核对。
+  split: {
+    name: '拆半求和',
+    source: '',
+    note: '所报数字拆成前后两半，各半求和取上下卦，两半之和取动爻',
+  },
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -323,8 +331,7 @@ function meihuaTimeNumbers(dt) {
   const yNum = ZHI_ORDER.indexOf(yearBranch) + 1;
   const m = Math.abs(lun.getMonth());   // 农历月（闰月库返回负值，取绝对值）
   const d = lun.getDay();
-  // 时辰序：23-1 子时=1, 1-3 丑=2, …, 21-23 亥=12
-  const hNum = t.h === 23 ? 1 : (Math.floor((t.h + 1) / 2) % 12) + 1;
+  const hNum = hourNumAt(t.h);
 
   const sum3 = yNum + m + d;
   const sum4 = sum3 + hNum;
@@ -342,6 +349,15 @@ function meihuaTimeNumbers(dt) {
     moving: wrap6(sum4),
   };
 }
+
+/**
+ * 时辰序 1..12：23-1 子时=1, 1-3 丑=2, …, 21-23 亥=12。
+ *
+ * 抽出来是因为**有三处**要用：时间起卦（下面）、报数与拆半求和的「动爻加时辰」
+ * 选项（`qiguaNumbers`/`qiguaSplitHalf` 的 `extra` 参数）。三处各写一遍公式
+ * 迟早分叉，而这种分叉的表现是「同一时刻，一个方法算子时=1、另一个算=12」。
+ */
+function hourNumAt(h) { return h === 23 ? 1 : (Math.floor((h + 1) / 2) % 12) + 1; }
 
 /** 时间起卦法（农历年月日时）。 */
 function qiguaTime(dt) {
@@ -368,8 +384,14 @@ function qiguaTime(dt) {
  *
  * 古法：上卦 = 第一数 ÷ 8 的余数，下卦 = 第二数 ÷ 8 的余数，
  * 动爻 = 两数之和 ÷ 6 的余数；报了第三个数时，动爻改由**三数之和**取。
+ *
+ * `extra`（可选）是**本项目自有**的「动爻加时辰」：只加进动爻的求和，**不动**上下卦。
+ * shushu 没有这个参数，金标准也不传，故 `extra` 缺省时本函数的一字一句与移植时
+ * 逐字相同（层 7 的 640 例就是这么钉住的）。传了才多出那一项，
+ * 于是它的正确性只能靠前端交叉核对（`duipan/verify_qigua_vs_front.js`），
+ * 不能靠对拍 —— 与 `manual`/`split` 同一种情况。
  */
-function qiguaNumbers(num1, num2, num3) {
+function qiguaNumbers(num1, num2, num3, extra) {
   for (const [label, v] of [['第一数', num1], ['第二数', num2]]) {
     if (!Number.isInteger(v) || v <= 0) throw new Error(`${label}必须是正整数，收到 ${v}`);
   }
@@ -379,19 +401,24 @@ function qiguaNumbers(num1, num2, num3) {
 
   const upperNum = wrap8(num1);
   const lowerNum = wrap8(num2);
+  const add = Number.isInteger(extra) && extra > 0 ? extra : 0;
 
   let moving;
   let movingFrom;
   let total;
   if (num3 === undefined || num3 === null) {
-    moving = wrap6(num1 + num2);
     movingFrom = `${num1} + ${num2} = ${num1 + num2}`;
     total = num1 + num2;
   } else {
-    moving = wrap6(num1 + num2 + num3);
     movingFrom = `${num1} + ${num2} + ${num3} = ${num1 + num2 + num3}`;
     total = num1 + num2 + num3;
   }
+  // add 为 0 时两处都不改动 —— 保证对拍那 640 例逐字不变。
+  if (add) {
+    movingFrom = `${movingFrom} + ${add}（时辰） = ${total + add}`;
+    total += add;
+  }
+  moving = wrap6(total);
 
   return pack('number', upperNum, lowerNum, moving,
     { num1, num2, num3: num3 === undefined ? null : num3 },
@@ -400,6 +427,62 @@ function qiguaNumbers(num1, num2, num3) {
       upper_calc: `${num1} ÷ 8 余 ${upperNum}`,
       lower_calc: `${num2} ÷ 8 余 ${lowerNum}`,
       moving_calc: `${movingFrom}，÷ 6 余 ${moving}`,
+      total,
+    });
+}
+
+/**
+ * 拆半求和起卦法 —— **本项目自有，shushu 没有此法**（同 `manual`）。
+ *
+ * 前端梅花页的「拆半求和」就是这个：把用户给的一串数字**拆成两半**（前小后大），
+ * 各半求和取上下卦，两半之和取动爻。它不在层 7 的金标准里（shushu 的 `qigua()`
+ * 只认 time/number/character），故正确性由 `duipan/verify_qigua_vs_front.js`
+ * 与前端逐例核对 —— 本函数是**照抄前端那 20 行**的语义，不是重新设计：
+ *
+ *   半 = floor(位数 / 2)；上半 = 前「半」位之和；下半 = 其后各位之和
+ *   上卦 = 上半 % 8（0 取 8）；下卦 = 下半 % 8（0 取 8）
+ *   动爻 = (上半 + 下半) % 6（0 取 6）      ← 从**原始和**取模，不得用已取模的上/下卦
+ *
+ * 两处**容易抄错**因而特别写明的地方：
+ * * 动爻必须从原始和取模。用 `upper + lower` 取模是前端早先的 bug
+ *   （8 的余数会污染 6 的余数），本函数不得复现。
+ * * **一位**输入时「上半」是空集，和为 0 → 上卦取 8（坤）。这不是边界兜底，
+ *   是 `%8 || 8` 的直接结果；前端同此，故保持一致（`verify_qigua_vs_front.js` 有例）。
+ *
+ * 这里 0 **是**合法数字：它只作为求和的加数，不充当卦数（与报数法不同 ——
+ * 报数里 0 要直接当卦数用，而先天卦数没有 0，故那边拒收）。
+ *
+ * @param {number[]|string} digits 各位数字（0–9），或等价的数字串
+ * @param {number} [extra] 「动爻加时辰」，同 `qiguaNumbers`
+ */
+function qiguaSplitHalf(digits, extra) {
+  const list = (typeof digits === 'string' ? digits.split('') : (digits || []))
+    .map((x) => (typeof x === 'string' ? parseInt(x, 10) : x));
+  if (!list.length) throw new Error('拆半求和需要至少一位数字');
+  for (const v of list) {
+    if (!Number.isInteger(v) || v < 0 || v > 9) {
+      throw new Error(`拆半求和的每一位必须是 0-9 的数字，收到 ${v}`);
+    }
+  }
+
+  const half = Math.floor(list.length / 2);
+  const sum1 = list.slice(0, half).reduce((a, b) => a + b, 0);
+  const sum2 = list.slice(half).reduce((a, b) => a + b, 0);
+  const upperNum = wrap8(sum1);
+  const lowerNum = wrap8(sum2);
+  const add = Number.isInteger(extra) && extra > 0 ? extra : 0;
+  const total = sum1 + sum2 + add;
+  const moving = wrap6(total);
+  const addFrom = add ? ` + ${add}（时辰）` : '';
+
+  return pack('split', upperNum, lowerNum, moving,
+    { digits: list.slice(), extra: add },
+    {
+      formula: '上卦=前半之和÷8；下卦=后半之和÷8；动爻=两半总合÷6',
+      split_at: half,
+      upper_calc: `${list.slice(0, half).join('+') || '0'} = ${sum1}，÷ 8 余 ${upperNum}`,
+      lower_calc: `${list.slice(half).join('+') || '0'} = ${sum2}，÷ 8 余 ${lowerNum}`,
+      moving_calc: `${sum1} + ${sum2} = ${sum1 + sum2}${addFrom}，÷ 6 余 ${moving}`,
       total,
     });
 }
@@ -524,13 +607,18 @@ function fromGua(upperNum, lowerNum, moving) {
       moving_calc: `动爻指定为第 ${moving} 爻` });
 }
 
-/** 统一入口：method ∈ {time, number, character, manual}。 */
+/**
+ * 统一入口：method ∈ {time, number, character, manual, split}。
+ *
+ * 后两者是本项目自有（shushu 无），见各自的 METHOD_META 注。
+ */
 function qigua(method, kwargs) {
   const k = kwargs || {};
   if (method === 'time') return qiguaTime(k.dt);
-  if (method === 'number') return qiguaNumbers(k.num1, k.num2, k.num3);
+  if (method === 'number') return qiguaNumbers(k.num1, k.num2, k.num3, k.extra);
   if (method === 'character') return qiguaCharacters(k.text, k.strokes);
   if (method === 'manual') return fromGua(k.upper, k.lower, k.moving);
+  if (method === 'split') return qiguaSplitHalf(k.digits, k.extra);
   // 报错文案里**只列 shushu 那三法**，不列 `manual`：这行字是要与金标准
   // 逐字对拍的（层 7 的错误路径 10 例），shushu `qigua()` 抛的就是那三个。
   // 故此处不用 `Object.keys(METHOD_META)`——那样加个本项目自有的入口就会
@@ -777,7 +865,8 @@ function divine(method, opts) {
 module.exports = {
   METHOD_META,
   // 起卦
-  qigua, qiguaTime, qiguaNumbers, qiguaCharacters, fromGua, meihuaTimeNumbers,
+  qigua, qiguaTime, qiguaNumbers, qiguaCharacters, fromGua, qiguaSplitHalf,
+  meihuaTimeNumbers, hourNumAt,
   // 卦象
   buildHexagram, deriveAll, judgeTiYong, tiYongDetail, hexagramSymbol, hexName,
   linesOfTrigram, trigramOfLines, trigramDetail,

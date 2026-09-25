@@ -61,7 +61,7 @@ function loadFrontend() {
       process.exit(2);
     }
   }
-  return new Function('Solar', 'Lunar', 'document', 'alert',
+  return new Function('Solar', 'Lunar', 'document', 'alert', 'Date',
     `var selectedTime = null;\n${slice}\n;return { calcGua, timeDivination, manualDivination,`
     + ` num1Divination, num2Divination, setSelectedTime: function (t) { selectedTime = t; } };`);
 }
@@ -74,7 +74,23 @@ const fakeDoc = {
     return els.get(id);
   },
 };
-const F = loadFrontend()(lunarLib.Solar, lunarLib.Lunar, fakeDoc, (m) => alerts.push(m));
+
+// 冻结时钟。前端的「动爻加时辰」走 `getLunarInfo()`，而它用的是 **`new Date()`
+// （真实时钟）**，不是页面上选定的 `selectedTime` —— 要逐点比就得把时钟钉住。
+// （这本身是个缺陷，见文末「登记」。）
+const CLOCK = { y: 2026, mo: 9, d: 25, h: 12, mi: 0, s: 0 };
+class FrozenDate {
+  getFullYear() { return CLOCK.y; }
+  getMonth() { return CLOCK.mo - 1; }
+  getDate() { return CLOCK.d; }
+  getHours() { return CLOCK.h; }
+  getMinutes() { return CLOCK.mi; }
+  getSeconds() { return CLOCK.s; }
+}
+const atHour = (h) => { CLOCK.h = h; };
+
+const F = loadFrontend()(lunarLib.Solar, lunarLib.Lunar, fakeDoc,
+  (m) => alerts.push(m), FrozenDate);
 
 const diffs = [];
 function eq(label, got, want, ctx) {
@@ -184,7 +200,72 @@ let num2Cases = 0;
   }
 }
 
-// ── ④ 登记：报数里的 0 ───────────────────────────────────────────────
+// ── ④ 拆半求和（前端 num1 ↔ 后端 `qiguaSplitHalf`，「拆半」已搬到后端）──
+// 1–4 位**穷举**（10+100+1000+10000 例，0 在这里是合法数字），5–9 位按步长抽样。
+// 一位输入时前半是空集（和为 0 → 上卦取坤）是容易抄错的一支，穷举天然覆盖。
+let splitCases = 0;
+function checkSplit(v) {
+  splitCases++;
+  const ctx = `拆半 ${v}`;
+  const digits = v.split('');
+  fakeDoc.getElementById('num1AddShichen').checked = false;
+  fakeDoc.getElementById('num1Input').value = v;
+  const front = F.num1Divination();
+  if (!front || !front.gua) {
+    diffs.push(`${ctx} 前端拆半起卦返回空`);
+    return;
+  }
+  const ours = M.qiguaSplitHalf(digits);
+  eq('上卦数', ours.upper_num, front.calc.upper, ctx);
+  eq('下卦数', ours.lower_num, front.calc.lower, ctx);
+  eq('动爻数', ours.moving, front.calc.move, ctx);
+}
+{
+  const digitsUpTo = (len) => {
+    const out = [];
+    const walk = (s) => { if (s.length === len) { out.push(s); return; } for (let i = 0; i <= 9; i++) walk(s + i); };
+    if (len <= 4) walk('');
+    else { for (let a = 0; a <= 9; a++) out.push('1'.repeat(len - 1) + a); }
+    return out;
+  };
+  for (let len = 1; len <= 9 && diffs.length <= 30; len++) {
+    for (const v of digitsUpTo(len)) {
+      checkSplit(v);
+      if (diffs.length > 30) break;
+    }
+  }
+}
+
+// ── ⑤ 「动爻加时辰」两处（前端 num1/num2 的勾选项 ↔ 后端的 `extra`）─────
+// 前端这个选项用的是**真实时钟**（`getLunarInfo()` → `new Date()`），故把时钟
+// 钉到各时辰上逐点比。`extra` 是后端自有参数（shushu 无），同 `manual`/`split`。
+let addShichenCases = 0;
+{
+  for (let h = 0; h < 24; h++) {
+    atHour(h);
+    const ctx = `加时辰 ${String(h).padStart(2, '0')}:00`;
+    // 报数：报三个数 + 时辰
+    fakeDoc.getElementById('num2AddShichen').checked = true;
+    fakeDoc.getElementById('num2Input').value = '386';
+    const f2 = F.num2Divination();
+    const o2 = M.qiguaNumbers(3, 8, 6, M.hourNumAt(h));
+    addShichenCases++;
+    eq('报数动爻', o2.moving, f2.calc.move, ctx);
+    eq('报数动爻和', o2.derivation.total, f2.calc.moveRaw, ctx);
+    // 拆半求和：同一位数串 + 时辰
+    fakeDoc.getElementById('num1AddShichen').checked = true;
+    fakeDoc.getElementById('num1Input').value = '386';
+    const f1 = F.num1Divination();
+    const o1 = M.qiguaSplitHalf('386', M.hourNumAt(h));
+    addShichenCases++;
+    eq('拆半动爻', o1.moving, f1.calc.move, ctx);
+    eq('拆半动爻和', o1.derivation.total, f1.calc.moveRaw, ctx);
+  }
+  fakeDoc.getElementById('num2AddShichen').checked = false;
+  fakeDoc.getElementById('num1AddShichen').checked = false;
+}
+
+// ── ⑥ 登记：报数里的 0 ───────────────────────────────────────────────
 // 这一条**不是**取数口径分歧，两侧对 0 的处理都自洽：
 //   前端：把 0 当合法的一位数字 —— 卦数 0÷8 余 0 → 取坤（沿用「余 0 取 8」），
 //         动爻的三数之和里 0 计 0。且它的输入校验提示原文就是「请输入三个数字（0-9）」，
@@ -229,9 +310,35 @@ const soft = [];
   if (emptyThrew) {
     soft.push('报数留空：前端直接抛异常（' + emptyThrew + '）—— 同由 UI 拦下，线上不可达');
   }
+
+  // 下面这条**不是**不可达，而是默认路径：两个「加时辰」勾选框在 markup 里就是
+  // `checked`，即报数/拆半的用户**默认**在算「动爻 + 时辰」。而这个时辰取自
+  // `getLunarInfo()` → `new Date()`，**真实时钟**，不是时间选择器里选定的
+  // `selectedTime`。于是在页面上把起卦时间改成别的时刻时：
+  //   页面显示/存库的起卦时间 = 选定时刻，而卦的动爻用的是**此刻**的时辰。
+  // 造一例把它钉住（选 08:00，把时钟停在 22:00）：前端动爻用亥时，后端会用辰时。
+  fakeDoc.getElementById('num2AddShichen').checked = true;
+  fakeDoc.getElementById('num2Input').value = '386';
+  atHour(8);
+  F.setSelectedTime({ year: 2026, month: 9, day: 25, hour: 8, minute: 0, calendar: 'gregorian' });
+  const picked = F.num2Divination();
+  atHour(22);
+  const real = F.num2Divination();
+  fakeDoc.getElementById('num2AddShichen').checked = false;
+  atHour(12);
+  if (picked.calc.move !== real.calc.move) {
+    soft.push('「动爻加时辰」用的是**真实时钟**而非页面选定的起卦时间（默认勾选，故这是默认路径）：'
+      + '选 08:00 时按辰时给出动爻 ' + picked.calc.move + '，而在 22:00 那一刻起卦给出 '
+      + real.calc.move + ' —— 页面显示的起卦时间与卦实际用的时辰不是一回事。'
+      + '搬迁到后端时后端只会拿到提交的时间，故这条**会改变**这些用户的卦：'
+      + '要么前端把选定时刻一并提交（推荐，且与页面显示一致），要么明确保留现状并写进文档');
+  } else {
+    diffs.push('「动爻加时辰」的时钟来源探针失效：选定 08:00 与真实 22:00 得出同一个动爻，'
+      + '说明这次没测到「真实时钟」那一支');
+  }
 }
 
-// ── ⑤ 后端随机起卦：前端没有对应实现，只验值域 ──────────────────────
+// ── ⑦ 后端随机起卦：前端没有对应实现，只验值域 ──────────────────────
 // （前端 `autoDivination()` 用的是 `Math.random()`，两侧无法逐点比；且它属
 //  「计划 2.1 要补」的范围。这里只确认后端的随机确实落在合法值域内。）
 {
@@ -243,7 +350,7 @@ const soft = [];
   if (!seen.size) diffs.push('随机/手动值域自检：一个组合都没产出');
 }
 
-// ── ⑤ 反证：把「晚子时换日」关掉，23 点必须立刻出现差异 ───────────────
+// ── ⑧ 反证：把「晚子时换日」关掉，23 点必须立刻出现差异 ───────────────
 // 上面 2208 例全绿本身证明不了什么 —— 有可能那 92 个 23:00 样例根本没走到换日那一支
 // （比如前端其实没换日、后端也没换、两边一起错成一样）。这里把后端那一支按回
 // shushu 口径（不换日），若差异**没**出现，说明这条扫描是橡皮章。
@@ -275,19 +382,22 @@ console.log(`  ① 时间法 ${timeCases} 例（${dates.length} 天 × 24 小时
   + `含 22 点 ${boundary['22']}、23 点 ${boundary['23'] || 0}、00 点 ${boundary['00']}）`);
 console.log(`  ② 手动   ${manualCases} 例（8×8×6 全组合）`);
 console.log(`  ③ 报数   ${num2Cases} 例（每位 1–9 的全部组合，不加时辰）`);
+console.log(`  ④ 拆半求和 ${splitCases} 例（1–4 位穷举；后端 `+'`qiguaSplitHalf`'+`）`);
+console.log(`  ⑤ 动爻加时辰 ${addShichenCases} 例（0–23 时 × 报数/拆半；后端 `+'`extra`'+`）`);
 console.log('  ── 以下**没有**两侧对照，如实登记，不算通过也不算失败 ──');
-console.log('  ④ 拆半求和（前端 num1）：后端与 shushu 都**没有**此法 —— 迁移前需决定取舍');
-console.log('  ⑤ 字数起卦（后端 character）：前端**没有**此法 —— 计划 2.1 要补到页面上');
-console.log('  ⑥ 随机（前端 auto）：`Math.random()`，两侧无法逐点比');
+console.log('  ⑥ 字数起卦（后端 character）：前端**没有**此法 —— 计划 2.1 要补到页面上');
+console.log('  ⑦ 随机（前端 auto）：`Math.random()`，两侧无法逐点比');
 
 let bad = 0;
 
 // 防「空绿」：时间法与手动必须真跑满；循环条件被改坏时这里会先炸。
 const wantTime = dates.length * 24;
-if (timeCases !== wantTime || manualCases !== 384 || num2Cases !== 729) {
+const wantSplit = 10 + 100 + 1000 + 10000 + 5 * 10;
+if (timeCases !== wantTime || manualCases !== 384 || num2Cases !== 729
+  || splitCases !== wantSplit || addShichenCases !== 48) {
   bad++;
   console.log(`\n❌ 样例数不足：时间法 ${timeCases}/${wantTime}、手动 ${manualCases}/384、`
-    + `报数 ${num2Cases}/729`);
+    + `报数 ${num2Cases}/729、拆半 ${splitCases}/${wantSplit}、加时辰 ${addShichenCases}/48`);
 }
 // 防「没跑过 23 点」：本次偏离的正主就是这一小时，缺了等于没验。
 if (!boundary['23'] || !boundary['22'] || !boundary['00']) {
