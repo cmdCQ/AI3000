@@ -24,8 +24,12 @@
  *   · 卦名 64 条（前端 HEX64 表 ↔ 本模块 hexName）
  *
  * 取前端代码的方式是**切片原文再 new Function**，不转抄 —— 机械转写的表必须
- * 逐字相等（见 memory「逐字相等不能抽查」）。切片用两个标记串定位，前端改版时
- * 若删了标记，本脚本会**报错退出**而不是静默少核一部分。
+ * 逐字相等（见 memory「逐字相等不能抽查」）。切片用标记串定位，**跨两个文件**
+ * （2026-09-25 前端「只渲染」迁移把 TRIGRAMS 搬去了 `js/mhys_render.js`，HEX64
+ * 等仍留在起卦页内联脚本里）；哪个标记找不到就**报错退出**，而不是静默少核一部分。
+ *
+ * 它挂在 `regress_meihua.sh` 上跑（⑦ 格）—— 不挂进 runner 的检查会红着烂掉没人知道
+ * （2026-09-25 就是这么烂的：迁移改了文件，脚本只在 index.html 里找标记，一直 exit 2）。
  *
  * 用法：node duipan/verify_meihua_vs_front.js
  * 退出码：0 = 全绿；1 = 有不一致（附前若干条差异）；2 = 取不到前端代码。
@@ -37,25 +41,57 @@ const fs = require('fs');
 const path = require('path');
 
 const FRONT = path.join(__dirname, '..', 'build', 'nginx', 'mhys', 'index.html');
+const RENDER = path.join(__dirname, '..', 'build', 'nginx', 'js', 'mhys_render.js');
 const M = require(path.join(__dirname, '..', 'build', 'backend', 'paipan', 'meihua.js'));
 
-// ── 取前端代码：从「八卦数据」到「时间计算」之间那一整段 ──────────────
-const A = '// ===== 八卦数据 =====';
-const B = '// ===== 时间计算（农历） =====';
+// ── 取前端代码（**跨两个文件**，2026-09-25 起）────────────────────────────
+// 前端做「只渲染」迁移时，把「八卦数据」段（TRIGRAMS）连同渲染函数整段从
+// `mhys/index.html` 搬进了 `js/mhys_render.js` —— 结果页与起卦页共用一份，起卦页
+// 只 `<script src>` 引它。而 `HEX64`/`triToLines`/`calcGua` 仍留在起卦页的内联
+// `<script>` 里。于是切片要跨两个文件拼：
+//
+//   render.js     从 A（八卦数据）到**文件末**   → TRIGRAMS
+//   index.html    从 C（HEX64 起）到 B（时间计算）→ HEX64 / triToLines / calcGua
+//
+// 为什么用 C 而不用注释标记：`var HEX64 = {};` 就是这段代码的第一行，起点不依赖
+// 谁顺手写了句注释 —— 注释会被删，代码行不会。两个文件里只要有一个标记找不到就
+// exit 2：**宁可报错退出，也不许静默少核一段**（少核 = 全绿的假象）。
+const A = '// ===== 八卦数据 =====';          // js/mhys_render.js
+const C = 'var HEX64 = {};';                   // mhys/index.html（内联 <script> 的第一行）
+const B = '// ===== 时间计算（农历） =====';    // mhys/index.html
 
-function loadFrontend() {
-  const src = fs.readFileSync(FRONT, 'utf8');
-  const i = src.indexOf(A);
-  const j = src.indexOf(B);
-  if (i < 0 || j < 0 || j <= i) {
-    console.error(`❌ 取不到前端代码段（标记 ${i < 0 ? `缺「${A}」` : ''}`
-      + `${j < 0 ? `缺「${B}」` : ''}）。前端改版了？请更新本脚本的切片标记。`);
+function cut(file, from, to) {
+  const src = fs.readFileSync(file, 'utf8');
+  const i = src.indexOf(from);
+  const j = to === null ? src.length : src.indexOf(to, i < 0 ? 0 : i + from.length);
+  if (i < 0 || j <= i) {
+    const which = i < 0 ? `缺「${from}」` : `缺「${to}」`;
+    console.error(`❌ 取不到前端代码段（${path.relative(__dirname, file)} ${which}）。`
+      + '前端改版了？请更新本脚本的切片标记。');
     process.exit(2);
   }
-  const slice = src.slice(i, j);
+  return src.slice(i, j);
+}
+
+function loadFrontend() {
+  const slice = cut(RENDER, A, null) + '\n' + cut(FRONT, C, B);
   // `new Function` 而不是 `eval`：eval 会把里面的 var 泄进本模块作用域。
-  const f = new Function(`${slice}\n;return { TRIGRAMS, HEX64, calcGua, triToLines };`);
-  return f();
+  let f;
+  try {
+    f = new Function(`${slice}\n;return { TRIGRAMS, HEX64, calcGua, triToLines };`)();
+  } catch (e) {
+    // 切到了但拼不起来（比如某段被搬去了第三个文件）—— 同样算「取不到」，不算差异。
+    console.error(`❌ 前端代码段拼不起来：${e.message}\n`
+      + '   多半是其中一段又被搬去了别的文件，请更新本脚本的切片。');
+    process.exit(2);
+  }
+  for (const k of ['TRIGRAMS', 'HEX64', 'calcGua', 'triToLines']) {
+    if (f[k] === undefined) {
+      console.error(`❌ 切片里没有 ${k}（切片范围不对？）—— 不核这一项等于放行。`);
+      process.exit(2);
+    }
+  }
+  return f;
 }
 
 const F = loadFrontend();

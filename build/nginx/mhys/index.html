@@ -258,7 +258,7 @@ html,body { background:var(--bg); color:var(--text); font-family:var(--sans); mi
           <span class="check">✓</span>报数起卦（拆半求和）
         </div>
         <div class="method-option" data-method="character" onclick="selectMethod('character',this)">
-          <span class="check">✓</span>字占（按笔画）
+          <span class="check">✓</span>字占（按原文分层）
         </div>
         <div class="method-option" data-method="auto" onclick="selectMethod('auto',this)">
           <span class="check">✓</span>自动起卦
@@ -326,7 +326,7 @@ html,body { background:var(--bg); color:var(--text); font-family:var(--sans); mi
 <!-- 渲染层与结果页共用一份。TRIGRAMS 也在 mhys_render.js 里，本页不再另抄一份
      （原先两边各抄一份，改一处漏一处就会悄悄对不上）。 -->
 <script src="/js/hexagrams_data.js?v=1"></script>
-<script src="/js/mhys_render.js?v=3"></script>
+<script src="/js/mhys_render.js?v=4"></script>
 <script src="/js/ai_panel.js?v=6"></script>
 <script src="/js/mhys_ai_panel.js?v=2"></script>
 <script>
@@ -623,6 +623,13 @@ function buildQiguaRequest() {
   } else if (currentMethod === 'character') {
     var txt = document.getElementById('charInput').value.trim();
     if (!txt) return { ok: false, msg: '请输入想占的字或一句话' };
+    // 一字占：古法要按楷书拆左右笔画（《梅花易数·字占》「以左为阳画，以右为阴画」），
+    // 本版没做 —— 前端先拦一道，后端同样拒收（别让用户白等一次请求）。字数按**非空白
+    // 字符**数，与后端一致（「　日　」算一个字）。
+    var nChar = Array.from(txt).filter(function (c) { return !/\s/.test(c); }).length;
+    if (nChar === 1) {
+      return { ok: false, msg: '古法一字占要按楷书分左右笔画取卦，本版还没做，请输入两个字以上（也可以改用数字或时间起卦）' };
+    }
     body.text = txt;
   } else if (currentMethod === 'auto') {
     var drawn = drawRandom();
@@ -707,7 +714,13 @@ function renderMethodParams() {
     case 'character':
       h += '<div style="margin-top:0.6rem">'+
           '<div class="num-input-row"><input type="text" id="charInput" placeholder="输入想占的字或一句话" style="flex:1"></div>'+
-          '<div class="algo-text">起卦算法（古法字占）：以字数平分为前后两半，各半笔画之和 ÷8 得上下卦，总笔画 ÷6 得动爻；一字占另有取法。笔画取自内置表（6944 常用字，简体字形），表外的生僻字会提示改用别法。</div>'+
+          '<div class="algo-text">起卦算法（依《梅花易数·字占》原文）：\n'+
+          '两个字、三个字按笔画取数（笔画取自内置常用字表，表外字会提示改用别法）；\n'+
+          '四个字以上不必数笔画，改按读音取数 —— 平声1、上声2、去声3、古入声字4；\n'+
+          '十一个字以上连读音也不用，只按字数，每字算 1。\n'+
+          '前一半之和 ÷8 得上卦，后一半之和 ÷8 得下卦，全部之和 ÷6 得动爻（余数为 0 时取 8、8、6）。\n'+
+          '读音以今天的普通话为准、古入声字另外单算（多音字只要有入声读法就按入声算 —— 这一条是本版的约定，原文没规定）；每个字取几、依据是什么，明细里逐字列出。\n'+
+          '古法一字占要按楷书拆左右笔画，本版未做 —— 请输入两个字以上（也可以改用数字或时间起卦）。</div>'+
           '</div>';
       break;
     case 'auto':

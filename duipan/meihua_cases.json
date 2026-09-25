@@ -6089,6 +6089,13 @@
    "text": "龘"
   }
  },
+ "err|character|生僻不在表|龘龘": {
+  "kind": "error",
+  "call": {
+   "method": "character",
+   "text": "龘龘"
+  }
+ },
  "err|character|笔画数不符|问财|[11]": {
   "kind": "error",
   "call": {

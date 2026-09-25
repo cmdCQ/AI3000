@@ -35,6 +35,7 @@
 const C = require('./constants');
 const G = require('./ganzhi');
 const S = require('./strokes');
+const PZ = require('./pingze');     // 字占 4–10 字的读音取数表（生成物，见 duipan/gen_pingze_table.py）
 
 // 爻的表示：1=阳，0=阴（自下而上）
 const YANG = 1;
@@ -496,82 +497,178 @@ function qiguaSplitHalf(digits, extra) {
 function splitIndex(n) { return Math.floor(n / 2); }
 
 /**
- * 字数起卦法（字占），按**笔画**取数。
+ * 字占（《梅花易数·字占》）—— 取数**按字数分档**，不是一律按笔画。
  *
- * 前一半字的笔画和 ÷ 8 → 上卦；后一半 ÷ 8 → 下卦；总笔画 ÷ 6 → 动爻。
- * 分半为「前小后大」，与二字/三字/五字/十字诸例吻合。
+ * 原文：「凡见字数如停匀，即平分一半为上卦，一半为下卦。如字数不匀，即少一字为上卦，
+ * 以多一字为下卦」（→ 分半点 = n // 2）＋「**四字以上，不必数画数，只以平仄声音调之。
+ * 平声为一数，上声为二数，去声为三数，入声为四数**」＋「**十一字以上……又不用平仄声音
+ * 调之，止用字数**。如字数均平，则以半为上卦，以半为下卦。又**合二卦总数取爻**」。故三档：
  *
- * 两处**本实现的取舍**（古书各本互异，取确定性规则并写明）：
- * * **一字占**：无前后可分，改用与「物数法」相同的取法 ——
- *   笔画 ÷ 8 为上卦、(笔画+1) ÷ 8 为下卦、笔画 ÷ 6 为动爻。
- * * **十一字以上**：古法作「不必分，只以字数取卦」。本实现仍按笔画平分 ——
- *   同一段文字必须只对应一个卦，平分是唯一能做到这点的确定性规则。
+ * | 字数 | 取数 |
+ * |---|---|
+ * | 1 | **拒收**（古法一字占要按楷书分左右笔画，本版未做） |
+ * | 2–3 | 笔画（`strokes.js`，6944 常用字；调用方显式给 `strokes` 时用调用方的） |
+ * | 4–10 | **读音平仄**：入声 4 / 去声 3 / 上声 2 / 平声 1（`pingze.js`） |
+ * | ≥11 | 每字算 1（止用字数，不查任何表） |
+ *
+ * 三档取完数后走**同一段**拆半取模（上卦 = 前半和 ÷ 8、下卦 = 后半和 ÷ 8、动爻 =
+ * **取数总和** ÷ 6，余 0 取 8/8/6），与「拆半求和」同一套算式 —— 此处不另造。
+ * 动爻取**未取模的总和**：原文「以重卦总数除六」，「西林寺牌额占」的反例（17 ÷ 6 余 5）
+ * 明确否掉了「上下卦数之和」那种写法（7 + 2 = 9 ÷ 6 余 3）。
+ *
+ * **调用方显式给 `strokes` 即强制走笔画档** —— 保住「按繁体/康熙笔画起卦」的旧调用路径
+ * （也是层 7 对照组复现旧口径的唯一手段）。此时 4 字以上按笔画平分，与原文的平仄/字数
+ * 档**不同**：那是调用方明确要求的口径，`derivation.stroke_source` 标着「调用方提供」。
+ *
+ * 三处**本项目的约定**（原文没有规定，别当成古法；`pingze.js` 头注有同样一段）：
+ * * 音系 = **现代普通话读音为底 + 平水韵入声字覆写为 4**。原文自带的验算例「今日动静
+ *   如何」把「动」「静」算去声（中古浊上声 → 浊上归去已固化在今音里）、把「日」算入声
+ *   （今音读去声）—— 只有这一口径能逐字吻合。详见 `duipan/verify_meihua_zishan.js`。
+ * * 多音字**入声优先**；轻声音节跳过。
+ * * 平水韵与今音都查不到的字 → **拒收**并点名（不猜、不静默兜底成平声）。
  *
  * @param {string} text
- * @param {number[]} [strokes] 可选的笔画数序列（与 text 逐字对应）。不传则查内置
- *   笔画表（`strokes.js`，6944 常用字，简体字形）。**要按繁体或康熙笔画起卦时传这个参数。**
+ * @param {number[]} [strokes] 可选的笔画数序列（与 text 逐字对应）。**给了就强制按笔画
+ *   取数**；不给才按字数分档（≤3 查笔画表、4–10 查平仄表、≥11 只数字数）。
  */
 function qiguaCharacters(text, strokes) {
   const chars = Array.from(text || '').filter((c) => !/\s/.test(c));
   if (!chars.length) throw new Error('字数起卦需要至少一个字');
-
-  let strokeList;
-  if (strokes !== undefined && strokes !== null) {
-    strokeList = Array.from(strokes, (s) => Math.trunc(Number(s)));
-    if (strokeList.length !== chars.length) {
-      throw new Error(`笔画数有 ${strokeList.length} 个，文字有 ${chars.length} 个，对不上`);
-    }
-  } else {
-    const missing = [];
-    strokeList = [];
-    for (const c of chars) {
-      const n = S.strokeCount(c);
-      if (n === undefined) missing.push(c);
-      strokeList.push(n || 0);
-    }
-    if (missing.length) {
-      throw new Error('这些字不在笔画表里，无法按笔画起卦：' + missing.join('')
-        + '。可改用数字起卦，或传入 strokes 参数自行给出笔画数');
-    }
-  }
-
-  const total = strokeList.reduce((a, b) => a + b, 0);
   const n = chars.length;
 
-  let upperNum; let lowerNum; let split; let upperCalc; let lowerCalc;
+  // 一字占排在最前：它不是「查不到表」，而是本版**故意不做**—— 古法要按楷书拆左右
+  // 笔画，光有总笔画数不够（调用方显式给 strokes 也不够），故一律拒收并指路。
   if (n === 1) {
-    upperNum = wrap8(total);
-    lowerNum = wrap8(total + 1);
-    split = null;
-    upperCalc = `「${chars[0]}」${total} 画 ÷ 8 余 ${upperNum}`;
-    lowerCalc = `(${total} + 1) ÷ 8 余 ${lowerNum}`;
-  } else {
-    split = splitIndex(n);
-    const head = strokeList.slice(0, split);
-    const tail = strokeList.slice(split);
-    const sumHead = head.reduce((a, b) => a + b, 0);
-    const sumTail = tail.reduce((a, b) => a + b, 0);
-    upperNum = wrap8(sumHead);
-    lowerNum = wrap8(sumTail);
-    upperCalc = `前 ${split} 字「${chars.slice(0, split).join('')}」共 ${sumHead} 画 ÷ 8 余 ${upperNum}`;
-    lowerCalc = `后 ${n - split} 字「${chars.slice(split).join('')}」共 ${sumTail} 画 ÷ 8 余 ${lowerNum}`;
+    throw new Error('古法一字占要按楷书分左右笔画取卦，本版未实现，请输入两个字以上'
+      + '（也可以改用数字或时间起卦）');
   }
 
+  const given = strokes !== undefined && strokes !== null;
+  let branch;
+  let counts;            // 逐字取数
+  let sources = null;    // 逐字依据（只有平仄档有）
+  if (given || n <= 3) {
+    branch = 'stroke';
+    if (given) {
+      counts = Array.from(strokes, (s) => Math.trunc(Number(s)));
+      if (counts.length !== n) {
+        throw new Error(`笔画数有 ${counts.length} 个，文字有 ${n} 个，对不上`);
+      }
+    } else {
+      const missing = [];
+      counts = [];
+      for (const c of chars) {
+        const sc = S.strokeCount(c);
+        if (sc === undefined) missing.push(c);
+        counts.push(sc || 0);
+      }
+      if (missing.length) {
+        throw new Error('这些字不在笔画表里，无法按笔画起卦：' + missing.join('')
+          + '。可改用数字起卦，或传入 strokes 参数自行给出笔画数');
+      }
+    }
+  } else if (n <= 10) {
+    branch = 'pingze';
+    const missing = [];
+    counts = [];
+    sources = [];
+    for (const c of chars) {
+      const v = PZ.countOf(c);
+      if (v === undefined) { missing.push(c); continue; }
+      counts.push(v);
+      sources.push(PZ.sourceOf(c));
+    }
+    if (missing.length) {
+      throw new Error('这些字查不到读音调类，无法按平仄取数：' + missing.join('')
+        + '。可改用数字起卦，或传入 strokes 参数按笔画起卦');
+    }
+  } else {
+    branch = 'count';
+    counts = chars.map(() => 1);
+  }
+
+  const split = splitIndex(n);
+  const sumHead = counts.slice(0, split).reduce((a, b) => a + b, 0);
+  const sumTail = counts.slice(split).reduce((a, b) => a + b, 0);
+  const total = sumHead + sumTail;
+  const upperNum = wrap8(sumHead);
+  const lowerNum = wrap8(sumTail);
   const moving = wrap6(total);
-  return pack('character', upperNum, lowerNum, moving,
-    { text, char_count: n },
-    {
+
+  const head = chars.slice(0, split).join('');
+  const tail = chars.slice(split).join('');
+  let upperCalc; let lowerCalc; let movingCalc;
+  if (branch === 'stroke') {
+    upperCalc = `前 ${split} 字「${head}」共 ${sumHead} 画 ÷ 8 余 ${upperNum}`;
+    lowerCalc = `后 ${n - split} 字「${tail}」共 ${sumTail} 画 ÷ 8 余 ${lowerNum}`;
+    movingCalc = `总笔画 ${total} ÷ 6 余 ${moving}`;
+  } else if (branch === 'pingze') {
+    upperCalc = `前 ${split} 字「${head}」取数 ${counts.slice(0, split).join('+')} = ${sumHead}`
+      + `，÷ 8 余 ${upperNum}`;
+    lowerCalc = `后 ${n - split} 字「${tail}」取数 ${counts.slice(split).join('+')} = ${sumTail}`
+      + `，÷ 8 余 ${lowerNum}`;
+    movingCalc = `取数 ${sumHead} + ${sumTail} = ${total}，÷ 6 余 ${moving}`;
+  } else {
+    upperCalc = `前 ${split} 字「${head}」共 ${split} 数 ÷ 8 余 ${upperNum}`;
+    lowerCalc = `后 ${n - split} 字「${tail}」共 ${n - split} 数 ÷ 8 余 ${lowerNum}`;
+    movingCalc = `总字数 ${total} ÷ 6 余 ${moving}`;
+  }
+
+  let derivation;
+  if (branch === 'stroke') {
+    // ⚠ 这一档的 derivation 键集必须与旧实现（shushu）**逐字相同** ——
+    // 层 7 里那 6 例 2–3 字样例要求零申报，多一个键（哪怕只是 `branch`）就得多申报一条。
+    // 要判档请看有没有 `counts_per_char` / `total_strokes`，别往这一档加标记字段。
+    derivation = {
       formula: '上卦=前半笔画和÷8；下卦=后半笔画和÷8；动爻=总笔画÷6',
       chars,
-      strokes_per_char: strokeList,
+      strokes_per_char: counts,
       split_index: split,
       total_strokes: total,
       upper_calc: upperCalc,
       lower_calc: lowerCalc,
-      moving_calc: `总笔画 ${total} ÷ 6 余 ${moving}`,
-      stroke_source: (strokes === undefined || strokes === null)
-        ? '内置笔画表（简体字形）' : '调用方提供',
-    });
+      moving_calc: movingCalc,
+      stroke_source: given ? '调用方提供' : '内置笔画表（简体字形）',
+    };
+  } else if (branch === 'pingze') {
+    derivation = {
+      formula: '上卦=前半取数和÷8；下卦=后半取数和÷8；动爻=取数总和÷6',
+      branch,
+      chars,
+      counts_per_char: counts,
+      count_source_per_char: sources,
+      split_index: split,
+      sum_head: sumHead,
+      sum_tail: sumTail,
+      total,
+      upper_calc: upperCalc,
+      lower_calc: lowerCalc,
+      moving_calc: movingCalc,
+    };
+  } else {
+    derivation = {
+      formula: '上卦=前半字数÷8；下卦=后半字数÷8；动爻=总字数÷6',
+      branch,
+      chars,
+      split_index: split,
+      sum_head: sumHead,
+      sum_tail: sumTail,
+      total,
+      upper_calc: upperCalc,
+      lower_calc: lowerCalc,
+      moving_calc: movingCalc,
+    };
+  }
+
+  const out = pack('character', upperNum, lowerNum, moving, { text, char_count: n }, derivation);
+  // `pack` 的 note 取自 METHOD_META，是**笔画档**那一句（= shushu 的原文，故 ≤3 字不许动）；
+  // 另外两档换成各自的原文依据，别让用户以为四字以上也是数笔画算出来的。
+  if (branch === 'pingze') {
+    out.note = '四字以上按读音平仄取数：平声一数、上声二数、去声三数、入声四数';
+  } else if (branch === 'count') {
+    out.note = '十一字以上不再按平仄，只以字数取数：每字算一数';
+  }
+  return out;
 }
 
 /**

@@ -137,10 +137,51 @@ function check(label, cond, detail) {
   check('梅花/原始：时间法缺时刻 → 400（不许用服务器当前时刻）',
     call('/api/meihua/paipan', { method: 'time' }).status === 400, '缺 datetime 时没回 400');
 
-  // 3) 字占：**只有后端能做**（笔画表在前端不存在），这条是它存在的理由
+  // 3) 字占：**只有后端能做**（笔画表在 `paipan/strokes.js`、四字以上要用的平仄取数表
+  //    26660 字在 `paipan/pingze.js`，两张表前端都没有），这条是它存在的理由
   const ch = call('/api/meihua/paipan', { method: 'character', text: '求财', datetime: '2026-09-25T14:30:00' });
   check('梅花/原始：字占可起卦', ch.status === 200 && !!ch.payload.qigua,
     `状态 ${ch.status} ${JSON.stringify(ch.payload).slice(0, 100)}`);
+
+  // 3a) 六个字 —— 《梅花易数·字占》原文自带的验算例「今日动静如何」：
+  //   今[平1] 日[入4] 动[去3] 静[去3] 如[平1] 何[平1] → 前 3 字 8（坤）、后 3 字 5（巽）
+  //   = **地风升**，总 13 ÷ 6 余 1 = **初爻**。期望值**手算写死**（不调 M.qiguaCharacters，
+  //   两边调同一个函数就等于没验）。这条钉住四字以上确实走后端**平仄档**。
+  const ch6 = call('/api/meihua/paipan',
+    { method: 'character', text: '今日动静如何', datetime: '2026-09-25T14:30:00' });
+  check('梅花/原始：字占六字按原文平仄取数 → 上8下5动1（原文例「今日动静如何」）',
+    ch6.status === 200 && !!ch6.payload.qigua
+    && ch6.payload.qigua.upper_num === 8 && ch6.payload.qigua.lower_num === 5
+    && ch6.payload.qigua.moving === 1,
+    `状态 ${ch6.status} `
+    + JSON.stringify([ch6.payload.qigua && ch6.payload.qigua.upper_num,
+      ch6.payload.qigua && ch6.payload.qigua.lower_num, ch6.payload.qigua && ch6.payload.qigua.moving]));
+  check('梅花/原始：取数明细随响应给前端（字→取数→依据，前端只渲染）',
+    !!ch6.payload.qigua && !!ch6.payload.qigua.derivation
+    && JSON.stringify(ch6.payload.qigua.derivation.counts_per_char) === '[1,4,3,3,1,1]'
+    && ch6.payload.qigua.derivation.count_source_per_char[1] === '入声'
+    && ch6.payload.qigua.derivation.count_source_per_char[2] === '今音',
+    JSON.stringify(ch6.payload.qigua && ch6.payload.qigua.derivation).slice(0, 200));
+
+  // 3b) 一个字：**拒收**（古法一字占要按楷书拆左右笔画，本版未做；前端也拦了一道）。
+  //     后端这一道必须留着 —— 前端是老版本缓存/接口直调时它才是最后一道门。
+  const ch1 = call('/api/meihua/paipan', { method: 'character', text: '山', datetime: '2026-09-25T14:30:00' });
+  check('梅花/原始：字占一个字 → 400 且文案指路（请输入两个字以上）',
+    ch1.status === 400 && /两个字以上/.test(String(ch1.payload && ch1.payload.error)),
+    `状态 ${ch1.status} ${JSON.stringify(ch1.payload).slice(0, 140)}`);
+
+  // 3c) **老记录兼容**：历史档里的 cardData（带 `hexagrams`）只取卦号、不重新起卦。
+  //     若这条被当成「起卦原始参数」按 text 重起，一条**一字占**的老记录会变成 400 ——
+  //     用户点开自己的历史记录就报错，而那是他昨天明明算出来过的卦。
+  const old1 = call('/api/meihua/paipan', {
+    method: 'character', text: '梅',
+    hexagrams: { benGua: { upper: 8, lower: 5, movingYao: [1, 0, 0, 1, 1, 0] },
+      bianGua: { upper: 8, lower: 1 } },
+    qigua: { upper_num: 8, lower_num: 5, moving: 1 },
+  });
+  check('梅花/原始：一字占的老 cardData 仍 200（老记录只取卦号，不按 text 重起）',
+    old1.status === 200 && !!old1.payload.paipan,
+    `状态 ${old1.status} ${JSON.stringify(old1.payload).slice(0, 140)}`);
 
   // 4) 拆半求和（本项目自有法）+ 加时辰：时辰取**提交的时刻**，不是真实时钟
   const sp = call('/api/meihua/paipan',

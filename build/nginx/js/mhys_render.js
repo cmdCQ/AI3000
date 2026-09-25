@@ -16,8 +16,10 @@ var TRIGRAMS = {
 
 // 起卦法代码 → 中文。新记录用后端起卦法名（number/split/character），
 // `num1`/`num2` 是旧记录里的代码，留着作别名，否则老记录只显示代码。
+// （`character` 的括号说明只留在**起卦页的下拉项**里，这里与记录页/后台一样写「字占」；
+//   2026-09-25 起字占按《梅花易数》原文分层取数，不再一律按笔画。）
 var METHOD_NAMES = { time:'时间起卦', manual:'手动指定', auto:'自动起卦',
-  number:'报数起卦（三个数）', split:'报数起卦（拆半求和）', character:'字占（按笔画）',
+  number:'报数起卦（三个数）', split:'报数起卦（拆半求和）', character:'字占',
   num1:'数字起卦1', num2:'数字起卦2' };
 
 function renderLines(lines) {
@@ -287,6 +289,38 @@ function renderResult(result) {
   // 输入数字
   if (result.numbers) {
     h += '<tr><td class="td-label">数字</td><td class="td-value">'+escHtml(result.numbers)+'</td></tr>';
+  }
+  // 字占的**取数明细**（后端 `qigua.derivation`，本页只渲染、不算）。
+  //
+  // 为什么非要给用户看这个：四个字以上不再数笔画，改成按读音的平仄取数 —— 同一个
+  // 句子换一版读音表就换一个卦，用户看不见依据只会觉得「卦是随机的」。故逐字给
+  // 「字 → 取数 → 依据」，再把三句算式原文摆出来（「前 3 字「今日动」取数 1+4+3 = 8，
+  // ÷ 8 余 8」）。旧记录里没有 `qigua`（或老版本没写 derivation）→ 整块不出现。
+  var _der = (result.qigua && result.qigua.derivation) || null;
+  if (result.method === 'character' && _der && _der.chars && _der.chars.length) {
+    var TONE_CN = { 1:'平声', 2:'上声', 3:'去声', 4:'入声' };
+    var _per;
+    if (_der.strokes_per_char) {
+      // 两三个字（或调用方自带笔画）：逐字笔画
+      _per = _der.chars.map(function (c, i) { return c + '·' + _der.strokes_per_char[i] + '画'; });
+      if (_der.stroke_source) _per.push('（' + _der.stroke_source + '）');
+    } else if (_der.count_source_per_char) {
+      // 四到十个字：逐字取数 + 依据（入声 / 今音）
+      _per = _der.chars.map(function (c, i) {
+        var v = _der.counts_per_char[i];
+        return c + '·' + (TONE_CN[v] || '') + v + '（' + _der.count_source_per_char[i] + '）';
+      });
+    } else {
+      // 十一个字以上：只按字数
+      _per = ['共 ' + _der.chars.length + ' 字，每字算 1 数'];
+    }
+    h += '<tr><td class="td-label">取数</td><td class="td-value" style="font-size:0.75rem;line-height:1.8">'
+      + escHtml(_per.join('　')) + '</td></tr>';
+    var _calc = [_der.upper_calc, _der.lower_calc, _der.moving_calc].filter(Boolean);
+    if (_calc.length) {
+      h += '<tr><td class="td-label">算式</td><td class="td-value" style="font-size:0.75rem;line-height:1.8">'
+        + _calc.map(escHtml).join('<br>') + '</td></tr>';
+    }
   }
   // 起卦时间（统一显示排盘时间）
   if (result.divinationTime) {

@@ -32,6 +32,8 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+from diff import walk        # 同一目录（本脚本在 duipan 下跑）
+
 HERE = Path(__file__).parent
 SHUSHU = "/home/cqsomt/Projects/shushu"
 
@@ -141,17 +143,43 @@ def main() -> int:
           {"00", "23"} <= {v["inputs"]["datetime"][11:13] for v in tim},
           f"出现的小时 {sorted({v['inputs']['datetime'][11:13] for v in tim})}")
 
-    # ── 字数法 ──
+    # ── 字数法：三档（笔画 / 平仄 / 字数）──
+    # 档位怎么认：笔画档**故意不带** branch（那 6 例 2–3 字样例要零申报，多一个键就得多申报），
+    # 故用「有没有 total_strokes」认它，与 `paipan/meihua.js` 里那段注释同一套说法。
     ch = [v for v in ok.values() if v["method"] == "character"]
+
+    def branch_of(v):
+        d = v["qigua"]["derivation"]
+        return d.get("branch") or ("stroke" if "total_strokes" in d else "?")
+
+    br = Counter(branch_of(v) for v in ch)
+    check("字数法三档（笔画/平仄/字数）都跑到", set(br) == {"stroke", "pingze", "count"},
+          " ".join(f"{k}×{v}" for k, v in sorted(br.items())))
     si = [v["qigua"]["derivation"]["split_index"] for v in ch]
-    check("字数法「一字占」特例分支跑到", None in si, f"{si.count(None)} 例")
-    check("字数法「平分」分支跑到", any(isinstance(x, int) for x in si),
-          f"{sum(1 for x in si if isinstance(x, int))} 例")
-    big = [v["qigua"]["inputs"]["char_count"] for v in ch
-           if v["qigua"]["inputs"]["char_count"] >= 11]
-    check("字数法「十一字以上」分支跑到", bool(big), f"字数为 {sorted(big)}")
-    ss = Counter(v["qigua"]["derivation"].get("stroke_source") for v in ch)
-    check("笔画来源两态（内置表/调用方给）都跑到", set(ss) == {"内置笔画表（简体字形）", "调用方提供"},
+    check("字数法「平分」分支跑到，且**一字占的 split_index=None 恒不出现**"
+          "（n==1 先被拒收，详下）",
+          all(isinstance(x, int) for x in si),
+          f"非整数 {sum(1 for x in si if not isinstance(x, int))} 例")
+    big = sorted(v["qigua"]["inputs"]["char_count"] for v in ch
+                 if v["qigua"]["inputs"]["char_count"] >= 11)
+    check("字数法「十一字以上只以字数取数」分支跑到（按档判，不只看字数）",
+          bool(big) and all(branch_of(v) == "count" for v in ch
+                            if v["qigua"]["inputs"]["char_count"] >= 11),
+          f"字数为 {big}")
+    check("平仄档恒有 `counts_per_char`（逐字取数）且四值 ∈ 1..4、依据 ∈ {入声,今音}",
+          all(1 <= x <= 4 for v in ch if branch_of(v) == "pingze"
+              for x in v["qigua"]["derivation"]["counts_per_char"])
+          and all(s in ("入声", "今音") for v in ch if branch_of(v) == "pingze"
+                  for s in v["qigua"]["derivation"]["count_source_per_char"]),
+          f"平仄档 {br['pingze']} 例")
+    stray = [v["qigua"]["inputs"]["text"] for v in ch if branch_of(v) != "stroke"
+             and "stroke_source" in v["qigua"]["derivation"]]
+    check("平仄档与字数档**不许**出现 `stroke_source`（免得明细把读音取数说成笔画）",
+          not stray, f"出现 {len(stray)} 例：{stray[:3]}")
+    ss = Counter(v["qigua"]["derivation"].get("stroke_source") for v in ch
+                 if branch_of(v) == "stroke")
+    check("笔画档的笔画来源两态（内置表/调用方给）都跑到",
+          set(ss) == {"内置笔画表（简体字形）", "调用方提供"},
           " ".join(f"{k}×{v}" for k, v in sorted(ss.items())))
     ws = [v for v in ch if re.search(r"\s", v["qigua"]["inputs"]["text"])]
     check("含空白的字串跑到（空白不计入字数）", len(ws) >= 2,
@@ -161,22 +189,61 @@ def main() -> int:
               for v in ch),
           f"{len(ch)} 例")
 
-    # ── 出处/说明：三法各一套 ──
-    for fld, path in (("formula", lambda v: v["derivation"]["formula"]),
-                      ("qigua.note", lambda v: v["qigua"]["note"]),
-                      ("经文出处", lambda v: v["qigua"]["source"]),
-                      ("method_name", lambda v: v["method_name"])):
+    # ── 出处/说明：每法一套，字数法**每档**一套 ──
+    # 笔画档那两句必须与 shushu 逐字相同（≤3 字那 6 例零申报就靠这个），另两档是本版
+    # 按原文新写的。故分开断言：笔画档 ≡ shushu `METHOD_META['character']`，三档互不相同。
+    sys.path.insert(0, SHUSHU)
+    try:
+        from core.meihua.qigua import METHOD_META as SHUSHU_META
+    except ImportError as e:                                  # pragma: no cover
+        check("能读到 shushu 的 METHOD_META", False, f"{e}（须用 shushu 的 venv python 跑）")
+        SHUSHU_META = None
+    if SHUSHU_META:
+        stroke_cids = [cid for cid, v in ok.items()
+                       if v["method"] == "character" and branch_of(v) == "stroke"]
+        bad_meta = [cid for cid in stroke_cids
+                    if ok[cid]["derivation"]["formula"] != gok[cid]["derivation"]["formula"]
+                    or ok[cid]["qigua"]["note"] != SHUSHU_META["character"]["note"]]
+        check("笔画档的 formula / note 与 shushu 逐字相同（≤3 字那几例零申报的前提）",
+              stroke_cids and not bad_meta,
+              f"{len(stroke_cids)} 例；不一致 {bad_meta[:3]}" if bad_meta
+              else f"{len(stroke_cids)} 例逐字相同")
+    for fld, path, want in (("derivation.formula", lambda v: v["derivation"]["formula"], 5),
+                            ("qigua.note", lambda v: v["qigua"]["note"], 5),
+                            ("经文出处", lambda v: v["qigua"]["source"], 3),
+                            ("method_name", lambda v: v["method_name"], 3)):
         c = Counter(path(v) for v in ok.values())
-        check(f"{fld} 三法各异（每法有自己的说明）", len(c) == 3,
-              f"{len(c)} 种：" + " | ".join(sorted(c)))
+        detail = f"{len(c)} 种：" + " | ".join(sorted(c))
+        if want == 5:
+            # time 1 + number 1 + character 3（笔画/平仄/字数各一套说明）
+            cch = Counter(path(v) for v in ch)
+            check(f"{fld} = 每法一套 × 字数法每档一套（{want} 种，其中字数法 3 种）",
+                  len(c) == want and len(cch) == 3, detail)
+        else:
+            check(f"{fld} 三法各异（每法有自己的说明）", len(c) == want, detail)
 
     # ── 错误路径 ──
     errs = {k: v["__error__"] for k, v in j.items() if "__error__" in v}
     ger = {k: v["__error__"] for k, v in g.items() if "__error__" in v}
-    check("错误路径 10 例且文案两两不同", len(errs) == 10 and len(set(errs.values())) == 10,
-          f"{len(errs)} 例 / {len(set(errs.values()))} 种文案")
-    check("错误例两侧一致（无「本该报错却成功」）", errs == ger,
-          f"仅一侧有 {len(set(errs) ^ set(ger))} 例")
+    # 16 = 金标准 11 + 本版多报的 5 个 n==1 例；11 种文案里唯一重复的一句是「一字占拒收」
+    # （6 例共用：5 个 api 例 + 生僻字 `龘`，它也只有一个字）。
+    dup = Counter(errs.values()).most_common(1)[0]
+    check("错误路径 16 例 / 11 种文案（唯一重复的是「一字占拒收」那句，6 例共用）",
+          len(errs) == 16 and len(set(errs.values())) == 11 and dup[1] == 6
+          and "两个字以上" in dup[0],
+          f"{len(errs)} 例 / {len(set(errs.values()))} 种文案 / 最多重复 {dup[1]} 次：{dup[0][:20]}…")
+    same = {cid for cid in ger if errs.get(cid) == ger[cid]}
+    check("金标准侧的错误例在被验方侧**仍然都是错误**（无「本该报错却成功」）",
+          set(ger) <= set(errs), f"变成成功的 {sorted(set(ger) - set(errs))}")
+    # 11 = 数字非法 5 + 空文本 + 笔画数不符 + 笔画表缺字（龘龘）+ 起卦法名 = 9 逐字相同；
+    # 余下 2 条（`求财，问事业` 6 字走平仄档、`龘` 1 字走一字占拒收）文案变了，都在申报表里。
+    changed = sorted(c for c in ger if c in errs and errs[c] != ger[c])
+    check("金标准侧 11 条错误例：文案逐字相同的 9 条 + 文案变了的 2 条（后者各自申报）",
+          len(same) == 9 and len(changed) == 2, f"逐字相同 {len(same)} 条；不同 {changed}")
+    extra_err = sorted(set(errs) - set(ger))
+    check("n==1 的样例（金标准成功）在本版全部拒收，文案含「两个字以上」",
+          len(extra_err) == 5 and all("两个字以上" in errs[c] for c in extra_err),
+          f"多报错 {len(extra_err)} 例：{extra_err}")
     covered = set()
     for t in errs.values():
         if "必须是正整数" in t:
@@ -185,11 +252,13 @@ def main() -> int:
             covered.add("空文本")
         elif "不在笔画表里" in t:
             covered.add("字不在笔画表")
+        elif "查不到读音调类" in t:
+            covered.add("读音表查不到")
         elif "对不上" in t:
             covered.add("笔画数与字数不符")
         elif "不支持的起卦法" in t:
             covered.add("起卦法名非法")
-    check("错误类型五类齐全", len(covered) == 5, " / ".join(sorted(covered)))
+    check("错误类型六类齐全", len(covered) == 6, " / ".join(sorted(covered)))
 
     # ══ ② 不可达 / 防御分支 ═════════════════════════════════════
     print("② 不可达：结构上取不到的分支必须从未出现")
@@ -279,37 +348,106 @@ def main() -> int:
     check("getHexName 64 个通行全名 ≡ 前端(卦名+上下卦+先天象)按通行命名法合成",
           not name_bad, f"不一致 {len(name_bad)} 条 {name_bad[:3]}")
 
-    # ③-4 晚子时换日：**已拍板偏离**的申报必须可证伪 ══════════════════════
-    # 层 7 里唯一一处申报（38 例，整例）。整例申报会把那 38 例的**全部**字段从
-    # 比对里摘掉，所以必须有两条替代判据，否则等于「有 38 例什么都没验」：
+    # ③-4 两处**已拍板偏离**的申报必须可证伪 ═════════════════════════════
+    # 层 7 里只有两处申报，都是整例粒度：
+    #   ① 晚子时换日（38 例）—— 用户的拍板，不跟 shushu
+    #   ② 字占按《梅花易数·字占》原文分层取数（19 例）—— 原文对、shushu 错
+    # 整例申报会把那 57 例的**全部**字段从比对里摘掉，所以必须成套地证伪，
+    # 否则等于「有 57 例什么都没验」：
     #
-    #   ① 申报集**恰好**等于「time 法且 h>=23」—— 不多（没顺手把别的也申报掉，
+    #   ① 申报集**恰好**等于两条规则的作用域（见下）—— 不多（没顺手把别的也申报掉，
     #      那是撒胡椒面）、不少（真有差异却漏申报，diff 会红，但这里再钉一次）。
-    #   ② 把换日这一个开关**关掉**后，被验方与金标准必须 **0 差异**。
-    #      这条才是关键：它证明那 38 例的差异**只**来自换日，没有第二个 bug
-    #      躲在「已申报」后面 —— 整例申报最大的风险就是藏 bug，② 正面堵死它。
-    #      对照组由 `run_js_meihua.js meihua_cases.json js_meihua_nohuanri.json
-    #      --no-huanri` 产出（把 `ganzhi.lunarOfNextDay` 指回 `lunarOf`）。
+    #   ② 逐格关开关（R1/R2/R3）：**两个开关各自关掉时，残差集必须恰好是另一处的申报集**
+    #      —— 一句话讲得完，又极难作弊。这条才是关键：整例申报最大的风险是藏 bug，
+    #      残差集「恰好等于」正面堵死它（差一个例就红）。
+    #
+    # 对照组产出（`run_js_meihua.js`，都是**替换依赖**而不是给生产代码加测试开关）：
+    #   R1 `--no-huanri`  把 `ganzhi.lunarOfNextDay` 指回 `lunarOf` → 复现 shushu 的口径
+    #   R2 `--old-zishan` 给 4 字以上的字数法样例补上笔画（产品规则：显式给 strokes 即强制
+    #                     笔画档）→ 复现 shushu「字占一律按笔画」的口径
+    #   R3 两个都关
     allow = load("allow_meihua.json")
     late = {cid for cid, v in g.items()
             if v.get("method") == "time"
             and (m := re.search(r"[T ](\d{1,2}):", (v.get("inputs") or {}).get("datetime") or ""))
             and int(m.group(1)) >= 23}
-    check("申报集 ≡「time 法且 h>=23」的样例集（不撒胡椒面、也不漏）",
-          set(allow) == late,
-          f"申报 {len(allow)} 例 / 应申报 {len(late)} 例；"
-          f"多报 {sorted(set(allow) - late)[:3]}、漏报 {sorted(late - set(allow))[:3]}")
-    check("申报的每一例都写明理由（含拍板日期与「不跟 shushu」）",
-          all("2026-09-24" in r and "shushu" in r for r in allow.values()),
-          "有申报条目缺理由" if not all("2026-09-24" in r and "shushu" in r for r in allow.values())
-          else "理由齐全")
-    nh = load("js_meihua_nohuanri.json")
-    diff_nh = sum(1 for cid in g
-                  if json.dumps(g[cid], sort_keys=True, ensure_ascii=False)
-                  != json.dumps(nh.get(cid), sort_keys=True, ensure_ascii=False))
-    check("关掉换日后与金标准 **0 差异**（差异只来自换日这一个开关，没藏第二个 bug）",
-          diff_nh == 0,
-          f"仍有 {diff_nh} 例不同 —— 整例申报的风险正在于此" if diff_nh else "0 例不同")
+
+    # 字占规则：method==character 且（n==1 或 n>=4），**但显式给了 strokes 的不算**
+    # （本版「调用方给笔画即强制笔画档」，此时与 shushu 逐字相同）。错误例没有 inputs，
+    # 用调用说明里的 text 去空白数字数 —— 这条规则**只看输入**，不看跑出来差在哪。
+    specs = load("meihua_cases.json")
+    zishan_chars = {}
+    for cid, v in g.items():
+        if v.get("method") == "character":
+            ins = v.get("inputs") or {}
+            zishan_chars[cid] = (ins.get("char_count"), bool(ins.get("strokes")))
+    for cid, sp in specs.items():
+        body = sp.get("body") or sp.get("call") or {}
+        if body.get("method") == "character" and cid not in zishan_chars:
+            zishan_chars[cid] = (len("".join(str(body.get("text", "")).split())),
+                                 bool(body.get("strokes")))
+    zishan = {cid for cid, (n, given) in zishan_chars.items()
+              if n == 1 or (n is not None and n >= 4 and not given)}
+    check("申报集 ≡「time 法且 h>=23」∪「字占 n==1 或 n>=4 且未显式给 strokes」",
+          set(allow) == late | zishan,
+          f"申报 {len(allow)} = 换日 {len(late)} + 字占 {len(zishan)}；"
+          f"多报 {sorted(set(allow) - late - zishan)[:3]}、"
+          f"漏报 {sorted((late | zishan) - set(allow))[:3]}")
+    why_bad = [cid for cid, r in allow.items()
+               if (cid in late and not ("2026-09-24" in r and "shushu" in r))
+               or (cid in zishan and not all(k in r for k in (
+                   "2026-09-25", "shushu", "约定", "平仄", "verify_meihua_zishan.js", "字占")))]
+    check("申报的每一例都写明理由（换日含 2026-09-24，字占含 2026-09-25 与替代判据脚本）",
+          not why_bad, f"缺理由 {why_bad[:3]}" if why_bad else f"{len(allow)} 例理由齐全")
+
+    def diffset(name):
+        other = load(name)
+        return {cid for cid in g
+                if json.dumps(g[cid], sort_keys=True, ensure_ascii=False)
+                != json.dumps(other.get(cid), sort_keys=True, ensure_ascii=False)}
+
+    r1 = diffset("js_meihua_nohuanri.json")
+    check("R1 只关换日：与金标准的差异集**恰好 = 字占申报集**（字数法这一处偏离的全貌）",
+          r1 == zishan, f"差异 {len(r1)} 例 / 应 {len(zishan)} 例；"
+                        f"多 {sorted(r1 - zishan)[:3]}、少 {sorted(zishan - r1)[:3]}")
+
+    # R2 / R3 里，补了笔画的那批例「只剩来源标记不同」—— 要按**路径**判，不能只判例名。
+    # 这条断言是整层里对「改的只是取数」最硬的一句：卦、动爻、体用、互变、旺衰、应期、
+    # 判词**全部逐字相同**，不同的只有 `stroke_source` 那一句「内置笔画表/调用方提供」。
+    r2 = diffset("js_meihua_oldzishan.json")
+    r3 = diffset("js_meihua_neither.json")
+    check("R2 只关字占：差异集 ≡ 换日申报集 ∪ 字占申报集（= 全部 57 条申报）",
+          r2 == late | zishan, f"差异 {len(r2)} 例 / 应 {len(late | zishan)} 例；"
+                               f"多 {sorted(r2 - late - zishan)[:3]}")
+    check("R3 两个都关：差异集**恰好 = 字占申报集**（换日那 38 例已归零，残差没有别的东西）",
+          r3 == zishan, f"差异 {len(r3)} 例 / 应 {len(zishan)} 例；"
+                        f"多 {sorted(r3 - zishan)[:3]}、少 {sorted(zishan - r3)[:3]}")
+
+    # 「补得上笔画」的例 = 4 字以上、调用方没给 strokes、且每个字都在笔画表里
+    # —— 与 `run_js_meihua.js::oldZishan` 同一套条件（这里用它算「应该补上哪些」）。
+    injected = set()
+    for cid, (n, given) in zishan_chars.items():
+        sp = specs.get(cid) or {}
+        body = sp.get("body") or sp.get("call") or {}
+        chars = [c for c in str(body.get("text", "")) if not c.isspace()]
+        if n and n >= 4 and not given and chars \
+                and all(c in p["strokes"]["stroke_count"] for c in chars):
+            injected.add(cid)
+    marker = zishan & injected
+    MARK_OK = {"derivation.stroke_source", "qigua.derivation.stroke_source"}
+    bad_marker = {}
+    neigh = load("js_meihua_neither.json")
+    for cid in marker:
+        out = []
+        walk(g[cid], neigh.get(cid), cid, out, {})
+        extra = {p[len(cid) + 1:] for p, *_ in out} - MARK_OK
+        if extra:
+            bad_marker[cid] = sorted(extra)
+    check("R2/R3 里「补了笔画」的那批例**只差 `stroke_source` 这一步标记**"
+          "（卦与全部下游字段逐字相同）",
+          bool(marker) and not bad_marker,
+          (f"{len(marker)} 例被补笔画" if marker else "一例都没补上 = 开关没接上")
+          + (f"；另有差异路径的例：{list(bad_marker)[:3]}" if bad_marker else ""))
     # 换日的**方向**也要钉死：不能只验「变了」，要验「怎么变」。
     # 两种合法形状，除此之外都是乱变：
     #   ① 平进：农历日 +1、农历月不变

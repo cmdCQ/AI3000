@@ -30,6 +30,7 @@ import argparse
 import json
 import re
 import sys
+from collections import Counter
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -257,6 +258,11 @@ def build_cases():
     errors["err|character|空文本"] = {"method": "character", "text": "   "}
     errors[f"err|character|标点不在表|{BAD_TEXT}"] = {"method": "character", "text": BAD_TEXT}
     errors[f"err|character|生僻不在表|{BAD_TEXT_2}"] = {"method": "character", "text": BAD_TEXT_2}
+    # `龘龘`（2 字）：**两个字**的「字不在笔画表」—— 与下面 `龘`（1 字）分开，因为 1 字那份
+    # 现在走的是「一字占拒收」（本版 n==1 先判，不再落到查表），若只剩它，笔画表缺字的
+    # 那条分支就没人跑了（`coverage_meihua.py` 的错误类型覆盖断言会当场红）。
+    errors[f"err|character|生僻不在表|{BAD_TEXT_2 * 2}"] = {"method": "character",
+                                                          "text": BAD_TEXT_2 * 2}
     for t, sk in BAD_STROKES:
         errors[f"err|character|笔画数不符|{t}|{sk}"] = {
             "method": "character", "text": t, "strokes": sk}
@@ -353,13 +359,69 @@ def main() -> int:
                 "整卦随之全变，故整例申报；本条由 gen 按「time 法且 h>=23」规则生成，"
                 "替代判据见 coverage_meihua.py")
     ap_out = out.with_name("allow_meihua.json")
+    n_late = len(allow)
+
+    # ── 申报表：字占按原文分层取数（已拍板偏离） ──────────────────────
+    # 判据同样**独立于实跑差异**：只看金标准自己记下的字数（`inputs.char_count`；
+    # 错误例没有 inputs，用调用说明里的 text 去空白数字数），按规则生成，不看跑出来差在哪。
+    #
+    # 规则：`method == 'character'` 且 `n == 1` 或 `n >= 4` —— **但显式给了 strokes 的不算**
+    # （本版「调用方给笔画即强制笔画档」，此时与 shushu 同法、逐字相同，申报它就是撒胡椒面）。
+    # `0/2/3` 字的例两版同法（空文本、笔画档），文案逐字相同 → 不申报。
+    zishan_n = {}
+    for cid, g in golden.items():
+        if g.get("method") == "character":
+            ins = g.get("inputs") or {}
+            zishan_n[cid] = (ins.get("char_count"), bool(ins.get("strokes")))
+    for cid, body in errors.items():
+        if body.get("method") == "character":
+            zishan_n[cid] = (len("".join(str(body.get("text", "")).split())), False)
+
+    ZISHAN_WHY = (
+        "字占按《梅花易数·字占》原文分层取数：原文「四字以上，不必数画数，只以平仄声音调之。"
+        "平声为一数，上声为二数，去声为三数，入声为四数」、十一字以上「止用字数」；"
+        "本实现据此分三档（2–3 字仍按笔画，与 shushu 同法，故那几例不申报）。"
+        "音系 = 现代普通话读音为底 + 平水韵入声字覆写为 4；多音字取入声、轻声音节跳过、"
+        "平水韵与今音都查不到的字拒收 —— **这三条是约定，原文没有规定**；"
+        "一字占本版禁用（古法要按楷书分左右笔画，只有总笔画数不够）。"
+        "用户 2026-09-25 拍板：只改 ai3000、不跟 shushu（shushu 全程按笔画）。"
+        "字占原先只有 shushu 一条判据，而这一版**有意偏离**它 —— 对拍对这批例不再有任何"
+        "约束，故必须有替代判据：duipan/verify_meihua_zishan.js（判据取自原文自带的两个"
+        "验算例「今日动静如何」「西林寺牌额占」，不看 shushu；含入声字全量与今音抽样）；"
+        "对照组见 run_js_meihua.js --old-zishan（显式传 strokes 即强制笔画档）"
+        "与 coverage_meihua.py 的 R1/R2/R3 三格。"
+    )
+    zishan = {}
+    for cid, (n, given) in sorted(zishan_n.items()):
+        if n is None:
+            raise SystemExit(f"✗ {cid} 取不到字数 —— 规则漂了，先修 gen 再说")
+        if n == 1:
+            kind = "一字占（本版拒收）"
+        elif n >= 4 and given:
+            continue          # 调用方显式给笔画 → 本版仍走笔画档 → 与 shushu 逐字相同
+        elif 4 <= n <= 10:
+            kind = "平仄档（4–10 字按读音平仄取数）"
+        elif n >= 11:
+            kind = "字数档（≥11 字只以字数取数）"
+        else:
+            continue          # n == 0（空文本）或 2–3 字：两版同法、文案逐字相同
+        tag = "错误路径·" if cid in errors else ""
+        zishan[cid] = ZISHAN_WHY + f"（本条：{tag}{kind}，n={n}）"
+    allow.update(zishan)
+
     ap_out.write_text(json.dumps(allow, ensure_ascii=False, indent=1), encoding="utf-8")
 
     n_err = sum(1 for v in golden.values() if "__error__" in v)
+    k = Counter("n=1" if zishan_n[c][0] == 1 else
+                ("n>=11" if zishan_n[c][0] >= 11 else "4<=n<=10") for c in zishan)
     print(f"已写 {out}：{len(golden)} 例（其中错误路径 {n_err} 例、"
           f"直调注入 dt {len(CORE_DT) * 2} 例）")
     print(f"已写 {side}：调用说明，供 run_js_meihua.js 照着调")
-    print(f"已写 {ap_out}：申报 {len(allow)} 例（晚子时换日，整例）")
+    print(f"已写 {ap_out}：申报 {len(allow)} 例"
+          f"（晚子时换日 {n_late} + 字占分层 {len(zishan)}）")
+    print(f"  字占 {len(zishan)} = n=1 {k['n=1']} + 4–10 字 {k['4<=n<=10']} + ≥11 字 {k['n>=11']}"
+          f"（其中错误路径 {sum(1 for c in zishan if c in errors)} 例；"
+          f"调用方显式给笔画的 4 字以上样例不申报）")
     print(f"  起卦法：{sorted(METHOD_META)}")
     return 0
 

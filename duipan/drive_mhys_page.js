@@ -366,6 +366,30 @@ async function main() {
     check('method=character 且 text=求财',
       cap.length === 1 && cap[0].method === 'character' && cap[0].text === '求财', JSON.stringify(cap[0]));
 
+    // 一个字：**前端先拦**（后端也拒收，两道门）。古法一字占要按楷书拆左右笔画
+    // （《梅花易数·字占》「以左为阳画，以右为阴画」），2026-09-25 用户拍板：本版禁用。
+    // 前端拦的价值是「别让用户白等一次请求」，所以要断言**没发请求**，不只是有提示。
+    await reset(m);
+    await selectMethod(m, 'character');
+    await js(m, `document.getElementById('charInput').value = '山'; return true;`);
+    await clickStart(m);
+    r = await waitResult(m, 3000);
+    cap = await captured();
+    check('一个字被拦下（一字占本版未做）且**没有**发请求',
+      cap.length === 0 && r.alerts.length === 1 && /两个字以上/.test(r.alerts[0]),
+      `请求数 ${cap.length} / 提示 ${JSON.stringify(r.alerts)}`);
+
+    // 四个字以上：页面**只把原文送走** —— 不判字数、更不自己数笔画（平仄表也只在后端）。
+    await reset(m);
+    await selectMethod(m, 'character');
+    await js(m, `document.getElementById('charInput').value = '今日动静如何'; return true;`);
+    await clickStart(m);
+    await waitResult(m, 8000);
+    cap = await captured();
+    check('六个字原样送走后端（method=character、text 不变）',
+      cap.length === 1 && cap[0].method === 'character' && cap[0].text === '今日动静如何',
+      JSON.stringify(cap[0]));
+
     // ── ⑥ 手动指定 / 自动起卦 ──────────────────────────────────
     console.log('\n⑥ 手动指定与自动起卦');
     await reset(m);
@@ -428,6 +452,29 @@ async function main() {
       /山雷颐/.test(text), JSON.stringify(text).slice(0, 160));
     check('变卦 = 山泽损 ⇒ 动爻是第 2 爻（三数之和 14 % 6 = 2；取第三个数的话是山火贲）',
       /山泽损/.test(text) && !/山火贲/.test(text), JSON.stringify(text).slice(0, 200));
+
+    // 真端点的字占：**六个字**「今日动静如何」——《梅花易数·字占》原文自带的验算例。
+    // 逐字取数 今1 日4 动3 静3 如1 何1 → 前 3 字 1+4+3 = 8（÷8 余 8 坤）、
+    // 后 3 字 3+1+1 = 5（巽）→ **地风升**；总 13 ÷ 6 余 1 = **初爻**（巽初爻阴变阳
+    // 得上坤下乾 = 地天泰）。三个数一起钉死：上 8 / 下 5 / 动 1。
+    // 这条同时验「四个字以上确实走后端**平仄档**」—— 页面没有平仄表（26660 字），
+    // 它连算都算不出来；以及取数明细真的逐字渲染给用户看了（北极星：服务不懂的人）。
+    await reset(m);
+    await selectMethod(m, 'character');
+    await js(m, `document.getElementById('charInput').value = '今日动静如何'; return true;`);
+    await clickStart(m);
+    r = await waitResult(m, 10000);
+    text = await resultText(m, 10000);
+    check('六字真端点：本卦 = 地风升（上 8 坤 / 下 5 巽）',
+      /地风升/.test(text), JSON.stringify(text).slice(0, 200));
+    check('变卦 = 地天泰 ⇒ 动爻是第 1 爻（总 8+5 = 13 ÷ 6 余 1）',
+      /地天泰/.test(text), JSON.stringify(text).slice(0, 300));
+    check('取数明细逐字渲染：日→入声4（入声）、动→去声3（今音）',
+      /日·入声4（入声）/.test(text) && /动·去声3（今音）/.test(text),
+      JSON.stringify(text).slice(0, 300));
+    check('算式行也摆出来（前 3 字取数 1+4+3 = 8；总 13 ÷ 6 余 1）',
+      /1\+4\+3 = 8/.test(text) && /13，÷ 6 余 1/.test(text),
+      JSON.stringify(text).slice(0, 400));
 
     // ── ⑧ 保存路径（原地出结果，不再跳结果页）──────────────────
     console.log('\n⑧ 填了事项 → 存记录 → 结果就地出，留在本页');
