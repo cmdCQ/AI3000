@@ -10,7 +10,15 @@
  *   core  —— 直调 `divine()`，用于注入 API 不暴露的 `dt`。
  *   error —— 必须**抛出**，把 message 作为 `{__error__}` 交出，与金标准逐字比。
  *
- * 用法：node run_js_meihua.js [cases.json] [out.json]
+ * 用法：node run_js_meihua.js [cases.json] [out.json] [--no-huanri]
+ *
+ * `--no-huanri`：把「晚子时换日」这一处**已拍板偏离关掉**，产出与 shushu 同口径的
+ * 对照组。它不是调试开关，而是让那条偏离**可证伪**的手段：`coverage_meihua.py`
+ * 断言「关掉换日后与金标准 0 差异」—— 于是 23 点那 38 例的差异被证明**只**来自
+ * 换日这一个开关，没有第二个 bug 躲在「已申报」后面。
+ *
+ * 实现方式是替换依赖里的函数而**不是**给生产代码加测试开关：
+ * `meihua.js` 调的是 `ganzhi.lunarOfNextDay`，把它指回 `lunarOf` 即可。
  */
 'use strict';
 
@@ -18,10 +26,18 @@ const fs = require('fs');
 const path = require('path');
 
 const PAIPAN = path.join(__dirname, '..', 'build', 'backend', 'paipan');
+const G = require(path.join(PAIPAN, 'ganzhi.js'));
+if (process.argv.includes('--no-huanri')) {
+  G.lunarOfNextDay = G.lunarOf;
+  console.log('[--no-huanri] 已把 lunarOfNextDay 指回 lunarOf（对照组：与 shushu 同口径）');
+}
 const M = require(path.join(PAIPAN, 'meihua.js'));
 
-const casesPath = process.argv[2] || path.join(__dirname, 'meihua_cases.json');
-const outPath = process.argv[3] || path.join(__dirname, 'js_meihua.json');
+// 位置参数要先把 `--` 开头的开关滤掉：`node run_js_meihua.js --no-huanri` 时
+// 若直接取 argv[2]，开关本身就成了 casesPath。
+const args = process.argv.slice(2).filter((a) => !a.startsWith('--'));
+const casesPath = args[0] || path.join(__dirname, 'meihua_cases.json');
+const outPath = args[1] || path.join(__dirname, 'js_meihua.json');
 const cases = JSON.parse(fs.readFileSync(casesPath, 'utf8'));
 
 const pad2 = (n) => String(n).padStart(2, '0');

@@ -305,7 +305,19 @@ function pack(method, upperNum, lowerNum, moving, inputs, derivation) {
  */
 function meihuaTimeNumbers(dt) {
   const t = G.normalize(dt === undefined || dt === null ? new Date() : dt);
-  const lun = G.lunarOf(t);
+  // 晚子时（23:00–23:59）换日 —— 农历月/日/年支一律取**次日**。
+  //
+  // 这是用户 2026-09-24 拍板的偏离（同 `ganzhi.sizhu` 的日柱进位、同本文件入口的
+  // 「六爻时间起卦共用本合同公式」），shushu 不换日（它直接 `lunar.getDay()`），
+  // 故层 7 的 23 点样例成为**已申报偏离**（`allow_meihua.json` 按规则生成）。
+  //
+  // 为什么必须换日、而不是照抄 shushu：本项目的四柱在 23:00 已进日柱
+  // （`getDayInGanZhiExact`），若梅花的农历日不跟着进，同一时刻下「日柱」说今天
+  // 结束了、「农历日」说还没结束 —— 项目内部自相矛盾。且子时（23:00–01:00）
+  // 在换日派里整段属于新的一天，不换日会让 23:59 与次日 00:01 相差一分钟却同卦。
+  //
+  // 走库的 `next(1)` 而非「日 +1」：月末/年末/闰月的进位交给库。
+  const lun = t.h >= 23 ? G.lunarOfNextDay(t) : G.lunarOf(t);
 
   const yearBranch = lun.getYearZhi();
   const yNum = ZHI_ORDER.indexOf(yearBranch) + 1;

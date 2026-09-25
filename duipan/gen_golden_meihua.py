@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -329,10 +330,36 @@ def main() -> int:
     side = out.with_name("meihua_cases.json")
     side.write_text(json.dumps(specs, ensure_ascii=False, indent=1), encoding="utf-8")
 
+    # ── 申报表：晚子时换日（已拍板偏离） ────────────────────────────────
+    # 判据**独立于实跑差异**（层 3 的教训：按跑出来的差异反向拟合白名单，白名单
+    # 会随 bug 一起漂移）：只看**金标准自己**记下的起卦时刻，小时 >= 23 就申报。
+    # 换日使农历日 +1 → 三数全变 → 整卦、体用、互变、旺衰、应期全线变，故这里
+    # 申报到**整例**粒度：那一例的每一个叶子值都已不同，逐字段申报只是把同一句
+    # 话写十二遍（`coverage_meihua.py` 断言申报集恰好等于「time 法且 h>=23」）。
+    #
+    # 代价写明白：这 38 例从此**不参与**与 shushu 的比对。替代判据有两条，缺一不可
+    # （见 coverage_meihua.py）：① 由「关掉换日后与金标准 0 差异」证明差异只来自
+    # 换日这一个开关；② 由 `verify_qigua_vs_front.js` 与**线上前端**逐点核对取数。
+    allow = {}
+    for cid, g in golden.items():
+        if g.get("method") != "time":
+            continue
+        dt = (g.get("inputs") or {}).get("datetime") or ""
+        m = re.search(r"[T ](\d{1,2}):", dt)
+        if m and int(m.group(1)) >= 23:
+            allow[cid] = (
+                "晚子时(23:00-23:59)换日：农历日进一位——用户 2026-09-24 拍板，"
+                "不跟 shushu（shushu 直接 lunar.getDay() 不换日）。换日则三数全变、"
+                "整卦随之全变，故整例申报；本条由 gen 按「time 法且 h>=23」规则生成，"
+                "替代判据见 coverage_meihua.py")
+    ap_out = out.with_name("allow_meihua.json")
+    ap_out.write_text(json.dumps(allow, ensure_ascii=False, indent=1), encoding="utf-8")
+
     n_err = sum(1 for v in golden.values() if "__error__" in v)
     print(f"已写 {out}：{len(golden)} 例（其中错误路径 {n_err} 例、"
           f"直调注入 dt {len(CORE_DT) * 2} 例）")
     print(f"已写 {side}：调用说明，供 run_js_meihua.js 照着调")
+    print(f"已写 {ap_out}：申报 {len(allow)} 例（晚子时换日，整例）")
     print(f"  起卦法：{sorted(METHOD_META)}")
     return 0
 

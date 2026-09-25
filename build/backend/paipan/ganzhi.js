@@ -150,6 +150,17 @@ function lunarOf(input) {
 }
 
 /**
+ * 次日的 lunar 对象 —— 晚子时换日用。
+ *
+ * 走库的 `next(1)` 而不是 `d + 1`：月末、年末、以及农历闰月的进位由库处理，
+ * 自己加一天会在这些边界上溢出或落到不存在的日期。
+ */
+function lunarOfNextDay(input) {
+  const t = normalize(input);
+  return Solar.fromYmdHms(t.y, t.mo, t.d, t.h, t.mi, 0).next(1).getLunar();
+}
+
+/**
  * 月支（月建）—— 精确到交节时刻。
  *
  * 与 `sizhu().month_gz` **同口径**（都走 `getMonthInGanZhiExact()`，
@@ -163,4 +174,4 @@ function monthDizhiAt(input) {
   return gz && gz.length > 1 ? gz[1] : '';
 }
 
-module.exports = { sizhu, normalize, ZHI_HOUR_NAME, monthDizhiAt, lunarOf };
+module.exports = { sizhu, normalize, ZHI_HOUR_NAME, monthDizhiAt, lunarOf, lunarOfNextDay };

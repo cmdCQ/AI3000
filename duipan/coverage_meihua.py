@@ -279,6 +279,61 @@ def main() -> int:
     check("getHexName 64 个通行全名 ≡ 前端(卦名+上下卦+先天象)按通行命名法合成",
           not name_bad, f"不一致 {len(name_bad)} 条 {name_bad[:3]}")
 
+    # ③-4 晚子时换日：**已拍板偏离**的申报必须可证伪 ══════════════════════
+    # 层 7 里唯一一处申报（38 例，整例）。整例申报会把那 38 例的**全部**字段从
+    # 比对里摘掉，所以必须有两条替代判据，否则等于「有 38 例什么都没验」：
+    #
+    #   ① 申报集**恰好**等于「time 法且 h>=23」—— 不多（没顺手把别的也申报掉，
+    #      那是撒胡椒面）、不少（真有差异却漏申报，diff 会红，但这里再钉一次）。
+    #   ② 把换日这一个开关**关掉**后，被验方与金标准必须 **0 差异**。
+    #      这条才是关键：它证明那 38 例的差异**只**来自换日，没有第二个 bug
+    #      躲在「已申报」后面 —— 整例申报最大的风险就是藏 bug，② 正面堵死它。
+    #      对照组由 `run_js_meihua.js meihua_cases.json js_meihua_nohuanri.json
+    #      --no-huanri` 产出（把 `ganzhi.lunarOfNextDay` 指回 `lunarOf`）。
+    allow = load("allow_meihua.json")
+    late = {cid for cid, v in g.items()
+            if v.get("method") == "time"
+            and (m := re.search(r"[T ](\d{1,2}):", (v.get("inputs") or {}).get("datetime") or ""))
+            and int(m.group(1)) >= 23}
+    check("申报集 ≡「time 法且 h>=23」的样例集（不撒胡椒面、也不漏）",
+          set(allow) == late,
+          f"申报 {len(allow)} 例 / 应申报 {len(late)} 例；"
+          f"多报 {sorted(set(allow) - late)[:3]}、漏报 {sorted(late - set(allow))[:3]}")
+    check("申报的每一例都写明理由（含拍板日期与「不跟 shushu」）",
+          all("2026-09-24" in r and "shushu" in r for r in allow.values()),
+          "有申报条目缺理由" if not all("2026-09-24" in r and "shushu" in r for r in allow.values())
+          else "理由齐全")
+    nh = load("js_meihua_nohuanri.json")
+    diff_nh = sum(1 for cid in g
+                  if json.dumps(g[cid], sort_keys=True, ensure_ascii=False)
+                  != json.dumps(nh.get(cid), sort_keys=True, ensure_ascii=False))
+    check("关掉换日后与金标准 **0 差异**（差异只来自换日这一个开关，没藏第二个 bug）",
+          diff_nh == 0,
+          f"仍有 {diff_nh} 例不同 —— 整例申报的风险正在于此" if diff_nh else "0 例不同")
+    # 换日的**方向**也要钉死：不能只验「变了」，要验「怎么变」。
+    # 两种合法形状，除此之外都是乱变：
+    #   ① 平进：农历日 +1、农历月不变
+    #   ② 月末进位：农历日 29/30 → 1，**且**农历月 +1
+    # （② 是实跑里真出现的那一例：29 日 → 次月初一，日差 -28。第一版断言只写了
+    #  ①，当场把这一例判成「乱变」—— 断言写窄了会把正确行为报成 bug，故两种都列。）
+    # 两侧的取数中间量都在顶层 `derivation`。
+    step, rollover_bad = Counter(), []
+    for cid in late:
+        d = g[cid].get("derivation") or {}
+        e = j[cid].get("derivation") or {}
+        ad, bd = d.get("lunar_day"), e.get("lunar_day")
+        am, bm = d.get("lunar_month"), e.get("lunar_month")
+        if not (isinstance(ad, int) and isinstance(bd, int)):
+            continue
+        step[bd - ad] += 1
+        if bd - ad == 1 and bm != am:
+            rollover_bad.append(f"{cid}：日 +1 却月也变了")
+        elif bd - ad != 1 and not (bd == 1 and isinstance(bm, int) and bm - am == 1):
+            rollover_bad.append(f"{cid}：日 {ad}→{bd} 月 {am}→{bm}")
+    check("换日恒为「农历日 +1」或「月末进位到次月初一（日→1 且月+1）」",
+          not rollover_bad and set(step) <= {1, -28, -29},
+          f"步长分布 {dict(step)}；越界样例 {rollover_bad[:3]}")
+
     # ③-3 笔画表：本模块 strokes.js ↔ shushu core/meihua/strokes.py（机械转写，须逐字相等）
     sys.path.insert(0, SHUSHU)
     try:
