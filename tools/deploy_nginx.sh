@@ -39,8 +39,11 @@ fi
 
 ss() { sh "$HERE/ss.sh" "$@"; }
 
-FILES="js/ui_common.js js/ai_panel.js js/liuyao_render.js js/liuyao_ai_panel.js \
-js/mhys_ai_panel.js js/mhys_render.js css/liuyao_result.css \
+# ⚠ `css/mhys_result.css` 是**梅花与六爻共用的底**（令牌、卡片、AI 面板、卦象画法），
+# 它原先不在清单里 —— 那份清单是随第一批（ui_common/ai_panel/render）列的，
+# 之后往共用底里加规则就会被静默漏掉：本地截图全绿、线上纹丝不动。
+FILES="js/ui_common.js js/ai_panel.js js/auth.js js/liuyao_render.js js/liuyao_ai_panel.js \
+js/mhys_ai_panel.js js/mhys_render.js css/liuyao_result.css css/mhys_result.css \
 liuyao/index.html liuyao/result.html mhys/index.html mhys/result.html"
 
 for f in $FILES; do

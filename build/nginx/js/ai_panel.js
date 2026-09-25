@@ -62,6 +62,27 @@ var MH_AI_PANEL_HTML = `
 var aiStreamAbort = null;
 var aiPanelOpen = false;
 
+/**
+ * 抹掉后端拼在正文末尾的 token 尾巴。
+ *
+ * 后端流式返回的是**裸文本 + 一行魔法尾巴**：
+ *   `\n消耗 Token：输入 X + 输出 Y = Z ｜ 剩余：R`
+ * 它不是正文，是记账信息（线上截图里它就那样显示在解卦正文最后一行）。
+ *
+ * ⚠ 原实现只在「存进记录」那一处 `lastIndexOf` 抹了一次，**显示用的 fullText
+ * 没抹**，所以用户看得到、存下来的却没有 —— 同一份内容两个样。
+ * 现在统一走这个函数：显示与保存都是它。将来流式改真 SSE 事件时，删掉本函数
+ * 与后端那一行拼接即可（见 3.5.4 / 阶段 3 的计划）。
+ */
+var AI_TOKEN_TRAILER = '\n消耗 Token：';
+function stripTokenTrailer(t) {
+  if (!t) return t;
+  var i = t.lastIndexOf(AI_TOKEN_TRAILER);
+  // 尾巴前通常还留着一个空行（尾巴自己以 \n 开头，而正文与尾巴之间还有一个 \n），
+  // 砍完顺手 trim 掉，免得正文末尾挂着空行。
+  return i > 0 ? t.substring(0, i).replace(/\s+$/, '') : t;
+}
+
 /** 取页面给的配置。缺字段一律回落到「不会崩」的默认值，便于单页试跑 */
 function AIC() { return window.AI_PANEL_CONF || {}; }
 function aiHasChart() { var c = AIC(); return c.hasChart ? !!c.hasChart() : true; }
@@ -72,11 +93,50 @@ function aiSetSaved(v) { var c = AIC(); if (c.setSaved) c.setSaved(v); }
 function aiPayload() { var c = AIC(); return c.payload ? c.payload() : null; }
 
 function toggleAIPanel() {
-  aiPanelOpen = !aiPanelOpen;
-  document.getElementById('aiPanel').classList.toggle('open', aiPanelOpen);
-  document.getElementById('aiPanelOverlay').classList.toggle('open', aiPanelOpen);
-  if (aiPanelOpen) {
-    showAIHome();
+  if (aiPanelOpen) { closeAIPanel(); return; }
+  showAIHome();
+  openAIPanel();
+}
+
+/**
+ * 面板的放置位置。
+ *
+ * ⚠ 用户报的「六爻前端显示问题很大」，主体就是这个：面板原先是 `position:fixed`
+ * 的底部浮层 + 全屏遮罩，结果页上它**正好盖住刚排出来的卦象表** ——
+ * 用户点了「看不懂？试试自动解析」，然后自己的盘就看不见了，盘与解读互相遮挡，
+ * 谁都读不完整。
+ *
+ * 结果页有 `#resultArea` 时改成**放进正文流**，排在盘下面：从上往下读就是
+ * 「先看盘 → 再看解读」，符合北极星那条（服务于不懂的人），也不再遮任何东西。
+ * 没有 `#resultArea` 的页面（如旧结果页）仍走原来的浮层，行为不变。
+ *
+ * 宿主 `#aiInlineHost` 是 `#resultArea` 的**兄弟**、只建一次：结果区每次排盘都会
+ * `innerHTML = …` 重建，面板若挂在结果区**内部**会被一起清掉。
+ */
+function aiInlineHost() {
+  var area = document.getElementById('resultArea');
+  if (!area || !area.parentNode) return null;
+  var host = document.getElementById('aiInlineHost');
+  if (!host) {
+    host = document.createElement('div');
+    host.id = 'aiInlineHost';
+    area.parentNode.insertBefore(host, area.nextSibling);
+  }
+  return host;
+}
+
+function openAIPanel() {
+  var p = document.getElementById('aiPanel');
+  var o = document.getElementById('aiPanelOverlay');
+  var host = aiInlineHost();
+  aiPanelOpen = true;
+  if (host) {
+    if (p.parentNode !== host) host.appendChild(p);
+    p.classList.add('inline', 'open');
+    o.classList.remove('open');
+  } else {
+    p.classList.add('open');
+    o.classList.add('open');
   }
 }
 
@@ -158,7 +218,7 @@ async function sendFollowUp() {
       fullText = xhr.responseText;
       var ansDiv = item.querySelector('.ai-followup-answer') || document.createElement('div');
       if (!ansDiv.className) { ansDiv.className = 'ai-followup-answer'; item.appendChild(ansDiv); }
-      ansDiv.innerHTML = renderMarkdown(fullText);
+      ansDiv.innerHTML = renderMarkdown(stripTokenTrailer(fullText));
       body.scrollTop = body.scrollHeight;
     }
   };
@@ -280,14 +340,14 @@ async function startAIStream() {
       var newText = xhr.responseText.substring(fullText.length);
       if (newText) {
         fullText = xhr.responseText;
-        respDiv.innerHTML = renderMarkdown(fullText);
+        respDiv.innerHTML = renderMarkdown(stripTokenTrailer(fullText));
         resp.scrollTop = resp.scrollHeight;
       }
     };
 
     xhr.onerror = function() {
       if (fullText) {
-        respDiv.innerHTML = renderMarkdown(fullText) + '<p style="color:#991b1b;font-size:0.75rem;margin-top:0.5rem">⚠ 传输中断，以上为已接收内容</p>';
+        respDiv.innerHTML = renderMarkdown(stripTokenTrailer(fullText)) + '<p style="color:#991b1b;font-size:0.75rem;margin-top:0.5rem">⚠ 传输中断，以上为已接收内容</p>';
       } else {
         resp.innerHTML = '<div class="ai-error">❌ 连接失败，请重试</div>';
       }
@@ -303,11 +363,8 @@ async function startAIStream() {
       // 401 → 清除错误内容并弹出登录窗口
       if (handleApiUnauthorized(xhr, respDiv)) return;
 
-      var analysisText = fullText;
-      if (analysisText) {
-        var tokenIdx = analysisText.lastIndexOf('\n消耗 Token：');
-        if (tokenIdx > 0) analysisText = analysisText.substring(0, tokenIdx).trim();
-      }
+      // 与显示走同一个抹尾巴函数（原来这里单独写了一次 lastIndexOf）
+      var analysisText = fullText ? stripTokenTrailer(fullText).trim() : '';
       var recId = aiRecordId();
       if (analysisText && recId) {
         fetch(AIC().recordsPath + '/' + recId + '/ai', {
@@ -347,9 +404,7 @@ async function startAIStream() {
 // 自动打开只是替用户点了那一下，不绕过任何一关。
 function autoStartAI() {
   if (!aiHasChart()) return false;
-  aiPanelOpen = true;
-  document.getElementById('aiPanel').classList.add('open');
-  document.getElementById('aiPanelOverlay').classList.add('open');
+  openAIPanel();
   startButtonClicked();
   return true;
 }

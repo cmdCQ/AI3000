@@ -28,11 +28,19 @@ window.AUTH = AUTH;
 // 返回 true 表示已处理 401（调用方应直接 return）
 function handleApiUnauthorized(xhr, el) {
   if (!xhr || xhr.status !== 401) return false;
+  // ⚠ 401 **不等于「过期」**：从没登录过的访客也是 401 —— `/api/chat/send` 对匿名
+  // 一律拒（`auth-server.js`：`if (!username) return json(res, {error:'请先登录'}, 401)`）。
+  // 原来一律写「登录已过期，请重新登录」，对首次到访的人是句假话；线上截图里
+  // 它就挂在刚排完盘的盘面正中间（匿名访客排完盘 → 面板自动起 → 401 → 弹框）。
+  var logged = false;
+  try { logged = !!(window.AUTH && AUTH.isLoggedIn()); } catch (e) {}
   if (el) {
     el.innerHTML = '<div style="text-align:center;padding:1.5rem 1rem">' +
       '<div style="font-size:1.2rem;margin-bottom:0.5rem">🔒</div>' +
-      '<div style="font-size:0.9rem;font-weight:600;color:var(--text);margin-bottom:0.3rem">登录已过期，请重新登录</div>' +
-      '<div style="font-size:0.75rem;color:var(--text-dim);line-height:1.7;margin-bottom:1rem">登录后即可使用全部 AI 功能</div>' +
+      '<div style="font-size:0.9rem;font-weight:600;color:var(--text);margin-bottom:0.3rem">'
+        + (logged ? '登录已过期，请重新登录' : '登录后即可使用 AI 解析') + '</div>' +
+      '<div style="font-size:0.75rem;color:var(--text-dim);line-height:1.7;margin-bottom:1rem">'
+        + (logged ? '登录后即可使用全部 AI 功能' : 'AI 解卦需要登录后使用') + '</div>' +
       '<a href="javascript:void(0)" onclick="openAuthModal(\'login\')" class="ai-start-btn" style="display:inline-block;text-decoration:none">去登录</a>' +
       '</div>';
   }

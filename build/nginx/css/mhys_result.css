@@ -169,6 +169,21 @@ html,body { background:var(--bg); color:var(--text); font-family:var(--sans); mi
 .ai-panel.open { display:flex; }
 .ai-panel-overlay.open { display:block; }
 
+/* 结果页上的形态：**放进正文流**，排在卦象下面，而不是浮在它上面盖住它。
+   浮层那版在手机上尚可（底部抽屉），在桌面上就是一张 420px 的纸片糊在
+   1280px 页面的正中间，把刚排出来的盘挡得严严实实 —— 用户报的正是这个。
+   正文流里高度不限（页面自己滚），圆角与边框按卡片来，和上面的盘一套样子。 */
+.ai-panel.inline {
+  position:static; left:auto; right:auto; bottom:auto; top:auto;
+  max-width:none; margin:1rem 0 0;
+  max-height:none;
+  border-radius:var(--radius);
+  border-bottom:1px solid var(--border);
+  box-shadow:none;
+  animation:none;
+}
+.ai-panel.inline .ai-panel-body { overflow:visible; }
+
 .ai-panel-header {
   display:flex; align-items:center; justify-content:space-between;
   padding:0.9rem 1.1rem 0.6rem;

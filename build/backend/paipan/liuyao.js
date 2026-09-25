@@ -465,9 +465,39 @@ function formatChart(chart) {
                               : (b === chart.monthZhi ? b + '月建' : '')))).filter(Boolean);
       return drv.length ? '（' + drv.join('、') + '引）' : '（无动爻日辰月建牵引，静合）';
     };
-    for (const s of ss.sanhe) L.push('三合：' + s.branches.join('') + '成' + s.name + howOf(s.branches));
-    for (const s of ss.sanhui) L.push('三会：' + s.branches.join('') + '成' + s.name + howOf(s.branches));
-    for (const s of ss.ban_sanhe) L.push('半合：' + s.branches.join('') + ' ' + s.name);
+    const YAO_NAME = ['初爻', '二爻', '三爻', '四爻', '五爻', '上爻'];
+    const yaoLabel = (p) => YAO_NAME[p - 1] || (p + '爻');
+    // 爻位：`positions` 与 `branches` 同序，1=初爻…6=上爻（`detectSanheSanhui` 里
+    // `[i+1, y.branch]`，`yaos[0]` 是初爻）
+    const atOf = (s) => s.positions.map((p, n) => yaoLabel(p) + s.branches[n]).join('-');
+
+    for (const s of ss.sanhe) L.push('三合：' + s.branches.join('') + '成' + s.name + '（' + atOf(s) + '）' + howOf(s.branches));
+    for (const s of ss.sanhui) L.push('三会：' + s.branches.join('') + '成' + s.name + '（' + atOf(s) + '）' + howOf(s.branches));
+
+    // 半合：同一地支对可由**多组爻位**实现（丑在初/四爻、酉在三/上爻 → 2×2=4 对）。
+    // shushu 的检出本就是逐对给、带 `positions`（`najia.py:687-697`），移植时照抄未删；
+    // 但原先**只印地支、不印爻位**，四行长得一模一样 —— 线上催出来的 AI 正文里就是
+    // 「半合：丑酉 半三合金（帝旺+墓库）」连印四行，看着像坏了。爻位是真信息（合在
+    // 哪两爻关乎旺衰与应期），故按地支对归并成一行、把各自的爻位列出来：
+    // **检出一个没动，只改印法**。
+    // 牵引一并给出 —— 与上面三合三会同一条道理（古法静而合者力弱）。
+    const banPair = new Map();
+    for (const s of ss.ban_sanhe) {
+      // 地支对与先后无关（丑酉 / 酉丑 是同一组），按字符序归一
+      const k = s.branches.slice().sort().join('');
+      if (!banPair.has(k)) banPair.set(k, { name: s.name, branches: s.branches, at: new Map() });
+      const g = banPair.get(k);
+      s.branches.forEach((z, n) => {
+        if (!g.at.has(z)) g.at.set(z, []);
+        const ps = g.at.get(z);
+        if (ps.indexOf(s.positions[n]) < 0) ps.push(s.positions[n]);
+      });
+    }
+    for (const [k, g] of banPair) {
+      const where = [...g.at].map(([z, ps]) =>
+        z + '在' + ps.sort((a, b) => a - b).map(yaoLabel).join('·')).join('，');
+      L.push('半合：' + k + ' ' + g.name + '　' + where + howOf(g.branches));
+    }
     if (!ss.sanhe.length && !ss.sanhui.length && !ss.ban_sanhe.length) L.push('三合三会：无');
   }
 

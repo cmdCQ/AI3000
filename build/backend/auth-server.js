@@ -245,15 +245,23 @@ const LOCKOUT_MS = 15 * 60 * 1000; // 15 min lockout
 const ADMIN_TOKEN_EXPIRY = 24 * 60 * 60 * 1000; // 24h
 const LLM_MODEL = 'deepseek-v4-flash';
 
+// 后台「提示词管理」页面里逐个模板展示的**默认值**，也必须是运行时的真实回落。
+//
+// ⚠ 这里曾经是一份**与运行时无关**的副本：本表里放着 8 条短模板（其中
+// `liuyao_prompt` 甚至写着「……（可复制现有完整模板，变量用 {{变量名}} 替换）」
+// 这种占位句），而 `buildLiuyaoPrompt()` 的回落读的是 `paipan/prompt.js` 里
+// 另一份长模板。于是后台页面上「默认值」显示的和线上真正跑的**是两个东西** ——
+// 管理员照着它改、以为改的是默认，其实连默认长什么样都没看到。
+// 现在一律指向 paipan/prompt.js 的常量：一处定义，后台与运行时同一个值。
 const DEFAULT_PROMPTS = {
   mhys_system: '你是梅花易数解卦师。回答顺序固定为：参考古籍→回答答案→你的现状→解卦逻辑。先给结果，再讲现状，最后解释依据。回答清晰、理性、简洁，避免绝对化断语，多用"可能""倾向"。',
-  mhys_prompt: '以下是一组梅花易数排盘数据。\n\n【求测事项】{{topic}}\n\n【卦象】\n本卦：{{benGuaUpper}}上{{benGuaLower}}下 → {{benGuaName}}\n互卦：{{huGuaUpper}}上{{huGuaLower}}下 → {{huGuaName}}\n变卦：{{bianGuaUpper}}上{{bianGuaLower}}下 → {{bianGuaName}}\n错卦：{{cuoGuaUpper}}上{{cuoGuaLower}}下 → {{cuoGuaName}}\n综卦：{{zongGuaUpper}}上{{zongGuaLower}}下 → {{zongGuaName}}\n\n【体用】体卦：{{tiName}}（{{tiElement}}）｜用卦：{{yongName}}（{{yongElement}}）\n生克：{{tiyongVerdict}} — {{tiyongDesc}}\n动爻：{{movingYao}}\n\n请按三段回复，每段以"---"分隔：\n\n【一、回答】大白话直接说结论（吉/凶/平/转机），结合变卦判断走向。不含卦象推导术语。\n\n【二、现状】用本卦说当前状况，用互卦点隐藏变数。也说大白话，不出现卦象推导。\n\n【三、解卦思路】推演：本卦定大局→互卦析过程→变卦断结局，错综对照。说明体用生克影响。可含卦象术语。末尾提醒卦象非绝对。\n\n避免绝对化断语（"必死""大吉"等），多用"可能""倾向"。语气干脆老练。用**加粗**标结论重点（会显示金色），###子标题适度。\n\n{{ragContext}}\n\n【四、补充】末尾引导用户补充背景："如有更多具体情况可补充，方便做更细致解读"——语气自然，单独一段。',
-  mhys_notopic: '你是一位梅花易数解卦师。用户还没说问什么事，请用一句话简短询问。',
-  mhys_followup: '针对「{{topic}}」的追问：\n\n【之前解读】{{context}}\n\n【追问】{{followUp}}\n\n请直接回答追问，不重复完整分析。结构：\n【一、回答】——结论和建议，不用卦象术语。\n【二、思路】（可选）——一两句推演依据。',
+  mhys_prompt: promptLib.DEFAULT_MHYS_PROMPT,
+  mhys_notopic: promptLib.DEFAULT_MHYS_NOTOPIC,
+  mhys_followup: promptLib.DEFAULT_MHYS_FOLLOWUP,
   liuyao_system: '你是六爻纳甲解卦师。断卦必须严格遵循七层标准流程：①定用神（据事项性别取六亲）→②看世应（世为己应为人，分人我吉凶）→③察日月（日主月提定旺衰，爻不敌日月）→④辨动爻（动为变化之机，独发力量最大）→⑤析生克（元神生用则吉，忌神克用则凶，贪生贪合可忘克）→⑥审空亡月破（辨真空假空，空忌吉空用凶）→⑦推应期（出空填实、冲墓冲合、生旺墓绝）。输出分三块：结论（直说吉凶，人话）→现状（世应六神说当下）→推演（七层逐步展开，引具体爻位六亲六神，含应期判断）。避免绝对断语，多用可能/倾向。用**加粗**标重点。',
-  liuyao_prompt: '以下是一组六爻排盘数据。请严格按照六爻断卦标准流程逐层分析。\n\n【求测事项】{{topic}}\n【求测者性别】{{gender}}\n\n【卦象】\n本卦：{{benGuaUpper}}上{{benGuaLower}}下 → {{benGuaName}}\n变卦：{{bianGuaUpper}}上{{bianGuaLower}}下 → {{bianGuaName}}\n\n══════ 断卦方法论（必须逐层执行） ══════\n\n【第一层·定用神】根据求测事项和性别确定用神……（可复制现有完整模板，变量用 {{变量名}} 替换）\n\n请严格按以下结构回复，每段以"---"分隔：\n\n【一、结论】直接说吉凶结论，1-2句话。结合用神旺衰与忌神动否。大白话。\n\n【二、现状分析】描述当前状况：世应关系、六神氛围、爻位事态阶段。不出现推导。\n\n【三、解卦推演】按七层方法论逐步推演，引用具体爻位六亲六神，含应期判断。可含术语。\n\n用**加粗**标重点。避免绝对化断语。\n\n{{ragContext}}\n\n【补充引导】末尾引导用户补充背景。',
-  liuyao_notopic: '你是一位六爻纳甲解卦师。用户还没说问什么事，请先回应排盘数据（本卦变卦名+世应位置），然后用一句话询问求测事项。',
-  liuyao_followup: '针对「{{topic}}」的追问：\n\n【之前解读】{{context}}\n\n【追问】{{followUp}}\n\n直接回答追问，不重复完整七层分析。聚焦追问涉及的层面。结构：\n【回答】——结论和建议，不用卦象术语。\n【依据】——简短推演依据（1-3句，引用原卦爻位）。',
+  liuyao_prompt: promptLib.DEFAULT_LIUYAO_PROMPT,
+  liuyao_notopic: promptLib.DEFAULT_LIUYAO_NOTOPIC,
+  liuyao_followup: promptLib.DEFAULT_LIUYAO_FOLLOWUP,
 };
 
 // ===== JWT =====
@@ -1416,7 +1424,10 @@ async function handle(req, res) {
     const key = pathname.split('/').pop();
     var custom = readPrompts();
     custom[key] = body.value || '';
-    writePrompts(custom);
+    // 写盘失败必须回 500：原先是「写完就 ok」，磁盘/权限一出问题
+    // 管理员看到「已保存」，站点却仍旧跑默认模板 —— 静默失败最难查。
+    const err = writePrompts(custom);
+    if (err) return json(res, { error: '保存失败：' + err }, 500);
     return json(res, { ok: true, key: key });
   }
 
@@ -1427,7 +1438,8 @@ async function handle(req, res) {
     const key = pathname.split('/').pop();
     var custom = readPrompts();
     delete custom[key];
-    writePrompts(custom);
+    const err2 = writePrompts(custom);
+    if (err2) return json(res, { error: '重置失败：' + err2 }, 500);
     return json(res, { ok: true, key: key });
   }
 
@@ -1994,10 +2006,16 @@ userPrompt += '\n\n注意：参考古籍已在最上方提供，请在回答开�
     });
 
     try {
-      // 估算输入 token
-      const inputTokens = estimateTokens(systemPrompt + '\n' + prompt);
-      
-      // 流式输出
+      // ── token 用量：取上游**真数**，不自己估 ──
+      // `estimateTokens` 是本地按字数猜的（见函数定义），而用户在按这个数扣额度。
+      // 实测 DeepSeek 流式支持 `stream_options.include_usage`，末尾会回一帧带
+      // `{prompt_tokens, completion_tokens, total_tokens, prompt_cache_hit_tokens, ...}`
+      // （2026-09-25 容器内实测，帧里带 `"usage":{"prompt_tokens":9,...}`）。
+      // 故：优先用真数，取不到才回落估算 —— 回落时**只打日志**，不改文案格式
+      // （那行是前端按 `'\n消耗 Token：'` 字符串切的，动格式会连着前端一起坏）。
+      let estInputTokens = estimateTokens(systemPrompt + '\n' + prompt);
+      let realUsage = null;
+
       const OpenAI = require('openai');
       const client = new OpenAI({
         apiKey: config.deepseek.apiKey,
@@ -2005,6 +2023,15 @@ userPrompt += '\n\n注意：参考古籍已在最上方提供，请在回答开�
       });
 
       const controller = new AbortController();
+      // 客户端断开时必须掐掉上游：不掐的话模型照旧把这个回答生成完 ——
+      // 用户看不到，我们照付钱，而且下面那段记账还照记。
+      let clientGone = false;
+      const onClose = () => {
+        clientGone = true;
+        try { controller.abort(); } catch (e) { /* 已结束 */ }
+      };
+      res.on('close', onClose);
+
       const stream = await client.chat.completions.create({
         model: LLM_MODEL,
         messages: [
@@ -2014,12 +2041,15 @@ userPrompt += '\n\n注意：参考古籍已在最上方提供，请在回答开�
         stream: true,
         max_tokens: 3000,
         temperature: 0.7,
+        stream_options: { include_usage: true },
       }, { signal: controller.signal });
 
       let fullText = '';
       let stopped = false;
       try {
         for await (const chunk of stream) {
+          // usage 帧的内容为空，必须在取 content **之前**收，否则会漏掉
+          if (chunk.usage) realUsage = chunk.usage;
           if (stopped) continue;
           const content = chunk.choices[0]?.delta?.content || '';
           if (content) {
@@ -2027,12 +2057,29 @@ userPrompt += '\n\n注意：参考古籍已在最上方提供，请在回答开�
             try { res.write(content); } catch(e) { stopped = true; }
           }
         }
-      } catch(e) { /* 流中断 */ }
+      } catch(e) {
+        // 原来这里是 `catch(e) { /* 流中断 */ }` —— 静默吞掉，用户会拿到一段
+        // 莫名截断的回答且无从分辨。现在留痕，并在**还没写出任何内容**时补一句
+        // 明说的提示（已写出内容时就只留痕，避免在正文中间插一句突兀的话）。
+        if (!clientGone) console.error('[chat] 流中断:', e && e.message);
+        if (!fullText && !clientGone && !res.writableEnded) {
+          try { res.write('抱歉，生成中断了，请重试一次。'); } catch (e2) { /* 已断开 */ }
+        }
+      } finally {
+        res.removeListener('close', onClose);
+      }
 
-      // 流完成后计算 token
+      // 流完成后算 token
       if (fullText && username) {
-        const outputTokens = estimateTokens(fullText);
-        const totalTokens = inputTokens + outputTokens;
+        const inputTokens = realUsage ? realUsage.prompt_tokens : estInputTokens;
+        const outputTokens = realUsage ? realUsage.completion_tokens
+                                       : estimateTokens(fullText);
+        if (!realUsage) {
+          console.error('[chat] 上游未回 usage，token 记账回落为估算值（'
+            + inputTokens + '+' + outputTokens + '）');
+        }
+        const totalTokens = realUsage ? realUsage.total_tokens
+                                      : inputTokens + outputTokens;
         try {
           // 更新用户 token 用量
           await db.query('UPDATE users SET token_used = token_used + ? WHERE username = ?', [totalTokens, username]);
@@ -2242,7 +2289,7 @@ function buildDivinationChatPrompt(cardType, cardData, message) {
   let userPrompt = '';
 
   if (cardType === 'mhys' && cardData) {
-    systemPrompt = prompts.mhys_system || systemPrompt;
+    systemPrompt = prompts.mhys_system || DEFAULT_PROMPTS.mhys_system;
     if (followUp) {
       userPrompt = buildFollowUpPrompt(topic || '此卦', followUp, followUpContext, cardData);
     } else {
@@ -2252,7 +2299,11 @@ function buildDivinationChatPrompt(cardType, cardData, message) {
       }
     }
   } else if (cardType === 'liuyao' && cardData) {
-    systemPrompt = prompts.liuyao_system || systemPrompt;
+    // ⚠ 这里也是 `prompts.X || systemPrompt`（外层那句通用系统提示词）回落。
+    // 那句通用提示词里有【起卦规则】—— 教 AI 反问用户「请随意想三个数字（1-9）」
+    // 去走**梅花**起卦。盘都排好了还让用户报数重新起卦，就是这么来的：
+    // 六爻的系统提示词缺失 → 落到那句梅花味儿的通用提示词 → AI 以为还没有卦。
+    systemPrompt = prompts.liuyao_system || DEFAULT_PROMPTS.liuyao_system;
     if (followUp) {
       userPrompt = buildLiuyaoFollowUpPrompt(topic || '此卦', followUp, followUpContext, cardData);
     } else {
@@ -2277,12 +2328,13 @@ function buildMhysPrompt(topic, cardData, ragContext) {
   var vars = promptLib.mhysVars(topic, cardData, ragContext);
 
   if (!topic) {
-    var noTopicTpl = custom.mhys_notopic;
-    if (noTopicTpl) return renderPrompt(noTopicTpl, vars);
-    return '你是一位梅花易数解卦师。用户还没说问什么事，请用一句话简短询问。';
+    // ⚠ 无事项**不等于无盘面**。改造前这里 return 的是一句不带变量的话，
+    // 于是「事项留空点自动解析」把排好的盘整个丢掉，AI 只能回
+    // 「我还没收到卦象数据」（线上实测）。现在模板带全盘面，只是不下结论、先问事项。
+    return renderPrompt(custom.mhys_notopic || DEFAULT_PROMPTS.mhys_notopic, vars);
   }
 
-  return renderPrompt(custom.mhys_prompt || promptLib.DEFAULT_MHYS_PROMPT, vars);
+  return renderPrompt(custom.mhys_prompt || DEFAULT_PROMPTS.mhys_prompt, vars);
 }
 
 // ===== 六爻 AI 解析 =====
@@ -2295,12 +2347,11 @@ function buildLiuyaoPrompt(topic, cardData, ragContext) {
   var vars = promptLib.liuyaoVars(topic, cardData, ragContext);
 
   if (!topic) {
-    var noTopicTpl = custom.liuyao_notopic;
-    if (noTopicTpl) return renderPrompt(noTopicTpl, vars);
-    return '你是一位六爻纳甲解卦师。用户还没说问什么事，请先回应排盘数据（本卦变卦名+世应位置），然后用一句话询问求测事项。';
+    // 同梅花：无事项不是无盘面，模板必须带 `{{paipan}}`。
+    return renderPrompt(custom.liuyao_notopic || DEFAULT_PROMPTS.liuyao_notopic, vars);
   }
 
-  return renderPrompt(custom.liuyao_prompt || promptLib.DEFAULT_LIUYAO_PROMPT, vars);
+  return renderPrompt(custom.liuyao_prompt || DEFAULT_PROMPTS.liuyao_prompt, vars);
 }
 
 /** 梅花追问：续用同一份排盘（追问也可能引用卦象），不重发完整断卦指令。 */
@@ -2356,14 +2407,42 @@ function estimateTokens(text) {
 }
 
 // ══════ Prompt 模板引擎 ══════
-const PROMPTS_FILE = path.join(__dirname, 'data', 'prompts.json');
+// ⚠ 这里原本写的是 `path.join(__dirname, 'data', 'prompts.json')`
+//  = `/app/data/prompts.json` —— 而本文件 127 行的 `DATA_DIR` 是
+//  `path.join(__dirname, '..', 'data')` = **`/data`**（compose 里
+//  `/var/www/sqw.somtfly.com/data:/data:rw` 那个**持久卷**，users.json /
+//  admin.json / .jwt_secret 都在那儿）。
+//  后果（2026-09-25 容器内实测确认，不是推测）：
+//    · `/app/data` **根本不存在** ⇒ `readPrompts()` 每次都 catch 成 `{}`，
+//      后台自定义模板**永远读不到**，全站静默用内置默认；
+//    · `writePrompts()` 抛 ENOENT ⇒ 管理员在后台**保存模板是失败的**。
+//  这是一个「看着能用、其实全程没生效」的静默 fallback：
+//  改了模板没有任何效果，而页面上不会报任何错。
+const PROMPTS_FILE = path.join(DATA_DIR, 'prompts.json');
 
 function readPrompts() {
-  try { return JSON.parse(fs.readFileSync(PROMPTS_FILE, 'utf-8')); }
-  catch { return {}; }
+  try {
+    return JSON.parse(fs.readFileSync(PROMPTS_FILE, 'utf-8'));
+  } catch (e) {
+    // ENOENT = 「还没存过自定义模板」，这是**正常状态**，不是错误：报它只会刷屏。
+    // 但其它错误（权限、坏 JSON、磁盘满）必须出声 —— 原来一句 `catch {}`
+    // 把两者一起吞了，于是「模板文件坏了」和「没存过模板」在日志里长得一样，
+    // 表现为「后台改了模板但站点毫无变化、还没有任何线索」。
+    if (e && e.code !== 'ENOENT') {
+      console.error('[prompts] 读取失败 ' + PROMPTS_FILE + '：' + (e && e.message));
+    }
+    return {};
+  }
 }
+/** 写模板。失败**不抛**，返回 null 表示成功、返回错误串表示失败，由调用方回 500。 */
 function writePrompts(data) {
-  fs.writeFileSync(PROMPTS_FILE, JSON.stringify(data, null, 2), 'utf-8');
+  try {
+    fs.writeFileSync(PROMPTS_FILE, JSON.stringify(data, null, 2), 'utf-8');
+    return null;
+  } catch (e) {
+    console.error('[prompts] 写入失败 ' + PROMPTS_FILE + '：' + (e && e.message));
+    return (e && e.message) || 'unknown error';
+  }
 }
 
 // 模板变量替换

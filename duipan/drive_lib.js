@@ -311,9 +311,64 @@ async function textOf(m, selector, timeoutMs, minLen) {
     return a ? (a.innerText || '') : '';`, (t) => t && t.length > (minLen == null ? 30 : minLen), timeoutMs);
 }
 
+// ─────────────────────────────────────────────────────────────
+// 4. 截图 / 版面探测
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * 设窗口尺寸。**必须在截图前设**：无头 Firefox 默认窗宽只有 500px 左右，
+ * 于是「桌面版页面」会被按窄屏渲染 —— 看到的重叠/溢出可能是我们自己窗口太窄
+ * 造出来的假象，不是页面的毛病。看版面之前先定宽。
+ */
+async function setWindow(m, w, h) {
+  await m.send('WebDriver:SetWindowRect', { width: w, height: h });
+  await sleep(250);
+  return js(m, 'return {w: window.innerWidth, h: window.innerHeight};');
+}
+
+/**
+ * 截图存盘。`full` 为真时截整篇（长页面不会被截断）。
+ * ⚠ full 与窗口尺寸的关系：Firefox 的 full 截图是按**文档**高度重绘的，
+ * 但**不重新走响应式断点** —— 宽度仍是窗口宽。所以「窄屏整篇」与「宽屏整篇」
+ * 要各设一次窗口，不能靠 full 一把抓。
+ */
+async function shot(m, file, o) {
+  o = o || {};
+  const r = await m.send('WebDriver:TakeScreenshot',
+    { full: o.full !== false, highlights: [], scroll: !!o.scroll }, 30000);
+  const b = Buffer.from(r.value, 'base64');
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, b);
+  return { file, bytes: b.length };
+}
+
+/**
+ * 版面探测：把元素的盒子、是否溢出视口、是否互相重叠量出来。
+ * 截图只能看出「看着不对」，这个能说出**哪里**不对 —— 两者都要。
+ */
+async function boxes(m, sel) {
+  return js(m, `var out = [];
+    var els = document.querySelectorAll(${JSON.stringify(sel)});
+    for (var i = 0; i < els.length; i++) {
+      var e = els[i], r = e.getBoundingClientRect();
+      var cs = getComputedStyle(e);
+      out.push({
+        i: i, tag: e.tagName.toLowerCase(), cls: (e.className || '').toString().slice(0, 70),
+        text: (e.innerText || '').replace(/\\s+/g, ' ').slice(0, 60),
+        x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height),
+        right: Math.round(r.right), overflowX: Math.round(r.right - document.documentElement.clientWidth),
+        display: cs.display, position: cs.position, overflow: cs.overflow, whiteSpace: cs.whiteSpace,
+        scrollW: e.scrollWidth, clientW: e.clientWidth,
+      });
+    }
+    return { vw: document.documentElement.clientWidth, vh: document.documentElement.clientHeight,
+             docH: document.documentElement.scrollHeight, n: out.length, els: out };`);
+}
+
 module.exports = {
   MIME, readBody, sendJson, sleep, startServer,
   Marionette, connectMarionette, launchFirefox,
   js, W, goto, until, diagnostics,
   panelOpen, panelText, panelTextUntil, textOf,
+  setWindow, shot, boxes,
 };
