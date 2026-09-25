@@ -454,7 +454,12 @@ function switchDivSubtab(type) {
   // 渲染对应表格
   var filtered = _divRecordsCache.filter(function(r) { return r.type === type; });
   var tbody = (type === 'mhys') ? document.getElementById('divDetailTbodyMhys') : document.getElementById('divDetailTbodyLiuyao');
-  var methodNames = { num1:'数字起卦', num2:'数字起卦', time:'时间起卦', manual:'手动起卦', auto:'自动起卦' };
+  // 梅花新记录用后端起卦法名，`num1`/`num2` 是旧记录代码（别名留着）
+  var methodNames = {
+    time:'时间起卦', manual:'手动起卦', auto:'自动起卦', character:'字占',
+    number:'报数起卦（三个数）', split:'报数起卦（拆半求和）',
+    num1:'数字起卦', num2:'数字起卦'
+  };
 
   if (!filtered.length) {
     var label = (type === 'mhys') ? '梅花易数' : '六爻';

@@ -1832,9 +1832,31 @@ async function handle(req, res) {
     const card = body || {};
     try {
       if (pathname === '/api/meihua/paipan') {
-        const c = promptLib.meihuaChartFromCard(card);
-        if (!c.ok) return json(res, { error: c.reason }, 400);
-        return json(res, { paipan: c.paipan, sizhu: c.sizhu });
+        // 两种入参，一条出口：
+        //   · **起卦原始参数** —— 目标形态，卦由后端起（字占只能走这条，笔画表在
+        //     前端不存在；「加时辰」也才会用提交上来的时刻而不是真实时钟）。
+        //   · 老形态的 cardData（带 `hexagrams`）—— 历史档/AI 对话那条路仍在用，
+        //     只取卦号、其余重算。两条路都汇到 `prompt.js` 那一份断卦与那一份文本，
+        //     故端点给前端渲染的盘与 prompt 给 AI 读的盘不可能分叉。
+        //
+        // **判据是 `hexagrams` 而不是 `method`**：老 cardData 里也有一个 `method`
+        // 字段（起卦法的展示名），拿它做判据会把老入参误当新入参 —— 那种误判不会
+        // 报错，它会**静默地按服务器当前时刻重新起一卦**，于是同一份记录渲染出
+        // 另一个卦。（`duipan/smoke_paipan_endpoints.js` 就是这么抓到的。）
+        const useRaw = !!card && !card.hexagrams && !!card.method;
+        const raw = useRaw
+          ? promptLib.meihuaChartFromParams(card)
+          : promptLib.meihuaChartFromCard(card);
+        if (!raw.ok) return json(res, { error: raw.reason }, 400);
+        const q = raw.qigua || (raw.paipan && raw.paipan.qigua) || null;
+        return json(res, {
+          paipan: raw.paipan,
+          sizhu: raw.sizhu,
+          // 起卦结果（上/下卦号、动爻、取数过程）：前端渲染用，
+          // 与 AI 收到的排盘正文出自**同一次**起卦。
+          qigua: q,
+          text: promptLib.meihuaBlock(raw.paipan),
+        });
       }
       // 走 `prompt.js` 里那一个装卦出口 —— 端点给前端渲染的盘与 prompt 给 AI 读的
       // 盘必须是同一次装卦的结果，两处各写一遍 `buildChart` 迟早分叉。

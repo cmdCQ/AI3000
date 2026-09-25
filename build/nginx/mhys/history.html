@@ -137,11 +137,16 @@ var allRecords = [];
 var manageMode = false;
 var selectedIds = {};
 
+// 新记录的起卦法代码是后端起卦法名（number/split/character），
+// `num1`/`num2` 是旧记录里的代码，留作别名，老记录才不会只显示代码。
 var EMOJI_MAP = {
-  time: '🕐', manual: '✋', num1: '🔢', num2: '🔢', auto: '🎲'
+  time: '🕐', manual: '✋', number: '🔢', split: '🔢', character: '✍️',
+  num1: '🔢', num2: '🔢', auto: '🎲'
 };
 
-var METHOD_NAMES = { time:'时间起卦', manual:'手动指定', num1:'数字起卦1', num2:'数字起卦2', auto:'自动起卦' };
+var METHOD_NAMES = { time:'时间起卦', manual:'手动指定', auto:'自动起卦',
+  number:'报数起卦（三个数）', split:'报数起卦（拆半求和）', character:'字占（按笔画）',
+  num1:'数字起卦1', num2:'数字起卦2' };
 
 function formatTime(ts) {
   var d = new Date(ts);

@@ -7,12 +7,17 @@
  * ① 层 7 的**整例申报**需要替代判据。晚子时换日是用户拍板的偏离（shushu 不换日），
  *    那 38 例整例不参与与 shushu 的比对。`coverage_meihua.py` 用「关掉换日后 0 差异」
  *    证明差异只来自那个开关；但「换日之后**应该**是什么」还缺一个**外部**基准 ——
- *    就是前端：**线上用户此刻看到的就是它算的**。前端与后端在 23 点这一小时若不一致，
+ *    就是前端：**线上用户此前看到的就是它算的**。前端与后端在 23 点这一小时若不一致，
  *    用户报的卦与 AI 断的卦就是两个卦。
  *
- * ② 「前端只渲染」的迁移前置。计划要把起卦整个搬到后端（前端不再装卦），
- *    前提是**搬过去之后用户得到的卦不变**。本脚本就是这条前提的判据：
- *    两侧取数逐项相等，则迁移对用户是零变化；不等的地方必须逐条说清。
+ * ② 「前端只渲染」的迁移前置。起卦已整个搬到后端（前端不再装卦），本脚本就是
+ *    「搬过去之后用户得到的卦不变」这条前提的判据：两侧取数逐项相等，则迁移对
+ *    用户是零变化；不等的地方逐条登记在末尾。
+ *
+ * **基准是冻结件 `frozen_mhys_frontend.js`，不是活的前端页** —— 活页已不再起卦，
+ * 拿它比等于自己跟自己比。冻结件是迁移前那份**独立实现**的原文切片（含来源与提交），
+ * 判据因此仍可复跑，也不随前端改版漂移。文件末尾另有一条**反向**检查：
+ * 活页里若又冒出起卦实现，本脚本直接红 —— 留着就有第二份取数在静默分叉。
  *
  * 比什么（逐方法列清，**没有对拍物的方法也列出来**，不许静默跳过）：
  *   · time（时间法）  —— 扫描：每月 1 日 + 交节日 + 闰月日 + 子时边界日，全天 24 小时
@@ -37,33 +42,51 @@ const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
 const FRONT = path.join(ROOT, 'build', 'nginx', 'mhys', 'index.html');
+// **判据取自冻结件**，不是活的前端页：前端已把起卦交给后端，自己不再算卦，
+// 拿活页比等于自己跟自己比。冻结件是迁移前那份**独立实现**的原文，见其头注。
+const FROZEN = path.join(__dirname, 'frozen_mhys_frontend.js');
 const M = require(path.join(ROOT, 'build', 'backend', 'paipan', 'meihua.js'));
 const lunarLib = require(path.join(ROOT, 'build', 'nginx', 'js', 'lunar.min.js'));
 
-const MARK_A = '// ===== 八卦数据 =====';
-const MARK_B = '// ===== 当前选中的方法 =====';
-
-/** 取前端「八卦数据 → 当前选中的方法」之间那一整段（含 calcGua 与全部起卦函数）。 */
+/** 读冻结件（整份就是那段切片，含 calcGua 与全部起卦函数）。 */
 function loadFrontend() {
-  const src = fs.readFileSync(FRONT, 'utf8');
-  const i = src.indexOf(MARK_A);
-  const j = src.indexOf(MARK_B);
-  if (i < 0 || j < 0 || j <= i) {
-    console.error(`❌ 取不到前端起卦代码段（标记 ${i < 0 ? `缺「${MARK_A}」` : ''}`
-      + `${j < 0 ? `缺「${MARK_B}」` : ''}）。前端改版了？请更新本脚本的切片标记。`);
-    process.exit(2);
-  }
-  const slice = src.slice(i, j);
+  const slice = fs.readFileSync(FROZEN, 'utf8');
   for (const want of ['function calcGua', 'function timeDivination', 'function manualDivination',
-    'function num2Divination']) {
+    'function num1Divination', 'function num2Divination']) {
     if (!slice.includes(want)) {
-      console.error(`❌ 切出的段里没有「${want}」—— 切片标记已失效，拒绝在残缺代码上核对。`);
+      console.error(`❌ 冻结件里没有「${want}」—— 它被动过了。冻结件是基准，`
+        + `要改就说明判据要重设，不许悄悄把基准挪到新实现上。`);
       process.exit(2);
     }
   }
   return new Function('Solar', 'Lunar', 'document', 'alert', 'Date',
     `var selectedTime = null;\n${slice}\n;return { calcGua, timeDivination, manualDivination,`
     + ` num1Divination, num2Divination, setSelectedTime: function (t) { selectedTime = t; } };`);
+}
+
+/**
+ * 迁移完成度：活的前端页**不得**再自己起卦。
+ *
+ * 这条不是洁癖。活页里若还留着 `timeDivination` 这类函数，就还有第二个取数实现，
+ * 而它是不是被调用、用户走的是哪一条，从页面上看不出来 —— 判据（本脚本）比的却是
+ * 冻结件，于是「页面上算的」与「后端算的」可以静默分叉而我们照样全绿。
+ * 所以留着就必须红，红了才有机会问「它到底还在不在被调」。
+ */
+function assertLivePageDelegates() {
+  const src = fs.readFileSync(FRONT, 'utf8');
+  const still = ['function timeDivination', 'function manualDivination', 'function num1Divination',
+    'function num2Divination', 'function autoDivination'].filter((w) => src.includes(w));
+  if (still.length) {
+    console.error(`❌ 活的前端页里还留着起卦实现：${still.join('、')}\n`
+      + '   起卦应已交给后端（`/api/meihua/paipan`）—— 页面里还有第二份取数，'
+      + '本脚本比的却是冻结件，于是两份可以静默分叉。请删掉或说明为何保留。');
+    process.exit(1);
+  }
+  if (!src.includes('/api/meihua/paipan')) {
+    console.error('❌ 活的前端页里既没有起卦实现、也没有调 `/api/meihua/paipan` —— '
+      + '那用户的卦从哪来？页面改坏了。');
+    process.exit(1);
+  }
 }
 
 const alerts = [];
@@ -377,7 +400,7 @@ let huanriFalsified = 0;
 }
 
 // ── 结论 ─────────────────────────────────────────────────────────────
-console.log('起卦取数独立核对：后端 meihua.js ↔ 前端 梅花页');
+console.log('起卦取数独立核对：后端 meihua.js ↔ 迁移前的前端（冻结件）');
 console.log(`  ① 时间法 ${timeCases} 例（${dates.length} 天 × 24 小时；`
   + `含 22 点 ${boundary['22']}、23 点 ${boundary['23'] || 0}、00 点 ${boundary['00']}）`);
 console.log(`  ② 手动   ${manualCases} 例（8×8×6 全组合）`);
@@ -438,9 +461,13 @@ if (diffs.length) {
 }
 
 if (soft.length) {
-  console.log(`\n⚠ 登记 ${soft.length} 条「迁移前要处理」的事项（不计入取数判据）：`);
+  console.log(`\n⚠ 登记 ${soft.length} 条「迁移时要处理」的事项（不计入取数判据）：`);
   for (const s of soft) console.log('   · ' + s);
 }
+
+// 反向检查：活页必须已把起卦交出去（在最后做，免得它先 exit 把上面的核对结果吞掉）。
+assertLivePageDelegates();
+console.log('\n✅ 活的前端页已不再自己起卦（只有后端一份取数）');
 
 if (bad) process.exit(1);
 console.log(soft.length ? '✅ 取数口径全绿（上方登记项另需处理）' : '✅ 全绿');

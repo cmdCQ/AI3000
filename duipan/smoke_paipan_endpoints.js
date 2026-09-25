@@ -99,6 +99,71 @@ function check(label, cond, detail) {
   check('梅花：报错走 400 而不是 200',
     (() => { const b = call('/api/meihua/paipan', { hexagrams: {} }); return b.status === 400; })(),
     '缺上下卦号时没回 400');
+  // 上面这张 card **同时**带 `method:'time'` 与 `hexagrams` —— 它因此是一条
+  // **回归用例**：判据若写成 `method`（而不是 `hexagrams`），老入参会被当成
+  // 「起卦原始参数」，于是按服务器当前时刻重起一卦，`moving_lines` 立刻对不上。
+  check('梅花：text === prompt 里的 {{paipan}}（老入参路径）',
+    !!r.payload && r.payload.text === promptLib.meihuaBlock(r.payload.paipan),
+    '端点 text 与 prompt 正文不是同一份');
+}
+
+// ── 梅花：起卦原始参数（目标形态 —— 卦由后端起）──────────────────────
+{
+  // 1) 报数：后端起卦，端点把起卦结果一并交回（前端渲染用）
+  const num = call('/api/meihua/paipan',
+    { method: 'number', num1: 7, num2: 4, num3: 3, datetime: '2026-09-25T14:30:00' });
+  check('梅花/原始：报数 200', num.status === 200, `状态 ${num.status} ${JSON.stringify(num.payload).slice(0, 100)}`);
+  // 期望值**手算后写死**，不复用 `M.qiguaNumbers`（两边调同一个函数就等于没验）：
+  //   上 = 7 % 8 = 7；下 = 4 % 8 = 4；动 = (7+4+3) % 6 = 2
+  // 「2」而不是「3」正是要点：古法动爻取**三数之和**，不是第三个数本身
+  // （前端早先写的就是后者，属计划里点明的第 8 号 bug）。
+  check('梅花/原始：报数 7/4/3 → 上7下4动2（动爻取三数之和，非第三数）',
+    !!num.payload.qigua && num.payload.qigua.upper_num === 7 && num.payload.qigua.lower_num === 4
+    && num.payload.qigua.moving === 2,
+    JSON.stringify(num.payload.qigua && [num.payload.qigua.upper_num, num.payload.qigua.lower_num, num.payload.qigua.moving]));
+  check('梅花/原始：text === prompt 里的 {{paipan}}',
+    num.payload.text === promptLib.meihuaBlock(num.payload.paipan), '端点 text 与 prompt 正文不是同一份');
+
+  // 2) 时间法：必须用**提交上来的时刻**，且缺时刻要报错（不许退回服务器当前时刻）
+  const t1 = call('/api/meihua/paipan', { method: 'time', datetime: '2026-09-25T14:30:00' });
+  const t2 = call('/api/meihua/paipan', { method: 'time', datetime: '2026-09-25T14:30:00' });
+  check('梅花/原始：时间法可起卦且两次同刻同卦',
+    t1.status === 200 && JSON.stringify(t1.payload.qigua) === JSON.stringify(t2.payload.qigua),
+    `状态 ${t1.status}/${t2.status}`);
+  check('梅花/原始：时间法缺时刻 → 400（不许用服务器当前时刻）',
+    call('/api/meihua/paipan', { method: 'time' }).status === 400, '缺 datetime 时没回 400');
+
+  // 3) 字占：**只有后端能做**（笔画表在前端不存在），这条是它存在的理由
+  const ch = call('/api/meihua/paipan', { method: 'character', text: '求财', datetime: '2026-09-25T14:30:00' });
+  check('梅花/原始：字占可起卦', ch.status === 200 && !!ch.payload.qigua,
+    `状态 ${ch.status} ${JSON.stringify(ch.payload).slice(0, 100)}`);
+
+  // 4) 拆半求和（本项目自有法）+ 加时辰：时辰取**提交的时刻**，不是真实时钟
+  const sp = call('/api/meihua/paipan',
+    { method: 'split', digits: [3, 8, 6], datetime: '2026-09-25T14:30:00' });
+  check('梅花/原始：拆半求和可起卦', sp.status === 200 && !!sp.payload.qigua, `状态 ${sp.status}`);
+  // 两个时刻的**时辰序必须对 6 不同余**，否则加不加、加得对不对都看不出来 ——
+  // 时辰序差 6 的两档（如未时 8 与丑时 2）加进同一个和里 mod 6 后完全一样，
+  // 这种用例会**恒绿**。故这里先自检这一点，再比手算的期望值。
+  //   基准和 = 3+8+6 = 17；未时(14:30)=8 → 25 % 6 = 1；辰时(08:30)=5 → 22 % 6 = 4
+  const addA = call('/api/meihua/paipan',
+    { method: 'number', num1: 3, num2: 8, num3: 6, addShichen: true, datetime: '2026-09-25T14:30:00' });
+  const addB = call('/api/meihua/paipan',
+    { method: 'number', num1: 3, num2: 8, num3: 6, addShichen: true, datetime: '2026-09-25T08:30:00' });
+  check('（自检）两个时辰序对 6 不同余，否则本用例恒绿',
+    (M.hourNumAt(14) - M.hourNumAt(8)) % 6 !== 0, `${M.hourNumAt(14)} / ${M.hourNumAt(8)}`);
+  check('梅花/原始：加时辰用提交时刻的时辰（未时→1 / 辰时→4）',
+    addA.status === 200 && addB.status === 200
+    && addA.payload.qigua.moving === 1 && addB.payload.qigua.moving === 4,
+    `未时动爻 ${addA.payload.qigua && addA.payload.qigua.moving} / 辰时动爻 ${addB.payload.qigua && addB.payload.qigua.moving}`);
+  check('梅花/原始：加时辰缺时刻 → 400',
+    call('/api/meihua/paipan', { method: 'number', num1: 3, num2: 8, num3: 6, addShichen: true }).status === 400,
+    '缺 datetime 时没回 400');
+
+  // 5) 坏输入：报数含 0（金标准钉住「0 非法」）、拆半缺 digits
+  check('梅花/原始：报数含 0 → 400', call('/api/meihua/paipan', { method: 'number', num1: 3, num2: 0, num3: 8 }).status === 400, '0 没被拒');
+  check('梅花/原始：拆半缺 digits → 400', call('/api/meihua/paipan', { method: 'split' }).status === 400, '缺 digits 没被拒');
+  check('梅花/原始：起卦法名非法 → 400', call('/api/meihua/paipan', { method: '瞎写' }).status === 400, '非法法名没被拒');
 }
 
 // ── 六爻 ─────────────────────────────────────────────────────────────

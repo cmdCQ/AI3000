@@ -37,10 +37,17 @@ const G = require('./ganzhi');
 const M = require('./meihua');
 const LY = require('./liuyao');
 
-// 前端 method 代码 → 法名（前端 `mhys/index.html` 的 METHOD_NAMES / 六爻同）
+// method 代码 → 法名。键是**后端起卦法名**（time/number/split/character/manual），
+// 前端页面现在直接送这几个名字，两边同一套词表。
+// `num1`/`num2` 是**前端历史记录**里的旧代码（拆半求和 / 三数），别名留着，
+// 否则那些老记录在 prompt 里会退化成把代码原样印出来。
+// `auto` 也不是后端起卦法（后端无「随机」）：前端抽签后按 manual 入后端，
+// 记录里的展示名仍写 auto。故这个表比 METHOD_META 多两个键，是**给展示用**的。
 const MHYS_METHOD_NAMES = {
-  time: '时间起卦', manual: '手动指定', num1: '数字起卦（拆半求和）',
-  num2: '数字起卦（三数）', auto: '自动起卦', character: '字数起卦',
+  time: '时间起卦', manual: '手动指定', character: '字数起卦',
+  number: '报数起卦（三个数）', split: '报数起卦（拆半求和）',
+  num1: '数字起卦（拆半求和）', num2: '数字起卦（三数）',
+  auto: '自动起卦',
 };
 
 const YAO_CN = ['初', '二', '三', '四', '五', '上'];
@@ -111,6 +118,93 @@ function meihuaChartFromCard(cardData) {
     return { ok: true, paipan, sizhu };
   } catch (e) {
     return { ok: false, reason: '重算失败：' + (e && e.message) };
+  }
+}
+
+/**
+ * 由**起卦原始参数**起卦并断卦 —— 「前端只渲染」的入口。
+ *
+ * 与 `meihuaChartFromCard`（只取卦号、其余重算）的分工：那个是老记录/AI 对话
+ * 那条路的兼容层，**起卦结果仍然是前端算的**；这个才是目标形态 —— 前端把
+ * 方法与其原始输入交上来，**卦由后端起**，前端连「上下卦号是多少」都不再自己算。
+ *
+ * 为什么非要有这一条（不是为了好看）：
+ * * **字占**根本在前端做不了 —— 笔画表 6944 字在 `paipan/strokes.js`，前端没有。
+ * * **「动爻加时辰」的时辰**：前端那个勾选框取的是 `new Date()`（真实时钟），
+ *   不是页面上选定的起卦时刻。后端拿 `datetime` 起卦，用的是**提交上来的时刻**，
+ *   与页面显示、与存进记录的起卦时间一致。这一条会改变那部分用户的卦（见
+ *   `duipan/verify_qigua_vs_front.js` 的登记项），属**有意纠正**而非漂移。
+ *
+ * @param {object} p 起卦参数（前端提交的 body 原样）
+ * @param {string} [p.method] time|number|character|split|manual
+ * @param {string} [p.datetime] 起卦时刻（ISO 字符串）
+ * @param {number} [p.addShichen] 真值时把该时刻的时辰序加进动爻的和
+ * @returns {{ok:boolean, reason?:string, paipan?:object, qigua?:object, sizhu?:object}}
+ */
+function meihuaChartFromParams(p) {
+  const b = p || {};
+  const method = String(b.method || '');
+  const dtStr = b.datetime ? String(b.datetime) : '';
+  // 既有 datetime 也有直接的 dt 时以 datetime 为准（两者语义相同，前端只该给一个）
+  const dt = dtStr || (b.dt ? String(b.dt) : null);
+
+  // 时间起卦**必须**给时刻。缺了就报错，不许让 `qiguaTime()` 退回「服务器当前时刻」
+  // —— 那样同一份请求在不同时刻得到不同卦，而 AI 会把那个卦讲得头头是道，
+  // 用户与调用方都看不出来。
+  if (method === 'time' && !dt) return { ok: false, reason: '时间起卦需要给出起卦时刻' };
+  if (method === 'split' && !Array.isArray(b.digits)) {
+    return { ok: false, reason: '拆半求和需要给出各位数字（digits）' };
+  }
+
+  // 加时辰：时辰序取**起卦时刻**的（不是服务器当前时刻）。没有时刻就没得加，
+  // 此时**报错而不是静默忽略** —— 静默会让「勾了加时辰」与「卦里没加」不一致。
+  let extra = 0;
+  if (b.addShichen) {
+    if (!dt) return { ok: false, reason: '「动爻加时辰」需要同时给出起卦时刻' };
+    try {
+      extra = M.hourNumAt(G.normalize(dt).h);
+    } catch (e) {
+      return { ok: false, reason: '起卦时刻解析失败，无法取时辰：' + (e && e.message) };
+    }
+  }
+
+  const args = {
+    dt: dt || undefined,
+    num1: b.num1, num2: b.num2,
+    num3: b.num3 === undefined ? null : b.num3,
+    extra,
+    text: b.text,
+    strokes: b.strokes === undefined ? null : b.strokes,
+    digits: b.digits,
+    upper: b.upper, lower: b.lower, moving: b.moving,
+  };
+
+  let q;
+  try {
+    q = M.qigua(method, args);
+  } catch (e) {
+    return { ok: false, reason: (e && e.message) || '起卦失败' };
+  }
+
+  // 四柱与月支：能给时刻就给**精确版**（与全项目口径一致），给不出就留空 ——
+  // 留空时 `analyze` 会走它自己的防御分支（`strength.available=false`），
+  // 这是已对拍过的形状，不许在这里编一个近似月支顶上。
+  let sizhu = null;
+  let monthDizhi = '';
+  if (dt) {
+    try {
+      const s = G.sizhu(dt);
+      sizhu = s;
+      monthDizhi = (s.month_gz || '').length > 1 ? s.month_gz[1] : '';
+    } catch (e) { sizhu = null; }
+  }
+
+  try {
+    const paipan = M.analyze(q, { question: b.topic || b.question || '', monthDizhi });
+    paipan.qigua = q;
+    return { ok: true, paipan, qigua: q, sizhu };
+  } catch (e) {
+    return { ok: false, reason: '断卦失败：' + (e && e.message) };
   }
 }
 
@@ -470,7 +564,7 @@ const DEFAULT_LIUYAO_FOLLOWUP = `针对「{{topic}}」的追问：
 【依据】——简短推演依据（1-3句，引用原卦爻位）。`;
 
 module.exports = {
-  sizhuFromCard, meihuaChartFromCard, meihuaBlock, mhysVars,
+  sizhuFromCard, meihuaChartFromCard, meihuaChartFromParams, meihuaBlock, mhysVars,
   liuyaoChartFromCard, liuyaoVars, yongshenLine, liuyaoFallbackText,
   MHYS_METHOD_NAMES, YAO_CN,
   DEFAULT_MHYS_PROMPT, DEFAULT_LIUYAO_PROMPT,

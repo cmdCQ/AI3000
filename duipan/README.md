@@ -29,6 +29,10 @@
 | `coverage_meihua.py` | 层 7 的**覆盖度断言**：分支覆盖 + 不可达分支 + **独立来源交叉核对** |
 | `probe_meihua.js` | 给 `coverage_meihua.py` 取 JS 侧事实（被验方的表、前端语料、防御分支冒烟），与「被验值」分开 |
 | `verify_format_chart.js` | **shushu 侧没有对拍物**的那一层：ai3000 独有的 `formatChart` 文本，用「旧版 vs 新版」归类校验收紧 |
+| `frozen_mhys_frontend.js` | 迁移**前**梅花页起卦实现的冻结原文（程序化切出，**不许编辑**）：`verify_qigua_vs_front.js` 的外部判据 |
+| `verify_qigua_vs_front.js` | 后端取数 ↔ 迁移前前端取数，逐例核对；兼「迁移完成闸门」（活页面里再出现起卦实现即退出 1） |
+| `drive_mhys_page.js` | **迁移后**的驱页验收：本机静态服务 + 无头 Firefox 驱真页面（桩卦 / 抓包 / 手算值三个独立判据） |
+| `smoke_paipan_endpoints.js` | 两个排盘端点的函数体冒烟（状态码、字段名、「端点的 text ≡ AI 读到的 `{{paipan}}`」） |
 
 ### 申报偏差的判据（层 6）
 
@@ -103,10 +107,19 @@ node probe_meihua.js && $PY coverage_meihua.py
 node run_js_meihua.js meihua_cases.json js_meihua_nohuanri.json --no-huanri
 $PY diff.py golden_meihua.json js_meihua_nohuanri.json --case-keys
 
-# 起卦取数独立核对：后端 ↔ **线上前端**（梅花页）。它是那 38 例整例申报的
-# 第二个判据（前端才是「用户在线上实际得到的卦」），也是「前端只渲染」迁移的
-# 前置判据 —— 两侧取数逐项相同，迁移对用户才是零变化。约 0.2 秒，无外部依赖。
+# 起卦取数独立核对：后端 ↔ **迁移前的前端**（冻结件 frozen_mhys_frontend.js）。
+# 它是那 38 例整例申报的第二个判据（前端才是「用户在线上实际得到的卦」），也是
+# 「前端只渲染」迁移的**前置**判据。约 0.2 秒，无外部依赖。
+# 它同时是一道**迁移完成闸门**：活的前端页里若又出现起卦实现（timeDivination 等
+# 五个函数任一），它直接退出 1 —— 迁移没做完就不许它变绿。
 node verify_qigua_vs_front.js        # 加 --self-test 验它自己不是橡皮章
+
+# 梅花页驱页验收（**迁移后**那一半）：本机静态服务 + 真 Firefox 无头驱真页面，
+# 约 40 秒。验的是取数脚本验不到的部分 —— 页面有没有把用户填的送去、送的是不是
+# 用户选的那个时刻、拿到后端卦号后有没有照它渲染。三个独立判据：桩卦（固定卦号，
+# 页面自己不可能算出）、抓包（请求体原样存下）、手算值。
+# 需要 `firefox`；不需要 pip（marionette 线协议直接实现，见文件头）。
+node drive_mhys_page.js
 
 # formatChart 文本层（ai3000 独有；需先备好旧版，见下「层 5」）
 mkdir -p /tmp/oldliuyao
@@ -615,6 +628,48 @@ shushu 侧自相矛盾可作旁证：它的 `month_dizhi_at` 走的是**交节�
 
 > 报数的输入设计本身也是待改项：输入框 `maxlength=3` 且**逐字符拆位**，所以报数
 > `10` / `16` 今天**根本打不出来**（shushu 的 API 收的是 int）。2.1 一并改。
+
+#### 梅花页起卦下沉（阶段 2.1 —— 页面不再自己起卦）—— ✅ 通过
+
+上面那 4 条输入缺陷的**根因是结构**：起卦被抄成了三份（梅花页、六爻页、AI 对话页），
+每份各自错。所以处置不是逐条打补丁，而是**把取数收成一份**（后端
+`build/backend/paipan/meihua.js`，已逐例对拍）——页面只收输入、只渲染。
+
+改动清单（文件级）：
+
+| 文件 | 改了什么 |
+|---|---|
+| `build/nginx/mhys/index.html` | 删掉 5 个起卦函数（`timeDivination`/`manualDivination`/`num1Divination`/`num2Divination`/`autoDivination`）与墙上时钟取时辰的 `getLunarInfo`、`getYearZhi`；改为 `buildQiguaRequest()` 收集输入 → `POST /api/meihua/paipan` → 用后端回的卦号渲染。`calcGua` **留着**（它是渲染：互卦/错卦/综卦/体用判词，只吃三个卦号，另有 64×64×6 全组合的 `verify_meihua_vs_front.js` 核过） |
+| 同上 · 起卦法 id | 下拉的 `data-method` 改成**后端起卦法原名**（`time`/`manual`/`number`/`split`/`character`/`auto`）。旧记录里的 `num1`/`num2` 不在下拉里，但三张展示表都留着别名 |
+| 同上 · 补两法 | 字占（后端有、前端原先没有，笔画表只存在于后端）、随机（抽签在页面，抽出卦号后按 `manual` 入后端——后端没有也不该有「随机」这一法；记录里仍写 `auto`） |
+| `build/nginx/mhys/result.html`、`history.html`、`js/admin.js`、`paipan/prompt.js` | 展示表补 `number`/`split`/`character`，保留 `num1`/`num2` 别名（老记录仍显示中文） |
+| `auth-server.js` | 梅花端点按 `hexagrams` **有无**分发老/新入参（**判据不是 `method`**：老 cardData 也有个 `method` 字段，拿它当判据会**静默按服务器当前时刻重起一卦**——这个 bug 是 `smoke_paipan_endpoints.js` 抓到的） |
+
+**「用用户选的时间」是这次的要害。** 原页面「动爻加时辰」（默认勾选）读的是
+`new Date()`：用户选 08:00，此刻若为 22:00，动爻就按亥时加。用户看不见这件事，
+只会觉得卦不准。现在提交的是 `selectedTime`（农历选择先换算成公历再提交）。
+
+验收分两半，各验各能验的：
+
+| 脚本 | 验什么 | 判据从哪来 |
+|---|---|---|
+| `verify_qigua_vs_front.js` | 迁移**前**：后端取数 ≡ 迁移前前端取数（2208/384/729/11160/48 例） | 冻结件 `frozen_mhys_frontend.js`（**不转抄代码**，程序化从 `build/nginx/mhys/index.html` 的 `2771935` 版切出，头部记了来源与 blob）。它同时是**迁移完成闸门**：活页面里再出现那 5 个函数就退出 1 |
+| `drive_mhys_page.js` | 迁移**后**：页面真跑起来还得对 | ① 桩卦（固定卦号 上3下6动5，页面自己不可能算出；渲染出「火水未济」+动五爻的「天水讼」才算数）② 抓包（请求体原样存下，故「时辰取自选定时刻」可断言）③ 手算值（7/4/3 → 山雷颐、动二爻 → 变卦山泽损；若按错法取动爻 3 则是「山火贲」，两个名字不同，错法藏不住） |
+
+> **冻结件为什么不转抄**：转抄一遍就等于把「前端取数」这件事写成了第二份实现，
+> 而被验的正是它与后端是否一致——转抄时手一抖就把它抄成了「与后端一致」的样子。
+> 故它是程序化切出来的原文，且头部写明「要改就说明判据要重设」。
+
+> 冻结件与金标准的**关系**：金标准（shushu）钉的是「晚子时该不该换日」这个**派别**
+> 问题（本项目已拍板换日，38 例整例申报）；冻结件钉的是「用户在线上实际得到的卦」。
+> 两者独立，缺一个，那 38 例申报就只有一边的话。
+
+> 驱页踩过的坑（写下来免得下次重踩）：Firefox 的 `ExecuteScript` 跑在**沙箱**里，
+> 看页面是 Xray 视角，页面自己定义的全局（`selectMethod`、`selectedTime`）**看不见**，
+> 直接调用报 `ReferenceError`——要摸它们必须走 `window.wrappedJSObject`。我曾误诊成
+> 「页面没加载完/被 Google Fonts 卡住」，白试了三种 `pageLoadStrategy`。
+> 另：marionette 协议 v3 的命令报文是**数组** `[0,id,name,params]`（对象形式会让
+> Firefox 回「Unable to unmarshal packet data」并且**永远不回话**，表现为脚本静默挂住）。
 
 #### 已知异常（前端语料，本层不改）
 

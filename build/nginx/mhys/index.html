@@ -230,9 +230,13 @@ html,body { background:var(--bg); color:var(--text); font-family:var(--sans); mi
     <div class="card-title">☯ 起卦方式</div>
     <div class="method-selector" id="methodSelector">
       <div class="method-display" id="methodDisplay" onclick="toggleDropdown()">
-        <span id="methodLabel">数字起卦2</span>
+        <span id="methodLabel">报数起卦（三个数）</span>
         <span class="arrow" id="methodArrow">▾</span>
       </div>
+      <!-- `data-method` 一律用**后端起卦法的原名**（time/number/split/character/
+           manual）：页面只把用户选的名字转交给后端，自己不认这些名字。旧记录里
+           的 `num1`（拆半）`num2`（三数）不在下拉里，但两个展示表都留着别名，
+           老记录仍显示中文。 -->
       <div class="method-dropdown" id="methodDropdown">
         <div class="method-option" data-method="time" onclick="selectMethod('time',this)">
           <span class="check">✓</span>时间起卦
@@ -240,11 +244,14 @@ html,body { background:var(--bg); color:var(--text); font-family:var(--sans); mi
         <div class="method-option" data-method="manual" onclick="selectMethod('manual',this)">
           <span class="check">✓</span>手动指定
         </div>
-        <div class="method-option" data-method="num1" onclick="selectMethod('num1',this)">
-          <span class="check">✓</span>数字起卦1
+        <div class="method-option selected" data-method="number" onclick="selectMethod('number',this)">
+          <span class="check">✓</span>报数起卦（三个数）
         </div>
-        <div class="method-option selected" data-method="num2" onclick="selectMethod('num2',this)">
-          <span class="check">✓</span>数字起卦2
+        <div class="method-option" data-method="split" onclick="selectMethod('split',this)">
+          <span class="check">✓</span>报数起卦（拆半求和）
+        </div>
+        <div class="method-option" data-method="character" onclick="selectMethod('character',this)">
+          <span class="check">✓</span>字占（按笔画）
         </div>
         <div class="method-option" data-method="auto" onclick="selectMethod('auto',this)">
           <span class="check">✓</span>自动起卦
@@ -431,43 +438,6 @@ function getShichen(hour) {
   return {name:names[idx], num:idx+1};
 }
 
-function getYearZhi(year) {
-  // 年支（地支名，子丑寅…）。本页曾**同时存在两个同名定义**，另一个写成
-  // `a[(y-4)%12]`：`%` 在 y<4 时给负数下标，取不到值就返回 `undefined`，
-  // 而且它返回字符串、这个返回序号，两个「同名函数」语义不同 —— 谁生效只看
-  // 定义先后。已删掉那个，只留这一处；负数年份一并挡住。
-  var a = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
-  return a[((year - 4) % 12 + 12) % 12];
-}
-
-function getLunarInfo() {
-  var now = new Date();
-  var y=now.getFullYear(), m=now.getMonth()+1, d=now.getDate();
-  var h=now.getHours(), min=now.getMinutes(), s=now.getSeconds();
-  var sc=getShichen(h);
-  var lunarMonth=m, lunarDay=d, lunarYearZhi=getYearZhi(y);
-
-  // 尝试用 lunar-javascript 获取农历
-  try {
-    if (typeof Solar !== 'undefined') {
-      var solar = Solar.fromYmdHms(y, m, d, h, min, s);
-      var lunar = solar.getLunar();
-      lunarMonth = lunar.getMonth();
-      lunarDay = lunar.getDay();
-      lunarYearZhi = getYearZhi(lunar.getYear());
-    }
-  } catch(e) {}
-
-  return {
-    gregorian: y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0')+' '+String(h).padStart(2,'0')+':'+String(min).padStart(2,'0')+':'+String(s).padStart(2,'0'),
-    lunarMonth: lunarMonth,
-    lunarDay: lunarDay,
-    yearZhi: lunarYearZhi,
-    shichen: sc,
-    shichenNum: sc.num
-  };
-}
-
 function enrichTimeInfo() {
   if (!selectedTime) initTime();
   var info = {};
@@ -532,137 +502,130 @@ function xunKongFromDayGZ(dayGZ) {
   return branchs[xk1] + branchs[xk2];
 }
 
-function timeDivination() {
-  // 从 selectedTime 直接读取用户设定时间
+// ===== 起卦：一律交后端 =====
+//
+// 本页**不再有任何取数实现**。历史上起卦被抄成了三份（本页、六爻页、AI 对话页），
+// 三份各自出错，且都是「看着正常但错」的卦：报数的动爻写成「第三个数÷6」（古法
+// 是三数之和÷6）、拆半求和从已取模的上下卦取模、时间起卦拿公历年当农历年支。
+// 用户分辨不出眼前的卦是错的 —— 所以取数只能有一份，在后端
+// （`build/backend/paipan/meihua.js`，逐例对拍过）。本页只做两件事：
+// 收用户输入、把用户**选定的时间**原样送上去。
+//
+// 「用户选定的时间」是这里的关键。原先「动爻加时辰」读的是墙上时钟
+// （`getLunarInfo()` 里 `new Date()`）：页面上选 08:00，只要此刻是 22:00，
+// 动爻就按亥时加 —— 用户看不见这件事，只会觉得卦不准。
+
+// selectedTime → 后端认的时刻串（`YYYY-MM-DDTHH:MM:00`）。
+// 农历选择必须先换成公历：起卦公式取的是农历月/日/年支，但**时刻本身**得是
+// 一个真实的时间点，后端才推得出四柱与月建。
+function selectedTimeToIso() {
   if (!selectedTime) initTime();
-  var y = selectedTime.year, m = selectedTime.month, d = selectedTime.day;
-  var h = selectedTime.hour;
-  var isLunar = selectedTime.calendar === 'lunar';
-  // 无农历库时**不能**拿公历年月日顶替农历 —— 那会算出一个「看着正常的错卦」，
-  // 用户分辨不出卦是错的，比直接报错危险。起卦公式依赖农历，没有农历就不占。
-  if (typeof Solar === 'undefined' || (isLunar && typeof Lunar === 'undefined')) {
-    alert('农历数据未加载完成，无法起卦。请刷新页面后重试。');
-    return null;
+  var t = selectedTime, y = t.year, m = t.month, d = t.day;
+  if (t.calendar === 'lunar') {
+    // 没农历库时**不能**拿农历数字当公历顶上 —— 那会排出一个「看着正常的错卦」，
+    // 用户分辨不出来，比直接报错危险。
+    if (typeof Lunar === 'undefined') return null;
+    try {
+      var s = Lunar.fromYmdHms(y, m, d, t.hour, t.minute || 0, 0).getSolar();
+      y = s.getYear(); m = s.getMonth(); d = s.getDay();
+    } catch (e) { return null; }
   }
-  // 获取 shichen 和农历信息
-  var sc = getShichen(h);
-  var solar, lunar, calcLunar;
-  try {
-    if (isLunar) {
-      lunar = Lunar.fromYmdHms(y, m, d, h, 0, 0);
-      solar = lunar.getSolar();
-    } else {
-      solar = Solar.fromYmdHms(y, m, d, h, 0, 0);
-      lunar = solar.getLunar();
+  var p2 = function (n) { return String(n).padStart(2, '0'); };
+  return y + '-' + p2(m) + '-' + p2(d) + 'T' + p2(t.hour) + ':' + p2(t.minute || 0) + ':00';
+}
+
+// 报数（三个数）。判据是「有没有分隔符」：
+//   「10 8 6」「10,8,6」→ 按三个**数**读（报 10 是常事，输入框原来却限死 3 位）
+//   「386」            → 按三个**数字**逐位读（本页原来的读法，不改）
+function parseReportNumbers(raw) {
+  var s = String(raw == null ? '' : raw).trim();
+  if (!s) return { ok: false, msg: '请输入数字' };
+  if (/[^0-9\s,，、]/.test(s)) return { ok: false, msg: '只能填数字，三个数之间可以用空格分开' };
+  var parts = s.split(/[^0-9]+/).filter(function (x) { return x !== ''; });
+  var nums = (parts.length > 1 || /[\s,，、]/.test(s))
+    ? parts.map(function (x) { return parseInt(x, 10); })
+    : s.split('').map(function (c) { return parseInt(c, 10); });
+  if (nums.length !== 3) return { ok: false, msg: '需要正好三个数，现在有 ' + nums.length + ' 个' };
+  for (var i = 0; i < nums.length; i++) {
+    // 0 不在先天卦数里（八卦对应 1-8），后端也会拒。这里先拦只为给一句人话。
+    if (!(nums[i] >= 1)) return { ok: false, msg: '报的数要 1 以上：0 不在先天卦数里（八卦是 1-8）' };
+  }
+  return { ok: true, nums: nums };
+}
+
+// 拆半求和：逐位数字。0 在这里**允许** —— 它只参与求和，不像报数那样直接当卦数。
+function parseSplitDigits(raw) {
+  var s = String(raw == null ? '' : raw).trim();
+  if (!s) return { ok: false, msg: '请输入数字' };
+  if (/[^0-9]/.test(s)) return { ok: false, msg: '只能填数字（逐位输入，不用分隔符）' };
+  return { ok: true, digits: s.split('').map(function (c) { return parseInt(c, 10); }) };
+}
+
+// 自动起卦 = 抽签。**抽签在页面发生**（用户没有数可报时的一条路），抽出卦号后按
+// 「手动指定」入后端 —— 后端没有、也不该有「随机」这个起卦法。
+function drawRandom() {
+  return {
+    upper: Math.floor(Math.random() * 8) + 1,
+    lower: Math.floor(Math.random() * 8) + 1,
+    moving: Math.floor(Math.random() * 6) + 1
+  };
+}
+
+// 收集当前选择 → 端点入参。返回 {ok:true, body, method, numbers, datetime}
+// 或 {ok:false, msg}（msg 直接给人看）。
+function buildQiguaRequest() {
+  var dt = selectedTimeToIso();
+  if (!dt) {
+    return { ok: false, msg: '起卦时间换算失败（农历数据未加载，或该日期不存在）。请刷新页面重试，或把时间改成公历。' };
+  }
+  var topic = document.getElementById('topicInput').value.trim();
+  var body = { method: currentMethod, datetime: dt, topic: topic };
+  var out = { ok: true, body: body, method: currentMethod, numbers: '', datetime: dt };
+
+  if (currentMethod === 'time') {
+    // 时间起卦：取数全在后端，用哪个时刻就是上面那一个
+  } else if (currentMethod === 'manual') {
+    var u = parseInt(document.getElementById('manualUpper').value, 10);
+    var l = parseInt(document.getElementById('manualLower').value, 10);
+    var m = parseInt(document.getElementById('manualMove').value, 10);
+    // 必须校验：空值/越界会让 NaN 一路传下去，排出一个空卦
+    if (!(u >= 1 && u <= 8) || !(l >= 1 && l <= 8) || !(m >= 1 && m <= 6)) {
+      return { ok: false, msg: '请填写：上卦 1-8、下卦 1-8、动爻 1-6' };
     }
-    // 晚子时(23:00-23:59)换日：农历月/日/年支一律取次日，与六爻日柱口径一致。
-    // 走库的 next(1) 而非 lunarDay+1，月末/年末进位才不会溢出。
-    calcLunar = h >= 23 ? solar.next(1).getLunar() : lunar;
-  } catch(e) {
-    alert('农历换算失败，无法起卦：' + (e && e.message ? e.message : e));
-    return null;
+    body.upper = u; body.lower = l; body.moving = m;
+  } else if (currentMethod === 'number') {
+    var r1 = parseReportNumbers(document.getElementById('numberInput').value);
+    if (!r1.ok) return r1;
+    body.num1 = r1.nums[0]; body.num2 = r1.nums[1]; body.num3 = r1.nums[2];
+    body.addShichen = document.getElementById('numberAddShichen').checked;
+    out.numbers = r1.nums.join(' ');
+  } else if (currentMethod === 'split') {
+    var r2 = parseSplitDigits(document.getElementById('splitInput').value);
+    if (!r2.ok) return r2;
+    body.digits = r2.digits;
+    body.addShichen = document.getElementById('splitAddShichen').checked;
+    out.numbers = r2.digits.join(' ');
+  } else if (currentMethod === 'character') {
+    var txt = document.getElementById('charInput').value.trim();
+    if (!txt) return { ok: false, msg: '请输入想占的字或一句话' };
+    body.text = txt;
+  } else if (currentMethod === 'auto') {
+    var drawn = drawRandom();
+    body.method = 'manual';        // 后端无「随机」一法，抽完按指定卦号入
+    body.upper = drawn.upper; body.lower = drawn.lower; body.moving = drawn.moving;
+    out.method = 'auto';           // 记录与展示仍写「自动起卦」（用户点的是它）
+  } else {
+    return { ok: false, msg: '未知的起卦方式' };
   }
-  var lunarMonth = Math.abs(calcLunar.getMonth());  // 闰月库返回负数，取绝对值（闰月按本月序数计）
-  var lunarDay = calcLunar.getDay();
-  // 年支数（子1 丑2 ... 亥12）—— 用**农历**年支，不是公历年
-  var ZHI = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
-  var yearZhiNum = ZHI.indexOf(calcLunar.getYearZhi()) + 1;
-  var upperRaw = yearZhiNum + lunarMonth + lunarDay;
-  var lowerRaw = yearZhiNum + lunarMonth + lunarDay + sc.num;
-  var moveRaw  = yearZhiNum + lunarMonth + lunarDay + sc.num;
-  var upper = upperRaw % 8; if(upper===0) upper=8;
-  var lower = lowerRaw % 8; if(lower===0) lower=8;
-  var move = moveRaw % 6; if(move===0) move=6;
-  return {
-    method:'time',
-    calc: {
-      yearZhiNum:yearZhiNum, lunarMonth:lunarMonth, lunarDay:lunarDay, shichenNum:sc.num,
-      upperRaw:upperRaw, upper:upper,
-      lowerRaw:lowerRaw, lower:lower,
-      moveRaw:moveRaw, move:move
-    },
-    gua: calcGua(upper, lower, move)
-  };
+  return out;
 }
 
-function manualDivination() {
-  var u=parseInt(document.getElementById('manualUpper').value,10);
-  var l=parseInt(document.getElementById('manualLower').value,10);
-  var m=parseInt(document.getElementById('manualMove').value,10);
-  // 手动指定必须校验：空值/越界会让 NaN 一路传到 calcGua，排出一个空卦
-  if (!(u>=1&&u<=8) || !(l>=1&&l<=8) || !(m>=1&&m<=6)) {
-    alert('请填写：上卦 1-8、下卦 1-8、动爻 1-6');
-    return null;
-  }
-  return { method:'manual', gua:calcGua(u,l,m) };
-}
 
-function num1Divination() {
-  var raw=document.getElementById('num1Input').value.trim();
-  var nums=raw.replace(/[^0-9]/g,'').split('').map(function(x){ return parseInt(x); }).filter(function(x){ return !isNaN(x); });
-  var addShichen=document.getElementById('num1AddShichen').checked;
-  
-  var half=Math.floor(nums.length/2);
-  var firstHalf=nums.slice(0,half);
-  var secondHalf=nums.slice(half);
-  var sum1=firstHalf.reduce(function(a,b){return a+b;},0);
-  var sum2=secondHalf.reduce(function(a,b){return a+b;},0);
-  var upper=sum1%8; if(upper===0) upper=8;
-  var lower=sum2%8; if(lower===0) lower=8;
-  
-  // 动爻从**原始和**取模，不能用已取模的上卦/下卦（否则动爻被 8 的余数污染）
-  var moveRaw=sum1+sum2;
-  var timeInfo=null;
-  if(addShichen){
-    timeInfo=getLunarInfo();
-    moveRaw+=timeInfo.shichenNum;
-  }
-  var move=moveRaw%6; if(move===0) move=6;
-  
-  return {
-    method:'num1',
-    numbers:nums.join(' '),
-    addShichen:addShichen,
-    time:timeInfo,
-    calc:{sum1:sum1,sum2:sum2,upper:upper,lower:lower,moveRaw:moveRaw,move:move},
-    gua:calcGua(upper,lower,move)
-  };
-}
-
-function num2Divination() {
-  var raw=document.getElementById('num2Input').value.trim();
-  var digits=raw.replace(/[^0-9]/g,'').split('');
-  var n1=parseInt(digits[0]), n2=parseInt(digits[1]), n3=parseInt(digits[2]);
-  var upper=n1%8; if(upper===0) upper=8;
-  var lower=n2%8; if(lower===0) lower=8;
-  // 古法：上卦=第一数÷8，下卦=第二数÷8，动爻=**三数之和**÷6（不是第三个数本身）
-  var moveRaw=n1+n2+n3;
-  var timeInfo=null;
-  if(document.getElementById('num2AddShichen').checked){
-    timeInfo=getLunarInfo();
-    moveRaw+=timeInfo.shichenNum;
-  }
-  var move=moveRaw%6; if(move===0) move=6;
-
-  return {
-    method:'num2',
-    numbers:[n1,n2,n3].join(' '),
-    addShichen:document.getElementById('num2AddShichen').checked,
-    time:timeInfo,
-    calc:{upper:upper,lower:lower,moveRaw:moveRaw,move:move},
-    gua:calcGua(upper,lower,move)
-  };
-}
-
-function autoDivination() {
-  var u=Math.floor(Math.random()*8)+1;
-  var l=Math.floor(Math.random()*8)+1;
-  var m=Math.floor(Math.random()*6)+1;
-  return { method:'auto', gua:calcGua(u,l,m) };
-}
 
 // ===== 当前选中的方法 =====
-var currentMethod = 'num2';
+// 取值即后端起卦法名（见下拉里的 data-method）。默认 `number` = 原来的「数字起卦2」
+// （报三个数），页面上默认选中的那项与它一致。
+var currentMethod = 'number';
 
 function toggleDropdown() {
   var dd=document.getElementById('methodDropdown');
@@ -711,16 +674,25 @@ function renderMethodParams() {
       // 延迟填充下拉
       setTimeout(fillManualSelects, 50);
       break;
-    case 'num1':
+    case 'split':
       h += '<div style="margin-top:0.6rem">'+
-          '<div class="num-input-row"><input type="text" id="num1Input" placeholder="连续输入数字，如 386 或 1234" inputmode="numeric" style="flex:1"><label class="cb-inline"><input type="checkbox" id="num1AddShichen" checked> 动爻加时辰</label></div>'+
+          '<div class="num-input-row"><input type="text" id="splitInput" placeholder="连续输入数字，如 386 或 1234" inputmode="numeric" style="flex:1"><label class="cb-inline"><input type="checkbox" id="splitAddShichen" checked> 动爻加时辰</label></div>'+
           '<div class="algo-text">起卦算法（古法）：取输入的每一位数字，平分为前后两半，前一半之和 ÷8 得余数为上卦，后一半之和 ÷8 得余数为下卦，前后两半和数之和 ÷6 得余数为动爻。若数字个数为奇数，前部分比后部分少一个。</div>'+
           '</div>';
       break;
-    case 'num2':
+    case 'number':
+      // 输入框**不再限 3 位**（原来 `maxlength="3"`）：那样只能报个位数，
+      // 报数 10 / 16 根本打不出来。现在「386」仍按三个数字读（与原来一致），
+      // 若用空格等分隔符写「10 8 6」则按三个**数**读。
       h += '<div style="margin-top:0.6rem">'+
-          '<div class="num-input-row"><input type="text" id="num2Input" placeholder="输入三个数字，如 386" maxlength="3" inputmode="numeric" style="flex:1;text-align:center"><label class="cb-inline"><input type="checkbox" id="num2AddShichen" checked> 动爻加时辰</label></div>'+
-          '<div class="algo-text">起卦算法（古法）：第1个数 ÷8 得余数为上卦，第2个数 ÷8 得余数为下卦，三个数之和 ÷6 得余数为动爻。</div>'+
+          '<div class="num-input-row"><input type="text" id="numberInput" placeholder="三个数字，如 386；或 10 8 6" inputmode="numeric" style="flex:1;text-align:center"><label class="cb-inline"><input type="checkbox" id="numberAddShichen" checked> 动爻加时辰</label></div>'+
+          '<div class="algo-text">起卦算法（古法）：第1个数 ÷8 得余数为上卦，第2个数 ÷8 得余数为下卦，三个数之和 ÷6 得余数为动爻。\n报的数都是 1 以上的正整数：0 不在先天卦数里（八卦对应 1-8）。</div>'+
+          '</div>';
+      break;
+    case 'character':
+      h += '<div style="margin-top:0.6rem">'+
+          '<div class="num-input-row"><input type="text" id="charInput" placeholder="输入想占的字或一句话" style="flex:1"></div>'+
+          '<div class="algo-text">起卦算法（古法字占）：以字数平分为前后两半，各半笔画之和 ÷8 得上下卦，总笔画 ÷6 得动爻；一字占另有取法。笔画取自内置表（6944 常用字，简体字形），表外的生僻字会提示改用别法。</div>'+
           '</div>';
       break;
     case 'auto':
@@ -748,41 +720,55 @@ async function startDivination(e) {
   if(e){ e.preventDefault(); e.stopPropagation(); }
   var btn = document.getElementById('startBtn');
 
-  // ===== 1. 验证（统一在算法前） =====
-  if (currentMethod === 'num1') {
-    var raw = document.getElementById('num1Input').value.trim();
-    if (!raw || raw.replace(/[^0-9]/g,'') === '') { alert('请输入数字'); resetBtn(); return; }
-  }
-  if (currentMethod === 'num2') {
-    var raw2 = document.getElementById('num2Input').value.trim();
-    var digits = raw2.replace(/[^0-9]/g,'').split('');
-    if (digits.length !== 3) { alert('请输入三个数字（0-9）'); resetBtn(); return; }
-  }
+  // ===== 1. 收集输入（校验也在这一步里） =====
+  var req = buildQiguaRequest();
+  if (!req.ok) { alert(req.msg); resetBtn(); return; }
 
-  // ===== 2. 计算卦象（各方法不同） =====
-  var result;
-  switch(currentMethod) {
-    case 'time': result = timeDivination(); break;
-    case 'manual': result = manualDivination(); break;
-    case 'num1': result = num1Divination(); break;
-    case 'num2': result = num2Divination(); break;
-    case 'auto': result = autoDivination(); break;
-    default: resetBtn(); return;
+  // ===== 2. 起卦：交给后端，页面等结果 =====
+  btn.disabled = true;
+  btn.classList.add('loading');
+  btn.textContent = '排盘中…';
+  var pay;
+  try {
+    var resp = await fetch('/api/meihua/paipan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body)
+    });
+    pay = await resp.json();
+    if (!resp.ok) {
+      // 后端拒了就说后端给的理由（如「报的数要 1 以上」「这些字不在笔画表里」），
+      // 不吞掉换成「排盘失败」—— 用户照着理由改输入才有用
+      alert('排盘失败：' + ((pay && pay.error) || ('HTTP ' + resp.status)));
+      resetBtn(); return;
+    }
+  } catch (err) {
+    alert('排盘请求失败，请检查网络后重试。');
+    resetBtn(); return;
   }
-  if (!result || !result.gua) { resetBtn(); return; }
+  var q = pay && pay.qigua;
+  if (!q || !q.upper_num) { alert('排盘结果不完整，请重试。'); resetBtn(); return; }
 
-  // ===== 3. 统一：topic / 起卦时间 / 农历 / 跳转 =====
-  var topic = document.getElementById('topicInput').value.trim();
-  result.topic = topic;
-  // 起卦时间
-  if (selectedTime) {
-    result.divinationTime = selectedTime.year+'-'+String(selectedTime.month).padStart(2,'0')+'-'+String(selectedTime.day).padStart(2,'0')+' '+
-      String(selectedTime.hour).padStart(2,'0')+':'+String(selectedTime.minute).padStart(2,'0');
-  }
-  result.createdAt = new Date().toISOString();
-  // 记录实际排盘时间（按钮点击时间，用于排序）
-  result.recordTime = new Date().toISOString();
-  result.lunarInfo = enrichTimeInfo();
+  // ===== 3. 组装记录 =====
+  // 卦号只用后端回的这三个，页面**不再自己算一遍**。`result.gua` 仍由本页的
+  // calcGua 拼出展示形状（互卦/错卦/综卦/体用判词），它只吃这三个卦号 ——
+  // 那部分是**渲染**不是取数，它的正确性由 duipan/verify_meihua_vs_front.js
+  // 用 64×64×6 全组合逐项核过。
+  var topic = req.body.topic;
+  var result = {
+    method: req.method,
+    addShichen: !!req.body.addShichen,
+    calc: { upper: q.upper_num, lower: q.lower_num, move: q.moving },
+    qigua: q,   // 后端起的卦（含取数过程），记录里留一份备查
+    gua: calcGua(q.upper_num, q.lower_num, q.moving),
+    topic: topic,
+    divinationTime: req.datetime,
+    createdAt: new Date().toISOString(),
+    // 记录实际排盘时间（按钮点击时间，用于排序）
+    recordTime: new Date().toISOString(),
+    lunarInfo: enrichTimeInfo()
+  };
+  if (req.numbers) result.numbers = req.numbers;
 
   // 事项为空 → 临时排盘，不保存记录
   if (!topic) {
@@ -792,7 +778,7 @@ async function startDivination(e) {
   }
 
   try {
-    var resp = await fetch('/api/mhys-records', {
+    var sresp = await fetch('/api/mhys-records', {
       method: 'POST',
       headers: AUTH.isLoggedIn()
         ? { 'Content-Type':'application/json', 'Authorization':'Bearer '+AUTH.getToken() }
@@ -803,8 +789,8 @@ async function startDivination(e) {
         resultData: result
       })
     });
-    var saved = await resp.json();
-    if (resp.ok) {
+    var saved = await sresp.json();
+    if (sresp.ok) {
       window.location.href = '/mhys/result.html?v=4&id=' + saved.id;
     } else {
       window.location.href = '/mhys/result.html?v=4';
