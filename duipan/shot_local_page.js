@@ -119,7 +119,18 @@ async function run(m, key) {
         var r=e.getBoundingClientRect(); return {y:Math.round(r.top),b:Math.round(r.bottom),
           x:Math.round(r.left),w:Math.round(r.width)}; }
       var p = W.document.getElementById('aiPanel');
-      return { pan:R('#aiPanel'), table:R('#resultArea table'),
+      // 爻符：阳爻曾经是「有底色、高 0」的盒子（见 liuyao_render.js::lyBar 注），
+      // 阴爻因 span 自带 height 而正常 —— 故这里按「高 0 的爻符个数」判，不靠肉眼
+      var bars = (function(){
+        var ds = W.document.querySelectorAll('#resultArea .ly-c-bar > div');
+        var zero = 0, yang = 0, yin = 0;
+        for (var i = 0; i < ds.length; i++) {
+          if (ds[i].getBoundingClientRect().height < 1) zero++;
+          if (ds[i].className.indexOf('yao-yang') >= 0) yang++; else yin++;
+        }
+        return { n: ds.length, zero: zero, yang: yang, yin: yin };
+      })();
+      return { pan:R('#aiPanel'), table:R('#resultArea table'), bars: bars,
         inline: !!(p && p.classList.contains('inline')),
         pos: p ? W.getComputedStyle(p).position : null,
         parent: p && p.parentNode ? (p.parentNode.id || p.parentNode.tagName) : null,
@@ -136,6 +147,13 @@ async function run(m, key) {
       + ` | 表 y=${box.table && box.table.y}..${box.table && box.table.b}`
       + ` | 重叠=${ov}px  ${pass ? '✅' : '❌'}`);
     if (vp.n === 'narrow') fs.writeFileSync(path.join(OUT, '正文.txt'), box.text, 'utf8');
+
+    // 爻符必须真看得见：有爻符、且没有一个高 0 的（阳爻那条曾经就是高 0）
+    const barPass = box.bars && box.bars.n > 0 && box.bars.zero === 0;
+    if (!barPass) ok = false;
+    console.log(`[${Pg.name}/${vp.n}] 爻符 ${box.bars && box.bars.n} 个`
+      + `（阳 ${box.bars && box.bars.yang} / 阴 ${box.bars && box.bars.yin}）`
+      + `　高 0 的 ${box.bars && box.bars.zero} 个  ${barPass ? '✅' : '❌ 有爻符看不见'}`);
   }
 
   // token 尾巴不该出现在正文里

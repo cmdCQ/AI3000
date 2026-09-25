@@ -300,6 +300,22 @@ html,body { background:var(--bg); color:var(--text); font-family:var(--sans); mi
 .ai-response .ai-result ul { padding-left:1.2rem; margin-bottom:0.4rem; }
 .ai-response .ai-result li { margin-bottom:0.2rem; }
 
+/* 记账行（后端 `pointsTrailer()` 拼的「消耗积分：输入 … = … ｜ 剩余：…」）。
+   原来是抹掉不显示的；2026-09-25 用户要求「每个解析都要显示消耗的积分数目」，
+   故由 `ai_panel.js::pointsHtml()` 切成一行小字挂在正文下面。
+   ⚠ 选择器是**裸类名**（不加 `.ai-response .ai-result` 前缀）：追问的回答
+   （`.ai-followup-answer`）也要用同一个样式，它不在 `.ai-result` 里面。
+   引擎里只有 `pointsHtml()` 一处生成它，改类名前先搜 `ai-points`。 */
+.ai-points {
+  margin-top:0.5rem;
+  padding-top:0.4rem;
+  border-top:1px dashed var(--border);
+  font-size:0.68rem;
+  color:var(--text-dim);
+  opacity:0.75;
+  letter-spacing:0.02em;
+}
+
 /* 无事项状态 */
 .ai-no-topic {
   text-align:center; padding:0.8rem;

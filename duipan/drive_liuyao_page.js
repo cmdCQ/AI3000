@@ -53,7 +53,12 @@ const ORIGIN = `http://127.0.0.1:${PORT}`;
 // 1. 端点：从 auth-server.js 切片（标记与 smoke 脚本同一对）
 // ─────────────────────────────────────────────────────────────
 const SLICE_A = "  if (req.method === 'POST' && (pathname === '/api/meihua/paipan'";
-const SLICE_B = '  // POST /api/chat/send';
+// 尾巴停在**下一个端点**的开头。2026-09-25：新插了 /api/bazi/parse，原先指向
+// `// POST /api/chat/send` 的尾巴于是把解读端点也圈了进来 —— 那里面有顶层 `await`，
+// 拼进非 async 的 `new Function` 直接语法错。**每加一个端点，这里要往回收一格。**
+const SLICE_B = '  // ── POST /api/bazi/parse — 八字解读（流式）──';
+// 只认**真调用**，不认名字：排盘端点的注释里会合法地提到解读端点的路径。
+const FORBIDDEN = ['guestGate(req, res)', 'streamBaziParse(res, {', 'baziRagContext('];
 
 function loadEndpoint() {
   const src = fs.readFileSync(SERVER, 'utf8');
@@ -67,6 +72,13 @@ function loadEndpoint() {
   for (const want of ['/api/liuyao/paipan', '/api/meihua/paipan']) {
     if (!slice.includes(want)) {
       console.error(`❌ 切出的段里没有「${want}」——切片标记失效，拒绝在残缺代码上验收。`);
+      process.exit(2);
+    }
+  }
+  for (const bad of FORBIDDEN) {
+    if (slice.includes(bad)) {
+      console.error(`❌ 排盘端点切片里混进了「${bad}」—— 这是别的端点的代码（依赖没注入，跑不了）。\n`
+        + '   多半是 SLICE_B 停在下一个端点之后了：把它收到**下一个端点的注释行**上。');
       process.exit(2);
     }
   }
@@ -99,30 +111,67 @@ const REF_PAYLOAD = (() => {
 })();
 
 // 桩：设了就按它回（① 独立判据）；同时把每个进来的请求体存下来（② 独立判据）
-const state = { stub: false, captured: [], savedRecords: [], patched: [], chat: [] };
+//
+// `chatFirstDelay` 是**第一段正文之前**的延后（默认 0），`chatDelay` 是第二段之前的
+// 延后（默认 150）。⑪ 两个都要：慢流之下，「收起时那个请求到底停没停」才看得见；
+// 而首段也延后，才谈得上验「等了几秒」那个等待态 —— 真实后端首字节本来就要等几秒，
+// 桩一上来就出字反而不像线上。
+// `chatLive` 逐条记这次流**在写第二段时**的连接状态 —— 客户端真按了取消，
+// 服务端这里就能看出来（`destroyed` / `close 无 end`），不是靠猜。
+const state = {
+  stub: false, captured: [], savedRecords: [], patched: [], chat: [],
+  chatFirstDelay: 0, chatDelay: 150, chatLive: [], chatAborts: [], chatSeq: 0,
+};
 
 async function api(req, res, pathname) {
   if (pathname === '/__stub') {
     state.stub = !!(await L.readBody(req)).on;
     return L.sendJson(res, { ok: true, stub: state.stub }), true;
   }
+  if (pathname === '/__chatdelay') {
+    const b = await L.readBody(req);
+    if (b.first != null) state.chatFirstDelay = +b.first;
+    if (b.ms != null) state.chatDelay = +b.ms;
+    return L.sendJson(res, { first: state.chatFirstDelay, ms: state.chatDelay }), true;
+  }
   if (pathname === '/__captured') return L.sendJson(res, { captured: state.captured }), true;
   if (pathname === '/__reset') {
     state.captured = []; state.savedRecords = []; state.patched = []; state.chat = [];
+    state.chatLive = []; state.chatAborts = []; state.chatSeq = 0;
     return L.sendJson(res, { ok: true }), true;
   }
   if (pathname === '/__saved') return L.sendJson(res, { saved: state.savedRecords }), true;
   if (pathname === '/__patched') return L.sendJson(res, { patched: state.patched }), true;
   if (pathname === '/__chat') return L.sendJson(res, { chat: state.chat }), true;
+  if (pathname === '/__chatlive') {
+    return L.sendJson(res, { live: state.chatLive, aborts: state.chatAborts }), true;
+  }
 
   // AI 解读：`startAIStream()` 用 XHR 读**流式正文**（onprogress 逐段渲染），
   // 所以这里分两次 write、中间隔一下，好让驱动看到「边收边渲染」而不是一次性结果。
+  // 正文里带**本次序号**：⑪ 要看「屏幕上这段到底是第几次请求写的」——
+  // 两次流写同一段字就分不出来了。
   if (req.method === 'POST' && pathname === '/api/chat/send') {
     const body = await L.readBody(req);
     state.chat.push(body);
+    const n = ++state.chatSeq;
+    const live = { n, at2: null, closed: false };
+    state.chatLive.push(live);
+    res.on('close', () => {
+      live.closed = true;
+      if (!res.writableEnded) state.chatAborts.push(n);
+    });
     res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache' });
-    res.write('【一、结论】\n（桩）这一卦先说结论。\n');
-    setTimeout(() => { res.write('\n【二、依据】\n（桩）再看依据。\n\n【三、建议】\n（桩）最后给建议。'); res.end(); }, 150);
+    setTimeout(() => {
+      if (res.destroyed || res.writableEnded) return;
+      res.write('【一、结论】\n（桩第' + n + '次）这一卦先说结论。\n');
+      setTimeout(() => {
+        live.at2 = !res.destroyed && !res.writableEnded;
+        if (!live.at2) return;   // 客户端已走，第二段不用写了
+        res.write('\n【二、依据】\n（桩第' + n + '次）再看依据。\n\n【三、建议】\n（桩第' + n + '次）最后给建议。');
+        res.end();
+      }, state.chatDelay);
+    }, state.chatFirstDelay);
     return true;
   }
 
@@ -226,6 +275,13 @@ async function captured() { return (await (await fetch(`${ORIGIN}/__captured`)).
 async function saved() { return (await (await fetch(`${ORIGIN}/__saved`)).json()).saved; }
 async function patched() { return (await (await fetch(`${ORIGIN}/__patched`)).json()).patched; }
 async function chat() { return (await (await fetch(`${ORIGIN}/__chat`)).json()).chat; }
+/** 每一次流在写第二段时的连接状态 + 服务端观察到的取消（⑪ 用它判「✕ 到底停没停」） */
+async function chatLive() { return (await (await fetch(`${ORIGIN}/__chatlive`)).json()); }
+async function setChatDelay(ms, firstMs) {
+  await fetch(`${ORIGIN}/__chatdelay`, {
+    method: 'POST', body: JSON.stringify({ ms, first: firstMs == null ? 0 : firstMs }),
+  });
+}
 
 // 页面上未捕获的异常。**取的时候现读** —— 在 clickStart 之后立刻读，会在渲染完成
 // 之前就把快照取走，页面渲染途中抛的错就漏了（第一版就是这么漏掉一个 TypeError 的，
@@ -558,6 +614,151 @@ async function main() {
       (await chat()).length === 0, JSON.stringify(await chat()));
     check('提示语是「先起一卦」',
       await js(m, `return document.body.innerText.indexOf('先起一卦') >= 0;`), '没看到提示语');
+
+    // ── ⑪ 解析中途收起面板（用户 2026-09-25 报：「卡住了」「叉掉之后不能重启」）──
+    // 先把「跑歪的那种状态」量出来：慢流走一半时收起面板，再点表头按钮回去，
+    // 看 ①那个请求停了没有 ②面板上还认不认得出「正在解析」③点重来会发几次请求。
+    //
+    // ⚠ 2026-09-25 改：表头那颗 ✕ **已被删除**（用户点名，理由见 ai_panel.js 里
+    //   MH_AI_PANEL_HTML 上方那段：八字页是页内面板，✕ 一按就是死路）。所以这里
+    //   改走**页面级那颗表头按钮**（`☯ 看不懂？试试自动解析` → toggleAIPanel）——
+    //   它本来就是六爻/梅花上「收起/打开」的正路，且**能再打开**。
+    //   顺带把「✕ 不该回来」也钉住：它回来了这条会红。
+    console.log('\n⑪ 解析中途收起再回来：请求停没停、面板还能不能重来');
+    await setStub(true);
+    await reset(m);
+    await setChatDelay(2500, 2000);   // 首段等 2 秒、第二段再等 2.5 秒（像线上的慢流）
+    await selectMethod(m, 'manual');
+    await setManual(m, MANUAL_A);
+    await setTime(m, 2026, 9, 25, 8, 30);
+    await clickStart(m);
+    await L.until(m, `return document.getElementById('aiPanel').classList.contains('open');`,
+      (t) => t === true, 8000);
+    await L.sleep(1300);   // 首段还没来 —— 这段空窗正是用户看到「卡住」的那一段
+    const waiting = await js(m, `${W}
+      var r = document.getElementById('aiResponse');
+      return { loading: !!(r && r.querySelector('.ai-loading')),
+               text: r ? (r.innerText || '').replace(/\\s+/g, ' ') : '' };`);
+    console.log('   · 首字节还没来时的等待态：' + JSON.stringify(waiting));
+    check('模型还没出字时，屏幕上是**有秒数**的等待态（不是死转圈）',
+      waiting.loading && /已等 \d+ 秒/.test(waiting.text), JSON.stringify(waiting));
+    await L.panelTextUntil(m, /【一、结论】/, 8000);
+    check('首段到了就渲染出来（等待态换成正文）', await L.panelOpen(m), '面板没打开');
+
+    const closeBtn = await js(m, `return !!document.querySelector('.ai-panel-close');`);
+    check('表头那颗只关不开的 ✕ 已经不在了（2026-09-25 用户点名删掉）', closeBtn === false,
+      '✕ 又回来了：它按下去面板收起来，而这颗按钮只关不开 —— 见 ai_panel.js 里那段说明');
+    await js(m, `document.getElementById('aiBarBtn').click(); return true;`);
+    await L.sleep(250);
+    const closedState = await js(m, `${W}
+      var p = document.getElementById('aiPanel');
+      return { open: !!p && p.classList.contains('open'),
+               display: p ? getComputedStyle(p).display : 'none' };`);
+
+    await js(m, `document.getElementById('aiBarBtn').click(); return true;`);
+    await L.sleep(250);
+    const reopened = await js(m, `${W}
+      var p = document.getElementById('aiPanel');
+      var r = document.getElementById('aiResponse');
+      return { open: !!p && p.classList.contains('open'),
+               hasStart: !!document.querySelector('.ai-start-btn'),
+               text: r ? (r.innerText || '').replace(/\\s+/g, ' ').slice(0, 100) : '' };`);
+
+    await L.sleep(4500);   // 老流（第二段在 2500ms）跑完
+    const live = await chatLive();
+    const done = await js(m, `${W}
+      var r = document.getElementById('aiResponse');
+      return { hasStart: !!document.querySelector('.ai-start-btn'),
+               text: r ? (r.innerText || '').replace(/\\s+/g, ' ').slice(0, 100) : '' };`);
+
+    console.log('   · 收起之后：' + JSON.stringify(closedState));
+    console.log('   · 再打开时：  ' + JSON.stringify(reopened));
+    console.log('   · 服务端看到的流：' + JSON.stringify(live));
+    console.log('   · 老流跑完后：' + JSON.stringify(done));
+
+    check('收起面板（点页面那颗表头按钮）', closedState.open === false && closedState.display === 'none',
+      JSON.stringify(closedState));
+    check('收起是**真**取消：服务端看到连接被掐、第二段不再写',
+      live.aborts.indexOf(1) >= 0 && live.live[0].at2 === false, JSON.stringify(live));
+    check('被取消的那次不记账：游客「已用过一次」没被置位',
+      !(await js(m, `return localStorage.getItem('liuyao_anon_used');`)),
+      '游客标记被置位了 —— 用户没看见的解析不该扣次数');
+    check('重开面板时状态跟实际一致（此刻没有流在跑，所以摆的就是「开始解卦」）',
+      reopened.open && reopened.hasStart, JSON.stringify(reopened));
+    check('屏幕上是等待态而不是残留假正文（老流那一段不该冒出来）',
+      !/【一、结论】/.test(done.text), JSON.stringify(done.text));
+
+    // 用户的下一个动作：点那颗「开始解卦」
+    const clicked = await js(m, `${W}
+      var b = document.querySelector('.ai-start-btn');
+      if (!b) return false;
+      b.click(); return true;`);
+    await L.sleep(1600);
+    const afterClick = await js(m, `${W}
+      var r = document.getElementById('aiResponse');
+      return { text: r ? (r.innerText || '').replace(/\\s+/g, ' ').slice(0, 100) : '',
+               loading: !!(r && r.querySelector('.ai-loading')) };`);
+    check('点了「开始解卦」进入等待态（不是又摆一个按钮）',
+      clicked === true && afterClick.loading === true, JSON.stringify(afterClick));
+
+    await L.sleep(5500);
+    const live2 = await chatLive();
+    check('重来是真的重跑一次（发了第 2 次请求，不是把空面板摆着）',
+      (await chat()).length === 2 && live2.live.length === 2, JSON.stringify(live2));
+    check('第 2 次的正文照样收完',
+      live2.live[1] && live2.live[1].at2 === true, JSON.stringify(live2.live));
+
+    const finalText = await js(m, `${W}
+      var r = document.getElementById('aiResponse');
+      return r ? (r.innerText || '').replace(/\\s+/g, ' ').slice(0, 160) : '';`);
+    check('屏幕上显示的是**这一次**的正文（桩第 2 次，不是上一次残留）',
+      /桩第2次/.test(finalText) && /【三、建议】/.test(finalText), JSON.stringify(finalText));
+    check('这次看完了，才记上「游客已用过一次」',
+      (await js(m, `return localStorage.getItem('liuyao_anon_used');`)) === '1',
+      '真跑完的一次没记账，游客可以刷无限次');
+
+    // ── ⑫ 记录页（从历史列表点进来）：解析要在页内，不能是盖住盘的浮层 ──
+    // 用户 2026-09-25 报：「点开的排盘记录不是把 AI 解析介入页面，而是叠在页面上面」。
+    // 根因：面板找宿主只认 `#resultArea`（排盘页的容器名），记录页用的是 `#contentArea`，
+    // 找不到就退回 position:fixed 的浮层。梅花记录页同一份代码、同一个病。
+    console.log('\n⑫ 记录页点「自动解析」：面板要在正文流里（页内），不是浮层');
+    await reset(m);
+    await js(m, `window.localStorage.clear(); return true;`);
+    state.savedRecords.push({
+      topic: '记录页浮层那一卦', method: 'manual',
+      resultData: {
+        divinationTime: '2026-09-25 08:30:00',
+        lunarInfo: { yearGZ: '丙午', monthGZ: '丁酉', dayGZ: '辛丑', hourGZ: '壬辰' },
+        gua: { benGua: { name: '艮为山', upper: 7, lower: 7 }, bianGua: { name: '火风鼎', upper: 3, lower: 5 } },
+        coinLines: [], movePositions: [],
+      },
+    });
+    await goto(m, `${ORIGIN}/liuyao/result.html?id=999`);
+    await L.textOf(m, '#contentArea', 8000, 30);
+    check('记录页一进来**不**自动开面板（历史记录是回头看，不替用户花一次解读）',
+      !(await L.panelOpen(m)), '记录页一进来就把面板弹开了');
+    await js(m, `document.getElementById('aiBarBtn').click(); return true;`);
+    await L.sleep(300);
+    const recPanel = await js(m, `${W}
+      var p = document.getElementById('aiPanel');
+      var o = document.getElementById('aiPanelOverlay');
+      var host = document.getElementById('aiInlineHost');
+      var area = document.getElementById('contentArea');
+      return { open: !!p && p.classList.contains('open'),
+               position: p ? getComputedStyle(p).position : '',
+               inline: !!p && p.classList.contains('inline'),
+               inHost: !!(p && host && host.contains(p)),
+               overlayOpen: !!o && o.classList.contains('open'),
+               hostAfterArea: !!(host && area && host.previousElementSibling === area) };`);
+    console.log('   · 记录页面板：' + JSON.stringify(recPanel));
+    check('记录页的面板是页内形态（position:static + .inline + 挂在正文容器后面）',
+      recPanel.open && recPanel.position === 'static' && recPanel.inline
+      && recPanel.inHost && recPanel.hostAfterArea, JSON.stringify(recPanel));
+    check('记录页没有全屏遮罩（不再盖住刚点开要看的那张盘）',
+      recPanel.overlayOpen === false, JSON.stringify(recPanel));
+    check('盘还在、还能读（面板没把它挤掉或盖掉）',
+      /艮为山/.test(await L.textOf(m, '#contentArea', 4000, 10)), '盘没了');
+    await setChatDelay(150);
     code = 0;
   } finally {
     try { child.kill('SIGKILL'); } catch (e) { /* 已退出 */ }

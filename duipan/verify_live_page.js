@@ -31,6 +31,12 @@ const BASE = process.argv[3] || 'https://sqw.somtfly.com';
 const PORT = 2836;
 const OUT = '/tmp/shots/live-' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 
+// 「等结果」的上限。默认 240 秒 —— 不是拍脑袋：本机到线上取一个 `lunar.min.js`
+// 实测 74 秒、盘面第 36 秒出来（见文件里那段更正）。链路好的机器上根本用不到
+// 这个上限（本机正常的那些天，盘面 3 秒内就出来）。AI3000_LIVE_WAIT=600 可改。
+const LIVE_WAIT = Number(process.env.AI3000_LIVE_WAIT || 240) * 1000;
+let LINK = '';   // 本次的链路实测（导航耗时），失败信息里带上，好分清是谁慢
+
 const PAGES = {
   liuyao: {
     path: '/liuyao/', name: '六爻',
@@ -44,6 +50,7 @@ const PAGES = {
       W.startDivination(); return 'ok';`,
     // 盘面必须出现的东西（六爻盘：本卦名 + 六亲/纳甲 + 世应）
     need: ['本卦', '世', '应'],
+    barSel: '#resultArea .ly-c-bar > div',
   },
   mhys: {
     path: '/mhys/', name: '梅花',
@@ -57,8 +64,14 @@ const PAGES = {
       if (typeof W.startDivination !== 'function') return 'no-startDivination';
       W.startDivination(); return 'ok';`,
     need: ['本卦', '互卦', '变卦'],
+    barSel: '#resultArea .yao-line',
   },
 };
+
+// 每个页面「爻符」的选择器不同，缺一个就等于那条判据永远量出 0（见 BOX_JS 里的注）。
+for (const [k, v] of Object.entries(PAGES)) {
+  if (!v.barSel) { console.error(`❌ PAGES.${k} 没给 barSel —— 爻符那条判据会永远量出 0（假红）。`); process.exit(2); }
+}
 
 // 量一个盒子的几何
 const BOX_JS = `var W = window.wrappedJSObject || window;
@@ -68,6 +81,23 @@ const BOX_JS = `var W = window.wrappedJSObject || window;
   function RN(el){ if(!el) return null; var r=el.getBoundingClientRect();
     return {y:Math.round(r.top), b:Math.round(r.bottom), x:Math.round(r.left), w:Math.round(r.width)}; }
   var p = W.document.getElementById('aiPanel');
+  // 爻符：阳爻曾经是「有底色、高 0」的盒子（详见 js/liuyao_render.js::lyBar 注）。
+  // 靠肉眼在整页图上数是数不准的，故直接量每个爻符的高度。
+  // ⚠ 选择器**每个页面不同**：六爻是「#resultArea .ly-c-bar > div」（span 里套一层），
+  // 梅花是「#resultArea .yao-line」（div 本身就是那条线）。2026-09-25 之前这里把六爻
+  // 的选择器硬写死，于是梅花永远量出「0 个爻符」——一个**假红**，而它看起来又特别
+  // 像「用户的阳爻不显示」。故由调用方按页面传进来（__BAR_SEL__），阳/阴的类名两边
+  // 都是 yao-yang，那部分共用。
+  // （注：本串是模板串，注释里**不能出现反引号** —— 会当场截断字符串，已栽过一次。）
+  var bars = (function(){
+    var ds = W.document.querySelectorAll('__BAR_SEL__');
+    var zero = 0, yang = 0, yin = 0;
+    for (var i = 0; i < ds.length; i++) {
+      if (ds[i].getBoundingClientRect().height < 1) zero++;
+      if (ds[i].className.indexOf('yao-yang') >= 0) yang++; else yin++;
+    }
+    return { n: ds.length, zero: zero, yang: yang, yin: yin };
+  })();
   // 登录/引导模态框：匿名访客一排完盘就会弹（AI 接口匿名 401），它会盖住页面，
   // 故单独量出来 —— 这是「匿名访客真实看到什么」的一部分，不是噪声
   var modal = null, mEls = W.document.querySelectorAll('.modal, .auth-modal, [id*=Modal], [class*=modal]');
@@ -77,7 +107,7 @@ const BOX_JS = `var W = window.wrappedJSObject || window;
       modal = { id: mEls[i].id || mEls[i].className, r: RN(mEls[i]) }; break;
     }
   }
-  return { pan: R('#aiPanel'), table: R('#resultArea table'), area: R('#resultArea'),
+  return { pan: R('#aiPanel'), table: R('#resultArea table'), area: R('#resultArea'), bars: bars,
     inline: !!(p && p.classList.contains('inline')),
     pos: p ? W.getComputedStyle(p).position : null,
     parent: p && p.parentNode ? (p.parentNode.id || p.parentNode.tagName) : null,
@@ -86,6 +116,14 @@ const BOX_JS = `var W = window.wrappedJSObject || window;
     docScrollW: W.document.documentElement.scrollWidth,
     clientW: W.document.documentElement.clientWidth,
     text: (W.document.body.innerText || '').replace(/\\n{2,}/g, '\\n') };`;
+
+// 反向断言（**必须放在 BOX_JS 定义之后**：`const` 有暂时性死区，写在前面是运行时报错，
+// 而 `node --check` 只查语法、查不出这个 —— 2026-09-25 实际栽过一次）：
+// 占位符要是被人「顺手清理」掉了，选择器就又变回硬写死，而硬写死那一版在梅花上
+// **永远绿不了、也永远不报错**（量出 0 个爻符）。
+if (BOX_JS.indexOf('__BAR_SEL__') < 0) {
+  console.error('❌ BOX_JS 里没有 __BAR_SEL__ 占位符 —— 判据又变回硬写死了？'); process.exit(2);
+}
 
 async function run(m, key) {
   const Pg = PAGES[key];
@@ -96,18 +134,58 @@ async function run(m, key) {
   for (const vp of [{ n: 'desktop', w: 1280, h: 900 }, { n: 'narrow', w: 500, h: 900 }]) {
     await L.setWindow(m, vp.w, vp.h);
     const t0 = Date.now();
-    await L.goto(m, BASE + Pg.path, { timeout: 60000 });
-    // CJK 分片 woff2 每个约 20 秒，字体到了版面才定；页面 load 慢不代表坏
+    // 导航上限也给足同一个数：链路慢的时候这个页面本身就要几十秒（CJK 字体分片
+    // 每个约 20 秒，字体到了版面才定）。页面 load 慢**不代表**坏。
+    await L.goto(m, BASE + Pg.path, { timeout: LIVE_WAIT });
     await L.sleep(2500);
+    LINK = `导航 ${Date.now() - t0}ms`;
     console.log(`   [${vp.n}] 导航+等字体 ${Date.now() - t0}ms`);
 
     const sel = await L.js(m, Pg.start);
     if (sel !== 'ok') { ok = false; console.log(`   [${vp.n}] ❌ 起卦没触发：${sel}`); continue; }
-    await L.until(m, 'return document.body.innerText.length;', (n) => n > 1200, 25000);
-    await L.sleep(1800);
+    // ── 等**真实的完成信号**，不是等一个拍脑袋的秒数 ──────────────────
+    // 2026-09-25 更正（这条检查自己出过一次假红，害我以为线上六爻页坏了）：
+    // 原来写的是「等正文 >1200 字，25 秒」。而本机到线上的链路慢到取一个
+    // `lunar.min.js` 要 **74 秒**（同一文件在服务器上自取 0.02 秒、负载 0.04 ——
+    // 慢的是我这边到公网的那一段，不是站点）。于是盘面第 36 秒才出来，检查在
+    // 第 25 秒就断言「爻符 0 个」，把「我慢」报成了「线上坏」。
+    // 现在：等按钮离开「排盘中…」**且**盘面容器有内容，上限给足（默认 240 秒，
+    // 环境变量 AI3000_LIVE_WAIT 可改）；仍超时就**明说这是「没验到」**，并把
+    // 实测的链路速度一起打出来，让读到这条红的人第一眼就知道该怀疑哪一头。
+    const tStart = Date.now();
+    const DONE_JS = `var W = window.wrappedJSObject || window;
+        var btn = W.document.getElementById('startBtn');
+        var area = W.document.getElementById('resultArea') || W.document.getElementById('contentArea');
+        var busy = btn ? /排盘中|起卦中/.test(String(btn.textContent || '')) : false;
+        return JSON.stringify({ busy: busy, len: area ? (area.innerText || '').length : 0 });`;
+    const isDone = (s) => { try { const o = JSON.parse(s || '{}'); return !o.busy && o.len > 60; } catch (e) { return false; } };
+    // ⚠ `L.until` 超时时返回的是**最后一次采到的值**，不是 false —— 判据要自己再过一遍
+    const last = await L.until(m, DONE_JS, isDone, LIVE_WAIT, 1000);
+    const waited = Math.round((Date.now() - tStart) / 1000);
+    if (!isDone(last)) {
+      ok = false;
+      console.log(`   [${vp.n}] ❌ 没等到盘面（等了 ${waited}s，上限 ${LIVE_WAIT / 1000}s）`
+        + `　本机链路实测：${LINK || '没量到'} —— 先当「没验到」，不当作线上故障`);
+      continue;
+    }
+    console.log(`   [${vp.n}] 盘面出来了（起卦后 ${waited}s）`);
+    await L.sleep(1200);
 
-    const b = await L.js(m, BOX_JS);
+    const b = await L.js(m, BOX_JS.split('__BAR_SEL__').join(Pg.barSel));
     await L.shot(m, path.join(dir, `1-${vp.n}.png`));
+
+    // 再截一张「把登录框点掉」的：那张图只为**看清盘面版面**（匿名访客一定会碰到
+    // 那个框，它压着爻符列，不点掉就看不着盘）。这是页面自己的关闭按钮，
+    // 是用户点得到的正常操作，不是改页面。判据仍以关框前那次量的为准。
+    const closed = await L.js(m, `var W = window.wrappedJSObject || window;
+      var c = W.document.querySelector('.auth-modal-close');
+      if (typeof W.hideAuthModal === 'function') { W.hideAuthModal(); return 'hideAuthModal'; }
+      if (c) { c.click(); return 'click ✕'; }
+      return 'no-modal-close';`);
+    if (closed !== 'no-modal-close') {
+      await L.sleep(400);
+      await L.shot(m, path.join(dir, `2-${vp.n}-关掉登录框.png`));
+    }
 
     const ov = (b.pan && b.table)
       ? Math.max(0, Math.min(b.pan.b, b.table.b) - Math.max(b.pan.y, b.table.y)) : 0;
@@ -123,6 +201,12 @@ async function run(m, key) {
       + ` y=${b.modal.r.y}..${b.modal.r.b} —— 匿名访客排完盘就会遇到它（AI 接口要求登录）`);
     if (b.docScrollW > b.clientW + 1) { ok = false; console.log(`   [${vp.n}] ❌ 出横向滚动条：文档 ${b.docScrollW} > 视口 ${b.clientW}`); }
     else console.log(`   [${vp.n}] ✅ 无横向滚动条`);
+
+    // 爻符必须真看得见（用户报的「阳爻根本不显示」）
+    const barPass = b.bars && b.bars.n > 0 && b.bars.zero === 0;
+    if (!barPass) ok = false;
+    console.log(`   [${vp.n}] 爻符 ${b.bars && b.bars.n} 个（阳 ${b.bars && b.bars.yang} / 阴 ${b.bars && b.bars.yin}）`
+      + `　高 0 的 ${b.bars && b.bars.zero} 个  ${barPass ? '✅' : '❌ 有爻符看不见'}`);
 
     if (vp.n === 'narrow') fs.writeFileSync(path.join(dir, '正文.txt'), b.text, 'utf8');
     const miss = Pg.need.filter((k) => b.text.indexOf(k) < 0);

@@ -50,7 +50,10 @@ const ORIGIN = `http://127.0.0.1:${PORT}`;
 // 1. 端点：从 auth-server.js 切片（标记与 smoke 脚本同一对）
 // ─────────────────────────────────────────────────────────────
 const SLICE_A = "  if (req.method === 'POST' && (pathname === '/api/meihua/paipan'";
-const SLICE_B = '  // POST /api/chat/send';
+// 尾巴停在**下一个端点**的开头（2026-09-25 补：新插了 /api/bazi/parse 就得多收一格）。
+const SLICE_B = '  // ── POST /api/bazi/parse — 八字解读（流式）──';
+// 只认**真调用**，不认名字：排盘端点的注释里会合法地提到解读端点的路径。
+const FORBIDDEN = ['guestGate(req, res)', 'streamBaziParse(res, {', 'baziRagContext('];
 
 function loadEndpoint() {
   const src = fs.readFileSync(SERVER, 'utf8');
@@ -64,6 +67,13 @@ function loadEndpoint() {
   for (const want of ['/api/meihua/paipan']) {
     if (!slice.includes(want)) {
       console.error(`❌ 切出的段里没有「${want}」——切片标记失效，拒绝在残缺代码上验收。`);
+      process.exit(2);
+    }
+  }
+  for (const bad of FORBIDDEN) {
+    if (slice.includes(bad)) {
+      console.error(`❌ 排盘端点切片里混进了「${bad}」—— 这是别的端点的代码（依赖没注入，跑不了）。\n`
+        + '   多半是 SLICE_B 停在下一个端点之后了：把它收到**下一个端点的注释行**上。');
       process.exit(2);
     }
   }
@@ -450,7 +460,11 @@ async function main() {
         return !!a && a.children.length > 0;`), 'resultArea 还是空的');
     // 原地结果与结果页现在吃同一份 CSS，次要文字的颜色必须一模一样（两页的 :root
     // 都把这套变量定成 #1a1a1a）。这里钉住它，免得哪天有人只给其中一页加覆盖。
-    dimOnIndex = await js(m, `var e = document.querySelector('#resultArea span[style*="--text-dim"]');
+    // ⚠ 选择器要同时罩住**结果区与解卦区**：2026-09-25 把解卦区 `#analysisArea`
+    // 搬到容器外面（为了让 AI 块插在它前面）。带 `--text-dim` 的那个 span 本来长在
+    // 解卦区里，只查 `#resultArea` 会取到空值 —— 那是**量错了地方**，不是颜色变了。
+    dimOnIndex = await js(m, `var e = document.querySelector(
+        '#resultArea span[style*="--text-dim"], #analysisArea span[style*="--text-dim"]');
       return e ? getComputedStyle(e).color : '';`);
     check('原地结果区的次要文字颜色 = rgb(26,26,26)（与结果页同一套变量）',
       dimOnIndex === 'rgb(26, 26, 26)', dimOnIndex);
@@ -515,6 +529,142 @@ async function main() {
       ch.length === 1 && ch[0].cardType === 'mhys' && !!ch[0].cardData
       && ch[0].cardData.hexagrams.benGua.name === '火水未济',
       JSON.stringify(ch[0] && ch[0].cardData && ch[0].cardData.hexagrams.benGua.name));
+
+    // ── ⑪ 记录页点「自动解析」：面板要在页内，不能是盖住卦的浮层 ──
+    // 用户 2026-09-25 报六爻「点开的排盘记录不是把 AI 解析介入页面，而是叠在页面
+    // 上面」，并说「我估计梅花也有这个问题」—— 确实有：两个记录页的正文容器都叫
+    // `#contentArea`，而面板原先只认排盘页那个 `#resultArea`，认不出就退回 fixed 浮层。
+    // 「收起面板」的语义（真取消 / 不扣游客次数 / 能再打开）在共用引擎里，由六爻驱动 ⑪ 覆盖。
+    // 表头那颗 ✕ 已于 2026-09-25 删除（用户点名），收起改走页面那颗表头按钮。
+    console.log('\n⑪ 记录页点「自动解析」：面板要在正文流里（页内），不是浮层');
+    await js(m, `window.localStorage.clear(); return true;`);
+    await goto(m, `${ORIGIN}/mhys/result.html?id=999`);
+    await js(m, `return document.body.innerText.length > 20;`);
+    // 卦名不写死：这条记录是 ⑩ 自己起的那一卦（夹具记录已被 ⑩ 的 reset 清掉），
+    // 写死卦名只会写错。要验的是**面板只做加法**：开面板前后原有内容一字不少。
+    const recBefore = await js(m, `return document.body.innerText || '';`);
+    check('记录页一进来**不**自动开面板（历史记录是回头看，不替用户花一次解读）',
+      !(await panelOpen(m)), '记录页一进来就把面板弹开了');
+    await js(m, `document.getElementById('aiBarBtn').click(); return true;`);
+    await new Promise((r2) => setTimeout(r2, 300));
+    const recPanel = await js(m, `${W}
+      var p = document.getElementById('aiPanel');
+      var o = document.getElementById('aiPanelOverlay');
+      var host = document.getElementById('aiInlineHost');
+      var area = document.getElementById('contentArea');
+      return { open: !!p && p.classList.contains('open'),
+               position: p ? getComputedStyle(p).position : '',
+               inline: !!p && p.classList.contains('inline'),
+               inHost: !!(p && host && host.contains(p)),
+               overlayOpen: !!o && o.classList.contains('open'),
+               hostAfterArea: !!(host && area && host.previousElementSibling === area) };`);
+    check('记录页的面板是页内形态（position:static + .inline + 挂在正文容器后面）',
+      recPanel.open && recPanel.position === 'static' && recPanel.inline
+      && recPanel.inHost && recPanel.hostAfterArea, JSON.stringify(recPanel));
+    check('记录页没有全屏遮罩（不再盖住刚点开要看的那一卦）',
+      recPanel.overlayOpen === false, JSON.stringify(recPanel));
+    const recAfter = await js(m, `return document.body.innerText || '';`);
+    check('开面板只做加法：原来那一屏（卦、事项、分析）一字不少',
+      recBefore.length > 20 && recAfter.indexOf(recBefore) >= 0,
+      JSON.stringify(recBefore.replace(/\s+/g, ' ').slice(0, 80)) + ' → '
+      + JSON.stringify(recAfter.replace(/\s+/g, ' ').slice(0, 80)));
+
+    // ── ⑫ AI 块排在「解卦区」**前面**（用户 2026-09-25 要求）────────────
+    // 用户原话：「你他妈怎么只改了八字的，梅花的自动解析移到卦象解析前面」。
+    // 版面目标：排盘信息 → 起卦结果 → ☯ AI 解读 → 解卦区（本卦解析/体用生克…）。
+    //
+    // 做法上有个坑要钉住：解卦区 `#analysisArea` 原先在**正文容器内部**，
+    // 而 AI 面板的宿主 `#aiInlineHost` 是插在「容器 nextSibling」上的 —— 于是 AI 块
+    // 只能排到整个结果之后。现在解卦区搬到容器**外面**（容器的下一个兄弟），
+    // 宿主正好落在两者之间。**所以「解卦区不在容器里」本身就是一条断言**。
+    console.log('\n⑫ AI 块排在解卦区前面（版面顺序：排盘 → 起卦结果 → AI 解读 → 解卦）');
+    // 先走原地排盘页（它的结果容器是 `#resultArea`）。
+    // ⚠ 这里**要填事项**：不填的话这一卦不存记录，等下去 `result.html?id=999` 会
+    // 拿到 404、页面只剩「记录不存在」，解卦区根本没渲染 —— 那时「顺序对」是假绿。
+    await stub(m, STUB_GUA);
+    await js(m, `window.localStorage.clear(); return true;`);
+    await goto(m, `${ORIGIN}/mhys/`);
+    const blank = await js(m, `var s = document.getElementById('analysisArea');
+      return { exists: !!s, hidden: s ? (s.hidden === true
+        || getComputedStyle(s).display === 'none') : null };`);
+    check('排盘页：还没起卦时解卦槽是藏着的（不长出一个空卡片）',
+      blank.exists && blank.hidden === true, JSON.stringify(blank));
+    await selectMethod(m, 'time');
+    await setTime(m, 2026, 9, 25, 8, 30);
+    await js(m, `document.getElementById('topicInput').value = '版面试探'; return true;`);
+    await clickStart(m);
+    r = await waitResult(m, 10000);
+    await panelTextUntil(m, /【三、建议】/, 8000);
+    const idxOrder = await js(m, `${W}
+      function rect(sel) { var e = document.querySelector(sel); if (!e) return null;
+        var r = e.getBoundingClientRect(); return { top: Math.round(r.top + window.scrollY),
+          h: Math.round(r.height) }; }
+      var slot = document.getElementById('analysisArea');
+      var area = document.getElementById('resultArea');
+      var host = document.getElementById('aiInlineHost');
+      return { area: rect('#resultArea'), host: rect('#aiInlineHost'), slot: rect('#analysisArea'),
+        slotHidden: slot ? (slot.hidden === true || getComputedStyle(slot).display === 'none') : null,
+        slotText: slot ? (slot.innerText || '').replace(/\\s+/g, '') : '',
+        inResultArea: !!(area && slot && area.contains(slot)),
+        panelVisible: !!document.getElementById('aiPanel')
+          && document.getElementById('aiPanel').classList.contains('open'),
+        errs: (W.__errs || []).slice() };`);
+    check('排盘页：结果区 → AI 块 → 解卦区，三段依次向下',
+      idxOrder.area && idxOrder.host && idxOrder.slot && idxOrder.panelVisible
+      && idxOrder.area.top <= idxOrder.host.top + 1
+      && idxOrder.host.top < idxOrder.slot.top,
+      JSON.stringify({ area: idxOrder.area, host: idxOrder.host, slot: idxOrder.slot,
+        panelVisible: idxOrder.panelVisible }));
+    check('排盘页：解卦区不在结果容器里、且已显出内容',
+      idxOrder.inResultArea === false && idxOrder.slotHidden === false
+      && /解析|体卦|用卦/.test(idxOrder.slotText),
+      JSON.stringify({ inArea: idxOrder.inResultArea, hidden: idxOrder.slotHidden,
+        text: idxOrder.slotText.slice(0, 60) }));
+    check('排盘页：这一串改动没带出 JS 报错', idxOrder.errs.length === 0,
+      JSON.stringify(idxOrder.errs).slice(0, 300));
+    // 版面这种事截图比断言直观：窄屏一张，看得见「盘 → AI → 解卦」这三段
+    const shot1 = await L.shot(m, '/tmp/mhys-drive/order-500.png', { full: true });
+    console.log(`   · 截图：${shot1.file}`);
+
+    // 再走记录页（正文容器是 `#contentArea`）。上面那一卦填了事项 ⇒ 已入库 ⇒ 有记录可看。
+    console.log('   · 记录页（正文容器 #contentArea）');
+    const svBefore = await saved();
+    check('前提成立：刚那一卦存了记录（不然记录页只会显示「记录不存在」）',
+      svBefore.length >= 1, JSON.stringify(svBefore).slice(0, 200));
+    await goto(m, `${ORIGIN}/mhys/result.html?id=999`);
+    await L.until(m, `var a = document.getElementById('analysisArea');
+      return a ? (a.innerText || '').length : 0;`, (n) => n > 20, 8000, 150);
+    await js(m, `document.getElementById('aiBarBtn').click(); return true;`);
+    await new Promise((r2) => setTimeout(r2, 300));
+    const recOrder = await js(m, `${W}
+      function rect(sel) { var e = document.querySelector(sel); if (!e) return null;
+        var r = e.getBoundingClientRect(); return { top: Math.round(r.top + window.scrollY),
+          h: Math.round(r.height) }; }
+      var slot = document.getElementById('analysisArea');
+      var area = document.getElementById('contentArea');
+      var host = document.getElementById('aiInlineHost');
+      return { host: rect('#aiInlineHost'), slot: rect('#analysisArea'),
+        slotParent: slot && slot.parentNode
+          ? (slot.parentNode.className || slot.parentNode.id || slot.parentNode.tagName) : 'NONE',
+        areaId: area ? area.id : 'NONE',
+        slotHidden: slot ? (slot.hidden === true || getComputedStyle(slot).display === 'none') : null,
+        slotText: slot ? (slot.innerText || '').replace(/\\s+/g, '') : '',
+        panelVisible: !!document.getElementById('aiPanel')
+          && document.getElementById('aiPanel').classList.contains('open') };`);
+    check('记录页：解卦区**不在**正文容器里（它一被挪回去，AI 块就会被压到最底下）',
+      recOrder.slotParent !== recOrder.areaId && recOrder.slotParent !== 'NONE',
+      JSON.stringify(recOrder));
+    check('记录页：AI 块（#aiInlineHost）在解卦区**上面**',
+      recOrder.panelVisible && recOrder.host && recOrder.slot
+      && recOrder.host.top + 1 < recOrder.slot.top,
+      JSON.stringify({ host: recOrder.host, slot: recOrder.slot,
+        panelVisible: recOrder.panelVisible }));
+    // 解卦区排在 AI 块下面，但它自己得有内容 —— 否则「顺序对了」只是因为它是个空壳
+    check('记录页：解卦区是有内容的（顺序对不是因为解卦区空了）',
+      recOrder.slotHidden === false && recOrder.slot.h > 100
+      && /解析|体卦|用卦/.test(recOrder.slotText),
+      JSON.stringify({ hidden: recOrder.slotHidden, h: recOrder.slot.h,
+        text: recOrder.slotText.slice(0, 60) }));
   } finally {
     try { child.kill('SIGKILL'); } catch (e) { /* 已退出 */ }
     server.close();

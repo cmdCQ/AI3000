@@ -60,6 +60,7 @@ try {
 const Solar = lunar.Solar;
 
 const C = require('./constants');
+const { pyGet, pyTruthy, pyStr, pyDictGet, pyStrJoin } = require('./pycompat.js');
 
 // 时辰名（与 shushu `current_moment._ZHI_HOUR_NAME` 逐字相同）
 const ZHI_HOUR_NAME = {
@@ -311,4 +312,88 @@ function lunarText(input) {
   return lun.getMonthInChinese() + '月' + lun.getDayInChinese();
 }
 
-module.exports = { sizhu, normalize, ZHI_HOUR_NAME, monthDizhiAt, lunarOf, lunarOfNextDay, jieQiRange, nearestJie, jieDatesOfYear, lunarText };
+/**
+ * 此刻时令五行（时辰 + 月令）对本命用神/忌神之扶抑。
+ *
+ * 移植自 shushu `core/calendar/current_moment.py::moment_vs_yongshen`（:81）：
+ * 返回 `{tone: 扶用/助忌/中性, quality: 吉/中/凶, note, hour_wuxing, seasonal_wx}`。
+ * 供 `master_synthesis` 织入「当下」一层（「此刻为…，时令五行于本命用神为扶/为抑」）。
+ *
+ * **纯函数**：只吃传进来的 `moment`（`sizhu()` 的产物）与用神/忌神五行，
+ * 不读「现在」——「现在」由调用方决定，故这一条可对拍（见 `master_synthesis.js`）。
+ *
+ * 逐字照搬的三处细节：
+ *  ① `yong_wx` 既可是字符串也可是列表（基准 `[x] if isinstance(x,str) else list(x or [])`），
+ *     故空值要能落成空列表而不是 `[null]`；
+ *  ② 生用神/克用神那一层**只在 w 既非用神也非忌神时才走**（else 分支），
+ *     且**每个 w 会与所有 y 比较**，故一个 w 可能同时记 `生用神` 与 `克用神`
+ *     （若用神列表里同时有被生者和被克者）——不合并、不去重；
+ *  ③ `note` 里的顿号是**全角** `，`，`yong_s` 的连接符是 `、`。
+ *
+ * ── ⚠ `hour_wx`/`seas_wx` **不许提前 `pyStr`**（本层对拍逼出来的一条）──
+ * 基准是 `hour_wx = moment.get("hour_wuxing", "")` —— **原值**，只有当它被插进
+ * note 的 f-string 时才 `str()` 一次。原值要一路参与 `w in yong` 与 `_SHENG.get(w)`。
+ * 我先前写成「进函数就 `pyStr` 一次」，于是 `hour_wuxing = ["水"]` 这种畸形样本：
+ * 基准在 `_SHENG.get(["水"])` 上 `TypeError`（**被调用方 swallow，少一域**），
+ * 移植侧却拿 `"['水']"` 查表查不到、安静地算出「中性」（**多一域**）。
+ * 现在改成：原值参与逻辑，`pyDictGet` 复刻不可哈希就抛，
+ * `pyStrJoin` 复刻非 str 元素就抛 —— 两处都在插值点才 `pyStr`。
+ */
+function momentVsYongshen(moment, yongWx, jiWx) {
+  // `[x] if isinstance(x,str) else list(x or [])` —— 后面那一支是 **Python `list()`**：
+  // 字典进 `list()` 出的是**键**，不是它自己；`{...}` 因此在 Python 里是**假**值（空容器）
+  // 而 `list({})` 为 `[]`。写成 `Array.isArray ? slice : [x]` 会在字典上分叉。
+  // 数字进 `list()` 基准会 TypeError —— 不猜，照抛。
+  const toList = (x) => {
+    if (typeof x === 'string') return [x];
+    if (Array.isArray(x)) return x.slice();
+    if (!pyTruthy(x)) return [];
+    if (typeof x === 'object') return Object.keys(x);
+    // ⚠ 用 `TypeError` 而不是光秃秃的 `Error`：这里照的是 Python 的
+    //   `TypeError: 'int' object is not iterable`，而层 16 的 `err` 契约判**类名**。
+    //   抛没抛不变（本来就在抛），只是把类名对齐，免得以后成为可修的假红。
+    throw new TypeError(`momentVsYongshen: list(${typeof x}) 在基准里会 TypeError`);
+  };
+  const yong = toList(yongWx === undefined ? '' : yongWx).filter(pyTruthy);
+  const ji = toList(jiWx === undefined ? '' : jiWx).filter(pyTruthy);
+
+  // ⚠ 原值，不 `pyStr`（见文件头）。`pyGet` 保住「键在而值为 None」这一态。
+  const hourWx = pyGet(moment, 'hour_wuxing', '');
+  const seasWx = pyGet(moment, 'seasonal_wx', '');
+  const curWxs = [hourWx, seasWx].filter(pyTruthy);
+
+  let score = 0;
+  const hits = [];
+  for (const w of curWxs) {
+    if (yong.includes(w)) {
+      score += 1;
+      hits.push(`${pyStr(w)}扶用`);
+    } else if (ji.includes(w)) {
+      score -= 1;
+      hits.push(`${pyStr(w)}助忌`);
+    } else {
+      // 生用神者亦为助；克用神者为抑（见上面 ②）。
+      // `pyDictGet` 而非 `C.SHENG[w]`：后者会把 `["水"]` 悄悄转成 `"水"`。
+      for (const y of yong) {
+        if (pyDictGet(C.SHENG, w) === y) { score += 1; hits.push(`${pyStr(w)}生用神${y}`); }
+        else if (pyDictGet(C.KE, w) === y) { score -= 1; hits.push(`${pyStr(w)}克用神${y}`); }
+      }
+    }
+  }
+
+  let tone; let quality;
+  if (score > 0) { tone = '扶用'; quality = '吉'; }
+  else if (score < 0) { tone = '助忌'; quality = '凶'; }
+  else { tone = '中性'; quality = '中'; }
+
+  // `"、".join(yong) or "—"`：join 走 `pyStrJoin`（元素非 str 基准会抛），
+  // `or "—"` 是空串兜底。
+  const yongS = pyStrJoin(yong, '、') || '—';
+  const note = `此刻${pyStr(pyGet(moment, 'hour_name', ''))}（${pyStr(hourWx)}），`
+    + `月令${pyStr(seasWx)}，于本命用神（${yongS}）为${tone}`
+    + (hits.length ? `（${hits.slice(0, 3).join('，')}）` : '') + '。';
+  // ⚠ 返回的两个字段也是**原值**（基准 `"hour_wuxing": hour_wx`），上面只在该插值的地方 pyStr。
+  return { tone, quality, note, hour_wuxing: hourWx, seasonal_wx: seasWx };
+}
+
+module.exports = { sizhu, normalize, ZHI_HOUR_NAME, monthDizhiAt, lunarOf, lunarOfNextDay, jieQiRange, nearestJie, jieDatesOfYear, lunarText, momentVsYongshen };

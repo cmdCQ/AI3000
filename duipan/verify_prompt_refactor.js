@@ -67,13 +67,68 @@ const ALLOW = {
       why: '新排盘块带出算法逐条推的 evidence；不点名引用，AI 会另编一套吉凶与算法打架。',
     },
   ],
+  // 无事项分支：**不是漂移，是有意重做**（2026-09-25 申报）。
+  // 旧：一句话 —— 「用户还没说问什么事，请先回应排盘数据，然后用一句话询问求测事项」。
+  //     线上实测它**不成立**：AI 收到那句话后回「我这边还没有收到具体的卦象数据……
+  //     请随意想三个数字告诉我」（六爻页事项留空点自动解析，抓包证明前端 payload 完整）。
+  //     根因：旧分支没把盘面放进 prompt，AI 只看见指令、看不见卦。
+  // 新：给**全盘面** + 明确「先不要下吉凶结论（用神取决于所问何事），先复述盘面、
+  //     再问用户想问什么」。见 `tools/check_notopic_prompt.js`（那一层单独跑，不花 token）。
+  notopicRedesign: {
+    oldMarker: '用户还没说问什么事',
+    // 新模板里必须**确实**有的东西 —— 少了任何一条，这条申报就是白票。
+    newMarkers: ['还没有说明求测事项', '先不要下吉凶结论', '【求测事项】'],
+    why: '旧分支没带盘面，线上一问就被 AI 回「还没收到卦象数据」；新分支给全盘面并要求先复述、先问，不许下吉凶。',
+  },
 };
+
+// 切片窗口之外、但切片**真正会用到**的模块级依赖。用探针（把模块级声明与切片里
+// 出现的标识符求交集）核对过一遍，就这几个 —— 其余命中都在注释/字符串里：
+//   · baziPromptLib：`renderPrompt` 里 `baziPromptLib.renderPrompt(template, vars)`
+//     —— 每次渲染都走它，不注入就是 ReferenceError（2026-09-25 实测踩到）。
+//   · db：只出现在 `ensureDbUser()` 体内，本脚本不调它。给一个**一碰就炸**的桩：
+//     真被调到说明比的东西变了，要响，而不是静默比出一堆「相等」。
+const baziPromptLib = require(path.join(ROOT, 'build', 'backend', 'paipan', 'bazi_prompt.js'));
+const dbTrap = new Proxy({}, {
+  get(_t, k) {
+    if (k === 'query') {
+      return () => { throw new Error('本脚本不该碰数据库（db.query 被调到了）—— 比的对象已经不是 prompt 层了'); };
+    }
+    return undefined;
+  },
+});
 
 // ── 取改造后的包装函数：从 auth-server.js 切片 ────────────────────────
 // 不 `require` 整个 auth-server.js —— 它末尾就 `listen()`，会在本进程里起服务、
 // 还要连数据库。切出需要的那一段用 `new Function` 求值，作用域自己给。
 const A = 'function buildMhysPrompt(';
 const B = '// 批量入库后台任务';
+
+// 切片里的 `readPrompts()` 会读 `DEFAULT_PROMPTS`（模块级、在切片**外**，第 261 行）。
+// 不手抄一张表进来 —— 那样对拍的就不再是线上那份默认值了。照样**切原文求值**：
+// 这一段只依赖 `promptLib`，正好也是已经注入的。
+const DP_A = 'const DEFAULT_PROMPTS = {';
+const DP_B = '\n};';
+
+function loadDefaultPrompts(src) {
+  const i = src.indexOf(DP_A);
+  const j = i < 0 ? -1 : src.indexOf(DP_B, i);
+  if (i < 0 || j < 0 || j <= i) {
+    console.error('❌ 取不到 `DEFAULT_PROMPTS` 段 —— auth-server.js 结构变了？请更新 DP_A/DP_B。');
+    process.exit(2);
+  }
+  const decl = src.slice(i, j) + '\n};';
+  const f = new Function('promptLib', decl + '\n;return DEFAULT_PROMPTS;');
+  const got = f(promptLib);
+  // 「取到了但取空了」也要拦：空表会让 readPrompts 全部回落到内置模板，
+  // 于是本脚本比的东西**整个换了一套**，却仍然是绿的。
+  const keys = Object.keys(got || {});
+  if (keys.length < 6) {
+    console.error(`❌ DEFAULT_PROMPTS 只取到 ${keys.length} 个键（期望 ≥6）—— 切片或求值出错了。`);
+    process.exit(2);
+  }
+  return got;
+}
 
 function loadNew() {
   const src = fs.readFileSync(SERVER, 'utf8');
@@ -93,10 +148,16 @@ function loadNew() {
   }
   // `__dirname` 也要给 —— 切片里的 `PROMPTS_FILE` 用它。给的是**真实目录**
   // `build/backend`，于是「本地是否存在 prompts.json」这件事实与线上一致。
+  // 2026-09-25 补 `DATA_DIR`：prompt 层重构把这一段从 13810 缩到 4828 字节，
+  // `const PROMPTS_FILE = path.join(DATA_DIR, …)` 于是**落进了窗口**，而 DATA_DIR
+  // 一直没注入 → 本脚本此前是**求值就崩**（一直没被发现，因为重构后没再跑过它）。
+  // 给的同样是真值：`build/data`，与文件里 `path.join(__dirname, '..', 'data')` 一致。
   const f = new Function('promptLib', 'liuyaoPaipan', 'path', 'fs', 'require', '__dirname',
+    'DATA_DIR', 'DEFAULT_PROMPTS', 'baziPromptLib', 'db',
     `${slice}\n;return { buildMhysPrompt, buildLiuyaoPrompt, buildFollowUpPrompt,`
     + ` buildLiuyaoFollowUpPrompt, readPrompts, renderPrompt };`);
-  return f(promptLib, LY, path, fs, require, path.join(ROOT, 'build', 'backend'));
+  return f(promptLib, LY, path, fs, require, path.join(ROOT, 'build', 'backend'),
+    path.join(ROOT, 'build', 'data'), loadDefaultPrompts(src), baziPromptLib, dbTrap);
 }
 
 const NEWF = loadNew();
@@ -203,6 +264,26 @@ const liuyaoRows = [];
 for (const [label, card] of LIUYAO_SAMPLES) {
   const oldText = OLD.buildLiuyaoPrompt(card.topic, card.hexagrams, '', card.lunarInfo);
   const newText = NEWF.buildLiuyaoPrompt(card.topic, card, '');
+  // topic 为空的样例走**申报分支**（见 ALLOW.notopicRedesign）—— 逐字相同在这里
+  // 恰恰是**错的期望**：那一支是有意重做的，重做的理由有线上实测背书。
+  if (!card.topic) {
+    const nt = ALLOW.notopicRedesign;
+    const missing = nt.newMarkers.filter((m) => !newText.includes(m));
+    const problems = [];
+    // 申报非空断言：新模板必须确实变了个样，否则这条申报是白票
+    if (oldText === newText) problems.push('新旧竟然逐字相同 —— 这条申报在放空炮，删掉它');
+    // 旧分支的身份也要对上（证明「重做的就是那一支」）
+    if (!oldText.includes(nt.oldMarker)) problems.push(`旧分支里没有「${nt.oldMarker}」—— 重做的不是这一支？`);
+    // 新分支必须带齐盘面与禁断语（少了就退回「AI 说没收到卦象」那个线上故障）
+    if (missing.length) problems.push(`新分支缺：${missing.join('、')}`);
+    if (problems.length) {
+      fail(`① 六爻正文 ${label}`, `无事项分支（已申报重做）对不上：\n     ${problems.join('\n     ')}`);
+      liuyaoRows.push([label, '✗']);
+    } else {
+      liuyaoRows.push([`${label}（已申报：无事项分支重做）`, '✓']);
+    }
+    continue;
+  }
   if (oldText !== newText) {
     fail(`① 六爻正文 ${label}`, firstLineDiff(oldText, newText));
     liuyaoRows.push([label, '✗']);

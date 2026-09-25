@@ -9,7 +9,7 @@
 <title>排盘结果 · 梅花易数</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/mhys_result.css?v=2">
+<link rel="stylesheet" href="/css/mhys_result.css?v=3">
 </head>
 <body>
 
@@ -26,12 +26,22 @@
       <p>加载中...</p>
     </div>
   </div>
+
+  <!-- 解卦区（本卦/互卦/变卦…的解析）。**必须摆在正文容器的下一个兄弟位置**：
+       AI 面板的宿主 `#aiInlineHost` 由引擎插在「正文容器 nextSibling」上
+       （`ai_panel.js::aiInlineHost()`），所以顺序是
+         排盘信息 → 起卦结果 → ☯ AI 解读 → 解卦区
+       —— 用户 2026-09-25 要的就是「梅花的自动解析移到卦象解析前面」。
+       ⚠ 别把解析区挪回 #contentArea 里面：那样宿主只能排到整个结果之后，
+       AI 块又被压到最底下（这正是用户报的那个版面）。
+       加载中是 hidden 的空框，`renderAnalysis()` 落内容时自己取消 hidden。 -->
+  <div class="analysis-card" id="analysisArea" hidden></div>
 </div>
 
-<script src="/js/auth.js?v=2"></script>
+<script src="/js/auth.js?v=1787305221"></script>
 <script src="/js/ui_common.js?v=1"></script>
 <script src="/js/hexagrams_data.js?v=1"></script>
-<script src="/js/mhys_render.js?v=1"></script>
+<script src="/js/mhys_render.js?v=2"></script>
 <script>
 // ===== 加载数据 =====
 async function load() {
@@ -119,7 +129,7 @@ setTimeout(function checkBar() {
 <!-- AI 面板引擎与梅花的配置（引擎与六爻页共用一份）。
      overlay 的点击关闭在引擎里绑，本页不再绑一次 —— 绑两处会关两次，
      看着一样，但那是两份 DOM 监听在各自为政。 -->
-<script src="/js/ai_panel.js?v=2"></script>
+<script src="/js/ai_panel.js?v=4"></script>
 <script src="/js/mhys_ai_panel.js?v=1"></script>
 
 </body>

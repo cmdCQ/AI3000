@@ -64,6 +64,8 @@ function selectGua(key) {
 
 function renderAnalysis() {
   var area = document.getElementById('analysisArea');
+  if (!area) return;              // 页面没摆这个槽（老页面/别处引用）时别炸
+  area.hidden = false;            // 槽在页面 HTML 里是 hidden 的（起卦前它是个空框）
   var h = '';
   var targetGua, hexData;
 
@@ -314,8 +316,16 @@ function renderResult(result) {
   h += renderHexCell(g.zongGua, '综卦', 'zong', false);
   h += '</div></div>';
 
-  // 解析区
-  h += '<div class="analysis-card" id="analysisArea"></div>';
+  // ⚠ 解析区（`#analysisArea`）**不在这里**，它是页面 HTML 里的固定槽（`#resultArea` /
+  // `#contentArea` 的**下一个兄弟**），`renderAnalysis()` 往它里面写。
+  //
+  // 为什么挪出去（2026-09-25，用户要求「梅花的自动解析移到卦象解析前面」）：
+  // AI 面板的宿主 `#aiInlineHost` 是由引擎插在**正文容器的下一个兄弟**位置上的
+  // （`ai_panel.js::aiInlineHost()`）。原先 `#analysisArea` 在容器**内部**，于是宿主
+  // 只能排到整个结果之后 —— 页面顺序是「排盘信息 → 起卦结果 → 卦象解析 → AI 解读」，
+  // 用户要的是「排盘信息 → 起卦结果 → **AI 解读** → 卦象解析」。
+  // 把解析区放成容器的下一个兄弟之后，宿主正好插在两者之间，**引擎一行都不用改**。
+  // 附带好处：容器整块 `innerHTML = …` 重建时，解析区不再跟着被清掉。
 
   return h;
 }

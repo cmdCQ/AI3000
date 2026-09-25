@@ -42,9 +42,29 @@ ss() { sh "$HERE/ss.sh" "$@"; }
 # ⚠ `css/mhys_result.css` 是**梅花与六爻共用的底**（令牌、卡片、AI 面板、卦象画法），
 # 它原先不在清单里 —— 那份清单是随第一批（ui_common/ai_panel/render）列的，
 # 之后往共用底里加规则就会被静默漏掉：本地截图全绿、线上纹丝不动。
-FILES="js/ui_common.js js/ai_panel.js js/auth.js js/liuyao_render.js js/liuyao_ai_panel.js \
+# ⚠ 首屏 `index.html` 也漏过：它是**入口页**，改动（比如加一张模块卡）不上传
+# 就等于没改 —— 而且它不像 js/css 有 `?v=` 指纹可查，页面上看不出新旧，
+# 只能靠本清单 + `--verify` 取回比对。
+# ⚠ 2026-09-25 又漏一次（同一类）：八字那三个文件（`my-charts/index.html`、
+# `js/bazi_render.js`、`js/bazi_ai_panel.js`）是**新写的**，清单里从来没有它们 ——
+# 那意味着「八字前端」怎么改都传不上去，而 `--check` 会一路报「全都一致」。
+# 又一次印证：这份清单必须**跟着新页面一起加**，不能等想起来再补。
+# ⚠ 2026-09-25 第三次同一类：`ai-chat/index.html` 也从来不在清单里。该页的记账行
+# 解析是**自己一份**（不复用 `/js/ai_panel.js`，DOM 形状不同），改「消耗 Token →
+# 消耗积分」时两边都要改 —— 而这一份根本传不上去，线上会留着旧字认不出新标记，
+# 记账行会被当正文渲染出来。已补进清单。
+#   自查命令（列出 nginx 站根下所有页面/脚本，人工对一遍清单里有没有）：
+#     cd build/nginx && ls -1 *.html */index.html */result.html js/*.js css/*.css
+# ⚠ `my/index.html` 进来是因为它挂着**全站唯一**的 `/css/auth.css?v=1780920000`
+# （其余五页都是 v=1780828613）—— 那正是「`?v=` 在各页面漂移」这一类隐患的典型样子：
+# 同一个文件挂两个指纹，等于一半页面吃缓存、一半不吃。已统一到多数值，这一页因此
+# 需要一次部署。**上线前先比对过它与线上逐字节相同**（只差 `?v=` 这一处）。
+FILES="index.html \
+js/ui_common.js js/ai_panel.js js/auth.js js/liuyao_render.js js/liuyao_ai_panel.js \
 js/mhys_ai_panel.js js/mhys_render.js css/liuyao_result.css css/mhys_result.css \
-liuyao/index.html liuyao/result.html mhys/index.html mhys/result.html"
+liuyao/index.html liuyao/result.html mhys/index.html mhys/result.html \
+my-charts/index.html js/bazi_render.js js/bazi_ai_panel.js \
+ai-chat/index.html my/index.html"
 
 for f in $FILES; do
   [ -f "$REPO/$SRC/$f" ] || { echo "缺文件：$SRC/$f"; exit 1; }
@@ -95,11 +115,24 @@ case "$MODE" in
     echo "── 5/5 线上取回再核一次（清单证明的是「传对了」，这一步证明「线上就是它」）"
     sh "$0" --verify || echo "  ⚠ 取回核对未全绿 —— 看上面的清单"
 
+    # 回滚提示**现算**：新增文件 = 清单减去「部署前线上已有的」。
+    # 原先这里写死了一串文件名，是随第一批手抄的 —— 之后清单变了它不变，
+    # 照着回滚会漏掉本批真正新增的文件（漏掉的那个就永远留在线上）。
+    NEW=''
+    for f in $FILES; do
+      case " $EXIST " in *" $f "*) ;; *) NEW="$NEW $f" ;; esac
+    done
+
     echo
-    echo "完成。回滚（先还原被替换的，再删掉本批新增的）："
-    echo "  SSHPASS=... sh tools/ss.sh 'tar xzf /root/ai3000-nginx-$TS.tgz -C $REMOTE_WEB'"
-    echo "  SSHPASS=... sh tools/ss.sh 'cd $REMOTE_WEB && rm -f js/ui_common.js js/ai_panel.js js/liuyao_render.js js/liuyao_ai_panel.js css/liuyao_result.css'"
-    echo "  （备份里没有的那几个就是本批新增的；删掉后页面回到改前 —— 老页面不引它们）"
+    echo "完成。回滚："
+    echo "  1) 还原被本批覆盖的（备份里没有的路径不在包内，tar 不会碰它们）："
+    echo "     SSHPASS=... sh tools/ss.sh 'tar xzf /root/ai3000-nginx-$TS.tgz -C $REMOTE_WEB'"
+    if [ -n "$NEW" ]; then
+      echo "  2) 删掉本批**新增**的（线上原先没有，回滚＝删）："
+      echo "     SSHPASS=... sh tools/ss.sh 'cd $REMOTE_WEB && rm -f$NEW'"
+    else
+      echo "  2) 本批没有新增文件，无需删除。"
+    fi
     ;;
 
   --verify)

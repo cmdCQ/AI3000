@@ -35,16 +35,56 @@ function grab(name) {
 
 const promptLib = require(path.join(PAIPAN_DIR, 'prompt.js'));
 
-// readPrompts / renderPrompt 是 buildLiuyaoPrompt 的模块级依赖，一并抽出来
+// readPrompts / renderPrompt 是 buildLiuyaoPrompt 的模块级依赖，一并抽出来。
+// ⚠ `PROMPTS_FILE` 是 `readPrompts` 用到的**模块级常量**，抽取时也要带上：
+//   2026-09-25 第二次踩同一个坑 —— `grab()` 只抓函数体，常量留在了原文件里，
+//   于是探针一跑就 `ReferenceError: PROMPTS_FILE is not defined`。
+//   这条报错长得极像「生产坏了」，其实生产好端端的（预检过、容器 healthy、
+//   线上排盘正常回车）。**抽函数就得把它闭包里的常量一起抽**，否则工具自己先坏。
+//   常量从源码里截取，不重写一遍 —— 重写等于把探针变成「另一个真相」。
+//
+//   第三次（同日，紧接着）：补了常量还是报 `DEFAULT_PROMPTS is not defined` ——
+//   因为按行的正则 `^const X = .*$` 只能抓**单行**值，`DEFAULT_PROMPTS` 是跨 8 行的
+//   对象字面量，被截成 `const DEFAULT_PROMPTS = {` 一行。故改成按**括号配平**抓到
+//   第四次（同日）：配平修好后是 `baziPromptLib is not defined` —— `renderPrompt`
+//   把渲染转交给了 `paipan/bazi_prompt.js`。这类是 **require 进来的模块**，不是
+//   源码里的常量，故和 `promptLib` 一样**注入**（`new Function` 的形参），不抽取。
+//   判据很简单：**模块注入，常量抽源码**。
+// ⚠ 下面的 try/catch 只做一件事：把「探针自己缺依赖」与「生产坏了」分开。
+//   这两件事的报错长得一模一样（都是一个 ReferenceError），而处置完全相反 ——
+//   今天已经因此误判三次方向，故在这里把它写成一句人话。
+function grabConst(name) {
+  const i = src.indexOf('const ' + name + ' = ');
+  if (i < 0) throw new Error('missing const ' + name);
+  let k = i + ('const ' + name + ' = ').length;
+  let depth = 0;
+  for (; k < src.length; k++) {
+    const c = src[k];
+    if (c === '"' || c === "'" || c === '`') {            // 跳过字符串字面量
+      for (k++; k < src.length && src[k] !== c; k++) if (src[k] === '\\') k++;
+      continue;
+    }
+    if (c === '/' && src[k + 1] === '/') { for (; k < src.length && src[k] !== '\n'; k++); continue; }
+    if (c === '/' && src[k + 1] === '*') { for (; k < src.length && src.slice(k, k + 2) !== '*/'; k++); k++; continue; }
+    if (c === '{' || c === '[' || c === '(') depth++;
+    else if (c === '}' || c === ']' || c === ')') depth--;
+    else if (c === ';' && depth <= 0) break;              // 语句结束
+  }
+  return src.slice(i, k + 1);
+}
 const parts = [
+  grabConst('DATA_DIR'),
+  grabConst('PROMPTS_FILE'),
+  grabConst('DEFAULT_PROMPTS'),
   grab('readPrompts'),
   grab('renderPrompt'),
   grab('buildLiuyaoPrompt'),
 ].join('\n');
 
-const factory = new Function('promptLib', 'fs', 'path', '__dirname',
+const factory = new Function('promptLib', 'baziPromptLib', 'fs', 'path', '__dirname',
   parts + '\nreturn {buildLiuyaoPrompt, readPrompts};');
-const M = factory(promptLib, fs, path, path.dirname(SRC));
+const M = factory(promptLib, require(path.join(PAIPAN_DIR, 'bazi_prompt.js')), fs, path,
+  path.dirname(SRC));
 console.log('readPrompts() →', JSON.stringify(M.readPrompts()).slice(0, 160));
 
 // 与前端 buildLiuyaoAiPayload() 同形：乾为天初爻动 → 变天风姤。
@@ -60,7 +100,20 @@ const cardData = {
   lunarInfo: { yearGZ: '丙午', monthGZ: '丁酉', dayGZ: '辛丑', hourGZ: '丙申' },
 };
 
-const prompt = M.buildLiuyaoPrompt('验收', cardData, '');
+let prompt;
+try {
+  prompt = M.buildLiuyaoPrompt('验收', cardData, '');
+} catch (e) {
+  if (e instanceof ReferenceError) {
+    console.error('\n❌ 探针自己缺依赖（**不是**生产坏了）：' + e.message);
+    console.error('   抽出来的代码引用了一个没被抽到的模块级名字。先确认它属于哪一类：');
+    console.error('     · `require` 进来的模块（`const x = require(...)`）→ 加进 new Function 形参注入');
+    console.error('     · 源码里的常量（`const x = ...`）        → 加进 grabConst(...)');
+    console.error('   在补好之前，`--probe` 的结果不能用作「线上 AI 通路是否正常」的判据。');
+    process.exit(2);
+  }
+  throw e;
+}
 console.log('=== 用户实际收到的 user prompt（' + prompt.length + ' 字）===');
 console.log(prompt);
 

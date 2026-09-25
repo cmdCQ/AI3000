@@ -94,10 +94,20 @@ async function main() {
         return p ? getComputedStyle(p).gridTemplateColumns.split(' ').length : 0;`) === 9,
       await js(m, `var p = document.querySelector('.ly-pan');
         return p ? getComputedStyle(p).gridTemplateColumns : '(无盘面)';`));
-    check('样式生效（卡片有边框 + 爻符有宽度）',
-      await js(m, `var c = document.querySelector('.card'), b = document.querySelector('.ly-bar');
-        return !!c && getComputedStyle(c).borderTopWidth !== '0px' && !!b && b.getBoundingClientRect().width > 0;`),
-      '样式没生效');
+    // ⚠ 这条原先证的是 `.ly-bar` —— **那个类名早就没了**，故它从「爻符修好那天」起
+    // 就恒红（线上探针里躺了一条永远为假的红，比没有更坏：真回归来了也看不出来）。
+    // 2026-09-25 实测：`liuyao_render.js` 的爻符现在写的是 `.yao-line.yao-yang` /
+    // `.yao-line.yao-yin`（`ly-bar` 那份 CSS 全站从来没有过，正是「阳爻根本不显示」
+    // 那个 bug 的成因）。故改证真类名，且**证高度而不是宽度** ——
+    // 当初的病就是「有底色、高 0」，宽度断言抓不到它。
+    const sty = await js(m, `var c = document.querySelector('.card');
+      var y = document.querySelector('.yao-line.yao-yang') || document.querySelector('.yao-line.yao-yin');
+      var r = y ? y.getBoundingClientRect() : null;
+      return { card: !!c, border: c ? getComputedStyle(c).borderTopWidth : null,
+               yao: !!y, h: r ? Math.round(r.height) : null, w: r ? Math.round(r.width) : null };`);
+    check('样式生效（卡片有边框 + 爻符**有高度** —— 「阳爻根本不显示」那个病就是高度为 0）',
+      sty.card && sty.border !== '0px' && sty.yao && sty.h > 0,
+      JSON.stringify(sty));
     // 用 textContent 不用 innerText：后者在元素不可见时返回空串，那样这条会在
     // 「面板没自动打开」和「额度判定失效」之间分不清是哪个，而这两件事的处置完全不同。
     check('结果出来后面板自动打开，且走到的是登录引导（游客额度已用完）而不是真调大模型',

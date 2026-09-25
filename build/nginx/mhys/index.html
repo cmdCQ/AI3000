@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
 <!-- 结果页的样式与渲染层跟本页共用一份（原地出结果），别在本页再抄一份 -->
-<link rel="stylesheet" href="/css/mhys_result.css?v=2">
+<link rel="stylesheet" href="/css/mhys_result.css?v=3">
 <style>
 :root {
   --bg: #faf8f5;
@@ -281,6 +281,16 @@ html,body { background:var(--bg); color:var(--text); font-family:var(--sans); mi
   <!-- 6. 结果区：排完盘就地在下面出结果，不再跳结果页。空的时候是空的，不占位。 -->
   <div id="resultArea"></div>
 
+  <!-- 6b. 解卦区（本卦/互卦/变卦…的解析）。**必须摆在结果区的下一个兄弟位置**：
+       AI 面板的宿主 `#aiInlineHost` 由引擎插在「结果容器 nextSibling」上
+       （`ai_panel.js::aiInlineHost()`），所以顺序是
+         排盘信息 → 起卦结果 → ☯ AI 解读 → 解卦区
+       —— 用户 2026-09-25 要的就是「梅花的自动解析移到卦象解析前面」。
+       ⚠ 这两块的先后由**这里的 DOM 顺序**决定，别把解析区挪回 #resultArea 里面
+       （那样宿主只能排到整个结果之后，AI 块又被压到最底下）。
+       起卦前它是 hidden 的空框，`renderAnalysis()` 落内容时自己取消 hidden。 -->
+  <div class="analysis-card" id="analysisArea" hidden></div>
+
   <!-- 时间选择器弹窗 -->
   <div class="tp-overlay" id="tpOverlay" style="display:none" onclick="closeTimePicker(event)">
     <div class="tp-panel" onclick="event.stopPropagation()">
@@ -308,13 +318,13 @@ html,body { background:var(--bg); color:var(--text); font-family:var(--sans); mi
 </div>
 
 <script src="/js/lunar.min.js"></script>
-<script src="/js/auth.js?v=2"></script>
+<script src="/js/auth.js?v=1787305221"></script>
 <script src="/js/ui_common.js?v=1"></script>
 <!-- 渲染层与结果页共用一份。TRIGRAMS 也在 mhys_render.js 里，本页不再另抄一份
      （原先两边各抄一份，改一处漏一处就会悄悄对不上）。 -->
 <script src="/js/hexagrams_data.js?v=1"></script>
-<script src="/js/mhys_render.js?v=1"></script>
-<script src="/js/ai_panel.js?v=2"></script>
+<script src="/js/mhys_render.js?v=2"></script>
+<script src="/js/ai_panel.js?v=4"></script>
 <script src="/js/mhys_ai_panel.js?v=1"></script>
 <script>
 var HEX64 = {};
@@ -814,8 +824,11 @@ function showResultHere(result) {
   renderAnalysis();                       // 必须在插进 DOM 之后，它要找 #analysisArea
   resetBtn();
   if (area.scrollIntoView) area.scrollIntoView({ behavior:'smooth', block:'start' });
-  // 结果一出来就开始解读，不用用户再点一次（面板在 /js/mhys_ai_panel.js 里）
-  autoStartAI();
+  // 结果一出来**不**自动解读。2026-09-25 用户拍板：「三个的 ai 解析都不要自动开始了，
+  // 要点击才开始」—— 原来这里调 `autoStartAI()`（既开面板又立刻发请求），
+  // 用户排完盘就被扣一次积分。现在只渲染结果，要解读自己点页头那颗
+  // 「☯ 看不懂？试试自动解析」（面板在 /js/mhys_ai_panel.js 里）。
+  // ⚠ 别把 `autoStartAI()` 加回来：引擎里那个函数已经一并删了（全站再无调用者）。
 }
 
 // ===== 初始化 =====

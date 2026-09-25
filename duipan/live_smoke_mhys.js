@@ -57,7 +57,11 @@ async function main() {
     await js(m, `document.getElementById('numberInput').value = '386'; return true;`);
     await js(m, `document.getElementById('startBtn').click(); return true;`);
 
-    const flat = (await L.textOf(m, '#resultArea', 15000, 30)).replace(/\s+/g, ' ');
+    // ⚠ 解卦区 `#analysisArea` 已于 2026-09-25 搬出结果容器（为了让 AI 块插在
+    // 「起卦结果」与「解卦」之间），所以只读 `#resultArea` 会看不到体用判词 ——
+    // 那是**量错了地方**，不是页面坏了。两块拼起来读。
+    const flat = ((await L.textOf(m, '#resultArea', 15000, 30))
+      + ' ' + (await L.textOf(m, '#analysisArea', 8000, 10))).replace(/\s+/g, ' ');
     console.log('   · 线上正文：' + JSON.stringify(flat.slice(0, 160)));
 
     check('五卦齐（本卦/互卦/变卦/错卦/综卦）—— 这五卦只有后端有',

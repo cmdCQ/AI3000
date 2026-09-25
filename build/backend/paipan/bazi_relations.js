@@ -33,6 +33,10 @@
 
 'use strict';
 
+// Python 语义垫片（唯一真源）。⚠ `formatRelationsForPrompt` 里的取键必须走它 ——
+// 用 `result.x || 默认` 会在「`result` 不是字典」时静默兜住，而基准是 AttributeError。
+const { pyGet } = require('./pycompat');
+
 // frozenset({a,b}) 的等价物：按**码点**排序后拼串（见表头注 1）。
 // ⚠ 用 `function` 声明而非 `const` 箭头函数：建表就在本区块内、**早于**箭头函数的
 // 初始化位置，用 const 会踩 TDZ（`Cannot access 'key2' before initialization`）。
@@ -565,35 +569,50 @@ function analyzeDayunLiunianTrigger(chart, targetBranch, targetLabel) {
 
 function formatRelationsForPrompt(result) {
   if (!result) return '';
-  const summary = result.summary || {};
-  const total = (summary.total_he || 0) + (summary.total_chong || 0)
-    + (summary.total_xing || 0) + (summary.total_hai || 0)
-    + (summary.total_po || 0);
-  if (total === 0) return '【地支刑冲合害】无明显刑冲合害关系，命盘相对平和。';
+  // ⚠ 这里的每一处都必须是 `pyGet`（Python 的 `.get`），**不能用 `result.x || 默认`**：
+  //   `||` 两个坑都在层 16 的对拍里印过 ——
+  //   ① 宽容：`result` 是 `'abc'` 时 `.summary` 给 `undefined`、`|| {}` 兜住，
+  //      于是本函数**安静返回「无明显刑冲合害」**，而基准是
+  //      `AttributeError: 'str' object has no attribute 'get'`（被 `api/agent.py`
+  //      那段 try 吞掉 → 整段消失）。实测差 2 例（`pm/rel-str-*`）。
+  //      产物上就是「少一段」对「多一段」，是看得见的行为差别。
+  //   ② 兜掉假值：`summary` 若为 `""`，Python 拿到的是 `""`、随后 `"".get(...)`
+  //      照样 AttributeError；`|| {}` 会把它换成一个能用的空字典。
+  const summary = pyGet(result, 'summary', {});
+  // 五个计数相加。⚠ **不加 `|| 0`**：Python 的 `.get(k, 0)` 只在**键缺失**时给 0，
+  // 键在而值为 `None` 时它会 `TypeError`；`|| 0` 会把那种情形也演成正常返回。
+  // （目前没有用例覆盖「键在而值为 None」，故这里只保证与原式同形，不声称已验。）
+  const t = ['total_he', 'total_chong', 'total_xing', 'total_hai', 'total_po']
+    .reduce((s, k) => s + pyGet(summary, k, 0), 0);
+  if (t === 0) return '【地支刑冲合害】无明显刑冲合害关系，命盘相对平和。';
 
-  const lines = [`【地支刑冲合害】（共 ${total} 项关系，论命必参）`];
+  const lines = [`【地支刑冲合害】（共 ${t} 项关系，论命必参）`];
 
-  if (summary.key_blessings && summary.key_blessings.length) {
+  const bless = pyGet(summary, 'key_blessings', undefined);
+  if (bless && bless.length) {
     lines.push('  ◆ 吉象：');
-    for (const b of summary.key_blessings.slice(0, 6)) lines.push(`    ${b}`);
+    for (const b of bless.slice(0, 6)) lines.push(`    ${b}`);
   }
 
-  if (summary.key_warnings && summary.key_warnings.length) {
+  const warn = pyGet(summary, 'key_warnings', undefined);
+  if (warn && warn.length) {
     lines.push('  ◆ 警示：');
-    for (const w of summary.key_warnings.slice(0, 8)) lines.push(`    ${w}`);
+    for (const w of warn.slice(0, 8)) lines.push(`    ${w}`);
   }
 
-  if (result.chong && result.chong.length) {
+  const chong = pyGet(result, 'chong', undefined);
+  if (chong && chong.length) {
     const chongList = [];
-    for (const c of result.chong.slice(0, 4)) {
+    for (const c of chong.slice(0, 4)) {
       chongList.push(`${c.pillars[0]}${c.branches[0]}↔${c.pillars[1]}${c.branches[1]}`);
     }
     lines.push(`  ◆ 冲：${chongList.join(' / ')}`);
   }
 
-  if (result.he && result.he.length) {
+  const he = pyGet(result, 'he', undefined);
+  if (he && he.length) {
     const heList = [];
-    for (const h of result.he.slice(0, 5)) {
+    for (const h of he.slice(0, 5)) {
       if (h.type === '三合局' || h.type === '三会方') {
         heList.push(`${h.type}${h.wuxing}局(${h.branches.join('-')})`);
       } else {

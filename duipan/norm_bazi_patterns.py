@@ -75,6 +75,27 @@ def norm_format(txt):
     return norm_text(txt)
 
 
+def norm_deep(obj):
+    """递归：把数据结构里**每一个字符串叶子**过 `norm_text`。
+
+    用途：3.5.4c（prompt 层）要对整个产物（`prompt` 串 + `src` 快照）做归一，
+    因为抖动串经 `special_patterns` → `overview` → prompt 三处都露头。
+
+    ⚠⚠ **只能过「叶子字符串」，绝不能过 `canon()` 出来的 JSON 串。**
+    序列化之后十神串后面紧跟 `",`，而字符类 `[^\\s等]` 会把引号逗号一起吞进去，
+    排序后它们被搬走 —— 归一自己把 JSON 弄坏、造出满篇假差异。
+    这与本文件开头记的那版「`[^ 等]` 把行尾换行卷进来」是**同一个坑**，
+    那次在 1461 例上显形，故这里按 dict/list 下走，只碰 `str` 叶子。
+    """
+    if isinstance(obj, str):
+        return norm_text(obj)
+    if isinstance(obj, list):
+        return [norm_deep(x) for x in obj]
+    if isinstance(obj, dict):
+        return {k: norm_deep(v) for k, v in obj.items()}
+    return obj
+
+
 def _self_check():
     """正则的靶向性自查：证明它不会顺手改动别的格局。
 
@@ -111,6 +132,25 @@ def _self_check():
     ne, nf = norm_text(e), norm_text(f)
     assert ne == nf, (ne, nf)
     assert ne == "       成格条件：月支丑（四库土）藏 七杀/偏财\n       含义：x", repr(ne)
+
+    # ── norm_deep 的自查（3.5.4c prompt 层要整份产物过归一）──
+    # ① 嵌套结构里的叶子被归一（overview 就是这种「文字嵌在 dict 里」的形态）
+    a = {"overview": {"headline": "…藏 正财/七杀 等用神。"},
+         "special_patterns": {"condition": "月支戌（四库土）藏 偏财/七杀"},
+         "n": 1, "lst": ["藏 七杀/偏财"]}
+    b = {"overview": {"headline": "…藏 七杀/正财 等用神。"},
+         "special_patterns": {"condition": "月支戌（四库土）藏 七杀/偏财"},
+         "n": 1, "lst": ["藏 偏财/七杀"]}
+    assert norm_deep(a) == norm_deep(b), (norm_deep(a), norm_deep(b))
+    # ② 非字符串叶子原样返回（不误伤数字/None/布尔）
+    for v in (1, None, True, 2.5):
+        assert norm_deep(v) == v and type(norm_deep(v)) is type(v)
+    # ③ ⚠ **陷阱锁**：证明「先序列化再归一」是错的 ——
+    #    正则会把紧跟其后的 `",` 一起吞进十神串。这就是 norm_deep 只碰叶子、
+    #    不许喂 `canon()` 结果的原因；哪天有人把它简化成「对 JSON 串过正则」，
+    #    这条断言会把他拦住。
+    m = ZANG_RE.search('{"condition": "藏 正财/七杀", "x": 1}')
+    assert m is not None and m.group(1) == '正财/七杀",', m and m.group(1)
 
     return True
 

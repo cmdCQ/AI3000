@@ -5,6 +5,8 @@
  * 移植自 shushu（github.com/cmdCQ/shushu）
  *   `core/bazi/chart.py`  : build_chart / build_pillar / _get_renyuan_siling
  *   `core/bazi/analyzer.py`: 十神逐柱与汇总、旺衰、格局、神煞（analyzeChart）
+ *   用神/调候/格局成败/日主档案（3.5.3c）在 `bazi_yongshen.js`，此处只按 shushu 的
+ *   挂载顺序挂 `tiaohou` / `geju_cheng_bai`；`yong_shen` 是 API 层挂的，故不在此处挂。
  *   `core/constants.py`   : 表一律不手抄，由 `duipan/gen_bazi_tables.py` 生成 `bazi_tables.js`
  *
  * 口径（3.5.0 已钉死，实测见 duipan/gen_bazi_sizhu_probe.py + probe_bazi_jieqi_offset.py）：
@@ -25,6 +27,7 @@
 const G = require('./ganzhi.js');
 const C = require('./constants.js');
 const T = require('./bazi_tables.js');
+const YS = require('./bazi_yongshen.js');
 
 const { TIANGAN, DIZHI, DIZHI_WUXING, GAN_WUXING, SHENG, KE } = C;
 
@@ -489,9 +492,13 @@ function findShensha(chart) {
 /**
  * 静态分析 —— 与 shushu `analyze_chart` 返回同形的字段。
  *
- * **未含** `tiaohou`（调候用神）与 `geju_cheng_bai`（格局成败救应）：那两个来自
- * `core/bazi/tiaohou_yongshen.py`，属 3.5.3 范围，故此处不产出、也不假装产出。
- * 对拍脚本按字段集断言，缺字段会显形而不是静默跳过。
+ * 3.5.3c 起补上最后两块：`tiaohou`（调候用神到位评级）与 `geju_cheng_bai`
+ * （八正格成败救应，**仅当格局名在表内**才挂，故该键按用例存在/不存在 —— 与 shushu 同）。
+ * 两者的算法在 `bazi_yongshen.js`；此处的**挂载顺序与条件**照抄 `analyzer.analyze_chart`。
+ *
+ * 注意 `yong_shen` / `day_master_profile` **不在这里挂** —— shushu 是由 API 层
+ * （`api/bazi.py`）挂的，不是 `analyze_chart` 挂的。谁挂的一并照搬，否则对拍时
+ * 「字段从哪来」这一层就对不上了。
  */
 function analyzeChart(chart) {
   annotatePillars(chart);
@@ -502,6 +509,11 @@ function analyzeChart(chart) {
   chart.pattern = chart.pattern_info.pattern;
   chart.pattern_desc = chart.pattern_info.desc;
   chart.shensha = findShensha(chart);
+
+  chart.tiaohou = YS.analyzeTiaohouInChart(chart);
+  const geju = YS.analyzeGejuChengBai(chart, YS.dget(chart.pattern_info, 'pattern', ''));
+  if (geju.available) chart.geju_cheng_bai = geju;
+
   return chart;
 }
 

@@ -14,6 +14,18 @@ const chatProxy = require('./chat-proxy.js');
 const liuyaoPaipan = require('./paipan/liuyao.js');
 const meihuaPaipan = require('./paipan/meihua.js');
 const promptLib = require('./paipan/prompt.js');
+const baziFull = require('./paipan/bazi_full.js');
+const baziPromptLib = require('./paipan/bazi_prompt.js');
+// 八字解读的**产品输出层**（2026-09-25 用户拍板的新输出规格：命盘评分 + 8 模块）。
+// ⚠ 与 `bazi_prompt.js` 是两个东西，别互相替代：
+//   · `bazi_prompt.js` = shushu 的**逐字移植**（算法：ctx 变量表 + 五段正文），由
+//     `duipan/diff_bazi_prompt.py` 零申报把守 —— 改它一个字那一层就永久变红；
+//   · `bazi_report.js` = **文案**（怎么讲给用户听），由 `duipan/check_bazi_report.js` 把守。
+//   追问模板仍走 `baziPromptLib.baziFollowUpPrompt`（它不对拍，是产品自己的动作）。
+const baziReportLib = require('./paipan/bazi_report.js');
+const baziFortuneLib = require('./paipan/bazi_fortune.js');
+const ganzhiLib = require('./paipan/ganzhi.js');
+const paipanConst = require('./paipan/constants.js');
 
 // ===== 阿里云号码认证服务（PNVS）短信验证码 =====
 const DypnsapiClient = require('@alicloud/dypnsapi20170525').default;
@@ -244,6 +256,82 @@ const USER_TOKEN_EXPIRY = 7 * 24 * 60 * 60 * 1000; // 7天
 const LOCKOUT_MS = 15 * 60 * 1000; // 15 min lockout
 const ADMIN_TOKEN_EXPIRY = 24 * 60 * 60 * 1000; // 24h
 const LLM_MODEL = 'deepseek-v4-flash';
+
+// 上游一次回答的 token 上限 —— **两条 AI 线共用这一个数**，不许各写各的。
+//
+// ⚠ 这个数不是「回答长度」。`deepseek-v4-flash` 默认**开着思考**（官方文档：思考模式
+// 默认打开、强度默认 high），思考先走 `reasoning_content`（用户看不见），而在本模型上
+// 实测**思考与正文共用这一个预算**：思考吃满就 `finish_reason='length'`，正文可能一个字
+// 都没有。原来的 3000 在难问题上几乎必翻车 —— 线上表现就是「HTTP 200 + 0 字节」空白回复
+// （见进度 10），而且**不抛错**，`catch` 抓不到。
+//
+// ⚠ 更正（2026-09-25）：我先前在这里写过「提到 8000 后同题实测正常出文」——
+// 那是**一次幸运的实测**，被我说成了结论。同一问题重复跑，8000 也出现过
+// 「思考 9863 字、正文 0 字」。真实的分布（都是真上游、同一条难问题）：
+//   · 上限 3000（不提 effort）：思考吃满 3000 → 正文 **0 字**
+//   · 上限 8000，不提 effort：正文 **0～3113 字**（不稳）
+//   · 上限 8000 + `reasoning_effort:'low'`：**3/3 都出了正文**（2698/2266/1511 字），
+//     但其中 2 次 `finish_reason='length'` —— 即**正文被截断**；每次约 40 秒、实收约 8000 token
+//
+// 官方文档（`api-docs.deepseek.com/zh-cn/guides/thinking_mode`）两条硬约束：
+//   ① `max_tokens` 默认 4096、**最大 8192** → 8000 已贴天花板，不能再靠调大腾地方；
+//   ② 思考模式下 `temperature` **不生效**（不报错也不起作用）—— 下面那个 0.7 在思考开着时
+//      其实没作用，留着是因为「关掉思考」那条路要用到它。
+//
+// 推论（得说清）：**思考开着时，「长解读不被截断」是做不到的** —— 思考与正文抢同一个
+// 8192 天花板。要「完整」就只能关思考（`thinking:{type:'disabled'}`：实测 9.5 秒、
+// 约 1900 token、`finish=stop`）。这是产品取舍，2026-09-25 用户选了「low」，
+// 故此处按「低强度思考」实现；「一个字都没出来」那种最坏情况由下面那句白话提示兜住。
+const LLM_MAX_TOKENS = 8000;
+
+// 思考强度。官方 OpenAI 格式下取值 `low/high/max`，默认 `high`。
+// ⚠ `'low'` 是**少想一点**，不是「不想」：实测思考仍有 6.7k～8.4k 字，难问题上照样顶到天花板。
+// （我另试过 `reasoning_effort:'none'` 与 `thinking:{type:'disabled'}`，两者都真能把思考
+//  关成 0 字；但 `'none'` 不在官方取值表里，属未文档化行为 —— 能不用就不用，免得哪天悄悄失效。）
+// 教训一条：参数被忽略是**不报错**的（我一度以为 `reasoning_effort:'low'` 无效，是因为
+// 拿小问题去试，思考本来就没多长；换到真业务的长问题才看出差别）。验参数必须用**真业务的输入**。
+const LLM_REASONING_EFFORT = 'low';
+
+// 八字那份长报告**关掉思考**（2026-09-25，与新输出规格一起来）。
+//
+// 为什么非关不可：新规格要求「命盘评分 + 8 个模块」，篇幅远超原来那段三段式。而
+// `LLM_MAX_TOKENS = 8000` 是**上游硬顶**（官方：最大 8192），**思考与正文共用这一个预算** ——
+// 上面那段实测分布里，`reasoning_effort:'low'` 时思考吃掉 6.7k～8.4k 字，正文只剩
+// 2266～2698 字，且 3 次里 2 次 `finish_reason='length'`。结论就是上面那句推论：
+// **「思考开着 + 长解读不被截断」做不到**。关掉思考后 8192 全给正文
+// （实测 9.5 秒 / 约 1900 token / `finish_reason='stop'`）—— 更快、更省、也不截断。
+//
+// 这是**产品取舍**，与「全局思考强度 low」不冲突：那条管聊天与追问（短问答，思考有助于
+// 质量），这条只管那份结构化长报告。故在调用处按 `!followUp` 挑，不是全局改。
+//
+// ⚠ 关掉思考后 `temperature` **才真正生效**（官方：思考模式下 temperature 不生效 ——
+//   原来那个 0.7 在思考开着时其实没作用）。所以这条线必须显式给一个温度：
+//   同一份盘面应当给出同一个分数，取低值更稳，配合 system 里的「打分口径」一节。
+const BAZI_REPORT_TEMPERATURE = 0.3;
+
+// 上游「一个字正文都没出」时给用户看的话。白话、不解释内部原因、给一个可做的动作。
+// 它**不算一次解析**（不落库、不记账）—— 判据是 `fullText` 有没有内容，
+// 这段提示是写给用户的，不是写进 `fullText` 的。
+const EMPTY_UPSTREAM_NOTICE = '抱歉，这次没能生成出内容。请再点一次；'
+  + '如果还是不行，就把问题问得更具体一点（比如具体问哪一年、哪一方面）。';
+
+/**
+ * 记账尾巴。**全站唯一一份**（`/api/chat/send` 与八字那条线各自拼过一次，是同一个
+ * 字符串 —— 两处各写一遍，改一处就会有一处漏）。
+ *
+ * 2026-09-25 用户拍板：「现在系统是 token 消耗制的，把这个改称积分」。
+ * 于是**只改用户看得见的标签**，底下的记账口径不动（仍然是上游回的真 token 数，
+ * `users.token_used` 也照旧累加）—— 改的是叫法，不是算法。
+ *
+ * ⚠ 前端按 `'\n消耗积分：'` 切正文（`ai_panel.js::AI_POINTS_MARKS`），
+ *   动这一行的**格式**会连着前端一起坏；老记录里存的是旧字「消耗 Token：」，
+ *   前端两个标记都认，故这里不需要数据迁移。
+ */
+const POINTS_LABEL = '消耗积分：';
+function pointsTrailer(inputTokens, outputTokens, totalTokens, remainText) {
+  return '\n\n---\n' + POINTS_LABEL + '输入 ' + inputTokens + ' + 输出 ' + outputTokens
+    + ' = ' + totalTokens + ' ｜ 剩余：' + remainText;
+}
 
 // 后台「提示词管理」页面里逐个模板展示的**默认值**，也必须是运行时的真实回落。
 //
@@ -1160,6 +1248,43 @@ async function handle(req, res) {
     }
   }
 
+  // GET /api/bazi-analyses — 命盘的解析记录（**只读**，每方面可能有多条：旧版保留、不覆盖）
+  //
+  // 与六爻/梅花的 `*-records` 不一样，这里**没有** POST/PATCH/DELETE：
+  // 八字的解读由解读端点自己写库（`streamBaziParse` 跑完调 `saveBaziAnalysis`），
+  // 再加一套写入口就会变成「两处都能写、出事说不清谁写的」。所以只给读。
+  //
+  // 为什么单独需要它：六爻/梅花把解读存进**排盘记录那一行**（一个记录一条解读），
+  // 而八字的产品规则是「**每方面一条 + 旧版可展开**」——同一方面解过多次就得多行并存，
+  // 故前端要能按 `chartId` 把这批行取回来自己分组。
+  //
+  // 参数：`?chartId=xxx` 只看某一副命盘；不传则是这个用户的全部（「我的命盘」列表要用）。
+  // 返回**新到旧**。游客没有记录（他不落库），故未登录直接 401，与 `/api/charts` 一致。
+  if (req.method === 'GET' && pathname === '/api/bazi-analyses') {
+    const payload = checkAuth(req);
+    if (!payload) return json(res, { error: '请先登录' }, 401);
+    const chartId = url.searchParams.get('chartId') || '';
+    try {
+      const [rows] = chartId
+        ? await db.query('SELECT id, chart_id, aspect, question, analysis, created_at FROM bazi_analyses'
+          + ' WHERE user_id = ? AND chart_id = ? ORDER BY created_at DESC LIMIT 200',
+          [payload.username, chartId])
+        : await db.query('SELECT id, chart_id, aspect, question, analysis, created_at FROM bazi_analyses'
+          + ' WHERE user_id = ? ORDER BY created_at DESC LIMIT 200', [payload.username]);
+      return json(res, rows.map(r => ({
+        id: r.id,
+        chartId: r.chart_id,
+        aspect: r.aspect,
+        question: r.question,
+        analysis: r.analysis,
+        createdAt: r.created_at,
+      })));
+    } catch (e) {
+      console.error('Bazi analyses list error:', e);
+      return json(res, { error: '数据库错误' }, 500);
+    }
+  }
+
   // GET /api/admin/mhys-records — 管理员查看所有排盘记录
   if (req.method === 'GET' && pathname === '/api/admin/mhys-records') {
     const payload = checkAuth(req);
@@ -1892,6 +2017,157 @@ async function handle(req, res) {
     }
   }
 
+  // ── POST /api/bazi/paipan — 八字排盘（四柱/十神/藏干/纳音/神煞/格局/用神/大运…）──
+  //
+  // 与上面两个排盘端点同一约定：前端只发**出生原始参数**（公历年月日时分 + 性别），
+  // 盘由后端用对拍过的 `paipan/` 现算。前端从此不再自己排一份 —— 改造前
+  // `charts/index.html` 与 `my-charts/index.html` **各有一份** `calcBazi`，加上
+  // 写库时的快照，同一件事三处实现；「两边各算一份、慢慢对不上」正是本项目最痛的病。
+  //
+  // `text` = **AI 将读到的用户消息**（`paipan/bazi_report.js` 的 `baziReportPrompt`
+  // 渲染出来的，与解读端点 `/api/bazi/parse` 喂给 AI 的那一段出自**同一个函数**，
+  // 故不可能分叉 —— 2026-09-25 换新输出规格时这里也跟着换了，两处必须同进同退）。
+  // 此处**不含【古籍参考】**：检索要用用户提问，只有解读端点那一侧拿得到。
+  // （system 消息另外一段，同样在 `bazi_report.js`：`baziReportSystem()`。）
+  //
+  // 匿名可用（纯计算，不花 token），理由与上面两个端点同 —— 见那一段注释。
+  if (req.method === 'POST' && pathname === '/api/bazi/paipan') {
+    try {
+      const built = baziChartFromParams(body || {});
+      if (!built.ok) return json(res, { error: built.reason }, 400);
+      return json(res, {
+        chart: built.chart, sizhu: built.sizhu,
+        display: built.display, text: built.text,
+      });
+    } catch (e) {
+      return json(res, { error: '排盘失败：' + e.message }, 400);
+    }
+  }
+
+  // ── POST /api/bazi/parse — 八字解读（流式）──
+  //
+  // 请求体与 `/api/bazi/paipan` 同一个形状（**出生原始参数** + `tab` + `question`），
+  // 盘同样由后端现算 —— 「用户看到的盘」与「AI 读到的盘」出自同一份，不可能对不上。
+  //
+  // 与 `/api/chat/send` 的区别只有闸门：那一处匿名一律 401，这里**游客可以先解一次**
+  // （否则「引导登录」就无从谈起）。规则（2026-09-25 拍板）：
+  //   · 游客：**只能解一次**（服务端签名 cookie 记）+ 不许解**综合**（综合要通盘看，
+  //     篇幅最长、最贵，也正是最该引导登录的那一个）+ 同 IP 一天有总上限。
+  //   · 登录用户：与聊天同一条额度（token 用量照记），解读**存进解析记录**
+  //     （`bazi_analyses`，每方面一条 + 旧版保留）。**游客不落库**。
+  //
+  // ── 追问（2026-09-25 拍板：「要，但追问不落库」）──
+  // `followUp` 非空 = **这一次是追问**：接着上面那份解读往下问的一句话。
+  // 它是这条端点的第二个入口 —— `/api/chat/send` 只认 mhys / liuyao 两种 cardType，
+  // 八字在那儿没有分支，故追问也回到这里来。
+  // 一个入参管三件事（都是「这是一次追问」的直接后果）：
+  //   ① 换提示词 —— 追问模板，只答这一问，**不重来一遍完整分析**；
+  //   ② 换上下文 —— 带上刚才那份解读的正文（用户问「那…呢」，指的就是它）；
+  //   ③ **不落库** —— 追问不是一份独立解读，存进去会把「每方面一条」变成
+  //      「每方面一条 + 一堆追问碎片」。
+  // 三件事共用一个判据是**故意的**：少一个能配错的旋钮，客户端也没法把追问塞进记录里。
+  // 其余一概照旧：照样排盘、照样计 token、照样受闸门管（**追问不豁免游客那道闸**）。
+  //
+  // ⚠ `question` 是另一回事，别拿它当追问的判据：那是**首次解读**时的补充提问
+  //   （进 `{{question}}` 与检索词），首次带提问是正常用法（冒烟 ① 就是这一格）。
+  //
+  // 「算不算用掉一次」的判据与前端一致：**解读真跑完、用户真看到了才算**
+  // （客户端中途断开时 `streamBaziParse` 不调 `onFinish`）。
+  if (req.method === 'POST' && pathname === '/api/bazi/parse') {
+    const card = body || {};
+    let built;
+    try {
+      built = baziChartFromParams(card);
+    } catch (e) {
+      return json(res, { error: '排盘失败：' + e.message }, 400);
+    }
+    if (!built.ok) return json(res, { error: built.reason }, 400);
+
+    const asked = String(card.tab || '');
+    const aspect = BAZI_ASPECTS.indexOf(asked) >= 0 ? asked : '综合';
+    // 这一次是不是追问（见端点开头那段说明）。`question` 是首次解读的补充提问，两回事。
+    const followUp = String(card.followUp || '').trim();
+    const payload = checkAuth(req);
+    const username = payload ? payload.username : null;
+
+    let guest = null;
+    if (username) {
+      // 与 /api/chat/send 同一道额度闸（那边额满时也是回一句明说的正文，不是错误码）
+      try {
+        const [rows] = await db.query('SELECT token_used, tier FROM users WHERE username = ?', [username]);
+        if (rows.length > 0) {
+          const limit = getTokenLimit(rows[0].tier || 0);
+          if (limit !== null && rows[0].token_used >= limit) {
+            res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache' });
+            res.write('抱歉，你的AI解析次数已用完。\n如需继续使用，请联系管理员升级账户。');
+            res.end();
+            return;
+          }
+        }
+      } catch (e) { /* 静默，与聊天一致 */ }
+    } else {
+      if (aspect === '综合') {
+        return json(res, {
+          error: '游客可以先免费解析一个方面；「综合」要通盘看，登录后即可使用',
+          needLogin: true,
+        }, 403);
+      }
+      guest = await guestGate(req, res);
+      if (!guest.ok) return json(res, { error: guest.error, needLogin: true }, guest.status);
+    }
+
+    // 追问不检索古籍：`{{context}}` 里那份解读**当初就是带着古籍生成的**，再检索一遍
+    // 只会把同一批段落塞第二遍。梅花/六爻的追问也都是 `ragContext = ''`（同一条约定）。
+    // ⚠ 首次解读与追问**用两套提示词、两套 system**（2026-09-25 新输出规格起）：
+    //   首次 → `bazi_report.js`（命盘评分 + 8 模块）；
+    //   追问 → 仍是 `bazi_prompt.js` 的追问模板 + 自己的 system。
+    //   若追问也吃那份「8 个模块」的规格，用户问一句「那 2027 年呢」就会**重出一整套评分表**。
+    const userPrompt = followUp
+      ? baziPromptLib.baziFollowUpPrompt(built.chart, {
+        tab: aspect, followUp, context: card.context,
+      })
+      : baziReportLib.baziReportPrompt(built.chart, {
+        tab: aspect,
+        question: card.question || '',
+        ragText: await baziRagContext(built.chart, aspect, card.question),
+        currentYear: built.thisYear,
+      });
+
+    try {
+      await streamBaziParse(res, {
+        // 追问那一份 system 只是「只答这一问、别重出报告」，不是那份 8 模块规格。
+        systemPrompt: followUp
+          ? baziReportLib.baziReportFollowUpSystem()
+          : baziReportLib.baziReportSystem(),
+        // 首次（长报告）关思考以免正文被挤到截断；追问（短问答）照旧开低强度思考。
+        noThinking: !followUp,
+        userPrompt,
+        username,
+        onFinish: async ({ fullText }) => {
+          if (username) {
+            // 追问不落库 —— 只跳过这一步，额度照记（见端点开头那段说明）
+            if (!followUp) {
+              try {
+                await saveBaziAnalysis({
+                  username, chartId: card.chartId, aspect,
+                  question: card.question, analysis: fullText,
+                });
+              } catch (e) { console.error('[bazi] 存解析记录失败:', e.message); }
+            }
+          } else if (guest) {
+            await guestRecord(guest.anonId, guest.ip);
+          }
+        },
+      });
+    } catch (e) {
+      // 走到这里通常是「上游连不上」——响应可能已经开始写了，故只在没写时补一句
+      console.error('[bazi] 解读失败:', e && e.message);
+      if (!res.headersSent) return json(res, { error: '解读失败：' + e.message }, 500);
+      if (!res.writableEnded) { try { res.end(); } catch (e2) { /* 已断开 */ } }
+    }
+    return;
+  }
+
   // POST /api/chat/send — AI 对话（流式SSE），支持文字/排盘/命盘
   if (req.method === 'POST' && pathname === '/api/chat/send') {
     const { message, cardType, cardData } = body;
@@ -2012,7 +2288,8 @@ userPrompt += '\n\n注意：参考古籍已在最上方提供，请在回答开�
       // `{prompt_tokens, completion_tokens, total_tokens, prompt_cache_hit_tokens, ...}`
       // （2026-09-25 容器内实测，帧里带 `"usage":{"prompt_tokens":9,...}`）。
       // 故：优先用真数，取不到才回落估算 —— 回落时**只打日志**，不改文案格式
-      // （那行是前端按 `'\n消耗 Token：'` 字符串切的，动格式会连着前端一起坏）。
+      // （那行是前端按 POINTS_LABEL 切的，动格式会连着前端一起坏 —— 尾巴由
+      //  `pointsTrailer()` 拼，别再就地手写一遍）。
       let estInputTokens = estimateTokens(systemPrompt + '\n' + prompt);
       let realUsage = null;
 
@@ -2039,17 +2316,27 @@ userPrompt += '\n\n注意：参考古籍已在最上方提供，请在回答开�
           { role: 'user', content: prompt },
         ],
         stream: true,
-        max_tokens: 3000,
+        max_tokens: LLM_MAX_TOKENS,
         temperature: 0.7,
+        reasoning_effort: LLM_REASONING_EFFORT,
         stream_options: { include_usage: true },
       }, { signal: controller.signal });
 
       let fullText = '';
       let stopped = false;
+      // 诊断用的两个数：出事时只留「什么都没出来」是没法查的（见 LLM_MAX_TOKENS 那段注）
+      let reasoningChars = 0;
+      let finishReason = null;
+      let wroteFallback = false;
       try {
         for await (const chunk of stream) {
           // usage 帧的内容为空，必须在取 content **之前**收，否则会漏掉
           if (chunk.usage) realUsage = chunk.usage;
+          const ch0 = chunk.choices && chunk.choices[0];
+          if (ch0 && ch0.delta && ch0.delta.reasoning_content) {
+            reasoningChars += ch0.delta.reasoning_content.length;
+          }
+          if (ch0 && ch0.finish_reason) finishReason = ch0.finish_reason;
           if (stopped) continue;
           const content = chunk.choices[0]?.delta?.content || '';
           if (content) {
@@ -2063,10 +2350,22 @@ userPrompt += '\n\n注意：参考古籍已在最上方提供，请在回答开�
         // 明说的提示（已写出内容时就只留痕，避免在正文中间插一句突兀的话）。
         if (!clientGone) console.error('[chat] 流中断:', e && e.message);
         if (!fullText && !clientGone && !res.writableEnded) {
-          try { res.write('抱歉，生成中断了，请重试一次。'); } catch (e2) { /* 已断开 */ }
+          try { res.write('抱歉，生成中断了，请重试一次。'); wroteFallback = true; } catch (e2) { /* 已断开 */ }
         }
       } finally {
         res.removeListener('close', onClose);
+      }
+
+      // 「流正常结束、但一个字正文都没有」——这不是异常，上面的 catch 抓不到，
+      // 而用户看到的就是一个空白回复。实测成因见 LLM_MAX_TOKENS 那段注
+      // （思考把预算吃光 → `finish_reason='length'`、正文 0 字）。
+      // 补一句白话提示，并把这几个数打进日志 —— 否则线上再犯一次，日志里
+      // 仍然只有「一切正常」，等于没线索（这次就是这样查了很久）。
+      if (!fullText && !wroteFallback && !clientGone && !res.writableEnded) {
+        console.error('[chat] 上游没出正文：finish=' + finishReason
+          + '，思考 ' + reasoningChars + ' 字，输出 token '
+          + (realUsage ? realUsage.completion_tokens : '（没收到 usage）') + '，上限 ' + LLM_MAX_TOKENS);
+        try { res.write(EMPTY_UPSTREAM_NOTICE); } catch (e) { /* 已断开 */ }
       }
 
       // 流完成后算 token
@@ -2088,7 +2387,7 @@ userPrompt += '\n\n注意：参考古籍已在最上方提供，请在回答开�
             const used = updated[0].token_used;
             const limit = getTokenLimit(updated[0].tier || 0);
             const remainText = limit === null ? '无限' : (limit - used).toLocaleString();
-            const tokenLine = '\n\n---\n消耗 Token：输入 ' + inputTokens + ' + 输出 ' + outputTokens + ' = ' + totalTokens + ' ｜ 剩余：' + remainText;
+            const tokenLine = pointsTrailer(inputTokens, outputTokens, totalTokens, remainText);
             fullText += tokenLine;
             res.write(tokenLine);
           }
@@ -2112,7 +2411,7 @@ userPrompt += '\n\n注意：参考古籍已在最上方提供，请在回答开�
           
           // 添加 AI 回复
           let aiContent = fullText || '';
-          const tokenIdx = aiContent.lastIndexOf('\n消耗 Token：');
+          const tokenIdx = aiContent.lastIndexOf('\n' + POINTS_LABEL);
           if (tokenIdx > 0) aiContent = aiContent.substring(0, tokenIdx).trim();
           
           const aiMsg = { role: 'assistant', content: aiContent, type: 'text', createdAt: Date.now() };
@@ -2277,6 +2576,423 @@ async function parseBody(req) {
     });
     req.on('end', () => { try { resolve(JSON.parse(d)); } catch { resolve({}); } });
   });
+}
+
+// ══════ 八字：排盘的**唯一出口** ══════
+//
+// `POST /api/bazi/paipan` 与 `/api/chat/send` 的 `bazi` 分支**都走这里**。
+// 两处各排一份盘、各渲染一次 prompt，就是两处可能分叉的地方 —— 而
+// 「用户看到的盘与 AI 读到的盘不是同一份」在本项目已经发生过（六爻那侧，
+// 见 `paipan/prompt.js` 文件头「只信前端传的起卦原始数据」那一段）。
+
+/** 生肖表：按**地支序**排，故查表即可，不必再走一遍历法库。 */
+const SHENGXIAO = ['鼠', '牛', '虎', '兔', '龙', '蛇',
+  '马', '羊', '猴', '鸡', '狗', '猪'];
+
+/**
+ * 出生原始参数 → 完整命盘 + 历法展示项 + AI 正文。
+ *
+ * @param {object} card 前端提交的出生参数
+ *   `{y, mo, d, h, mi, gender, tab, question}`
+ *   · `gender`：`male`/`female`（也收「男」「女」）—— `life_aspects.marriage` 要用。
+ *   · `tab`：综合/事业/财运/婚姻/健康。空值退成「综合」（与后台模板同一回落）。
+ *   · `question`：用户自由提问，可空；会**原样**进正文（见 `bazi_prompt.js` 的替换函数）。
+ * @returns {{ok:true, chart, sizhu, display, text} | {ok:false, reason}}
+ */
+function baziChartFromParams(card) {
+  const c = card || {};
+  const y = +c.y, mo = +c.mo, d = +c.d;
+  if (!y || !mo || !d) return { ok: false, reason: '缺少出生日期（公历年月日）' };
+  const h = (c.h === '' || c.h == null) ? 0 : +c.h;
+  const mi = (c.mi === '' || c.mi == null) ? 0 : +c.mi;
+  const gender = c.gender === '女' ? 'female'
+    : (c.gender === '男' ? 'male' : (c.gender || ''));
+
+  // 「今年」只取一次，下面 `buildBaziFull` 与「【大运一览】标出当前所在」用的是同一个数 ——
+  // 分两处各调一次 `new Date()` 理论上能跨年（年末那一瞬间），没必要留这个缝。
+  const thisYear = new Date().getFullYear();
+
+  const chart = baziFull.buildBaziFull({ y, mo, d, h, mi }, {
+    gender,
+    birthYear: y,
+    // ⚠ 「哪一年是今年」**必须显式给**。基准 `core/bazi/current_fortune.py:18` 的默认值是
+    //    写死的 `current_year: int = 2026`，而基准自己的端点（`api/bazi.py:121`）只传了三个
+    //    参数 —— 于是**基准线上的「当前运程」永远停在 2026 年**。那是基准端点的接线缺陷，
+    //    不是算法问题；我们按事实给真实年份（「事实 > shushu」）。对拍不受影响：层 9/15
+    //    都是**显式注入** currentYear 的，走的不是这条默认值。
+    currentYear: thisYear,
+  });
+
+  // 「大运」一览表（六步）—— **端点层**补挂，移植层一个字未动。
+  //   基准 `api/agent.py:1438` 的 ctx 里确有这一项，但基准端点从不往 chart 上挂 `dayun`，
+  //   实测真实链路上它**恒为空**（364 例全空）：AI 因此只剩「当前这一步」，看不到整条脉络。
+  //   补法用的是 `current_fortune.js` 内部**同一个调用**（`calculateDayun(chart, gender,
+  //   birthYear)`，同一个十步默认值），故不可能出现「一览里有一步与当前大运不是同一字」。
+  //   ⚠ 这属于**输入侧**补充：`bazi_prompt.js` 未改，层 16 对拍（442 例）喂的是基准输入
+  //     （没有 `dayun`），故仍逐字全绿。
+  chart.dayun = baziFortuneLib.calculateDayun(chart, gender, y);
+
+  // 「未来流年」一览表（从今年起 10 年）—— 同一条理由、同一层补挂（2026-09-25）。
+  //   新输出规格的模块 7 要「未来 5–10 年流年简析 / 重点机遇年 / 需谨慎年」，而
+  //   `calculateLiunian` 早就算得出来，只是从前没人往提示词里放（ctx 里只有**当前那一年**）。
+  //   ⚠ 挂上去**不影响层 15/16 对拍**：那两层喂的是基准输入（没有 `liunian` 这个键），
+  //     与上面 `chart.dayun` 同一情形 —— 对拍比的仍是「基准输入 → 逐字同一份 prompt」。
+  //   ⚠ `liunian[*].shishen_zhi` 恒为空串（`bazi_fortune.js:500` 拿**五行**当地支查表，
+  //     照搬基准的缺陷第 1 条）—— 故提示词那一块**自己写明「地支十神本系统不提供」**，
+  //     别让模型去补一个根本不存在的字段（见 `bazi_report.js` 的 `liunianText`）。
+  chart.liunian = baziFortuneLib.calculateLiunian(chart, gender, y, thisYear, thisYear + 9);
+
+  return {
+    ok: true,
+    chart,
+    // 「今年」**回传出去**：解读端点要拿它去渲染提示词。原来那边是**又调一次**
+    // `new Date()` —— 年末跨年那一瞬间，`/api/bazi/paipan` 返回的 `text` 与
+    // 真正喂给 AI 的那一段就会差一年，而上面那段注释的立论正是「不可能分叉」。
+    // 缝很小，但没必要留着。
+    thisYear,
+    sizhu: ganzhiLib.sizhu({ y, mo, d, h, mi }),
+    display: baziDisplayMeta(chart),
+    // ⚠ 与解读端点 `/api/bazi/parse` **同一个出口**（`baziReportPrompt`）——
+    //   2026-09-25 换成新输出规格后，这里若还留在 `baziPromptLib.baziPrompt`，
+    //   `/api/bazi/paipan` 返回的 `text` 就与真正喂给 AI 的那一段**不是同一份**了，
+    //   而上面那段注释的立论正是「出自同一个函数，故不可能分叉」。
+    text: baziReportLib.baziReportPrompt(chart, {
+      tab: c.tab || '', question: c.question || '', ragText: '', currentYear: thisYear,
+    }),
+  };
+}
+
+/**
+ * 盘面显示专用的历法项：农历、生肖、节气区间、四柱旬空。
+ *
+ * 与六爻那侧 `displayMeta` 同一条理由 —— 这几项全是历法/术数口径，前端再算一份就是
+ * 又一处漂移源。**刻意不并进 `text`**：那段正文要过对拍基准，「页面想多显示一个字段」
+ * 不该顺带动了 AI 读到的那一段。
+ *
+ * 时刻一律取 `chart.birth_dt`（**排盘自己用的那一份**），不从入参另拼一个 ——
+ * 否则「盘按这个时刻、农历按那个时刻」会在边界上对不上。
+ */
+function baziDisplayMeta(chart) {
+  const dt = chart.birth_dt;
+  const out = { lunar: '', shengxiao: '', jieQi: null, kong: {} };
+
+  // 生肖由**年支**取，不用历法库的 `getYearShengXiao*()` —— 那两个一个按正月初一、
+  // 一个按**立春日**（日粒度），都和我们全项目统一的「立春**时刻**精确换年」不是一个口径。
+  // 从年支倒推，则「年柱写什么、生肖就是什么」永远自洽，也不会多出第三套换年边界。
+  const yZhi = (chart.year_pillar && chart.year_pillar.dizhi) || '';
+  const zhiIdx = paipanConst.DIZHI.indexOf(yZhi);
+  out.shengxiao = zhiIdx >= 0 ? SHENGXIAO[zhiIdx] : '';
+
+  try { out.lunar = ganzhiLib.lunarText(dt); } catch (e) { out.lunar = ''; }
+  try { out.jieQi = ganzhiLib.jieQiRange(dt); } catch (e) { out.jieQi = null; }
+
+  // 四柱旬空：各柱各按自己的干支起旬（与六爻那侧并排展示同一做法，
+  // 免得用户以为只有日柱有旬空）。
+  const pillars = [['year', 'year_pillar'], ['month', 'month_pillar'],
+    ['day', 'day_pillar'], ['hour', 'hour_pillar']];
+  for (const [k, key] of pillars) {
+    const p = chart[key];
+    const gz = p ? String(p.tiangan || '') + String(p.dizhi || '') : '';
+    out.kong[k] = gz.length === 2 ? paipanConst.getKongWang(gz).join('') : '';
+  }
+
+  return out;
+}
+
+// ══════ 八字：解读（游客可解一次、且不许解「综合」）══════
+//
+// 为什么另开一个端点，而不复用 `/api/chat/send`：那条路**匿名一律 401**
+// （`if (!username) return json(res, {error:'请先登录'}, 401)`）。而产品要求是
+// 「游客只能解析一次；还想解析就引导登录」—— 游客必须先**能**解一次，才谈得上
+// 引导。所以这里是一条允许匿名的路，且它自己带额度闸门。
+//
+// 三件事在这里合起来：
+//   ① 身份：登录用户走 token；游客发一个**服务端签名**的 cookie（清掉能再来，
+//      故它只是一道**产品闸门**，不是安全边界 —— 见 `anonCookie`）。
+//   ② 额度：游客同一 cookie 限一次，另有「同一 IP 一天最多 N 次」的总闸，防批量。
+//   ③ 记录：登录用户的解读写进 `bazi_analyses`（每方面一条 + 旧版保留）；
+//      **游客不落库**（2026-09-25 拍板）。
+
+/** 五个解析方面。顺序即界面顺序；「综合」永远是第一个。 */
+const BAZI_ASPECTS = ['综合', '事业', '财运', '婚姻', '健康'];
+const ANON_COOKIE = 'sqw_anon';
+/** 同一 IP 一天内的游客解读总上限。挡的是批量刷，不是正常用户。 */
+const ANON_IP_DAILY_CAP = 20;
+
+/**
+ * 游客身份 cookie：`<随机 id>.<HMAC>`。
+ *
+ * 签名密钥**复用 `JWT_SECRET`**（那份密钥本来就随安装生成、落在密钥文件里、
+ * 从不打日志）—— 不新增环境变量，也就不必动 `.env` 与 compose（少一次部署摩擦）。
+ *
+ * ⚠ 说清楚它的分量：这不是安全边界。用户把 cookie 清掉就又是新访客，
+ * 正如现在六爻/梅花靠 `localStorage` 记的那一笔。它要做的是**如实告知并拦住
+ * 顺手多用**，不是防住有心绕过的人 —— 后者要靠「同 IP 日上限」那道总闸。
+ */
+function anonSign(id) {
+  return crypto.createHmac('sha256', JWT_SECRET).update('anon:' + id).digest('base64url');
+}
+function anonReadCookie(req) {
+  const raw = (req.headers && req.headers.cookie) || '';
+  const m = raw.match(new RegExp('(?:^|;\\s*)' + ANON_COOKIE + '=([^;]+)'));
+  if (!m) return null;
+  const parts = decodeURIComponent(m[1]).split('.');
+  if (parts.length !== 2) return null;
+  const id = parts[0];
+  if (!/^[0-9a-f]{24}$/.test(id)) return null;
+  // 长度不同的两个串直接比会泄露前缀信息，故逐字节比（签名只有 43 字符，代价可忽略）
+  const want = anonSign(id);
+  const got = parts[1];
+  if (want.length !== got.length) return null;
+  return crypto.timingSafeEqual(Buffer.from(want), Buffer.from(got)) ? id : null;
+}
+function anonIssueCookie(res, id) {
+  res.setHeader('Set-Cookie', ANON_COOKIE + '=' + id + '.' + anonSign(id)
+    + '; Path=/; Max-Age=31536000; SameSite=Lax; HttpOnly');
+}
+/** 取客户端 IP。nginx 在前面，故以 `X-Forwarded-For` 的第一段为准。 */
+function clientIp(req) {
+  const xff = (req.headers && req.headers['x-forwarded-for']) || '';
+  const first = String(xff).split(',')[0].trim();
+  return first || (req.socket && req.socket.remoteAddress) || '';
+}
+
+/**
+ * 游客闸门：能解就放行（顺带把 cookie 与 IP 记上），不能解就给出**要登录**的理由。
+ * @returns {Promise<{ok:boolean, anonId?:string, ip?:string, status?:number, error?:string}>}
+ */
+async function guestGate(req, res) {
+  const ip = clientIp(req);
+  const had = anonReadCookie(req);
+  const anonId = had || crypto.randomBytes(12).toString('hex');
+  if (!had) anonIssueCookie(res, anonId);
+
+  try {
+    if (had) {
+      const [[{ cnt }]] = await db.query(
+        "SELECT COUNT(*) as cnt FROM anon_usage WHERE anon_id = ? AND kind = 'bazi'", [anonId]);
+      if (cnt > 0) {
+        return { ok: false, status: 403, error: '游客只能免费解析一次，登录后可以继续解析任意方面' };
+      }
+    }
+    const [[{ cnt: ipCnt }]] = await db.query(
+      "SELECT COUNT(*) as cnt FROM anon_usage WHERE ip = ? AND kind = 'bazi' AND used_at > ?",
+      [ip, Date.now() - 86400000]);
+    if (ipCnt >= ANON_IP_DAILY_CAP) {
+      return { ok: false, status: 429, error: '今天的免费额度已用完，请明天再来或登录使用' };
+    }
+  } catch (e) {
+    // 库查不动时**放行还是拦？** 放行：闸门坏掉不该让所有游客都用不了；
+    // 代价是这期间的游客可能多解几次，记在日志里以便发现。
+    console.error('[bazi] 游客额度查询失败（放行）:', e.message);
+  }
+  return { ok: true, anonId, ip };
+}
+
+/** 记一笔游客用量（**解读真跑完之后**才记，见调用处）。 */
+async function guestRecord(anonId, ip) {
+  try {
+    await db.query('INSERT INTO anon_usage (anon_id, kind, ip, used_at) VALUES (?, ?, ?, ?)',
+      [anonId || '', 'bazi', ip || '', Date.now()]);
+  } catch (e) { console.error('[bazi] 游客用量记账失败:', e.message); }
+}
+
+/**
+ * 取【古籍参考】正文（六爻/梅花那条路的同一形状）。
+ *
+ * ⚠ 这段与 `/api/chat/send` 里的 RAG 段**同源**（那段在 handle() 里内联着）：
+ * 检索参数、去重方式、`【古籍 N】《书名》 - 章节` 的排版都照抄，只在检索词与
+ * 分类上不同（八字用 `bazi`/`yijing`，检索词由 `baziSearchQuery` 拼）。
+ * 两处**重复**是已知的：合并需要先有对拍手段（那条路目前只能在线上跑），
+ * 故先标注来源、留待有手段再合 —— 谁改这里，去看一眼那一处。
+ *
+ * 取不到就返回空串：**古籍是加分项，不该让解读失败**（与那里一致）。
+ */
+async function baziRagContext(chart, aspect, question) {
+  const query = baziSearchQuery(chart, aspect, question);
+  if (!query) return '';
+  try {
+    const r = await fetch(`${RAG_URL}/api/retrieve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, top_k: 10, categories: ['bazi', 'yijing'], similarity_threshold: 0.3 }),
+      signal: AbortSignal.timeout(30000),
+    });
+    const data = await r.json();
+    if (!data.results || !data.results.length) return '';
+    const seen = new Set();
+    const diverse = [];
+    for (const it of data.results) {
+      if (!seen.has(it.book_name)) { seen.add(it.book_name); diverse.push(it); }
+    }
+    return diverse.slice(0, 3)
+      .map((it, i) => `【古籍 ${i + 1}】《${it.book_name}》${it.chapter ? ' - ' + it.chapter : ''}\n${it.text}`)
+      .join('\n\n');
+  } catch (e) {
+    console.error('[bazi] 取古籍失败（不影响解读）:', e.message);
+    return '';
+  }
+}
+
+/**
+ * 检索词：日主 + 月令 + 格局 + 这一方面。
+ *
+ * 不拿整张盘去检索（检索是按相似度的，塞进去的无关词越多，越容易命中最热门的
+ * 那几段通用语料）。八字这条线上真正决定「看什么书」的是**日主与月令**
+ * （《穷通宝鉴》按「某日主生某月」成篇），故这四个词就够。
+ */
+function baziSearchQuery(chart, aspect, question) {
+  const dm = (chart && chart.day_master) || (chart && chart.day_pillar && chart.day_pillar.tiangan) || '';
+  const monthZhi = (chart && chart.month_pillar && chart.month_pillar.dizhi) || '';
+  const geju = (chart && chart.pattern && (chart.pattern.name || chart.pattern.primary)) || '';
+  const q = String(question || '').trim();
+  return [dm, monthZhi ? monthZhi + '月' : '', geju, aspect, q].filter(Boolean).join(' ');
+}
+
+/**
+ * 八字解读的流式段。
+ *
+ * ⚠ **镜像自** `/api/chat/send` 里那段流式（同源的四处约定：`stream_options.include_usage`
+ * 取上游真数、尾部 `pointsTrailer()` 那个**逐字格式**、客户端断开就掐上游、断在无字
+ * 阶段时补一句明说）。前端按 `AI_POINTS_MARKS` 切正文，动格式会连着前端一起坏。
+ *
+ * 与那一处的差异只有两条：prompt 的来源，以及**记账对象**（这里可能是游客）。
+ * 同样已知重复、同样留待有对拍手段再合。
+ *
+ * @param {function} onFinish 解读**真写完**后调用（记账/落库都在里面）。
+ *   客户端中途断开（`clientGone`）或一个字都没出来时不调用 —— 用户没看见的
+ *   解读不算数。
+ */
+async function streamBaziParse(res, opts) {
+  // `noThinking`：这条线**关掉思考**（理由见 `BAZI_REPORT_TEMPERATURE` 那段注）。
+  // 由调用处给：**首次解读给 true、追问给 false** —— 首次是那份结构化长报告，
+  // 思考会抢走正文的预算（会截断）；追问是短问答，思考有助于质量，预算也够。
+  const { systemPrompt, userPrompt, username, onFinish, noThinking } = opts;
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+    // 与 /api/chat/send 一致：不加这条 nginx 会攒够一段才转发，流式变成「等半天来一大坨」
+    'X-Accel-Buffering': 'no',
+  });
+
+  const estInputTokens = estimateTokens(systemPrompt + '\n' + userPrompt);
+  let realUsage = null;
+  const OpenAI = require('openai');
+  const client = new OpenAI({ apiKey: config.deepseek.apiKey, baseURL: config.deepseek.baseURL });
+
+  const controller = new AbortController();
+  let clientGone = false;
+  const onClose = () => {
+    clientGone = true;
+    try { controller.abort(); } catch (e) { /* 已结束 */ }
+  };
+  res.on('close', onClose);
+
+  let fullText = '';
+  let stopped = false;
+  // 诊断用的两个数（与 /api/chat/send 同）：只留一句「什么都没出来」是查不下去的
+  let reasoningChars = 0;
+  let finishReason = null;
+  let wroteFallback = false;
+  try {
+    // `create` 也放进 try 里：它抛错时响应头**已经发出去了**（200 + text/event-stream），
+    // 端点外面那个 catch 只能看到 `headersSent`，什么也补不回来 —— 用户拿到空白。
+    // 放进来至少能补一句白话提示。（原来的写法就是把它放在 try 外面，这是个真缺口。）
+    // ⚠ `thinking` 与 `reasoning_effort` **不并存**：关思考时给前者、否则给后者。
+    //   两个都传是没意义的组合（一个是「别想」、一个是「想多少」），故按条件给，不硬拼。
+    const params = {
+      model: LLM_MODEL,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      stream: true,
+      max_tokens: LLM_MAX_TOKENS,
+      stream_options: { include_usage: true },
+    };
+    if (noThinking) {
+      params.thinking = { type: 'disabled' };
+      params.temperature = BAZI_REPORT_TEMPERATURE;   // 关思考后温度才生效
+    } else {
+      params.temperature = 0.7;
+      params.reasoning_effort = LLM_REASONING_EFFORT;
+    }
+    const stream = await client.chat.completions.create(params, { signal: controller.signal });
+
+    for await (const chunk of stream) {
+      if (chunk.usage) realUsage = chunk.usage;
+      const ch0 = chunk.choices && chunk.choices[0];
+      if (ch0 && ch0.delta && ch0.delta.reasoning_content) {
+        reasoningChars += ch0.delta.reasoning_content.length;
+      }
+      if (ch0 && ch0.finish_reason) finishReason = ch0.finish_reason;
+      if (stopped) continue;
+      const content = (ch0 && ch0.delta && ch0.delta.content) || '';
+      if (content) {
+        fullText += content;
+        try { res.write(content); } catch (e) { stopped = true; }
+      }
+    }
+  } catch (e) {
+    if (!clientGone) console.error('[bazi] 解读流中断:', e && e.message);
+    if (!fullText && !clientGone && !res.writableEnded) {
+      try { res.write('抱歉，生成中断了，请重试一次。'); wroteFallback = true; } catch (e2) { /* 已断开 */ }
+    }
+  } finally {
+    res.removeListener('close', onClose);
+  }
+
+  // 「流正常结束、但一个字正文都没有」不是异常，上面的 catch 抓不到 —— 这正是
+  // 线上那个「HTTP 200 + 0 字节」的成因（见 LLM_MAX_TOKENS 那段注）。
+  if (!fullText && !wroteFallback && !clientGone && !res.writableEnded) {
+    console.error('[bazi] 上游没出正文：finish=' + finishReason + '，思考 ' + reasoningChars
+      + ' 字，输出 token ' + (realUsage ? realUsage.completion_tokens : '（没收到 usage）')
+      + '，上限 ' + LLM_MAX_TOKENS);
+    try { res.write(EMPTY_UPSTREAM_NOTICE); } catch (e) { /* 已断开 */ }
+  }
+
+  const seen = !!fullText && !clientGone;
+  let trailer = '';
+  if (seen) {
+    // 与 /api/chat/send 同一算法、同一格式（游客不记 token，他的额度是「次数」）
+    if (username) {
+      const inputTokens = realUsage ? realUsage.prompt_tokens : estInputTokens;
+      const outputTokens = realUsage ? realUsage.completion_tokens : estimateTokens(fullText);
+      const totalTokens = realUsage ? realUsage.total_tokens : inputTokens + outputTokens;
+      try {
+        await db.query('UPDATE users SET token_used = token_used + ? WHERE username = ?',
+          [totalTokens, username]);
+        const [updated] = await db.query('SELECT token_used, tier FROM users WHERE username = ?', [username]);
+        if (updated.length > 0) {
+          const used = updated[0].token_used;
+          const limit = getTokenLimit(updated[0].tier || 0);
+          const remainText = limit === null ? '无限' : (limit - used).toLocaleString();
+          trailer = pointsTrailer(inputTokens, outputTokens, totalTokens, remainText);
+        }
+      } catch (e) { /* 静默失败 */ }
+    }
+    if (trailer && !res.writableEnded) { try { res.write(trailer); } catch (e) { /* 已断开 */ } }
+  }
+  if (!res.writableEnded) res.end();
+  if (seen && onFinish) {
+    // 用 try 包住：落库失败不该把已经流给用户的解读弄成错误响应（响应已结束）
+    try { await onFinish({ fullText, realUsage, estInputTokens }); }
+    catch (e) { console.error('[bazi] 解读收尾失败:', e.message); }
+  }
+}
+
+/**
+ * 把一条解读写进 `bazi_analyses`（每方面一条 + 旧版保留，故是 INSERT 不是 UPDATE）。
+ * @returns {Promise<string|null>} 新记录 id
+ */
+async function saveBaziAnalysis({ username, chartId, aspect, question, analysis }) {
+  const id = 'bz_' + Date.now() + '_' + crypto.randomBytes(4).toString('hex');
+  await db.query(
+    'INSERT INTO bazi_analyses (id, user_id, chart_id, aspect, question, analysis, created_at)'
+    + ' VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [id, username, chartId || null, aspect, String(question || '').slice(0, 255), analysis, Date.now()]);
+  return id;
 }
 
 function buildDivinationChatPrompt(cardType, cardData, message) {
@@ -2445,14 +3161,19 @@ function writePrompts(data) {
   }
 }
 
-// 模板变量替换
+// 模板变量替换 —— **全站唯一一份实现**，转调 `paipan/bazi_prompt.js` 那一份。
+//
+// 原先这里自己写了一遍「按变量表逐键循环 replace」，与 `bazi_prompt.js` 那份并存。
+// 两份的差别不是风格，是两个**真实缺陷**（此前这里是错的那一份）：
+//   ① 替换值当**字符串**塞进 `replace` → 值里的 `$&`、`$1`、`` $` ``、`$'` 会被 JS 展开。
+//      值里带古籍原文与用户提问，两者都是外部输入。实测：一句「…脱胎要火。$&$1」
+//      渲染后正文里冒出了 `{{classicalText}}`（占位符本身）。
+//   ② 逐键循环 = **多趟扫描**：头一趟塞进去的文本会被后一趟再扫一遍。用户提问里写
+//      `{{vars}}` 就会让正文里凭空多插一整块 JSON（实测某例多出 1568 字）。
+// 修法（`bazi_prompt.js` 那份）：**一趟扫完 + 替换值由函数给出 + 键取实际变量表**。
+// 转调而不是再抄一遍，是因为抄过的两份已经漂移过一次 —— 见 `bazi_prompt.js` 的注释。
 function renderPrompt(template, vars) {
-  if (!template) return null;
-  let result = template;
-  for (const [key, val] of Object.entries(vars)) {
-    result = result.replace(new RegExp('\\{\\{' + key + '\\}\\}', 'g'), String(val ?? ''));
-  }
-  return result;
+  return baziPromptLib.renderPrompt(template, vars);
 }
 
 // 批量入库后台任务
@@ -2501,6 +3222,35 @@ async function initDb() {
       updated_at bigint NOT NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
     console.log('[DB] chat_history table ready');
+
+    // 八字解析记录：**每方面一条、旧版保留**（故是 INSERT 不是 UPDATE），
+    // 界面显示每个方面最新那一条，旧版本可展开。
+    // `chart_id` 可空：用户从「新建命盘」页直接解读时还没有命盘 id。
+    // `question` 存用户那句自由提问（「我今年适合换工作吗」），它会影响解读。
+    await db.query(`CREATE TABLE IF NOT EXISTS bazi_analyses (
+      id varchar(64) PRIMARY KEY,
+      user_id varchar(64) NOT NULL,
+      chart_id varchar(64) DEFAULT NULL,
+      aspect varchar(16) NOT NULL,
+      question varchar(255) NOT NULL DEFAULT '',
+      analysis longtext NOT NULL,
+      created_at bigint NOT NULL,
+      KEY idx_user_chart_aspect (user_id, chart_id, aspect, created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+    console.log('[DB] bazi_analyses table ready');
+
+    // 游客用量：`anon_id` 是签名 cookie 里的那串随机 id（游客限一次），
+    // `ip` 那两列供「同 IP 一天总上限」用。**它是一道产品闸门，不是安全边界** ——
+    // 清 cookie 就能再来一次；挡住批量的是日上限那一半。见 `anonReadCookie`。
+    await db.query(`CREATE TABLE IF NOT EXISTS anon_usage (
+      anon_id varchar(64) NOT NULL DEFAULT '',
+      kind varchar(16) NOT NULL,
+      ip varchar(64) NOT NULL DEFAULT '',
+      used_at bigint NOT NULL,
+      KEY idx_anon (anon_id, kind),
+      KEY idx_ip (ip, kind, used_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+    console.log('[DB] anon_usage table ready');
   } catch (e) {
     console.error('[DB] init error:', e.message);
   }

@@ -12,7 +12,7 @@
 <!-- 结果页的样式与渲染层跟本页共用一份（原地出结果，不跳 result.html），别在本页再抄一份。
      mhys_result.css 是**梅花与六爻共用的底**（令牌、卡片、AI 面板、卦象画法），
      liuyao_result.css 只补六爻盘面独有的部分，必须引在它后面。 -->
-<link rel="stylesheet" href="/css/mhys_result.css?v=2">
+<link rel="stylesheet" href="/css/mhys_result.css?v=3">
 <link rel="stylesheet" href="/css/liuyao_result.css?v=1">
 <style>
 :root {
@@ -363,9 +363,9 @@ html,body { background:var(--bg); color:var(--text); font-family:var(--sans); mi
 </div>
 
 <script src="/js/lunar.min.js"></script>
-<script src="/js/auth.js?v=2"></script>
+<script src="/js/auth.js?v=1787305221"></script>
 <script src="/js/ui_common.js?v=1"></script>
-<script src="/js/liuyao_render.js?v=1"></script>
+<script src="/js/liuyao_render.js?v=3"></script>
 <script>
 // ===== 取卦算术（只有卦号 ↔ 三爻，**不含装卦**）=====
 //
@@ -949,7 +949,7 @@ function buildCard(result) {
 function showResultHere(card, pay) {
   var area = document.getElementById('resultArea');
   // renderLiuyaoResult 顺手设好全局（currentChart / currentTopic / …），
-  // AI 面板读的就是那几个 —— 必须在 autoStartAI() 之前调用
+  // AI 面板读的就是那几个 —— 必须在用户点「☯ 自动解析」之前渲染好
   area.innerHTML = renderLiuyaoResult(pay.chart, pay.display, {
     topic: card.topic,
     gender: card.gender,
@@ -961,8 +961,11 @@ function showResultHere(card, pay) {
   });
   resetBtn();
   if (area.scrollIntoView) area.scrollIntoView({ behavior:'smooth', block:'start' });
-  // 结果一出来就开始解读，不用用户再点一次（面板在 /js/liuyao_ai_panel.js 里）
-  autoStartAI();
+  // 结果一出来**不**自动解读。2026-09-25 用户拍板：「三个的 ai 解析都不要自动开始了，
+  // 要点击才开始」—— 原来这里调 `autoStartAI()`（既开面板又立刻发请求），
+  // 用户摇完卦就被扣一次积分。现在只渲染结果，要解读自己点页头那颗
+  // 「☯ 看不懂？试试自动解析」（面板在 /js/liuyao_ai_panel.js 里）。
+  // ⚠ 别把 `autoStartAI()` 加回来：引擎里那个函数已经一并删了（全站再无调用者）。
 }
 
 // ===== 初始化 =====
@@ -1320,7 +1323,7 @@ init();
 </script>
 
 <!-- AI 面板引擎与六爻的配置（引擎与梅花页共用一份） -->
-<script src="/js/ai_panel.js?v=2"></script>
+<script src="/js/ai_panel.js?v=4"></script>
 <script src="/js/liuyao_ai_panel.js?v=1"></script>
 
 </body>

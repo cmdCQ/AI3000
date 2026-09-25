@@ -36,11 +36,26 @@ var LY_LIUSHEN_ABBR = { 青龙: '龙', 朱雀: '雀', 勾陈: '勾', 腾蛇: '�
 
 function lyAbbr(map, v) { return map[v] || v || ''; }
 
-/** 爻符：复用梅花页那套 `.yao-yang` / `.yao-yin`（同一份 CSS，两页画法必然一致） */
+/**
+ * 爻符：复用梅花页那套 `.yao-yang` / `.yao-yin`（同一份 CSS，两页画法必然一致）。
+ *
+ * ⚠ 原来写的是 `class="yao-yang ly-bar"` —— **阳爻整条不显示**（用户报的
+ * 「阳爻根本不显示」）。原因：高度那一条在 `.yao-line` 上
+ * （`mhys_result.css`：`.yao-line{height:4px;border-radius:2px}`），
+ * 而 `.yao-yang` 只有 `width:34px; background` —— 于是阳爻是个
+ * 「有底色、高 0」的盒子，什么也看不见；阴爻却照常显示，因为
+ * `.yao-yin span` 自己带 `height:4px`。所以肉眼看到的正是
+ * 「阳爻不见、阴爻好端端的」这种不对称。
+ *
+ * 而 `ly-bar` 这份 CSS 里**从来没有过**（全站只有 `ai-chat/index.html` 里一个
+ * 不相干的 `.card-ly-row .ly-bar`，且它用的是 `.b-yang/.b-yin`）：写过但没生效的
+ * 类名，反倒把梅花那套真正给高度的 `yao-line` 挤掉了。
+ * 注释说「复用梅花页那套」是对的，只是**漏了那个真正起作用的类名**。
+ */
 function lyBar(yang) {
   return yang
-    ? '<div class="yao-yang ly-bar"></div>'
-    : '<div class="yao-yin ly-bar"><span></span><span></span></div>';
+    ? '<div class="yao-line yao-yang"></div>'
+    : '<div class="yao-line yao-yin"><span></span><span></span></div>';
 }
 
 /** 动爻记号：老阳 ○、老阴 ×（图上是用 X→ 引到变爻那一列） */
@@ -102,6 +117,13 @@ function lyInfoCard(chart, display, meta) {
     h += '<tr><td class="ly-td-label">节气</td><td class="ly-td-value ly-td-small" colspan="4">'+escHtml(jqText)+'</td></tr>';
   }
 
+  // 四柱表头：`干支` / `空亡` 两行各有 4 个值却**没有表头**，用户看不出哪一格是年、
+  // 哪一格是时 —— 而顺序在代码里本来就是 `[年, 月, 日, 时]`（见 `lyKongCells`），
+  // 只是没印出来。北极星是「服务于不懂的人」，这一行不能省。
+  // 复用既有的 `.ly-td-sub/.ly-td-muted`（与空亡那行的字重一致），不新增样式。
+  h += '<tr class="ly-td-head"><td class="ly-td-label"></td>'
+     + '<td class="ly-td-sub ly-td-muted">年柱</td><td class="ly-td-sub ly-td-muted">月柱</td>'
+     + '<td class="ly-td-sub ly-td-muted">日柱</td><td class="ly-td-sub ly-td-muted">时柱</td></tr>';
   h += '<tr><td class="ly-td-label">干支</td>'+lyGzCells(chart)+'</tr>';
   h += '<tr><td class="ly-td-label">空亡</td>'+lyKongCells(d)+'</tr>';
 

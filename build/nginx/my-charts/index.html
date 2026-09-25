@@ -7,6 +7,10 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>我的命盘 · 易三千</title>
+<!-- ⚠ 顺序要紧：mhys_result.css 里有 AI 面板那一套（.ai-panel / .ai-response …，全站共用一份），
+     但它也定义了 :root 变量（--text-dim 等）且与 charts.css 的值**不同**。
+     故 charts.css 必须放在**后面** —— 本页的灰阶文字才不会被面板那份顶成纯黑。 -->
+<link rel="stylesheet" href="/css/mhys_result.css?v=3">
 <link rel="stylesheet" href="/css/charts.css?v=1780849316">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
@@ -124,8 +128,11 @@
 </nav>
 
 <script src="/js/auth.js?v=1787305221"></script>
-<script src="/js/lunar.min.js"></script>
 <script src="/js/charts-store.js?v=4"></script>
+<script src="/js/ui_common.js?v=1"></script>
+<script src="/js/bazi_render.js?v=2"></script>
+<script src="/js/ai_panel.js?v=4"></script>
+<script src="/js/bazi_ai_panel.js?v=1"></script>
 <script>
 (function() {
 'use strict';
@@ -222,184 +229,164 @@ async function loadDetail(id) {
 }
 
 // ============================================================
-// 四柱八字计算（23:00后算次日）
+// 详情：**盘由后端现算**，页面只发出生原始参数
 // ============================================================
+//
+// 改法（2026-09-25）：从前这一页自己算四柱（下面那个 `calcBazi`），与
+// `charts/index.html` 里的另一份、以及写库时的快照，同一件事三处实现 ——
+// 而「两边各算一份、慢慢对不上」正是本项目最痛的病。现在页面**一个字都不算**：
+// `POST /api/bazi/paipan` 走的是对拍过的 `paipan/`，而且**让 AI 读的那段 prompt
+// 与页面上这张盘出自同一个函数**，不可能分叉。
+//
+// 拿回来的东西比从前多得多：主星/藏干/副星/纳音、旺衰、格局、用神、神煞、
+// 刑冲合害、大运十步、流年、命局提要。版面交给 `js/bazi_render.js`，
+// 解读交给 `js/bazi_ai_panel.js`（它挂在共用的 `js/ai_panel.js` 上）。
 
-function calcBazi(year, month, day, hour, minute) {
-  var adjYear = year, adjMonth = month, adjDay = day;
-  var baziHour = hour;
-  // 23:00 后属于次日子时
-  if (hour >= 23) {
-    var next = new Date(year, month - 1, day + 1);
-    adjYear = next.getFullYear();
-    adjMonth = next.getMonth() + 1;
-    adjDay = next.getDate();
-    baziHour = 0;
-  }
-  try {
-    var s = Solar.fromYmdHms(adjYear, adjMonth, adjDay, baziHour, minute || 0, 0);
-    var l = s.getLunar();
-    var ec = l.getEightChar();
-    return {
-      year: ec.getYearGan() + ec.getYearZhi(),
-      month: ec.getMonthGan() + ec.getMonthZhi(),
-      day: ec.getDayGan() + ec.getDayZhi(),
-      time: ec.getTimeGan() + ec.getTimeZhi()
-    };
-  } catch(e) { return null; }
-}
+var GAN = '甲乙丙丁戊己庚辛壬癸';
 
 function renderDetail(chart) {
-  var birthYear = chart.birth.year;
-  var birthMonth = chart.birth.month;
-  var birthDay = chart.birth.day;
-  var birthHour = chart.birth.hour ?? 12;
-  var birthMinute = chart.birth.minute ?? 0;
+  var b = chart.birth || {};
+  var birthYear = b.year, birthMonth = b.month, birthDay = b.day;
+  var birthHour = b.hour ?? 12;
+  var birthMinute = b.minute ?? 0;
+  var gender = chart.gender === 'male' ? '男' : '女';
+  var isMale = chart.gender === 'male';
 
-  var gender = chart.gender==='male'?'男':'女';
-  var isMale = chart.gender==='male';
-
-  // 生肖
-  var zIdx = (birthYear - 4) % 12;
-  if (zIdx < 0) zIdx += 12;
-  var zodiacEmoji = ZODIAC_EMOJI[zIdx];
-  var zodiacName = ZODIAC_NAMES[zIdx];
-
-  // 年干 → 阴年/阳年
-  var ganIdx = (birthYear - 4) % 10;
-  if (ganIdx < 0) ganIdx += 10;
-  var isYang = (ganIdx % 2 === 0); // 甲(0)丙(2)戊(4)庚(6)壬(8)=阳
-  var yy = isYang ? '阳' : '阴';
-  var zk = isMale ? '乾造' : '坤造';
-
-  // 阳历时间
-  var solarTime = birthYear+'-'+pad(birthMonth)+'-'+pad(birthDay)+' '+pad(birthHour)+':'+pad(birthMinute)+':00';
-
-  // 时辰
-  var scIdx = Math.floor(((birthHour + 1) % 24) / 2);
-
-  // 农历（优先用服务端计算的）
-  var lunarStr = '';
-  if (chart.lunar && chart.lunar.year) {
-    lunarStr = chart.lunar.year+'年'+chart.lunar.month+'月'+chart.lunar.day+'日';
-  } else {
-    try {
-      var solar = Solar.fromYmdHms(birthYear, birthMonth, birthDay, birthHour, birthMinute, 0);
-      var lunar = solar.getLunar();
-      var lm = lunar.getMonth() < 0 ? '闰' + (-lunar.getMonth()) : lunar.getMonth();
-      lunarStr = lunar.getYear()+'年'+lm+'月'+lunar.getDay()+'日';
-    } catch(e) { lunarStr = '-'; }
-  }
-
-  // 计算真太阳时
-  var trueSolarStr = '';
-  if (chart.trueSolarTime && chart.longitude) {
-    var dateObj = new Date(birthYear, birthMonth-1, birthDay);
-    var startOfYear = new Date(birthYear, 0, 1);
-    var dayOfYear = Math.floor((dateObj - startOfYear)/86400000) + 1;
-    var EoT = EOT_TABLE[dayOfYear-1];
-    var lng = Number(chart.longitude);
-
-    // 正向计算：原始时间 + 经度修正 + EoT
-    var adjMin = birthHour*60 + birthMinute + 4*(lng - 120) + EoT;
-    while (adjMin < 0) adjMin += 1440;
-    while (adjMin >= 1440) adjMin -= 1440;
-    var adjH = Math.floor(adjMin/60);
-    var adjMi = Math.round(adjMin%60);
-    if (adjMi===60) { adjMi=0; adjH=(adjH+1)%24; }
-
-    trueSolarStr = birthYear+'-'+pad(birthMonth)+'-'+pad(birthDay)+' '+pad(adjH)+':'+pad(adjMi)+':00';
-  }
+  var solarText = birthYear + '-' + pad(birthMonth) + '-' + pad(birthDay)
+    + ' ' + pad(birthHour) + ':' + pad(birthMinute) + ':00';
+  // 真太阳时：**这是显示用的一行字**，不参与排盘（后端那条端点也只收公历时刻）。
+  // 全站这份算法目前还有两份副本（本页与 charts/index.html），下一步收进后端 display。
+  var trueSolarStr = (chart.trueSolarTime && chart.longitude) ? trueSolarTextOf(chart) : '';
 
   var h = '';
   h += '<div class="detail-page">';
-  if (isAdminView) {
-    h += '<a href="/admin/" class="detail-back">← 返回后台</a>';
-  } else {
-    h += '<a href="/my-charts/" class="detail-back">← 返回列表</a>';
-  }
-
-  // Hero
+  h += isAdminView
+    ? '<a href="/admin/" class="detail-back">← 返回后台</a>'
+    : '<a href="/my-charts/" class="detail-back">← 返回列表</a>';
   h += '<div class="detail-hero">';
-  h += '<div class="zodiac-frame">'+zodiacEmoji+'</div>';
-  h += '<div class="hero-name">'+esc(chart.name)+'</div>';
+  h += '<div class="zodiac-frame" id="baziZodiac">' + zodiacEmojiOf(birthYear) + '</div>';
+  h += '<div class="hero-name">' + esc(chart.name) + '</div>';
   h += '</div>';
-
-  // 四柱八字（优先服务端数据，回退客户端计算）
-  var bazi;
-  if (chart.bazi) {
-    var baziParts = chart.bazi.split(' ');
-    if (baziParts.length === 4) {
-      bazi = { year: baziParts[0], month: baziParts[1], day: baziParts[2], time: baziParts[3] };
-    }
-  }
-  if (!bazi) { bazi = calcBazi(birthYear, birthMonth, birthDay, birthHour, birthMinute); }
-
-  if (bazi) {
-    h += '<div style="text-align:center;padding:0 1rem 0.4rem;">';
-    h += '<div style="display:flex;justify-content:center;gap:0.6rem;">';
-    h += '<div class="bazi-pillar"><span class="bazi-ganzhi">'+bazi.year+'</span><span class="bazi-label">年柱</span></div>';
-    h += '<div class="bazi-pillar"><span class="bazi-ganzhi">'+bazi.month+'</span><span class="bazi-label">月柱</span></div>';
-    h += '<div class="bazi-pillar"><span class="bazi-ganzhi">'+bazi.day+'</span><span class="bazi-label">日柱</span></div>';
-    h += '<div class="bazi-pillar"><span class="bazi-ganzhi">'+bazi.time+'</span><span class="bazi-label">时柱</span></div>';
-    h += '</div></div>';
-  }
-
-  // 信息表
-  h += '<div class="detail-sheet">';
-
-  // 姓名 + 性别
-  h += '<div class="sheet-row split">';
-  h += '<div class="half"><span class="label">姓名：</span><span class="value">'+esc(chart.name)+' <span class="red-tag">('+yy+' '+zk+')</span></span></div>';
-  h += '<div class="half"><span class="label">性别：</span><span class="value">'+gender+'</span></div>';
-  h += '</div>';
-
-  // 农历 + 生肖
-  h += '<div class="sheet-row split">';
-  h += '<div class="half"><span class="label">农历：</span><span class="value">'+lunarStr+'</span></div>';
-  h += '<div class="half"><span class="label">生肖：</span><span class="value">'+zodiacName+'</span></div>';
-  h += '</div>';
-
-  // 阳历
-  h += '<div class="sheet-row">';
-  h += '<span class="label">阳历：</span><span class="value">'+solarTime+'</span>';
-  h += '</div>';
-
-  // 真太阳时
-  if (trueSolarStr) {
-    h += '<div class="sheet-row">';
-    h += '<span class="label">真太阳时：</span><span class="value">'+trueSolarStr+'</span>';
-    h += '</div>';
-  }
-
-  // 出生地区
-  if (chart.birthplace) {
-    h += '<div class="sheet-row">';
-    h += '<span class="label">出生地区：</span><span class="value">'+esc(chart.birthplace)+'</span>';
-    h += '</div>';
-  }
-
-  // 创建时间
-  if (chart.createdAt) {
-    h += '<div class="sheet-row">';
-    h += '<span class="label">创建时间：</span><span class="value">'+formatDateTime(chart.createdAt)+'</span>';
-    h += '</div>';
-  }
-
-  h += '</div>';
-
-  // 操作
+  h += '<div id="baziChart"><div class="mc-loading" style="padding:2rem 1rem">正在排盘…</div></div>';
+  // 解读区（管理员视图不给 —— 后台看的不是自己的盘，那条端点认的是用户 token）
+  // ⚠ **顺序是用户点名要的**（2026-09-25，第一版做错了被骂过一次）：
+  //   「先把 ai 解析块移到上面一些，让用户一眼就能看到（但可以选择折叠对话，所以不影响看
+  //    下面的内容），除了排盘以外的不重要信息都给我放下面」。
+  //   用户认的「排盘」= **生肖姓名 + 四柱八个字**（就 #baziChart 里那一段，别的都不是）。
+  //   所以三块依次是：#baziChart（四柱）→ #baziAi（解读，标题那行可收起）
+  //   → #baziRest（基本信息 + 四柱细盘 + 命局提要 + 大运）。
+  //   ⚠ 手机上（390×844 实测）只要基本信息留在 AI 块上面，一屏就被它占满、AI 块只剩个标题。
+  //   两块是**两次 innerHTML 写**（见 js/bazi_render.js 的 restHost），别合并回去。
+  h += '<div id="baziAi"></div>';
+  h += '<div id="baziRest"></div>';
   h += '<div class="detail-actions">';
   if (isAdminView) {
     h += '<a href="/admin/" class="btn">← 返回后台</a>';
   } else {
-    h += '<a href="/charts/?action=edit&id='+chart.id+'" class="btn">编辑此命盘</a>';
-    h += '<button class="btn btn-danger" onclick="doDelete(\''+chart.id+'\')">删除此命盘</button>';
+    h += '<a href="/charts/?action=edit&id=' + chart.id + '" class="btn">编辑此命盘</a>';
+    h += '<button class="btn btn-danger" onclick="doDelete(\'' + chart.id + '\')">删除此命盘</button>';
+  }
+  h += '</div></div>';
+  document.getElementById('mc-content').innerHTML = h;
+
+  var birthReq = { y: birthYear, mo: birthMonth, d: birthDay,
+    h: birthHour, mi: birthMinute, gender: chart.gender };
+  var meta = {
+    name: chart.name, genderText: gender, solarText: solarText,
+    trueSolarText: trueSolarStr, birthplace: chart.birthplace,
+    createdAt: chart.createdAt ? formatDateTime(chart.createdAt) : '',
+  };
+
+  fetch('/api/bazi/paipan', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(birthReq),
+  }).then(function (r) {
+    return r.json().then(function (j) { return { ok: r.ok, j: j }; });
+  }).then(function (r) {
+    if (!r.ok) throw new Error((r.j && r.j.error) || ('排盘失败（' + r.status + '）'));
+    var resp = r.j;
+    // 阳年/阴年、乾造/坤造：从**服务端的年干**取，不从 birthYear 推
+    // （公历年推干支在「1月1日–立春」之间是错的）
+    var yGan = (resp.chart && resp.chart.year_pillar && resp.chart.year_pillar.tiangan) || '';
+    var gi = GAN.indexOf(yGan);
+    if (gi >= 0) {
+      meta.yinYang = (gi % 2 === 0) ? '阳' : '阴';
+      meta.zao = isMale ? '乾造' : '坤造';
+    }
+    var zx = resp.display && resp.display.shengxiao;
+    if (zx) {
+      var zi = ZODIAC_NAMES.indexOf(zx);
+      if (zi >= 0) document.getElementById('baziZodiac').textContent = ZODIAC_EMOJI[zi];
+    }
+    BaziRender.render(document.getElementById('baziChart'), resp, meta,
+      document.getElementById('baziRest'));
+    if (!isAdminView) {
+      BaziAI.mount(document.getElementById('baziAi'), { chartId: chart.id, birth: birthReq });
+    }
+  }).catch(function (e) {
+    renderDetailFallback(chart, meta, e);
+  });
+}
+
+/**
+ * 排盘取不到时的退路：信息表照给，四柱用**存库时的旧快照**（`chart.bazi`），
+ * 并**明说**这份是旧的 —— 宁可说清，也别让用户拿一份来路不明的盘去对 AI 的解读。
+ * 解读区不给（没有盘就没有可解读的东西）。
+ */
+function renderDetailFallback(chart, meta, err) {
+  var el = document.getElementById('baziChart');
+  if (!el) return;
+  var h = '<div class="bz-sec" style="margin-top:0.4rem">';
+  h += '<div class="detail-sheet">';
+  h += '<div class="sheet-row"><span class="label">姓名：</span><span class="value">'
+    + esc(chart.name) + ' ' + esc(meta.genderText) + '</span></div>';
+  h += '<div class="sheet-row"><span class="label">公历：</span><span class="value">'
+    + esc(meta.solarText) + '</span></div>';
+  if (chart.bazi) {
+    h += '<div class="sheet-row"><span class="label">四柱：</span><span class="value">'
+      + esc(chart.bazi) + '</span></div>';
   }
   h += '</div>';
-
+  h += '<div class="bz-note" style="border:none">⚠ 排盘没能取到（' + esc(err && err.message ? err.message : '网络不通')
+    + '）。四柱若显示，是**存库时的旧快照**（按日粒度算的月柱，交节当天可能是错的）。'
+    + '<br><a href="javascript:void(0)" onclick="location.reload()" style="color:#b8960a">重试</a></div>';
   h += '</div>';
-  document.getElementById('mc-content').innerHTML = h;
+  el.innerHTML = h;
+  var ai = document.getElementById('baziAi');
+  if (ai) ai.innerHTML = '';
+  // 其余那块也要清空：退路是「这一次排盘没取到」，若留着上一次的细盘/大运，
+  // 用户会把上一份盘的大运当成这一张的（切换命盘时最容易撞上）。
+  var rest = document.getElementById('baziRest');
+  if (rest) rest.innerHTML = '';
+}
+
+/** 生肖 emoji：本地表只用来挑图标，**不参与判断**（生肖本身由服务端给） */
+function zodiacEmojiOf(birthYear) {
+  var zIdx = (birthYear - 4) % 12;
+  if (zIdx < 0) zIdx += 12;
+  return ZODIAC_EMOJI[zIdx];
+}
+
+/**
+ * 真太阳时（显示用）。算法与 `charts/index.html` 里那份同源，**还没合并** ——
+ * 合并的方向是把它挪进后端 `/api/bazi/paipan` 的 `display`，改完删掉这两份。
+ */
+function trueSolarTextOf(chart) {
+  var b = chart.birth || {};
+  var y = b.year, mo = b.month, d = b.day;
+  var hh = b.hour ?? 12, mi = b.minute ?? 0;
+  try {
+    var dayOfYear = Math.floor((new Date(y, mo - 1, d) - new Date(y, 0, 1)) / 86400000) + 1;
+    var EoT = EOT_TABLE[dayOfYear - 1];
+    if (EoT == null) return '';
+    var adjMin = hh * 60 + mi + 4 * (Number(chart.longitude) - 120) + EoT;
+    while (adjMin < 0) adjMin += 1440;
+    while (adjMin >= 1440) adjMin -= 1440;
+    var adjH = Math.floor(adjMin / 60);
+    var adjMi = Math.round(adjMin % 60);
+    if (adjMi === 60) { adjMi = 0; adjH = (adjH + 1) % 24; }
+    return y + '-' + pad(mo) + '-' + pad(d) + ' ' + pad(adjH) + ':' + pad(adjMi) + ':00';
+  } catch (e) { return ''; }
 }
 
 // ============================================================

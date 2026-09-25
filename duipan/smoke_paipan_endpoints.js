@@ -32,7 +32,11 @@ const LY = require(path.join(ROOT, 'build', 'backend', 'paipan', 'liuyao.js'));
 const M = require(path.join(ROOT, 'build', 'backend', 'paipan', 'meihua.js'));
 
 const A = "  if (req.method === 'POST' && (pathname === '/api/meihua/paipan'";
-const B = '  // POST /api/chat/send';
+// ⚠ 切片尾标记：本脚本只该切到**六爻/梅花那两个端点为止**。八字端点
+//   （`/api/bazi/paipan`）在这之后，它用的 `baziChartFromParams` 不在本脚本
+//   注入的形参里 —— 切进来的话分支虽不执行、解析也不报错，但「切出来的段」
+//   已经与脚本声称验的东西不是一回事了。故尾标记钉在它的注释头上。
+const B = "  // ── POST /api/bazi/paipan";
 
 function loadEndpoint() {
   const src = fs.readFileSync(SERVER, 'utf8');

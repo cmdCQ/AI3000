@@ -82,18 +82,16 @@
         <span>命运推演 · 知命而行</span>
       </div>
       <div class="module-list">
-        <div class="module-card locked">
-          <span class="icon">🔮</span>
-          <span class="body">
-            <span class="name">紫微斗数</span>
-            <span class="desc">十四主星 · 十二宫 · 四化飞星</span>
-          </span>
-          <span class="badge">即将上线</span>
-        </div>
-        <div class="module-card locked">
-          <span class="icon">🏔️</span>
-          <span class="body"><span class="name">奇门遁甲</span><span class="desc">九宫 · 八门 · 九星 · 八神</span></span>
-          <span class="badge">即将上线</span>
+        <!-- 八字（四柱）：这条路本来是通的 —— `handleModuleClick('charts')` 走到
+             `/select-chart/?type=charts` → 新建命盘 → 命盘详情，全程既有代码，
+             只是**首页没有一张卡调它**，于是用户根本进不去；而公告栏里还写着
+             「八字排盘…已正式上线」。补上这张卡，落点沿用既有参数 `charts`
+             （`select-chart` 里就把它标成「📜 四柱八字」），不新造路由。
+             描述只写现在真有的东西：十神/大运/神煞/AI 解读都还没做，
+             不能在卡片上先把话说出去。 -->
+        <div class="module-card active" onclick="handleModuleClick('charts')">
+          <span class="icon">📜</span>
+          <span class="body"><span class="name">四柱八字</span><span class="desc">四柱干支 · 农历生肖 · 真太阳时</span></span>
         </div>
       </div>
     </section>
@@ -114,11 +112,6 @@
         <div class="module-card active" onclick="handleModuleClick('liuyao')">
           <span class="icon">🪙</span>
           <span class="body"><span class="name">六爻</span><span class="desc">铜钱起卦 · 六十四卦</span></span>
-        </div>
-        <div class="module-card locked">
-          <span class="icon">🏔️</span>
-          <span class="body"><span class="name">奇门遁甲</span><span class="desc">九宫 · 八门 · 九星 · 八神</span></span>
-          <span class="badge">即将上线</span>
         </div>
       </div>
     </section>
