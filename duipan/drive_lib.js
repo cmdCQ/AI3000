@@ -99,7 +99,7 @@ function startServer(o) {
 // ─────────────────────────────────────────────────────────────
 class Marionette {
   constructor(sock) {
-    this.sock = sock; this.buf = Buffer.alloc(0); this.id = 0; this.waiters = [];
+    this.sock = sock; this.buf = Buffer.alloc(0); this.id = 0; this.waiters = new Map();
     sock.on('data', (c) => {
       this.buf = Buffer.concat([this.buf, c]);
       this.drain();
@@ -117,19 +117,44 @@ class Marionette {
       this.buf = this.buf.slice(sep + 1 + len);
       const msg = JSON.parse(payload);
       if (!Array.isArray(msg)) continue;              // 问候帧
+      // 应答里的 id 是**回显**的 `[1, id, error, result]`，按 id 认领，**不能按到达顺序
+      // 排队认领**。原来是无条件 `shift()`，这在「每条命令都等到应答」时看不出问题，
+      // 但只要有**一条命令被放弃**（超时、或故意不等 —— 见 `sendNoWait`），那一条的
+      // 位置就一直占着队首，此后每条应答都错认给上一条：表现是「命令都返回了，但返回
+      // 的是别人的结果」，而且不报错。线上导航就是这么被拖住的 —— 页面 load 事件迟迟
+      // 不来（>25s），而 marionette 的 Navigate 恰恰要等 load。
       const [, id, error, result] = msg;
-      const w = this.waiters.shift();
-      if (!w) continue;
+      const w = this.waiters.get(id);
+      if (!w) continue;                               // 已被放弃的那条应答复：丢掉
+      this.waiters.delete(id);
       if (error) w.reject(new Error(`${error.error || 'marionette 错误'}：${error.message || ''}`));
       else w.resolve(result);
     }
   }
 
-  send(name, params) {
+  /** 发一条命令，登记 id 等应答。`ms` 给了就超时放弃（并注销，免得应答错认给下一条） */
+  send(name, params, ms) {
+    const id = this.sendNoWait(name, params);
+    const p = new Promise((resolve, reject) => this.waiters.set(id, { resolve, reject }));
+    if (!ms) return p;
+    return Promise.race([p, new Promise((_, rj) => setTimeout(() => {
+      this.waiters.delete(id);
+      rj(new Error(`marionette 命令超时 ${ms}ms：${name}`));
+    }, ms))]);
+  }
+
+  /**
+   * 只发不等（返回 id）。**Navigate 要用它** —— marionette 的 Navigate 要等 load 事件，
+   * 而线上页面的 load 可能被任何一个慢资源拖住（我们遇到的是 >25s 不返回）。
+   * geckodriver 的 `pageLoadStrategy: eager` 是在 geckodriver 那一层实现的，
+   * **marionette 本身不认**（实测：capabilities 里报的仍是 normal）。故这条路只有两条：
+   * 要么自己轮询文档就绪（`goto` 就是这么做的），要么等一个可能永远不来的事件。
+   */
+  sendNoWait(name, params) {
     const id = ++this.id;
     const payload = Buffer.from(JSON.stringify([0, id, name, params || {}]), 'utf8');
     this.sock.write(Buffer.concat([Buffer.from(`${payload.length}:`, 'utf8'), payload]));
-    return new Promise((resolve, reject) => this.waiters.push({ resolve, reject }));
+    return id;
   }
 }
 
@@ -193,8 +218,9 @@ async function launchFirefox(o) {
 // 3. 页面操作原语
 // ─────────────────────────────────────────────────────────────
 
-async function js(m, script, args) {
-  const r = await m.send('WebDriver:ExecuteScript', { script, args: args || [], sandbox: 'default' });
+async function js(m, script, args, ms) {
+  const r = await m.send('WebDriver:ExecuteScript',
+    { script, args: args || [], sandbox: 'default' }, ms);
   return r.value;
 }
 
@@ -205,8 +231,27 @@ async function js(m, script, args) {
 // （误诊过一次：以为是页面没加载完/被字体请求卡住，其实是看不见。）
 const W = 'var W = window.wrappedJSObject || window;';
 
-async function goto(m, url) {
-  await m.send('WebDriver:Navigate', { url });
+async function goto(m, url, o) {
+  o = o || {};
+  const timeout = o.timeout || 25000;
+  // **故意不等 Navigate 的应答**：它要等 load 事件，而线上页面的 load 被什么资源拖住了
+  // （实测 >25s 不返回，资源本身 curl 都是几百毫秒级，只有真的进了浏览器才复现）。
+  // 等新文档能跑脚本就够了 —— 页面该画的都画完了，剩下的是它在等自己的 load。
+  m.sendNoWait('WebDriver:Navigate', { url });
+  const want = String(url).split('#')[0];
+  const t0 = Date.now();
+  for (;;) {
+    try {
+      // 短超时：导航进行中 ExecuteScript 会**挂住**而不是报错，不给超时这个循环就死了
+      const st = await js(m, `return { href: String(location.href).split('#')[0],
+        ready: document.readyState };`, null, 4000);
+      if (st && st.href === want && st.ready !== 'loading') break;
+    } catch (e) { /* 上下文正被换掉：重来 */ }
+    if (Date.now() - t0 > timeout) {
+      throw new Error(`导航超时 ${timeout}ms（新文档没就绪，停在 ${await js(m, 'return String(location.href);', null, 3000).catch(() => '?')}）：${url}`);
+    }
+    await sleep(120);
+  }
   // 页面上的 alert 会**阻塞** marionette 会话，故导航后立刻换成记录器；
   // 顺便记未捕获异常 —— 页面报错时看得见，不至于只看到「用例失败」。
   await js(m, `${W}
