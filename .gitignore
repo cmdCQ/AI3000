@@ -7,6 +7,8 @@ __pycache__/
 # 线上密码/API key 一律走环境变量（见 build/backend/config.js 的 requireEnv）
 .env
 .env.*
+# 模板反过来**必须入库**：没有它，新克隆的人不知道该填哪几个变量。
+!.env.example
 *.pem
 *.key
 id_ed25519*
