@@ -162,11 +162,5 @@ function monthDizhiAt(input) {
     .getLunar().getMonthInGanZhiExact();
   return gz && gz.length > 1 ? gz[1] : '';
 }
-function monthDizhiAt(input) {
-  const t = normalize(input);
-  const gz = Solar.fromYmdHms(t.y, t.mo, t.d, t.h, t.mi, 0)
-    .getLunar().getMonthInGanZhiExact();
-  return gz && gz.length > 1 ? gz[1] : '';
-}
 
 module.exports = { sizhu, normalize, ZHI_HOUR_NAME, monthDizhiAt, lunarOf };

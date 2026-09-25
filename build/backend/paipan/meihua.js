@@ -1,5 +1,5 @@
 /**
- * paipan/meihua.js —— 梅花易数：起卦（时间/数字/字数）+ 断卦（体用 · 旺衰 · 互变 · 应期）
+ * paipan/meihua.js —— 梅花易数：起卦（时间/数字/字数/手动）+ 断卦（体用·旺衰·互变·应期）
  * ==============================================================================
  *
  * 真源：shushu `core/meihua/`（`qigua.py` 起卦、`hexagram.py` 卦象、`analyzer.py` 断法）
@@ -13,6 +13,10 @@
  * ── 对拍 ──────────────────────────────────────────────────────
  * `duipan/gen_golden_meihua.py`（金标准，走真实 `POST /api/v1/meihua/divine`）
  * vs `duipan/run_js_meihua.js`（本文件），640 例 14 万叶子，见 README「层 7」。
+ * **`manual` 不在金标准里**（shushu 只有三法），它由
+ * `duipan/verify_meihua_vs_front.js` 另行核对：与前端的 64×64×6 全组合逐项比
+ * 互卦/错卦/综卦/体用/卦名 —— 因为「拿现成卦号装卦」这条路上，前端才是
+ * 用户实际看到的那一位，两侧算得不一样就是 bug。
  *
  * ── 与基准的已知差异（对拍申报里逐条写着）────────────────────
  * 1. **64 卦的卦名**：shushu 用文王卦序单名（「恒」），本项目用通行全名（「雷风恒」）。
@@ -70,6 +74,17 @@ const METHOD_META = {
     name: '字数起卦法',
     source: '《梅花易数·字占》',
     note: '以笔画数取卦：前后两半各计笔画取上下卦，总笔画取动爻',
+  },
+  // **shushu 没有这一种**：它只有上面三法（`core/meihua/qigua.py::qigua` 的
+  // method 只认 time/number/character），故 `manual` 不参与层 7 对拍（金标准里
+  // 不存在该 method 的样例）。它是本项目的入口 —— 用户直接指定上下卦与动爻，
+  // 或**调用方拿现成的卦号来装卦**（前端历史档、AI 对话里已起好的卦）。
+  // 正因为没有对拍物，它的正确性靠 `duipan/verify_meihua_vs_front.js` 独立核对：
+  // 与前端的 64×64×6 全组合逐项比对互卦/错卦/综卦/体用/卦名。
+  manual: {
+    name: '手动指定',
+    source: '',
+    note: '直接指定上卦、下卦与动爻，不经取数',
   },
 };
 
@@ -464,14 +479,52 @@ function qiguaCharacters(text, strokes) {
     });
 }
 
-/** 统一入口：method ∈ {time, number, character}。 */
+/**
+ * 手动指定（本项目自有起卦入口，shushu 无此法）。
+ *
+ * 两个用途：
+ * 1. 用户在「手动指定」里直接给上卦、下卦、动爻；
+ * 2. **拿现成的卦号装卦** —— AI 对话/历史档里已经有卦号了（前端存的就是
+ *    上下卦号 + 动爻），断卦层不必知道卦是怎么起的，`analyze()` 只吃
+ *    `lines` / `moving`。
+ *
+ * 第 2 个用途是本模块接进 prompt 的关键：梅花 prompt 原先直接用**前端算好的**
+ * 互卦/错卦/综卦/体用/判词，前端算错就跟着错。改成「只取前端那三个原始数字
+ * （上下卦号 + 动爻），其余一律本模块重算」后，派生层就都落在已对拍的范围里。
+ *
+ * 校验上下界：`linesOfTrigram` 取不到卦号会抛，但 `wrap8` 不校验 —— 手动的
+ * 输入是**人给的**，越界必须当场拒掉，不能靠下游 undefined 顺着传。
+ */
+function fromGua(upperNum, lowerNum, moving) {
+  for (const [label, v] of [['上卦', upperNum], ['下卦', lowerNum]]) {
+    if (!Number.isInteger(v) || v < 1 || v > 8) {
+      throw new Error(`${label}数必须是 1-8 的整数，收到 ${v}`);
+    }
+  }
+  if (!Number.isInteger(moving) || moving < 1 || moving > 6) {
+    throw new Error(`动爻必须是 1-6 的整数，收到 ${moving}`);
+  }
+  return pack('manual', upperNum, lowerNum, moving,
+    { upper: upperNum, lower: lowerNum, moving },
+    { formula: '直接指定，不取数',
+      upper_trigram: NUMBER_TO_TRIGRAM[upperNum],
+      lower_trigram: NUMBER_TO_TRIGRAM[lowerNum],
+      moving_calc: `动爻指定为第 ${moving} 爻` });
+}
+
+/** 统一入口：method ∈ {time, number, character, manual}。 */
 function qigua(method, kwargs) {
   const k = kwargs || {};
   if (method === 'time') return qiguaTime(k.dt);
   if (method === 'number') return qiguaNumbers(k.num1, k.num2, k.num3);
   if (method === 'character') return qiguaCharacters(k.text, k.strokes);
+  if (method === 'manual') return fromGua(k.upper, k.lower, k.moving);
+  // 报错文案里**只列 shushu 那三法**，不列 `manual`：这行字是要与金标准
+  // 逐字对拍的（层 7 的错误路径 10 例），shushu `qigua()` 抛的就是那三个。
+  // 故此处不用 `Object.keys(METHOD_META)`——那样加个本项目自有的入口就会
+  // 把对拍搅红，而那是**文案**红了、不是行为错了，最费时间的一类假红。
   throw new Error(`不支持的起卦法：'${method}'，可选 `
-    + `[${Object.keys(METHOD_META).sort().map((x) => `'${x}'`).join(', ')}]`);
+    + `['character', 'number', 'time']`);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -712,7 +765,7 @@ function divine(method, opts) {
 module.exports = {
   METHOD_META,
   // 起卦
-  qigua, qiguaTime, qiguaNumbers, qiguaCharacters, meihuaTimeNumbers,
+  qigua, qiguaTime, qiguaNumbers, qiguaCharacters, fromGua, meihuaTimeNumbers,
   // 卦象
   buildHexagram, deriveAll, judgeTiYong, tiYongDetail, hexagramSymbol, hexName,
   linesOfTrigram, trigramOfLines, trigramDetail,

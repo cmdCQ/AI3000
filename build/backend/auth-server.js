@@ -12,6 +12,8 @@ const { Solar } = require('lunar-javascript');
 const config = require('./config.js');
 const chatProxy = require('./chat-proxy.js');
 const liuyaoPaipan = require('./paipan/liuyao.js');
+const meihuaPaipan = require('./paipan/meihua.js');
+const promptLib = require('./paipan/prompt.js');
 
 // ===== 阿里云号码认证服务（PNVS）短信验证码 =====
 const DypnsapiClient = require('@alicloud/dypnsapi20170525').default;
@@ -1220,235 +1222,6 @@ async function handle(req, res) {
     }
   }
 
-  // ===== 梅花易数 AI 解析 API（流式） =====
-  // POST /api/mhys/ai-analyze — AI智能解卦（SSE流式 + RAG检索）
-  if (req.method === 'POST' && pathname === '/api/mhys/ai-analyze') {
-    const { topic, hexagrams, followUp, context, recordId } = body;
-    if (!hexagrams) return json(res, { error: '缺少必要参数' }, 400);
-
-    // Token 限制检查（已登录用户）
-    const payload = checkAuth(req);
-    const username = payload ? payload.username : null;
-    if (username) {
-      try {
-        const [rows] = await db.query('SELECT token_used, tier FROM users WHERE username = ?', [username]);
-        if (rows.length > 0) {
-          const tier = rows[0].tier || 0;
-          const limit = getTokenLimit(tier);
-          if (limit !== null && rows[0].token_used >= limit) {
-            res.writeHead(200, {
-              'Content-Type': 'text/plain; charset=utf-8',
-              'Cache-Control': 'no-cache',
-            });
-            res.write('抱歉，你的AI解析次数已用完。');
-            res.write('如需继续使用，请联系管理员升级账户。');
-            res.end();
-            return;
-          }
-        }
-      } catch (e) { /* 数据库错误不阻塞 */ }
-    }
-
-    // RAG 检索：搜索 meihua + yijing 分类
-    let ragContext = '';
-    let ragSources = [];
-    try {
-      const searchQuery = topic || (hexagrams.benGua ? hexagrams.benGua.name + '卦' : '梅花易数解卦');
-      const ragRes = await fetch(`${RAG_URL}/api/retrieve`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: searchQuery, top_k: 15, categories: ['meihua', 'yijing'], similarity_threshold: 0.3 }),
-        signal: AbortSignal.timeout(30000),
-      });
-      const ragData = await ragRes.json();
-      if (ragData.results && ragData.results.length > 0) {
-        // 去重书籍名，取不同书的前3本
-        const seenBooks = new Set();
-        const diverseResults = [];
-        for (const r of ragData.results) {
-          if (!seenBooks.has(r.book_name)) {
-            seenBooks.add(r.book_name);
-            diverseResults.push(r);
-          }
-        }
-        const top3 = diverseResults.slice(0, 3);
-        ragContext = top3.map((r, i) => `【古籍 ${i + 1}】《${r.book_name}》${r.chapter ? ' - ' + r.chapter : ''}\n${r.text}`).join('\n\n');
-        ragSources = top3.map(r => r.book_name);
-      }
-    } catch (e) { console.error('RAG retrieve error:', e.message); }
-
-    const prompt = followUp
-      ? (topic ? buildFollowUpPrompt(topic, followUp, context, hexagrams) : buildMhysPrompt(followUp, hexagrams))
-      : buildMhysPrompt(topic, hexagrams, ragContext);
-
-    res.writeHead(200, {
-      'Content-Type': 'text/event-stream; charset=utf-8',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-      'X-Accel-Buffering': 'no',
-      'X-Rag-Sources': ragSources.length > 0 ? encodeURIComponent(ragSources.join('|')) : '',
-    });
-
-    try {
-      // 先估算输入 token
-      const inputTokens = estimateTokens(prompt);
-      const outputText = await streamDeepSeek(prompt, res, username ? 0 : 1200, req);
-      // 流完成后计数 token 并更新（即使用户已断开也继续执行）
-      if (outputText && username) {
-        const outputTokens = estimateTokens(outputText);
-        const totalTokens = inputTokens + outputTokens;
-        try {
-          await db.query('UPDATE users SET token_used = token_used + ? WHERE username = ?', [totalTokens, username]);
-          const [updated] = await db.query('SELECT token_used, tier FROM users WHERE username = ?', [username]);
-          if (updated.length > 0) {
-            var used = updated[0].token_used;
-            var limit = getTokenLimit(updated[0].tier || 0);
-            var remainText = limit === null ? '无限' : (limit - used).toLocaleString();
-            res.write('\n\n---\n消耗 Token：输入 ' + inputTokens + ' + 输出 ' + outputTokens + ' = ' + totalTokens + ' ｜ 剩余：' + remainText);
-          }
-        } catch (e) { /* 静默失败 */ }
-      }
-
-      // 后台自动保存到排盘记录（即使用户已断开页面）
-      if (outputText && recordId) {
-        let analysisText = outputText;
-        const tokenIdx = analysisText.lastIndexOf('\n消耗 Token：');
-        if (tokenIdx > 0) analysisText = analysisText.substring(0, tokenIdx).trim();
-        try {
-          await db.query('UPDATE mhys_records SET ai_analysis = ? WHERE id = ?', [analysisText, recordId]);
-        } catch (e) { console.error('Mhys auto-save error:', e); }
-      }
-      res.end();
-    } catch (e) {
-      console.error('Mhys AI stream error:', e.message);
-      if (!res.writableEnded) {
-        try { res.write('data: [ERROR] 解卦中断，请稍后重试\n\n'); } catch {}
-        try { res.end(); } catch {}
-      }
-    }
-    return;
-  }
-
-  // POST /api/liuyao/ai-analyze — 六爻AI智能解卦（SSE流式 + RAG检索）
-  if (req.method === 'POST' && pathname === '/api/liuyao/ai-analyze') {
-    const { topic, hexagrams, followUp, context, recordId, lunarInfo } = body;
-    if (!hexagrams) return json(res, { error: '缺少必要参数' }, 400);
-
-    const payload = checkAuth(req);
-    const username = payload ? payload.username : null;
-    if (username) {
-      try {
-        const [rows] = await db.query('SELECT token_used, tier FROM users WHERE username = ?', [username]);
-        if (rows.length > 0) {
-          const tier = rows[0].tier || 0;
-          const limit = getTokenLimit(tier);
-          if (limit !== null && rows[0].token_used >= limit) {
-            res.writeHead(200, {
-              'Content-Type': 'text/plain; charset=utf-8',
-              'Cache-Control': 'no-cache',
-            });
-            res.write('抱歉，你的AI解析次数已用完。');
-            res.write('如需继续使用，请联系管理员升级账户。');
-            res.end();
-            return;
-          }
-        }
-      } catch (e) { /* 静默 */ }
-    }
-
-    // RAG 检索：使用 liuyao + yijing 分类，多维度检索
-    let ragContext = '';
-    let ragSources = [];
-    try {
-      const benGuaName = hexagrams.benGua ? hexagrams.benGua.name : '';
-      // 构建结构化检索查询：融合卦名+事项+断卦方法论关键要素
-      const searchQueries = [
-        topic ? (topic + ' ' + benGuaName) : (benGuaName || '六爻解卦'),
-        benGuaName + ' 用神 世应 动爻 六亲',
-        benGuaName + ' 空亡 月破 应期 生克',
-      ];
-      const allResults = [];
-      for (const q of searchQueries.slice(0, 2)) {  // 取前2个查询，避免太多
-        const ragRes = await fetch(`${RAG_URL}/api/retrieve`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: q, top_k: 3, categories: ['liuyao', 'yijing'], similarity_threshold: 0.3 }),
-          signal: AbortSignal.timeout(30000),
-        });
-        const ragData = await ragRes.json();
-        if (ragData.results) allResults.push(...ragData.results);
-      }
-      // 去重并按分数排序
-      const seen = new Set();
-      const unique = [];
-      allResults.sort((a, b) => b.score - a.score);
-      for (const r of allResults) {
-        const key = r.text.slice(0, 60);
-        if (!seen.has(key)) { seen.add(key); unique.push(r); }
-      }
-      const topResults = unique.slice(0, 3);
-      if (topResults.length > 0) {
-        ragContext = topResults.map((r, i) => `【古籍 ${i + 1}】《${r.book_name}》${r.chapter ? ' - ' + r.chapter : ''}
-${r.text}`).join('\n\n');
-        const seenBooks = new Set();
-        ragSources = topResults.filter(r => { const k = r.book_name; return seenBooks.has(k) ? false : seenBooks.add(k); }).map(r => r.book_name);
-      }
-    } catch (e) { console.error('Liuyao RAG error:', e.message); }
-
-    const prompt = followUp
-      ? (topic ? buildLiuyaoFollowUpPrompt(topic, followUp, context, hexagrams, lunarInfo) : buildLiuyaoPrompt(followUp, hexagrams, '', lunarInfo))
-      : buildLiuyaoPrompt(topic, hexagrams, ragContext, lunarInfo);
-
-    res.writeHead(200, {
-      'Content-Type': 'text/event-stream; charset=utf-8',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-      'X-Accel-Buffering': 'no',
-      'X-Rag-Sources': ragSources.length > 0 ? encodeURIComponent(ragSources.join('|')) : '',
-    });
-
-    try {
-      // 先估算输入 token
-      const inputTokens = estimateTokens(prompt);
-      const outputText = await streamDeepSeekLiuyao(prompt, res, username ? 0 : 1200, req);
-      // 流完成后计数 token 并更新（即使用户已断开也继续执行）
-      if (outputText && username) {
-        const outputTokens = estimateTokens(outputText);
-        const totalTokens = inputTokens + outputTokens;
-        try {
-          await db.query('UPDATE users SET token_used = token_used + ? WHERE username = ?', [totalTokens, username]);
-          const [updated] = await db.query('SELECT token_used, tier FROM users WHERE username = ?', [username]);
-          if (updated.length > 0) {
-            var used = updated[0].token_used;
-            var limit = getTokenLimit(updated[0].tier || 0);
-            var remainText = limit === null ? '无限' : (limit - used).toLocaleString();
-            res.write('\n\n---\n消耗 Token：输入 ' + inputTokens + ' + 输出 ' + outputTokens + ' = ' + totalTokens + ' ｜ 剩余：' + remainText);
-          }
-        } catch (e) { /* 静默 */ }
-      }
-
-      // 后台自动保存到排盘记录（即使用户已断开页面）
-      if (outputText && recordId) {
-        let analysisText = outputText;
-        const tokenIdx = analysisText.lastIndexOf('\n消耗 Token：');
-        if (tokenIdx > 0) analysisText = analysisText.substring(0, tokenIdx).trim();
-        try {
-          await db.query('UPDATE liuyao_records SET ai_analysis = ? WHERE id = ?', [analysisText, recordId]);
-        } catch (e) { console.error('Liuyao auto-save error:', e); }
-      }
-      res.end();
-    } catch (e) {
-      console.error('Liuyao AI stream error:', e.message);
-      if (!res.writableEnded) {
-        try { res.write('data: [ERROR] 解卦中断，请稍后重试\n\n'); } catch {}
-        try { res.end(); } catch {}
-      }
-    }
-    return;
-  }
-
-  // ===== 用户 Token 用量 API =====
-  // GET /api/user/tokens — 获取当前用户的 token 用量
   if (req.method === 'GET' && pathname === '/api/user/tokens') {
     const payload = checkAuth(req);
     if (!payload) return json(res, { error: '请先登录' }, 401);
@@ -2045,6 +1818,41 @@ ${r.text}`).join('\n\n');
     }
   }
 
+  // ══════ 排盘端点（前端只渲染，不自己算）══════
+  //
+  // 前端从此**不再自己装卦/断卦**：把起卦原始数据（卦号、动爻、起卦时刻）发上来，
+  // 后端用对拍过的 `paipan/` 算完整盘面返回。这样前端与 AI 看到的必然是同一个卦 ——
+  // 原先前端算一份、后端算一份，两边一漂移用户分辨不出来（都是「一个卦」）。
+  //
+  // 匿名可用（排盘不花 token），也**未加频率限制**：这两个端点是纯计算，无 I/O、
+  // 无 LLM、毫秒级返回。本站其余 API 也都没有站点级限流，只给这两个新端点单独加
+  // 一个「看起来更严」的限制并不解决问题，只是把不一致藏起来 —— 要限流应当是对
+  // 全站（或至少 nginx 层）一次做掉的事。
+  if (req.method === 'POST' && (pathname === '/api/meihua/paipan' || pathname === '/api/liuyao/paipan')) {
+    const card = body || {};
+    try {
+      if (pathname === '/api/meihua/paipan') {
+        const c = promptLib.meihuaChartFromCard(card);
+        if (!c.ok) return json(res, { error: c.reason }, 400);
+        return json(res, { paipan: c.paipan, sizhu: c.sizhu });
+      }
+      // 走 `prompt.js` 里那一个装卦出口 —— 端点给前端渲染的盘与 prompt 给 AI 读的
+      // 盘必须是同一次装卦的结果，两处各写一遍 `buildChart` 迟早分叉。
+      const built = promptLib.liuyaoChartFromCard(card, card.topic || '');
+      if (!built.chart) {
+        return json(res, { error: '装卦失败：拿不到本卦上下卦号' }, 400);
+      }
+      // `chart` 给前端分层渲染，`text` 与 AI 收到的排盘正文**逐字相同** ——
+      // 用户看到的盘面与 AI 读到的盘面必须是同一份，否则解读对不上画面。
+      return json(res, {
+        chart: built.chart, sizhu: built.sizhu,
+        text: liuyaoPaipan.formatChart(built.chart),
+      });
+    } catch (e) {
+      return json(res, { error: '排盘失败：' + e.message }, 400);
+    }
+  }
+
   // POST /api/chat/send — AI 对话（流式SSE），支持文字/排盘/命盘
   if (req.method === 'POST' && pathname === '/api/chat/send') {
     const { message, cardType, cardData } = body;
@@ -2409,9 +2217,9 @@ function buildDivinationChatPrompt(cardType, cardData, message) {
   if (cardType === 'mhys' && cardData) {
     systemPrompt = prompts.mhys_system || systemPrompt;
     if (followUp) {
-      userPrompt = buildFollowUpPrompt(topic || '此卦', followUp, followUpContext, cardData.hexagrams);
+      userPrompt = buildFollowUpPrompt(topic || '此卦', followUp, followUpContext, cardData);
     } else {
-      userPrompt = buildMhysPrompt(topic, cardData.hexagrams, ragContext);
+      userPrompt = buildMhysPrompt(topic, cardData, ragContext);
       if (message && message !== topic && !message.startsWith('帮我解析')) {
         userPrompt += '\n\n用户补充提问：' + message;
       }
@@ -2419,9 +2227,9 @@ function buildDivinationChatPrompt(cardType, cardData, message) {
   } else if (cardType === 'liuyao' && cardData) {
     systemPrompt = prompts.liuyao_system || systemPrompt;
     if (followUp) {
-      userPrompt = buildLiuyaoFollowUpPrompt(topic || '此卦', followUp, followUpContext, cardData.hexagrams, cardData.lunarInfo);
+      userPrompt = buildLiuyaoFollowUpPrompt(topic || '此卦', followUp, followUpContext, cardData);
     } else {
-      userPrompt = buildLiuyaoPrompt(topic, cardData.hexagrams, ragContext, cardData.lunarInfo);
+      userPrompt = buildLiuyaoPrompt(topic, cardData, ragContext);
       if (message && message !== topic && !message.startsWith('帮我解析')) {
         userPrompt += '\n\n用户补充提问：' + message;
       }
@@ -2432,83 +2240,58 @@ function buildDivinationChatPrompt(cardType, cardData, message) {
 }
 
 // ===== 梅花易数 AI 解析（流式） =====
+//
+// 排盘数据一律由 `paipan/prompt.js` 从**起卦原始数据**重算（只信前端传的
+// 上下卦号 + 动爻），本处只负责「取模板 → 渲染」。
+// 「后台自定义模板」与「内置默认模板」走同一条渲染路径 —— 两套渲染必然漂移。
 
-function buildMhysPrompt(topic, hexagrams, ragContext) {
+function buildMhysPrompt(topic, cardData, ragContext) {
   var custom = readPrompts();
+  var vars = promptLib.mhysVars(topic, cardData, ragContext);
 
   if (!topic) {
     var noTopicTpl = custom.mhys_notopic;
-    if (noTopicTpl) return renderPrompt(noTopicTpl, mhysTemplateVars('', hexagrams));
+    if (noTopicTpl) return renderPrompt(noTopicTpl, vars);
     return '你是一位梅花易数解卦师。用户还没说问什么事，请用一句话简短询问。';
   }
 
-  var vars = mhysTemplateVars(topic, hexagrams);
-  vars.ragContext = ragContext || '';
+  return renderPrompt(custom.mhys_prompt || promptLib.DEFAULT_MHYS_PROMPT, vars);
+}
 
-  var tpl = custom.mhys_prompt;
-  if (tpl) return renderPrompt(tpl, vars);
+// ===== 六爻 AI 解析 =====
+// 同上：排盘（装卦、断卦、用神）全部由 `paipan/liuyao.js` 重算，
+// 本处只出文本。改造前这一层的**卦名与上下卦名取自前端**，正文却是后端算的，
+// 两边一旦不一致就自相矛盾；现在连卦名也取自 `chart`。
 
-  // ↓↓↓ 默认模板 ↓↓↓
-  const bg = hexagrams.benGua, hg = hexagrams.huGua, bng = hexagrams.bianGua;
-  const cg = hexagrams.cuoGua, zg = hexagrams.zongGua;
-  const ti = hexagrams.ti, yong = hexagrams.yong;
+function buildLiuyaoPrompt(topic, cardData, ragContext) {
+  var custom = readPrompts();
+  var vars = promptLib.liuyaoVars(topic, cardData, ragContext);
 
-  let p = `以下是一组梅花易数排盘数据。
-
-【求测事项】${topic}
-
-【卦象】
-本卦：${bg.upperTri.name}上${bg.lowerTri.name}下 → ${bg.name}
-互卦：${hg.upperTri.name}上${hg.lowerTri.name}下 → ${hg.name}
-变卦：${bng.upperTri.name}上${bng.lowerTri.name}下 → ${bng.name}
-错卦：${cg.upperTri.name}上${cg.lowerTri.name}下 → ${cg.name}
-综卦：${zg.upperTri.name}上${zg.lowerTri.name}下 → ${zg.name}
-
-【体用】体卦：${ti.tri.name}（${ti.tri.element}）｜用卦：${yong.tri.name}（${yong.tri.element}）
-生克：${hexagrams.verdict.text} — ${hexagrams.verdict.desc}
-体用吉凶分级（已按《梅花易数·体用总诀》定妥，请以此为准，勿另立吉凶）：${hexagrams.verdict.level || '（未分级）'}
-`;
-
-  if (bg.movingYao && bg.movingYao.length) {
-    p += `动爻：本卦第${bg.movingYao.join('、')}爻动
-`;
+  if (!topic) {
+    var noTopicTpl = custom.liuyao_notopic;
+    if (noTopicTpl) return renderPrompt(noTopicTpl, vars);
+    return '你是一位六爻纳甲解卦师。用户还没说问什么事，请先回应排盘数据（本卦变卦名+世应位置），然后用一句话询问求测事项。';
   }
 
-  p += `
-你是精通《梅花易数》《皇极经世心易发微》的解卦者。按传统梅花断法分析，重体用，参互卦、变卦，不可机械地只凭生克直接定死吉凶，需结合卦象本义、事项类型与整体趋势综合判断。
+  return renderPrompt(custom.liuyao_prompt || promptLib.DEFAULT_LIUYAO_PROMPT, vars);
+}
 
-请严格按以下顺序输出，每段以"---"分隔：
+/** 梅花追问：续用同一份排盘（追问也可能引用卦象），不重发完整断卦指令。 */
+function buildFollowUpPrompt(topic, followUp, context, cardData) {
+  var custom = readPrompts();
+  var vars = promptLib.mhysVars(topic, cardData, '');
+  vars.followUp = followUp || '';
+  vars.context = (context || '').slice(-1200);
+  return renderPrompt(custom.mhys_followup || promptLib.DEFAULT_MHYS_FOLLOWUP, vars);
+}
 
-【参考古籍】
-- 若上方确有【参考古籍】内容，请在回答最开头列出本次实际检索到的古籍名称。
-- 若上方没有【参考古籍】内容（本次未检索到），**不要凭印象列书名**，这一段直接写"本次未检索到相关古籍，以下依卦理分析"即可。
-- 古籍段落只放开头，不要放到末尾，也不要重复。
-
-【一、回答答案】
-- 直接回答用户最想知道的结果。
-- 先说结论，不要先铺垫，不要先讲术语。
-- 只说结果、走向、是否有转机，尽量白话。
-
-【二、你的现状】
-- 描述用户当前处境、状态、主要矛盾与隐藏变数。
-- 以白话表达，不要堆术语。
-
-【三、解卦逻辑】
-- 再说明本卦、互卦、变卦、错卦、综卦与体用生克如何影响此事。
-- 重点说明：体为主，用为应；用卦主当前，互卦主过程，变卦主后势。
-- 若有阻力，也要说明是否有救、是暂阻还是终阻。
-
-要求：
-- 前两段以用户最容易看懂为先。
-- 第三段再讲术数依据。
-- 体用生克的吉凶分级（如"用生体 · 大吉"）是《体用总诀》的定则，照实引用即可；但不要把它推成"必然""注定"这类宿命断语，多用"可能""倾向"。
-- 除上述体用分级外，避免其他绝对化断语。
-- 语言简洁、明确，不空泛，不神叨。
-- 用**加粗**标结论重点（会显示金色），###子标题适度。
-
-【四、补充】末尾单独一段，自然引导：「如有更多具体情况可补充，方便做更细致解读。」`;
-
-  return p;
+/** 六爻追问。`paipan` 变量里是完整盘面，追问到应期/空亡时 AI 要能回看。 */
+function buildLiuyaoFollowUpPrompt(topic, followUp, context, cardData) {
+  var custom = readPrompts();
+  var vars = promptLib.liuyaoVars(topic, cardData, '');
+  vars.followUp = followUp || '';
+  vars.context = (context || '').slice(-1200);
+  return renderPrompt(custom.liuyao_followup || promptLib.DEFAULT_LIUYAO_FOLLOWUP, vars);
 }
 
 function getTokenLimit(tier) {
@@ -2564,266 +2347,6 @@ function renderPrompt(template, vars) {
     result = result.replace(new RegExp('\\{\\{' + key + '\\}\\}', 'g'), String(val ?? ''));
   }
   return result;
-}
-
-// 梅花易数模板变量提取
-function mhysTemplateVars(topic, hexagrams) {
-  const bg = hexagrams.benGua || {}, hg = hexagrams.huGua || {}, bng = hexagrams.bianGua || {};
-  const cg = hexagrams.cuoGua || {}, zg = hexagrams.zongGua || {};
-  const ti = hexagrams.ti || {}, yong = hexagrams.yong || {};
-  const v = hexagrams.verdict || {};
-  const movingYao = bg.movingYao && bg.movingYao.length ? '第' + bg.movingYao.join('、') + '爻动' : '无动爻';
-  return {
-    topic: topic || '',
-    benGuaName: bg.name || '', benGuaUpper: (bg.upperTri || {}).name || '', benGuaLower: (bg.lowerTri || {}).name || '',
-    huGuaName: hg.name || '', huGuaUpper: (hg.upperTri || {}).name || '', huGuaLower: (hg.lowerTri || {}).name || '',
-    bianGuaName: bng.name || '', bianGuaUpper: (bng.upperTri || {}).name || '', bianGuaLower: (bng.lowerTri || {}).name || '',
-    cuoGuaName: cg.name || '', cuoGuaUpper: (cg.upperTri || {}).name || '', cuoGuaLower: (cg.lowerTri || {}).name || '',
-    zongGuaName: zg.name || '', zongGuaUpper: (zg.upperTri || {}).name || '', zongGuaLower: (zg.lowerTri || {}).name || '',
-    tiName: (ti.tri || {}).name || '', tiElement: (ti.tri || {}).element || '',
-    yongName: (yong.tri || {}).name || '', yongElement: (yong.tri || {}).element || '',
-    tiyongVerdict: v.text || '', tiyongDesc: v.desc || '', tiyongLevel: v.level || '',
-    movingYao: movingYao,
-    ragContext: '',
-  };
-}
-
-// 六爻装卦：由「本卦/变卦上下卦号 + 四柱」装出完整盘面。
-// 前端只负责起卦（给出卦号与四柱），六亲/六神/世应/旬空/旺衰/伏神一律后端算，
-// 避免前端算错或送错字段。
-function buildLiuyaoChart(hexagrams, lunarInfo, topic) {
-  if (!hexagrams) return null;
-  const bg = hexagrams.benGua || {}, bng = hexagrams.bianGua || {};
-  if (!bg.upper || !bg.lower) return null;
-  const li = lunarInfo || {};
-  // 用神（含伏神/世身/四神五行）由 buildChart 内部按 shushu 口径取定，
-  // 不再在此处外挂粗配表——见 paipan/yongshen.js。
-  return liuyaoPaipan.buildChart({
-    topic: topic || '',
-    gender: hexagrams.gender || '',
-    isProxy: !!hexagrams.isProxy,
-    benUpper: bg.upper, benLower: bg.lower,
-    bianUpper: bng.upper, bianLower: bng.lower,
-    yearGZ: li.yearGZ || '', monthGZ: li.monthGZ || '',
-    dayGZ: li.dayGZ || '', hourGZ: li.hourGZ || '',
-  });
-}
-
-// 六爻模板变量提取
-function liuyaoTemplateVars(topic, hexagrams, lunarInfo) {
-  const bg = hexagrams.benGua || {}, bng = hexagrams.bianGua || {};
-  var gender = hexagrams.gender;
-  var genderLabel = '未知';
-  if (gender === 'male') genderLabel = '男';
-  else if (gender === 'female') genderLabel = '女';
-  var chart = buildLiuyaoChart(hexagrams, lunarInfo, topic);
-  return {
-    topic: topic || '',
-    gender: genderLabel,
-    benGuaName: bg.name || '', benGuaUpper: (bg.upperTri || {}).name || '', benGuaLower: (bg.lowerTri || {}).name || '',
-    bianGuaName: bng.name || '', bianGuaUpper: (bng.upperTri || {}).name || '', bianGuaLower: (bng.lowerTri || {}).name || '',
-    paipan: chart ? liuyaoPaipan.formatChart(chart) : '',
-    yongshen: (chart && chart.yongShen && chart.yongShen.yong) ? chart.yongShen.yong : '',
-    yongshenWhy: (chart && chart.yongShen) ? (chart.yongShen.why || '') : '',
-    ragContext: '',
-  };
-}
-
-function buildFollowUpPrompt(topic, followUp, context, hexagrams) {
-  var custom = readPrompts();
-  var tpl = custom.mhys_followup;
-  if (tpl) {
-    var vars = mhysTemplateVars(topic, hexagrams);
-    vars.followUp = followUp || '';
-    vars.context = (context || '').slice(-1200);
-    return renderPrompt(tpl, vars);
-  }
-  let p = `针对「${topic}」的追问：
-
-【之前解读】${(context || '').slice(-1000)}
-
-【追问】${followUp}
-
-请直接回答追问，不重复完整分析。结构：
-【一、回答】——结论和建议，不用卦象术语。
-【二、思路】（可选）——一两句推演依据。`;
-  return p;
-}
-
-async function streamDeepSeek(prompt, res, maxOutputChars, req) {
-  const OpenAI = require('openai');
-  const client = new OpenAI({
-    apiKey: config.deepseek.apiKey,
-    baseURL: config.deepseek.baseURL,
-  });
-
-  var custom = readPrompts();
-  var systemPrompt = custom.mhys_system || '你是梅花易数解卦师。回答顺序固定为：参考古籍→回答答案→你的现状→解卦逻辑。先给结果，再讲现状，最后解释依据。回答清晰、理性、简洁。体用生克的吉凶分级是《体用总诀》的定则，照实引用；除此之外避免绝对化断语，多用”可能””倾向”。';
-
-  var controller = new AbortController();
-  if (req) req.on('close', () => { if (!res.writableEnded) controller.abort(); });
-  const stream = await client.chat.completions.create({
-    model: LLM_MODEL,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: prompt },
-    ],
-    stream: true,
-    max_tokens: maxOutputChars ? Math.ceil(maxOutputChars / 0.6) : 3000,
-    temperature: 0.7,
-  }, { signal: controller.signal });
-
-  let fullText = '';
-  let stopped = false;
-  try {
-    for await (const chunk of stream) {
-      if (stopped) continue;
-      const content = chunk.choices[0]?.delta?.content || '';
-      if (content) {
-        fullText += content;
-        if (maxOutputChars && fullText.length >= maxOutputChars) {
-          stopped = true;
-          var loginPrompt = '\n\n---\n\n> ⚠️ 未登录用户仅限预览，完整解析需登录。\n> 🔑 [登录](/login/)即可解锁完整AI解析（最少100次/10万token免费额度）';
-          fullText += loginPrompt;
-          try { res.write(loginPrompt); } catch(e) {}
-          controller.abort();
-        } else {
-          try { res.write(content); } catch(e) {}
-        }
-      }
-    }
-  } catch(e) { /* AbortError expected */ }
-  return fullText;
-}
-
-function buildLiuyaoPrompt(topic, hexagrams, ragContext, lunarInfo) {
-  var custom = readPrompts();
-
-  if (!topic) {
-    var noTopicTpl = custom.liuyao_notopic;
-    if (noTopicTpl) return renderPrompt(noTopicTpl, liuyaoTemplateVars('', hexagrams, lunarInfo));
-    return '你是一位六爻纳甲解卦师。用户还没说问什么事，请先回应排盘数据（本卦变卦名+世应位置），然后用一句话询问求测事项。';
-  }
-
-  var vars = liuyaoTemplateVars(topic, hexagrams, lunarInfo);
-  vars.ragContext = ragContext || '';
-
-  var tpl = custom.liuyao_prompt;
-  if (tpl) return renderPrompt(tpl, vars);
-
-  // ↓↓↓ 默认模板 ↓↓↓
-  var gender = hexagrams.gender;
-  var genderLabel = '未知';
-  if (gender === 'male') genderLabel = '男';
-  else if (gender === 'female') genderLabel = '女';
-
-  var chart = buildLiuyaoChart(hexagrams, lunarInfo, topic);
-
-  let p = '以下是一组六爻排盘数据。请按传统六爻断法分析，不可脱离用神主线泛讲六亲六神。\n\n';
-  p += '【求测事项】' + topic + '\n';
-  p += '【求测者性别】' + genderLabel + '\n\n';
-
-  if (chart) {
-    p += liuyaoPaipan.formatChart(chart) + '\n\n';
-    if (chart.yongShen && chart.yongShen.yong) {
-      p += '【用神参考】' + chart.yongShen.why + '（即' + chart.yongShen.yong + '）。若与卦中实际衰旺、动静冲突，以卦理为准，不必强套。\n\n';
-    }
-  } else {
-    // 装卦失败时的兜底：至少别让 AI 收到空数据
-    const bg = hexagrams.benGua || {}, bng = hexagrams.bianGua || {};
-    p += '【卦象】\n';
-    p += '本卦：' + (bg.name || '未知') + '　变卦：' + (bng.name || '未知') + '\n';
-    p += '（注意：本次排盘数据不完整，六亲六神世应未能装出，请在解读中说明并只作卦名卦意的粗断。）\n\n';
-  }
-
-  p += '断法要求：先定用神，再看月建日辰旺衰，再看世应、动爻、变爻、生克冲合、空破墓绝。月建为提纲，日辰为主宰；世为己，应为人；动为始，变为终。六神只作辅助，不可压过用神主线。\n\n';
-
-  p += '请严格按以下顺序输出，每段以"---"分隔：\n\n';
-  p += '【参考古籍】\n';
-  p += '- 若上方确有【参考古籍】内容，请在回答最开头列出本次实际检索到的古籍名称。\n';
-  p += '- 若上方没有【参考古籍】内容（本次未检索到），**不要凭印象列书名**，开头【参考古籍】一段直接写"本次未检索到相关古籍，以下依卦理分析"即可。\n';
-  p += '- 古籍段落只放开头，不要放到末尾，也不要重复。\n\n';
-  p += '【一、回答答案】\n';
-  p += '- 直接说结果、倾向、成败、快慢。\n';
-  p += '- 不要先讲原理，不要先铺垫。\n';
-  p += '- 先把用户最想知道的答案说明白。\n\n';
-  p += '【二、你的现状】\n';
-  p += '- 只描述当前处境、矛盾、卡点、对方状态或环境态势。\n';
-  p += '- 尽量白话，不堆术语。\n\n';
-  p += '【三、解卦逻辑】\n';
-  p += '- 再说明用神、世应、月建、日辰、动爻、变爻对结果的影响。\n';
-  p += '- 若见空亡、月破、入墓、伏神、合绊、回头生、回头克，只分析与主事相关者。\n';
-  p += '- 若卦象显示可成但迟、能成但反复、表面可成实则落空，必须明确说出。\n\n';
-  p += '要求：\n';
-  p += '- 前两段先给用户想看的内容，第三段再展开术数依据。\n';
-  p += '- 语言简洁，判断明确，不空泛。\n';
-  p += '- 避免绝对化断语，多用“可能”“倾向”。\n';
-  p += '- 用**加粗**标结论重点，###子标题适度。\n\n';
-  p += '【补充引导】末尾单独一段，自然引导："如有更多具体情况可补充，方便做更细致解读。"';
-  return p;
-}
-
-function buildLiuyaoFollowUpPrompt(topic, followUp, context, hexagrams, lunarInfo) {
-  var custom = readPrompts();
-  var tpl = custom.liuyao_followup;
-  if (tpl) {
-    var vars = liuyaoTemplateVars(topic, hexagrams, lunarInfo);
-    vars.followUp = followUp || '';
-    vars.context = (context || '').slice(-1200);
-    return renderPrompt(tpl, vars);
-  }
-  var p = '针对「' + topic + '」的追问：\n\n';
-  var chart = buildLiuyaoChart(hexagrams, lunarInfo, topic);
-  if (chart) p += liuyaoPaipan.formatChart(chart) + '\n\n';
-  p += '【之前解读】' + ((context || '').slice(-1200)) + '\n\n';
-  p += '【追问】' + followUp + '\n\n';
-  p += '直接回答追问，不重复完整七层分析。聚焦追问涉及的层面（如问应期则重点推应期，问空亡则重点辨空亡真假）。结构：\n【回答】——结论和建议，不用卦象术语。\n【依据】——简短推演依据（1-3句，引用原卦爻位）。';
-  return p;
-}
-
-async function streamDeepSeekLiuyao(prompt, res, maxOutputChars, req) {
-  const OpenAI = require('openai');
-  const client = new OpenAI({
-    apiKey: config.deepseek.apiKey,
-    baseURL: config.deepseek.baseURL,
-  });
-
-  var custom = readPrompts();
-  var systemPrompt = custom.liuyao_system || '你是六爻纳甲解卦师。回答顺序固定为：参考古籍→回答答案→你的现状→解卦逻辑。先定用神，再看月建日辰、世应、动变、生克冲合与空破墓绝。先给结果，再讲现状，最后解释依据。六神只作辅助，不可压过用神主线。避免绝对断语，多用可能/倾向。用**加粗**标重点。';
-
-  var controller = new AbortController();
-  if (req) req.on('close', () => { if (!res.writableEnded) controller.abort(); });
-  const stream = await client.chat.completions.create({
-    model: LLM_MODEL,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: prompt },
-    ],
-    stream: true,
-    max_tokens: maxOutputChars ? Math.ceil(maxOutputChars / 0.6) : 3000,
-  }, { signal: controller.signal });
-
-  let fullText = '';
-  let stopped = false;
-  try {
-    for await (const chunk of stream) {
-      if (stopped) continue;
-      const content = chunk.choices[0]?.delta?.content || '';
-      if (content) {
-        fullText += content;
-        if (maxOutputChars && fullText.length >= maxOutputChars) {
-          stopped = true;
-          var loginPrompt = '\n\n---\n\n> ⚠️ 未登录用户仅限预览，完整解析需登录。\n> 🔑 [登录](/login/)即可解锁完整AI解析（最少100次/10万token免费额度）';
-          fullText += loginPrompt;
-          try { res.write(loginPrompt); } catch(e) {}
-          controller.abort();
-        } else {
-          try { res.write(content); } catch(e) {}
-        }
-      }
-    }
-  } catch(e) { /* AbortError expected */ }
-  return fullText;
 }
 
 // 批量入库后台任务
