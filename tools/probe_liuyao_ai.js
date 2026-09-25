@@ -1,12 +1,24 @@
 /**
- * 批 0 验收：六爻 AI 解析端到端。
+ * 六爻 AI 解析端到端探针。
  * 把 auth-server.js 里真实的 prompt 构造函数抽出来跑（得到用户实际会收到的那段 prompt），
  * 再用容器里的 DEEPSEEK_API_KEY 真调一次，检查正文里是否出现 六亲/六神/旬空/日辰/月建/世应。
- * 在容器内运行：docker exec ai3000-backend node /tmp/probe_liuyao_ai.js
+ *
+ * 容器内运行：docker exec ai3000-backend node /tmp/probe_liuyao_ai.js
+ * 本机运行：  node tools/probe_liuyao_ai.js            （需自行准备 SRC 路径，见下）
+ *
+ * ⚠ 2026-09-25 重写：原版按 `buildLiuyaoChart` + `liuyaoTemplateVars` + 4 参数
+ * 调 `buildLiuyaoPrompt` 写，这两个函数在「排盘下沉」时已被删除（改造后
+ * 模板变量一律由 `paipan/prompt.js::liuyaoVars` 从**起卦原始数据**重算），
+ * 于是探针本身成了坏工具：`--probe` 一跑就 `Error: missing fn buildLiuyaoChart`。
+ * 当时**差点误读成「生产坏了」** —— 实际生产是好的（预检通过、容器健康、
+ * 16 个文件已落）。教训：`--probe` 失败时先确认探针与生产代码同代。
  */
 const fs = require('fs');
+const path = require('path');
 
-const SRC = '/app/auth-server.js';
+const SRC = process.env.AUTH_SERVER_SRC || '/app/auth-server.js';
+// require 要绝对路径 —— 相对路径是相对**本文件**解析的，容器内 /tmp 与本机 tools/ 都不是它
+const PAIPAN_DIR = path.resolve(process.env.PAIPAN_DIR || '/app/paipan');
 const src = fs.readFileSync(SRC, 'utf8');
 
 // 从源码里按大括号配平抓出函数体，避免把整个 auth-server 拉起来（那会监听端口）
@@ -21,32 +33,34 @@ function grab(name) {
   throw new Error('unbalanced ' + name);
 }
 
-const liuyaoPaipan = require('/app/paipan/liuyao.js');
-const fsMod = require('fs');
-const pathMod = require('path');
-// readPrompts 是 buildLiuyaoPrompt 的模块级依赖，一并抽出来（生产路径读不到就回落默认模板）
+const promptLib = require(path.join(PAIPAN_DIR, 'prompt.js'));
+
+// readPrompts / renderPrompt 是 buildLiuyaoPrompt 的模块级依赖，一并抽出来
 const parts = [
   grab('readPrompts'),
-  grab('buildLiuyaoChart'),
-  grab('liuyaoTemplateVars'),
+  grab('renderPrompt'),
   grab('buildLiuyaoPrompt'),
 ].join('\n');
 
-const factory = new Function('liuyaoPaipan', 'fs', 'path', '__dirname',
-  parts + '\nreturn {buildLiuyaoChart, buildLiuyaoPrompt, readPrompts};');
-const M = factory(liuyaoPaipan, fsMod, pathMod, '/app');
+const factory = new Function('promptLib', 'fs', 'path', '__dirname',
+  parts + '\nreturn {buildLiuyaoPrompt, readPrompts};');
+const M = factory(promptLib, fs, path, path.dirname(SRC));
 console.log('readPrompts() →', JSON.stringify(M.readPrompts()).slice(0, 160));
 
-// 与前端 buildLiuyaoAiPayload() 同形：乾为天初爻动 → 变天风姤
-const hexagrams = {
-  gender: 'male',
-  benGua: { name: '乾为天', upper: 1, lower: 1, upperTri: { name: '乾' }, lowerTri: { name: '乾' } },
-  bianGua: { name: '天风姤', upper: 1, lower: 5, upperTri: { name: '乾' }, lowerTri: { name: '巽' } },
-  gong: '乾', shiYao: 6, yingYao: 3, dayGZ: '辛丑', liuqin: [], liushen: [],
+// 与前端 buildLiuyaoAiPayload() 同形：乾为天初爻动 → 变天风姤。
+// ⚠ 只有 `benGua/bianGua` 的上下卦号会被采用，其余字段（gong/shiYao/...）留着
+// 是为了**证明它们是死数据** —— 若哪天后端又开始读前端给的世应，这里会显形。
+const cardData = {
+  hexagrams: {
+    gender: 'male',
+    benGua: { name: '乾为天', upper: 1, lower: 1, upperTri: { name: '乾' }, lowerTri: { name: '乾' } },
+    bianGua: { name: '天风姤', upper: 1, lower: 5, upperTri: { name: '乾' }, lowerTri: { name: '巽' } },
+    gong: '乾', shiYao: 6, yingYao: 3, dayGZ: '辛丑', liuqin: [], liushen: [],
+  },
+  lunarInfo: { yearGZ: '丙午', monthGZ: '丁酉', dayGZ: '辛丑', hourGZ: '丙申' },
 };
-const lunarInfo = { yearGZ: '丙午', monthGZ: '丁酉', dayGZ: '辛丑', hourGZ: '丙申' };
 
-const prompt = M.buildLiuyaoPrompt('批0验收', hexagrams, '', lunarInfo);
+const prompt = M.buildLiuyaoPrompt('验收', cardData, '');
 console.log('=== 用户实际收到的 user prompt（' + prompt.length + ' 字）===');
 console.log(prompt);
 
@@ -61,7 +75,7 @@ if (missing.length) process.exitCode = 1;
 
 // ── 真调一次 DeepSeek ──
 const KEY = process.env.DEEPSEEK_API_KEY;
-if (!KEY) { console.log('\n⚠ 无 DEEPSEEK_API_KEY，跳过真实调用'); process.exit(0); }
+if (!KEY) { console.log('\n⚠ 无 DEEPSEEK_API_KEY，跳过真实调用'); process.exit(process.exitCode || 0); }
 
 const body = {
   model: 'deepseek-chat',
@@ -95,4 +109,5 @@ const body = {
   console.log('六亲覆盖: ' + (5 - miss.length) + '/5' + (miss.length ? '  缺: ' + miss.join(',') : ''));
   // 三段式：结论先行 → 逐项分析 → 建议
   console.log('分段标记数（应为 3 段左右的标题）: ' + (out.match(/^#{1,4}\s*|^\*\*[^*]+\*\*/gm) || []).length);
+  if (miss.length) process.exitCode = 1;
 })();
