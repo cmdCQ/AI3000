@@ -12,13 +12,18 @@
  *
  * ── 对拍 ──────────────────────────────────────────────────────
  * `duipan/gen_golden_meihua.py`（金标准，走真实 `POST /api/v1/meihua/divine`）
- * vs `duipan/run_js_meihua.js`（本文件），576 例 13 万叶子，见 README「层 7」。
+ * vs `duipan/run_js_meihua.js`（本文件），640 例 14 万叶子，见 README「层 7」。
  *
- * ── 与基准的两处已知差异（都写在对拍申报里）──────────────────
- * 1. **月支取值来源**：`ganzhi.monthDizhiAt`（精确到交节时刻）而非
- *    `ganzhi.sizhu().month_gz`（日粒度）。详见 ganzhi.js 该函数的注释。
- * 2. **64 卦的卦名**：shushu 用文王卦序单名（「恒」），本项目用通行全名（「雷风恒」）。
- *    身份以「卦序 + 上下卦」认定，不靠卦名（对拍铁律 2），故该字段不入对拍。
+ * ── 与基准的已知差异（对拍申报里逐条写着）────────────────────
+ * 1. **64 卦的卦名**：shushu 用文王卦序单名（「恒」），本项目用通行全名（「雷风恒」）。
+ *    身份以「卦序 + 上下卦」认定，不靠卦名（对拍铁律 2），故该字段不入对拍
+ *    （本模块也不产 `name`，只导出 `hexName()` 供调用方取；64 个全名另有独立核对）。
+ * 2. **64 卦的语料**（`judgment`/`image`/`lines`/`interpretation`）属独立数据层，
+ *    ai3000 侧另有来源，不入本层对拍。
+ *
+ * 月支（体卦旺衰要用）走 `ganzhi.monthDizhiAt`（精确到交节时刻）—— 与 shushu
+ * `solar_terms.get_month_dizhi_at` **同口径**，故这一项 **0 申报**。
+ * （shushu 的另一处 `current_sizhu` 用的是日粒度，那是历法层的事，已另案对齐。）
  */
 
 'use strict';
@@ -663,9 +668,13 @@ function analyze(qiguaResult, opts) {
 /**
  * 取月支：时间法用起卦时刻，其余用当下。
  *
- * ⚠ 这里用 `ganzhi.monthDizhiAt`（精确到交节时刻），**不是** `ganzhi.sizhu().month_gz`
- * （日粒度）—— 真源 shushu `core/meihua/analyzer._default_month_dizhi` 调的是
- * `solar_terms.get_month_dizhi_at`，那是交节时刻口径。详见 ganzhi.js 的注释。
+ * 用 `ganzhi.monthDizhiAt`（精确到交节时刻）—— 真源 shushu
+ * `core/meihua/analyzer._default_month_dizhi` 调的是 `solar_terms.get_month_dizhi_at`，
+ * 那正是交节时刻口径，故两侧同口径、无需申报。详见 ganzhi.js 的注释。
+ *
+ * `dt` 取不到时（异常、库缺）返回 ""，`tiStrength` 便给 `{available:false}`、
+ * 旺衰整段略去 —— 与 shushu 的 `except Exception: return ""` 同形（防御路径，
+ * `coverage_meihua.py` 有冒烟断言）。
  */
 function defaultMonthDizhi(qiguaResult, opts) {
   let dt = null;

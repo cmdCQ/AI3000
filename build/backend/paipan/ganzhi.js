@@ -6,24 +6,42 @@
  * 那一版底层是 `lunar_python`，本项目后端已有**同一库的 JS 版** `lunar-javascript`
  * （backend/package.json 既有依赖），故方法名 1:1 对应：
  *
- *   getYearInGanZhiByLiChun()  立春换年（不用正月初一）
- *   getMonthInGanZhi()         节气换月
- *   getDayInGanZhi()           日柱
+ *   getYearInGanZhiExact()     立春**时刻**换年（不用正月初一）
+ *   getMonthInGanZhiExact()    交节**时刻**换月
+ *   getDayInGanZhiExact()      日柱（23:00 进位）
  *   getTimeInGanZhi()          时柱
  *   getTimeZhi()               时支
  *   getPrevJieQi(true)         当前统辖之节气
  *
- * ── 与 shushu 的唯一差异：晚子时换日 ──────────────────────────
- * 用户 2026-09-24 拍板：**23:00–23:59 日柱进位到次日**（shushu 不进位）。
+ * ── 两处刻意偏离 shushu：分界一律取「刻」不取「日」 ─────────────
  *
- * 这不只是派别取舍——实测（2026-05-10 23:00，两边同库同法）：
- *   shushu：日=甲申（getDayInGanZhi 未进位）而 时=丙子
- *   而丙子只可能由**乙日**推出（乙庚丙作初），即 getTimeInGanZhi() 内部
- *   **本来就基于已进位的日干**。故 shushu 的日柱与时柱在晚子时这一小时里
- *   自相矛盾。改用 getDayInGanZhiExact() 后日柱与时柱同源自洽，
- *   该矛盾消失。此为「事实大于 shushu」的一例。
+ * shushu 那一版用的是**日粒度**的三个方法（`getYearInGanZhiByLiChun` /
+ * `getMonthInGanZhi` / `getDayInGanZhi`），即**整个「日」**就算作新的年/月，
+ * 而不管分界时刻在当天几点。本模块一律改用同库的 `*Exact()`（精确到分）。
+ * 两处的理由不同，但结论同向，故一起记在这里。
  *
- * 因此本模块**不得**混用 getDayInGanZhi()——那会把矛盾带回来。
+ * ① **晚子时换日**（用户 2026-09-24 拍板）。
+ *    不只是派别取舍——实测（2026-05-10 23:00，两边同库同法）：
+ *      shushu：日=甲申（getDayInGanZhi 未进位）而 时=丙子
+ *    而丙子只可能由**乙日**推出（乙庚丙作初），即 `getTimeInGanZhi()` 内部
+ *    **本来就基于已进位的日干**。故 shushu 的日柱与时柱在晚子时这一小时里自相矛盾。
+ *    改用 `getDayInGanZhiExact()` 后日柱与时柱同源自洽，矛盾消失。
+ *
+ * ② **立春/交节换年换月**（2026-09-25 定）。
+ *    月建随**交节时刻**换，年柱随**立春时刻**换——万年历把交节时刻精确到分印出来，
+ *    就是为此。日粒度口径与之相差的，恰是每个分界日的「分界时刻之前」那一段。
+ *    实测 2024–2026 逐小时扫 26352 小时，月柱两版相差 **505 小时（1.9%）**，
+ *    **全部**落在交节当日、交节时刻之前；年柱同理落在立春当日之前。
+ *    ③ 与库内**另一条互不相干**的代码路径互证：`getJieQiTable()` 里十二「节」
+ *    的时刻表（与官方《天文年历》一致，2025 惊蛰 16:07:18、立春 22:10:28），
+ *    8 个交节日前后 ±4 小时每 5 分钟共 **776 点，0 处不一致**。
+ *    ④ 旁证：shushu 自己也自相矛盾——它的 `solar_terms.get_month_dizhi_at`
+ *    走的是交节**时刻**口径（docstring 明写 "which Jié boundary has most recently
+ *    passed"），而它的 `current_sizhu` 用日粒度。一个项目里两种月支。
+ *
+ * 因此本模块**不得**混用日粒度的三个方法——会把矛盾带回来。
+ * 代价：历法层对拍里这两年柱/月柱字段成为**已申报偏离**（由
+ * `gen_golden_calendar.py` 按规则算出并附理由，不手工维护）。
  */
 
 'use strict';
@@ -93,9 +111,9 @@ function sizhu(input) {
   const t = normalize(input);
   const lun = Solar.fromYmdHms(t.y, t.mo, t.d, t.h, t.mi, 0).getLunar();
 
-  const yearGZ = lun.getYearInGanZhiByLiChun();   // 立春换年
-  const monthGZ = lun.getMonthInGanZhi();         // 节气换月
-  const dayGZ = lun.getDayInGanZhiExact();        // 晚子时换日（唯一偏离 shushu 处）
+  const yearGZ = lun.getYearInGanZhiExact();      // 立春时刻换年（偏离 shushu，见头注②）
+  const monthGZ = lun.getMonthInGanZhiExact();    // 交节时刻换月（偏离 shushu，见头注②）
+  const dayGZ = lun.getDayInGanZhiExact();        // 晚子时换日（偏离 shushu，见头注①）
   const hourGZ = lun.getTimeInGanZhi();
   const hourZhi = lun.getTimeZhi();
 
@@ -132,34 +150,18 @@ function lunarOf(input) {
 }
 
 /**
- * 月支（月建）—— **精确到交节时刻**。
+ * 月支（月建）—— 精确到交节时刻。
  *
- * ── 为什么另立一个函数，而不是用上面 sizhu().month_gz ──────────
- * 两者是**两个不同的东西**，实测有差：
- *
- *   sizhu().month_gz = lun.getMonthInGanZhi()       → **日粒度**
- *   monthDizhiAt()   = lun.getMonthInGanZhiExact()  → 精确到交节时刻
- *
- * 日粒度指的是：**交节当日的整天**都算作新月，哪怕交节时刻在当天 16:07。
- * 于是「2025-01-05 00:00」日粒度给丁丑（丑月），而小寒其实 10:32 才到 ——
- * 那一刻仍是子月。实测 2024–2026 逐小时扫 26352 小时，两版相差 505 小时
- * （约 1.9%），**全部**落在交节当日、交节时刻之前。
- *
- * 哪个是事实：精确版。两条理由，
- *  ① 月建随**交节时刻**换（万年历给交节时刻精确到分，就是为此）；
- *  ② 与库内另一条互不相干的代码路径（`getJieQiTable()` 里十二「节」的时刻表）
- *     逐点比对一致：8 个交节日前后 ±4 小时每 5 分钟共 776 点，0 处不一致。
- *     该表的值与官方《天文年历》一致（2025 惊蛰 16:07:18、立春 22:10:28）。
- *
- * shushu 侧自相矛盾可作旁证：`solar_terms.get_month_dizhi_at` 走的是**交节时刻**
- * 口径（docstring 明写 "which Jié boundary has most recently passed"），而它的
- * `current_sizhu`/`month_ganzhi_at` 走的是日粒度口径 —— 一个项目里两种月支。
- * 差在交节前后那 8 分钟（shushu 的节气时刻用 ephem 现算，比上面的表早 ~8 分钟）。
- *
- * ⚠ 待办：`sizhu().month_gz` 仍是日粒度（沿用历法层已验状态，未动）。
- * 这是**已知偏差**，改它要重跑历法层对拍并重出申报表，另案处理。
- * 梅花层（`meihua.js`）用的是本函数。
+ * 与 `sizhu().month_gz` **同口径**（都走 `getMonthInGanZhiExact()`，
+ * 理由见头注②）。留着这个函数是因为调用方常常**只要月支**：
+ * 梅花断卦（`meihua.js`）判体卦旺衰就只用它，不必构造整个四柱对象。
  */
+function monthDizhiAt(input) {
+  const t = normalize(input);
+  const gz = Solar.fromYmdHms(t.y, t.mo, t.d, t.h, t.mi, 0)
+    .getLunar().getMonthInGanZhiExact();
+  return gz && gz.length > 1 ? gz[1] : '';
+}
 function monthDizhiAt(input) {
   const t = normalize(input);
   const gz = Solar.fromYmdHms(t.y, t.mo, t.d, t.h, t.mi, 0)
