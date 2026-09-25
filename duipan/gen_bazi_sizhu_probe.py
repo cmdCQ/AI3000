@@ -18,8 +18,10 @@
 用法（用 shushu 的 venv）：
     PY=/home/cqsomt/Projects/shushu/.venv/bin/python
     $PY duipan/gen_bazi_sizhu_probe.py > duipan/bazi_sizhu_boundary.json
-    node duipan/run_js_bazi_sizhu.js > duipan/js_bazi_sizhu_boundary.json
-    $PY duipan/diff_bazi_sizhu_boundary.py
+
+输出看的是「三套口径在边界时刻上怎么分家」。**它不是对拍脚本**，只用来定口径；
+口径落地后的正式对拍在 `diff_bazi_chart.py`（`run_js_bazi.js` 出品），
+那里的交节/晚子时差异按**来源**分桶申报，覆盖 1214 例而非这里的几十个点。
 """
 
 import json

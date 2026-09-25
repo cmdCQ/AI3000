@@ -12,7 +12,7 @@
  *   日柱/时柱 —— shushu 八字**完全不换日**（`_day_index(dt.date())`），本项目 2026-09-24 拍板
  *                **晚子时换日**（`getDayInGanZhiExact()`）。属**已决定的派别偏离**，不是 bug；
  *                影响面仅 23:00–23:59，对拍按来源申报。
- *   ⚠ shushu 八字的历书本身**系统性偏早 3–7 分钟**（2025–2026 全部 24 个节无一例外），
+ *   ⚠ shushu 八字的历书本身**系统性偏早 4.6–8.2 分钟**（2025–2026 全部 24 个节无一例外），
  *     故**不搬**它的 `core/calendar/solar_terms.py` —— 本项目 `ganzhi.js` 的节气表已与
  *     官方《天文年历》对齐（776 点零不一致）。交节前后 ±10 分钟按**来源**申报。
  *
@@ -26,7 +26,7 @@ const G = require('./ganzhi.js');
 const C = require('./constants.js');
 const T = require('./bazi_tables.js');
 
-const { TIANGAN, DIZHI, DIZHI_WUXING, GAN_WUXING } = C;
+const { TIANGAN, DIZHI, DIZHI_WUXING, GAN_WUXING, SHENG, KE } = C;
 
 /** 天干/地支序号（0 基）。拿不到就抛 —— 宁可炸，不要静默算出个「看着正常」的盘。 */
 function ganIndex(gan) {
@@ -165,7 +165,349 @@ function buildChart(input) {
   };
 }
 
+/** 旺相休囚死（藏干气势派）——八字 analyzer 用这张，**不是** `constants.js` 的
+ *  `STRENGTH_STRICT`（严格《子平真诠》表，六爻月建用）。两张表四季月末月取值不同。 */
+function wuxingStrength(wuxing, monthZhi) {
+  const row = T.STRENGTH_QISHI[wuxing];
+  return row ? (row[monthZhi] || '') : '';
+}
+
+const PILLAR_KEYS = ['year_pillar', 'month_pillar', 'day_pillar', 'hour_pillar'];
+const pillarsOf = (chart) => PILLAR_KEYS.map((k) => chart[k]);
+
+/** 逐柱补 `shishen_gan` / `shishen_zhi`。支的十神取**本气**（第一藏干）——
+ *  与 shushu `annotate_pillars` 一致。 */
+function annotatePillars(chart) {
+  const dm = chart.day_master;
+  for (const k of PILLAR_KEYS) {
+    const p = chart[k];
+    p.shishen_gan = getShiShen(dm, p.tiangan);
+    const mainHidden = (T.CANGGAN[p.dizhi] || [])[0];
+    p.shishen_zhi = mainHidden ? getShiShen(dm, mainHidden) : '';
+  }
+  return chart;
+}
+
+/** 十神统计：**天干与藏干一起数**（shushu 如此）。排序按 count 降序，
+ *  Python 的 sort 稳定 → JS 的 sort 也稳定（ES2019 起），故并列时保留出现顺序。 */
+function summarizeShiShen(chart) {
+  const dm = chart.day_master;
+  const counter = new Map();                    // Map 保插入序 = 首次出现序
+  for (const p of pillarsOf(chart)) {
+    const bump = (stem) => {
+      const ss = getShiShen(dm, stem);
+      if (!ss) return;
+      if (!counter.has(ss)) counter.set(ss, { count: 0, stems: [] });
+      const e = counter.get(ss);
+      e.count += 1;
+      e.stems.push(stem);
+    };
+    bump(p.tiangan);
+    for (const h of (p.canggan || [])) bump(h);
+  }
+  const monthZhi = chart.month_pillar.dizhi;
+  const out = [];
+  for (const [shishen, info] of counter) {
+    const wx = info.stems.length ? (GAN_WUXING[info.stems[0]] || '') : '';
+    out.push({
+      shishen,
+      count: info.count,
+      stems: info.stems,
+      strength: wx ? wuxingStrength(wx, monthZhi) : '',
+    });
+  }
+  out.sort((a, b) => b.count - a.count);
+  return out;
+}
+
+const HELP_SHISHEN = new Set(['比肩', '劫财', '正印', '偏印']);
+const DRAIN_SHISHEN = new Set(['食神', '伤官', '正财', '偏财', '正官', '七杀']);
+
+// 三合局 / 三会方。注意 shushu 把四支放进 **set** 再判 len==3，
+// 故「寅午戌」加一个重复的「寅」也算全合 —— 此处用 Set 复现同一行为。
+const SANHE = [
+  [['寅', '午', '戌'], '火'], [['申', '子', '辰'], '水'],
+  [['巳', '酉', '丑'], '金'], [['亥', '卯', '未'], '木'],
+];
+const SANHUI = [
+  [['寅', '卯', '辰'], '木'], [['巳', '午', '未'], '火'],
+  [['申', '酉', '戌'], '金'], [['亥', '子', '丑'], '水'],
+];
+
+/** 日主旺衰。得令（严格=月令同气「旺」）与得气（旺或相）分列，
+ *  再按帮扶/耗泄计分，最后三档判 身强/身弱/中和。 */
+function calculateStrength(chart) {
+  const dm = chart.day_master;
+  const dmWx = GAN_WUXING[dm];
+  const monthZhi = chart.month_pillar.dizhi;
+
+  const monthlyStatus = wuxingStrength(dmWx, monthZhi);
+  const deling = monthlyStatus === '旺';
+  const deqi = monthlyStatus === '旺' || monthlyStatus === '相';
+
+  let helpScore = 0;
+  let drainScore = 0;
+  for (const p of pillarsOf(chart)) {
+    for (const s of [p.tiangan, ...(p.canggan || [])]) {
+      const ss = getShiShen(dm, s);
+      if (HELP_SHISHEN.has(ss)) helpScore += 1;
+      else if (DRAIN_SHISHEN.has(ss)) drainScore += 1;
+    }
+  }
+
+  const dzSet = new Set(pillarsOf(chart).map((p) => p.dizhi));
+  for (const [group, wx] of SANHE.concat(SANHUI)) {
+    const hit = group.filter((z) => dzSet.has(z)).length;
+    if (hit === 3) {
+      if (SHENG[wx] === dmWx) helpScore += 3;          // 三合生日主
+      else if (wx === dmWx) helpScore += 3;            // 三合同类
+      else if (KE[wx] === dmWx) drainScore += 3;       // 三合克日主
+      else if (KE[dmWx] === wx) drainScore += 2;       // 日主克三合
+    } else if (hit === 2) {
+      if (SHENG[wx] === dmWx || wx === dmWx) helpScore += 1;
+      else if (KE[wx] === dmWx) drainScore += 1;
+    }
+  }
+
+  let strength;
+  if (deling && helpScore >= drainScore) strength = '身强';
+  else if (deqi && helpScore > drainScore) strength = '身强';
+  else if (!deqi && drainScore > helpScore + 1) strength = '身弱';
+  else strength = '中和';
+
+  return {
+    strength, monthly_status: monthlyStatus, deling, deqi, help_score: helpScore,
+    drain_score: drainScore,
+  };
+}
+
+/** 格局描述：优先《子平真诠》章旨 → 八正格短语 → 传入的兜底。
+ *
+ *  ⚠ 照搬 shushu 的键不匹配：它查 `ZIPING_GE_FULL["月刃格"]`，而该表键为 `阳刃格` ——
+ *  于是走 月刃格 这条路时章旨**永远取不到**，静默退化成 `SPECIAL_PATTERNS[1].desc`。
+ *  此处不擅自改名（改名会让对拍多出一处无来源的差异），差异在 3.5.1b 对拍里显形。
+ */
+function richDesc(patternName, fallback) {
+  const z = T.ZIPING_ZHANGZHI[patternName];
+  if (z) return z;
+  const mp = T.MAJOR_PATTERNS[patternName];
+  if (mp && mp.desc) return mp.desc;
+  return fallback || '';
+}
+
+function cgToPattern(dm, cg) {
+  const ss = getShiShen(dm, cg);
+  if (ss === '比肩') {
+    return { pattern: '建禄格', desc: richDesc('建禄格', T.SPECIAL_PATTERNS[0].desc) };
+  }
+  if (ss === '劫财') {
+    return { pattern: '月刃格', desc: richDesc('月刃格', T.SPECIAL_PATTERNS[1].desc) };
+  }
+  const patName = ss + '格';
+  const mp = T.MAJOR_PATTERNS[ss] || T.MAJOR_PATTERNS[patName];
+  if (mp) {
+    const name = mp.name || patName;
+    return { pattern: name, desc: richDesc(name, mp.desc || '') };
+  }
+  return { pattern: patName, desc: richDesc(patName) };
+}
+
+const PATTERN_RANK = {
+  建禄格: 0, 月刃格: 0,
+  正官格: 1, 正印格: 2, 食神格: 3,
+  正财格: 4, 偏财格: 4,
+  七杀格: 5, 偏印格: 6, 伤官格: 7,
+};
+
+/** 格局判定顺序（shushu 原序，不可调换）：
+ *  专旺格 → 化气格 → 从格（严格条件）→ 月支透干优先的正格 → 月支本气。 */
+function detectPattern(chart) {
+  const dm = chart.day_master;
+  const dmWx = GAN_WUXING[dm];
+  const mP = chart.month_pillar;
+  const monthCanggan = mP.canggan || [];
+  const strengthInfo = calculateStrength(chart);
+  const tg = pillarsOf(chart).map((p) => p.tiangan);
+  const dz = new Set(pillarsOf(chart).map((p) => p.dizhi));
+
+  // ── 专旺格 ──
+  for (const [gname, g] of Object.entries(T.ZHUAN_WANG_GE)) {
+    if (!g.stems.includes(dm)) continue;
+    const hasReqs = Array.from(dz).filter((z) => g.required_zhi.includes(z)).length >= 3;
+    const keElem = KE[g.element];
+    const hasKe = tg.some((t) => GAN_WUXING[t] === keElem);
+    if (hasReqs && !hasKe && (strengthInfo.strength === '身强' || strengthInfo.strength === '中和')) {
+      return { pattern: gname, desc: g.desc };
+    }
+  }
+
+  // ── 化气格 ──
+  const hourGan = chart.hour_pillar.tiangan;
+  for (const [gname, g] of Object.entries(T.HUA_QI_GE)) {
+    const [a, b] = g.stems_pair;
+    if ((dm === a && hourGan === b) || (dm === b && hourGan === a)) {
+      if (g.month_zhi.includes(mP.dizhi)) {
+        const keElem = KE[g.element];
+        if (!tg.some((t) => GAN_WUXING[t] === keElem)) {
+          return { pattern: gname, desc: g.desc };
+        }
+      }
+    }
+  }
+
+  // ── 从格（条件很紧：极弱 + 一方独大 + 无救）──
+  if (strengthInfo.strength === '身弱') {
+    const ssList = summarizeShiShen(chart);
+    const top = ssList[0];
+    if (top) {
+      const rivalCount = ssList.length > 1 ? ssList[1].count : 0;
+      const dominant = top.count >= 3 && top.count > rivalCount;
+      const extreme = strengthInfo.help_score <= 2 && strengthInfo.drain_score >= 8;
+      if (dominant && extreme) {
+        if (top.shishen === '正财' || top.shishen === '偏财') {
+          return { pattern: '从财格', desc: T.SPECIAL_PATTERNS[2].desc };
+        }
+        if (top.shishen === '正官' || top.shishen === '七杀') {
+          return { pattern: '从杀格', desc: T.SPECIAL_PATTERNS[3].desc };
+        }
+        if (top.shishen === '食神' || top.shishen === '伤官') {
+          const guanSha = ssList.find((s) => s.shishen === '正官' || s.shishen === '七杀');
+          if (!guanSha || guanSha.count <= 1) {
+            return { pattern: '从儿格', desc: T.SPECIAL_PATTERNS[4].desc };
+          }
+        }
+      }
+    }
+  }
+
+  // ── 正格：透干优先，多干俱透取位高者；无透干退月支本气 ──
+  if (monthCanggan.length) {
+    const visible = new Set(tg);
+    const transparent = monthCanggan.filter((cg) => visible.has(cg));
+    if (transparent.length) {
+      // Python `min` 并列取**首个** → 这里用严格 `<` 保持同样取舍
+      let best = transparent[0];
+      let bestRank = PATTERN_RANK[cgToPattern(dm, best).pattern];
+      if (bestRank === undefined) bestRank = 99;
+      for (const cg of transparent.slice(1)) {
+        let r = PATTERN_RANK[cgToPattern(dm, cg).pattern];
+        if (r === undefined) r = 99;
+        if (r < bestRank) { best = cg; bestRank = r; }
+      }
+      return cgToPattern(dm, best);
+    }
+    return cgToPattern(dm, monthCanggan[0]);
+  }
+  return { pattern: '杂气格', desc: '月支藏干杂，需综合论断' };
+}
+
+/** 神煞。逐个分支与 shushu 同序（返回的是**列表**，顺序参与对拍）。 */
+function findShensha(chart) {
+  const dm = chart.day_master;
+  const yearDz = chart.year_pillar.dizhi;
+  const monthZhi = chart.month_pillar.dizhi;
+  const yearGan = chart.year_pillar.tiangan;
+  const dayGan = chart.day_pillar.tiangan;
+  const dayZhi = chart.day_pillar.dizhi;
+  const result = [];
+
+  const pillarMap = {
+    年支: chart.year_pillar.dizhi,
+    月支: chart.month_pillar.dizhi,
+    日支: chart.day_pillar.dizhi,
+    时支: chart.hour_pillar.dizhi,
+  };
+
+  // 天乙/文昌/禄神/羊刃（以日干查）· 驿马/华盖（以年支查）——shushu 用 if/elif，前者优先
+  for (const [shaName, shaData] of Object.entries(T.SHENSHA)) {
+    let active = null;
+    if (shaData[dm] !== undefined) active = shaData[dm];
+    else if (shaData[yearDz] !== undefined) active = shaData[yearDz];
+    if (active) {
+      for (const [pl, z] of Object.entries(pillarMap)) {
+        if (active.includes(z)) result.push({ name: shaName, dizhi: z, pillar: pl });
+      }
+    }
+  }
+
+  // 三合/三会组神煞：以**年支**所属组查（shushu 里 `get_sanhe_group` 的返回值其实没用上，
+  // 直接判子串；此处同样只判子串，保持一致）
+  for (const shaName of ['将星', '桃花', '孤辰', '寡宿', '劫煞', '亡神', '咸池', '灾煞']) {
+    const shaData = T.SHENSHA_EXTENDED[shaName] || {};
+    for (const [groupKey, targetZhi] of Object.entries(shaData)) {
+      if (groupKey.includes(yearDz)) {
+        for (const [pl, z] of Object.entries(pillarMap)) {
+          if (z === targetZhi) result.push({ name: shaName, dizhi: z, pillar: pl });
+        }
+        break;                                     // 命中一组即止（shushu 有 break）
+      }
+    }
+  }
+
+  // 魁罡：日柱干支组合
+  const kuigang = T.SHENSHA_EXTENDED['魁罡'] || {};
+  if (kuigang[dayGan] && kuigang[dayGan].includes(dayZhi)) {
+    result.push({ name: '魁罡', dizhi: dayZhi, pillar: '日支（魁罡贵格）' });
+  }
+
+  // 金舆/红艳煞/天厨贵人/学堂/词馆 与 天罗/地网 —— 均以日干查（shushu 分两段，同判据）
+  for (const shaName of ['金舆', '红艳煞', '天厨贵人', '学堂', '词馆', '天罗', '地网']) {
+    const shaData = T.SHENSHA_EXTENDED[shaName] || {};
+    if (shaData[dm] !== undefined) {
+      for (const [pl, z] of Object.entries(pillarMap)) {
+        if (shaData[dm].includes(z)) result.push({ name: shaName, dizhi: z, pillar: pl });
+      }
+    }
+  }
+
+  // 天德/月德：以月支查，比的是**四柱天干**；shushu 把天干塞进 `dizhi` 字段，照搬
+  const ganMap = {
+    年干: chart.year_pillar.tiangan,
+    月干: chart.month_pillar.tiangan,
+    日干: chart.day_pillar.tiangan,
+    时干: chart.hour_pillar.tiangan,
+  };
+  for (const shaName of ['天德贵人', '月德贵人']) {
+    const shaData = T.SHENSHA_EXTENDED[shaName] || {};
+    const targets = shaData[monthZhi] || [];
+    for (const [pl, g] of Object.entries(ganMap)) {
+      if (targets.includes(g)) result.push({ name: shaName, dizhi: g, pillar: pl });
+    }
+  }
+
+  // 国印：以年干查地支
+  const guoyin = T.SHENSHA_EXTENDED['国印'] || {};
+  if (guoyin[yearGan] !== undefined) {
+    for (const [pl, z] of Object.entries(pillarMap)) {
+      if (guoyin[yearGan].includes(z)) result.push({ name: '国印', dizhi: z, pillar: pl });
+    }
+  }
+
+  return result;
+}
+
+/**
+ * 静态分析 —— 与 shushu `analyze_chart` 返回同形的字段。
+ *
+ * **未含** `tiaohou`（调候用神）与 `geju_cheng_bai`（格局成败救应）：那两个来自
+ * `core/bazi/tiaohou_yongshen.py`，属 3.5.3 范围，故此处不产出、也不假装产出。
+ * 对拍脚本按字段集断言，缺字段会显形而不是静默跳过。
+ */
+function analyzeChart(chart) {
+  annotatePillars(chart);
+  chart.shishen_summary = summarizeShiShen(chart);
+  chart.strength_info = calculateStrength(chart);
+  chart.strength = chart.strength_info.strength;
+  chart.pattern_info = detectPattern(chart);
+  chart.pattern = chart.pattern_info.pattern;
+  chart.pattern_desc = chart.pattern_info.desc;
+  chart.shensha = findShensha(chart);
+  return chart;
+}
+
 module.exports = {
   buildChart, getMonthGan, getHourGan, getShiShen, buildPillar,
   getRenyuanSiling, ganIndex, zhiIndex, mod,
+  analyzeChart, annotatePillars, summarizeShiShen, calculateStrength,
+  detectPattern, findShensha,
 };
