@@ -118,7 +118,14 @@ async function main() {
       return { vh: window.innerHeight, docH: document.documentElement.scrollHeight,
         vw: document.documentElement.clientWidth,
         chart: top('#baziChart'), ai: top('#baziAiSec'), bar: top('#baziAspectBar'),
-        btn: top('#baziAiArea .ai-start-btn'), rest: top('#baziRest'),
+        // ⚠ 「解读这一方面」那个按钮**不在** #baziAiArea 里。面板挂载时会被搬到
+        //   #aiInlineHost —— 那是 #baziAiArea 的**兄弟**（ai_panel.js::aiInlineHost：
+        //   宿主容器每次排盘都 innerHTML= 重建，面板挂在里面会被一起清掉）。
+        //   原来这里写的是 #baziAiArea .ai-start-btn，永远选不中 → 报 btnTop: null，
+        //   看起来像「真盘下按钮没渲染」的线上故障，其实是**探针选择器过期**。
+        //   判据的用意（第一屏看得到按钮）没变，改的是找它的路径。
+        //   （注释里别用反引号：这一段是模板字符串，一个反引号就把字符串截断了。）
+        btn: top('#aiInlineHost .ai-start-btn'), rest: top('#baziRest'),
         jiben: top('#baziRest .bz-sec'),
         chartText: chart ? (chart.innerText || '').replace(/\\s+/g, '') : '',
         restText: rest ? (rest.innerText || '').replace(/\\s+/g, '') : '',

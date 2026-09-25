@@ -8,13 +8,17 @@
  * 解析记录落库」，这里正是那三样。
  *
  * 要验的承诺：
- *   ① 盘由后端现算，且**喂给 AI 的那段**出自 `bazi_prompt.js` 的同一个函数
- *      （system 段逐字等于 `baziSystem()`；用户段含四柱、含检索来的古籍）
+ *   ① 盘由后端现算，且**喂给 AI 的那段**出自共用件、不是本端点另拼一份：
+ *      首次解读 system 逐字等于 `bazi_report.js` 的 `baziReportSystem()`、
+ *      用户段逐字等于 `baziReportPrompt()`；追问走 `bazi_prompt.js` 那套
+ *      （system = `baziReportFollowUpSystem()`、用户段 = `baziFollowUpPrompt()`）。
+ *      **两条路都不能串** —— 首次吃追问规格会漏掉评分表，追问吃首次规格会重出一整套表。
  *   ② 游客：能解**一次**（签名 cookie 记），第二次被拦且**明说要登录**
  *   ③ 游客：不许解「综合」（含**没填 tab** 的情况 —— 不填就是综合）
  *   ④ 游客：**不落库**；登录用户：解读写进 `bazi_analyses`（含 chart_id/方面/提问）
  *   ⑤ 记账取**上游真数**（`usage` 帧），不是本地估的；游客没有 token 尾巴
- *   ⑥ 解读尾部那行「消耗 Token：…」**不进**存下来的正文（前端按它切正文）
+ *   ⑥ 解读尾部那行记账尾巴（`POINTS_LABEL`，2026-09-25 起是「消耗积分：」）
+ *      **不进**存下来的正文（前端按它切正文）
  *   ⑦ 用户中途断开 / 一个字都没出来 → **不算用掉一次**（闸门与落库都不触发），
  *      且**都得给用户一句话** —— 不许出现「HTTP 200 + 0 字节」那种空白回复
  *      （线上真发生过：上游是推理模型，`max_tokens` 被「思考」吃光 → 正文 0 字）。
@@ -46,6 +50,7 @@ const SERVER = path.join(ROOT, 'build', 'backend', 'auth-server.js');
 const baziFull = require(path.join(ROOT, 'build', 'backend', 'paipan', 'bazi_full.js'));
 const baziPromptLib = require(path.join(ROOT, 'build', 'backend', 'paipan', 'bazi_prompt.js'));
 const baziFortuneLib = require(path.join(ROOT, 'build', 'backend', 'paipan', 'bazi_fortune.js'));
+const baziReportLib = require(path.join(ROOT, 'build', 'backend', 'paipan', 'bazi_report.js'));
 const ganzhiLib = require(path.join(ROOT, 'build', 'backend', 'paipan', 'ganzhi.js'));
 const paipanConst = require(path.join(ROOT, 'build', 'backend', 'paipan', 'constants.js'));
 
@@ -99,6 +104,27 @@ const LLM_MAX_TOKENS = Number(mustMatch(/const LLM_MAX_TOKENS = (\d+);/,
   'LLM_MAX_TOKENS', '模块级 token 上限').slice(1).join(''));
 const LLM_REASONING_EFFORT = mustMatch(/const LLM_REASONING_EFFORT = '([a-z]+)';/,
   'LLM_REASONING_EFFORT', '思考强度（low/high/max）')[1];
+// 首读那一路的采样温度（关思考后才生效）。与上面两个同理：**从源码切**。
+// 它落在切片窗口之外，不注入就是 `BAZI_REPORT_TEMPERATURE is not defined` ——
+// 端点不崩、但流刚开就断，正文只剩一句「生成中断了」。
+const BAZI_REPORT_TEMPERATURE = Number(mustMatch(/const BAZI_REPORT_TEMPERATURE = ([\d.]+);/,
+  'BAZI_REPORT_TEMPERATURE', '首读采样温度').slice(1).join(''));
+// 记账尾巴（`POINTS_LABEL` + `pointsTrailer`）。定义在文件顶部**第 330 行**一带，
+// 落在本脚本的切片窗口（八字辅助函数 → 端点）**之外** —— 不注入就是
+// `pointsTrailer is not defined`，而它外面套着 `catch (e) { /* 静默失败 */ }`，
+// 于是**不报错、只是尾巴凭空消失**：④ 那条断言红的表象是「没有尾巴」，
+// 真因是切出来的代码不自洽（本仓库的老毛病）。故这里照样**从源码切**，不另抄一份。
+// ⚠ 判据里也不许再写死标签：该常量 2026-09-25 已由「消耗 Token：」改成「消耗积分：」，
+//   写死旧字的断言会变成**永远为真**的橡皮章。
+const POINTS_LABEL = mustMatch(/const POINTS_LABEL = '([^']+)';/,
+  'POINTS_LABEL', '记账尾巴的标签').slice(1).join('');
+const POINTS_TRAILER_SRC = mustMatch(/function pointsTrailer\([\s\S]*?\n\}/,
+  'pointsTrailer', '记账尾巴函数')[0];
+if (POINTS_TRAILER_SRC.indexOf('POINTS_LABEL') < 0) {
+  console.error('❌ pointsTrailer 切出来没引用 POINTS_LABEL，切歪了：'
+    + JSON.stringify(POINTS_TRAILER_SRC.slice(0, 80)));
+  process.exit(2);
+}
 const NOTICE_PARTS = mustMatch(/const EMPTY_UPSTREAM_NOTICE = ([\s\S]*?);\n/,
   'EMPTY_UPSTREAM_NOTICE', '空正文时给用户看的那句话')[1];
 // 那句提示是几个字符串字面量相加，逐段取出来拼回原样（比 eval 稳，也不执行任何东西）
@@ -273,14 +299,17 @@ function makeHarness(opts) {
   const factory = new Function('D',
     'const { db, json, checkAuth, fetch, config, RAG_URL, crypto, JWT_SECRET, LLM_MODEL,\n'
     + '  LLM_MAX_TOKENS, LLM_REASONING_EFFORT, EMPTY_UPSTREAM_NOTICE,\n'
-    + '  baziFull, baziPromptLib, baziFortuneLib, ganzhiLib, paipanConst, require } = D;\n'
-    + TOKEN_LIMIT + '\n' + ESTIMATE + '\n' + HELPERS + '\n'
+    + '  BAZI_REPORT_TEMPERATURE,\n'
+    + '  baziFull, baziPromptLib, baziFortuneLib, baziReportLib, ganzhiLib, paipanConst, require } = D;\n'
+    + TOKEN_LIMIT + '\n' + ESTIMATE + '\n'
+    + "const POINTS_LABEL = '" + POINTS_LABEL + "';\n" + POINTS_TRAILER_SRC + '\n'
+    + HELPERS + '\n'
     + 'async function handle(req, res, body, pathname) {\n'
     // ⚠ `url` 要**每次请求现取**（放在工厂体里就只算一次，第二次请求读到的是旧值）
     + "const url = new URL((D.reqUrl ? D.reqUrl() : '/'), 'http://localhost');\n"
     + ENDPOINT + RECORDS
     + "  throw new Error('端点没接这一条请求：' + pathname);\n}\n"
-    + 'return { handle, baziChartFromParams, baziSearchQuery, anonSign, anonReadCookie,'
+    + 'return { handle, baziChartFromParams, baziSearchQuery, baziRagContext, pointsTrailer, anonSign, anonReadCookie,'
     + ' BAZI_ASPECTS, ANON_IP_DAILY_CAP };');
 
   const impl = factory({
@@ -307,7 +336,8 @@ function makeHarness(opts) {
     LLM_MAX_TOKENS,
     LLM_REASONING_EFFORT,
     EMPTY_UPSTREAM_NOTICE,
-    baziFull, baziPromptLib, baziFortuneLib, ganzhiLib, paipanConst,
+    BAZI_REPORT_TEMPERATURE,
+    baziFull, baziPromptLib, baziFortuneLib, baziReportLib, ganzhiLib, paipanConst,
     require: injectRequire,
   });
 
@@ -333,7 +363,12 @@ function makeHarness(opts) {
     } catch (e) {
       res.throwMsg = e.message;
     }
-    return { res, json: { ...jsonRec } };
+    // ⚠ 端点抛错时**当场喊一声**。不喊的话症状长这样：`流式响应 200 —— null`、
+    //   紧接着 `payload.max_tokens` 读 undefined 把脚本崩掉 —— 一串看不懂的 ✗，
+    //   而真正的原因（比如新 require 的模块没注入）一个字都不露面。
+    //   2026-09-25 首次解读改用 `bazi_report.js` 时就是这么被瞒过去的。
+    if (res.throwMsg) console.error(`   ⚠ 端点抛错：${res.throwMsg}`);
+    return { res, json: { ...jsonRec }, throwMsg: res.throwMsg };
   }
 
   /** 调一次「解析记录」端点（只读）。`query` 形如 `?chartId=chart_1`。 */
@@ -374,8 +409,10 @@ console.log('\n① 游客第一次解析「事业」：放行');
   check('正文是模型给的三段（流式照写）',
     /【一、结论】/.test(r.res.body) && /【二、你的现状】/.test(r.res.body),
     JSON.stringify(r.res.body.slice(0, 120)));
-  check('游客的正文里**没有** token 尾巴（那一行是登录用户的记账）',
-    r.res.body.indexOf('消耗 Token') < 0, JSON.stringify(r.res.body.slice(-80)));
+  // 标签从切出来的常量取 —— 写死「消耗 Token」的话，标签一改名这条就恒真了
+  check('游客的正文里**没有**记账尾巴（那一行是登录用户的）',
+    r.res.body.indexOf(POINTS_LABEL) < 0 && r.res.body.indexOf('消耗 Token') < 0,
+    JSON.stringify(r.res.body.slice(-80)));
   const sc = r.res.headers['set-cookie'] || '';
   check('发了游客身份 cookie（HttpOnly + 一年）',
     /^sqw_anon=[0-9a-f]{24}\.[A-Za-z0-9_-]{43};/.test(sc) && /HttpOnly/.test(sc) && /Max-Age=31536000/.test(sc),
@@ -397,14 +434,49 @@ console.log('\n① 游客第一次解析「事业」：放行');
   check('token 上限给「思考」留了余量（≥6000，且与源码里的真值一致）',
     payload.max_tokens === LLM_MAX_TOKENS && payload.max_tokens >= 6000,
     JSON.stringify({ 发给上游: payload.max_tokens, 源码: LLM_MAX_TOKENS }));
-  check('system 段逐字等于共用的 `baziSystem()`',
-    payload.messages[0].content === baziPromptLib.baziSystem(),
+  // 「关思考 + 低温」是首读这条路上**真正在承重的两个开关**，不是风格偏好：
+  //   · 不关思考 → 思考与正文抢同一个 token 预算，实测 3 次里 2 次 `length` 截断；
+  //   · 温度不压 → 同一张盘打分飘（实测 0.7 时 3 次极差远大于 0.3 时的 1 分）。
+  // 所以判据取「真的照这个值发出去了」，而不是「源码里写着 0.3」——
+  // 后者在「有人把赋值那行注释掉、params 用默认 0.7」时照样绿。
+  check('首读**关掉了思考**（thinking.type=disabled）',
+    payload.thinking && payload.thinking.type === 'disabled',
+    JSON.stringify(payload.thinking));
+  check('首读温度取自源码里那个常量（不靠 SDK 默认值）',
+    payload.temperature === BAZI_REPORT_TEMPERATURE && BAZI_REPORT_TEMPERATURE > 0
+    && BAZI_REPORT_TEMPERATURE <= 0.5,
+    JSON.stringify({ 发给上游: payload.temperature, 源码: BAZI_REPORT_TEMPERATURE }));
+  check('关思考时**不并发**给 reasoning_effort（两者不并存，实测并发会被上游拒）',
+    payload.reasoning_effort === undefined, JSON.stringify(payload.reasoning_effort));
+  // ⚠ 首次解读自 2026-09-25 起走 `bazi_report.js`（命盘评分 + 8 模块），**不是**
+  //   `bazi_prompt.js` 的 `baziSystem()` —— 那一条是 shushu 三段式，现在归追问用。
+  //   这两条断言**逐字**比，不是「含四柱就算过」：只查「含某几个字」的话，
+  //   把模板换一份、把评分规范整段删掉，照样全绿（本仓库对橡皮章的教训）。
+  check('首次解读的 system 逐字等于 `baziReportSystem()`（评分 + 8 模块那份规范）',
+    payload.messages[0].content === baziReportLib.baziReportSystem(),
     JSON.stringify(payload.messages[0].content.slice(0, 60)));
+  // 不在这里另抄一份模块名清单（我抄的第一版就把「事业与学业」写成了「事业与财运」，
+  // 于是一条其实没问题的断言红了）。判据只数「有几个 ### N. 模块标题」并核对首末两个。
+  const modHeads = (payload.messages[0].content.match(/^### \d+\. .+$/gm) || []);
+  check('首次解读的 system 里带着评分规格与 8 个模块（不是一份空规范）',
+    /命盘评分/.test(payload.messages[0].content) && modHeads.length === 8
+    && /^### 1\. 性格与天赋$/.test(modHeads[0]),
+    JSON.stringify({ 模块标题: modHeads }));
   // 四柱从**同一个**取盘函数现算，不写死干支 —— 写死的话历法一改就变成在验夹具
-  const chartFor = h.impl.baziChartFromParams(BIRTH).chart;
+  const built = h.impl.baziChartFromParams(BIRTH);
+  const chartFor = built.chart;
   const pillars = ['year_pillar', 'month_pillar', 'day_pillar', 'hour_pillar']
     .map((k) => chartFor[k].tiangan + chartFor[k].dizhi);
-  check('用户段出自共用的提示词函数：含这四柱与「事业」专项',
+  // 用户段**逐字**比：拿端点自己那个出口 `baziReportPrompt` 现算一份来对照。
+  // 检索结果也是现取（同一套桩、同一个函数），不在本脚本里另抄一段假的古籍文本 ——
+  // 抄一段的话，RAG 的拼装格式改了（比如书名字段改名），这里照样绿。
+  const ragText = await h.impl.baziRagContext(chartFor, '事业', '我今年适合换工作吗');
+  check('用户段逐字等于 `baziReportPrompt()`（含四柱、含检索来的古籍）',
+    payload.messages[1].content === baziReportLib.baziReportPrompt(chartFor, {
+      tab: '事业', question: '我今年适合换工作吗', ragText, currentYear: built.thisYear,
+    }),
+    JSON.stringify({ pillars, len: payload.messages[1].content.length }));
+  check('四柱真的在那段用户消息里（`baziReportPrompt` 逐字比过了，这条防的是它自己漏柱）',
     pillars.every((g) => payload.messages[1].content.indexOf(g) >= 0)
     && payload.messages[1].content.indexOf('事业') >= 0,
     JSON.stringify({ pillars, head: payload.messages[1].content.slice(0, 100) }));
@@ -467,15 +539,22 @@ console.log('\n④ 登录用户解析「婚姻」：落库 + 记账取真数');
   });
   check('200 且流式正文完整', r.res.statusCode === 200 && /【二、你的现状】/.test(r.res.body),
     JSON.stringify(r.res.body.slice(0, 80)));
-  check('登录用户的正文末尾有 token 尾巴（前端按它切正文）',
-    /消耗 Token：输入 11 \+ 输出 22 = 33/.test(r.res.body), JSON.stringify(r.res.body.slice(-100)));
+  // 尾巴的**标签**取自切出来的 `POINTS_LABEL`（不写死字面量）：该常量 2026-09-25 已由
+  // 「消耗 Token：」改成「消耗积分：」—— 写死旧字的断言在此之后是**永远为真**的橡皮章。
+  // 三个数字必须满足「33 = 11 + 22」，因为那才是「记账取上游真数、不是本地估的」这条
+  // 承诺：桩给的 usage 帧就是 11/22/33，本地估的话绝不可能正好凑成这个关系。
+  check('登录用户的正文末尾有记账尾巴，且取的是上游真数（输入 11 + 输出 22 = 33）',
+    r.res.body.indexOf(POINTS_LABEL) >= 0
+    && /输入 11 \+ 输出 22 = 33/.test(r.res.body)
+    && /剩余：/.test(r.res.body), JSON.stringify(r.res.body.slice(-110)));
   const a = h.db._t.analyses[0];
   check('写进解析记录：用户/命盘/方面/提问都对',
     h.db._t.analyses.length === 1 && a.user_id === 'alice' && a.chart_id === 'chart_7'
     && a.aspect === '婚姻' && a.question === '什么时候有姻缘',
     JSON.stringify(a && { u: a.user_id, c: a.chart_id, a: a.aspect, q: a.question }));
-  check('**存下来的正文不含**那行 token 尾巴（同一份内容不该两个样）',
-    a && a.analysis.indexOf('消耗 Token') < 0 && a.analysis.indexOf('【二、你的现状】') >= 0,
+  check('**存下来的正文不含**那行记账尾巴（同一份内容不该两个样）',
+    a && a.analysis.indexOf(POINTS_LABEL) < 0 && a.analysis.indexOf('消耗 Token') < 0
+    && a.analysis.indexOf('【二、你的现状】') >= 0,
     JSON.stringify(a && a.analysis.slice(-60)));
   check('记账用的是**上游真数** 33（不是本地估的）',
     h.db._t.updates.length === 1 && h.db._t.updates[0][0] === 33 && h.db._t.updates[0][1] === 'alice',
@@ -619,8 +698,19 @@ console.log('\n⑫ 文件级不变量：两条 AI 线不许分叉');
     hardcoded.length === 0, JSON.stringify(hardcoded));
   const usesConst = (src.match(/max_tokens: LLM_MAX_TOKENS/g) || []).length;
   check('两条 AI 线都用了这个共用常量（解读 + 聊天）', usesConst === 2, String(usesConst));
-  const efforts = (src.match(/reasoning_effort: LLM_REASONING_EFFORT/g) || []).length;
+  // 思考强度这一项**两条线写法不同**，别再用同一个字面模式去数：
+  //   · 聊天线（`/api/chat/send`）整份 params 一次写死 → `reasoning_effort: LLM_REASONING_EFFORT`
+  //   · 八字线按 `noThinking` 分支 → `params.reasoning_effort = LLM_REASONING_EFFORT`（追问那支）
+  // 原来只数前一种、要求 === 2，八字首读改成「关思考」之后这个数就变成 1，
+  // 断言红的表象是「有个 AI 线没传思考强度」，其实两条线都传得好好的 ——
+  // 判据跟不上实现的形状改变，是比漏判更常见的假警报来源。
+  const efforts = (src.match(/reasoning_effort[^\n]*LLM_REASONING_EFFORT/g) || []).length;
   check('两条 AI 线都显式传了思考强度（不靠上游默认值变化）', efforts === 2, String(efforts));
+  // 八字线**首读那支**必须关思考：`thinking` 与 `reasoning_effort` 二选一，两者都给会被拒。
+  // 这条钉的是「分支还在」——有人把 if 拆了、或把两行写成都在，这里就红。
+  const thinkingOff = (src.match(/params\.thinking = \{ type: 'disabled' \};/g) || []).length;
+  check('八字线有一条「关思考」分支（`thinking:{type:disabled}`，与上面那个二选一）',
+    thinkingOff === 1, String(thinkingOff));
   check('思考强度是官方文档里的取值之一',
     ['low', 'high', 'max'].indexOf(LLM_REASONING_EFFORT) >= 0, LLM_REASONING_EFFORT);
   const guards = (src.match(/if \(!fullText && !wroteFallback/g) || []).length;
@@ -739,8 +829,13 @@ console.log('\n⑭ 追问：换模板、带上下文、不落库');
     const user = h.llm.calls[0].messages[1].content;
     check('走的是**追问模板**：有【追问】【之前解读】',
       /【追问】/.test(user) && /【之前解读】/.test(user), JSON.stringify(user.slice(0, 80)));
-    check('**不是**完整模板（没有「请按步骤深度分析」那段）',
-      user.indexOf('请按步骤深度分析') < 0, JSON.stringify(user.slice(0, 120)));
+    // ⚠ 判据**换成首读规格独有的那句**：「没有『请按步骤深度分析』」在 2026-09-25 之后
+    //   成了恒真的废话 —— 那句话已经从两份模板里都删掉了（它绑的是 shushu 三段式）。
+    //   现在两份模板的判别标志是：首读那份要求「输出『一、命盘评分』与『二、综合内容』」，
+    //   追问那份带【追问】【之前解读】。两条断言各查一边，互相为对方的反例。
+    check('**不是**首读那份规格（没有要「一、命盘评分」的整表要求）',
+      user.indexOf('一、命盘评分') < 0 && user.indexOf('请按步骤深度分析') < 0,
+      JSON.stringify(user.slice(-120)));
     check('追问原话进了正文材料', user.indexOf('那什么时候会好转？') >= 0, '追问没进去');
     check('带上了刚才那份解读的**尾部**（用户问「那…呢」指的就是它）',
       user.indexOf('尾巴标记') >= 0, '上一份解读没进去');
@@ -765,8 +860,9 @@ console.log('\n⑭ 追问：换模板、带上下文、不落库');
       token: 'tok-alice',
     });
     const user = h.llm.calls[0].messages[1].content;
-    check('首次带提问 → **完整模板**（含「请按步骤深度分析」）',
-      user.indexOf('请按步骤深度分析') >= 0, JSON.stringify(user.slice(-120)));
+    check('首次带提问 → 走的仍是**首读那份模板**（要求「一、命盘评分」，不是追问模板）',
+      user.indexOf('一、命盘评分') >= 0 && user.indexOf('【追问】') < 0,
+      JSON.stringify(user.slice(-120)));
     check('首次带提问 → 照样检索古籍（检索词里也带那句提问）',
       h.rag.calls.length === 1
       && h.rag.calls[0].body.query.indexOf('我今年适合换工作吗') >= 0,
