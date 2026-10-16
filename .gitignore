@@ -40,3 +40,8 @@ build/nginx/faker/
 # Python 字节码缓存（生成物，不该入库）
 __pycache__/
 *.pyc
+
+# ── build/ 是部署目录，由 src/ 生成 ────────────────────────
+# 改前端请改 src/web/，然后跑 deploy/sync.sh
+# build/nginx 是 nginx 容器的挂载点（/usr/share/nginx/html），内容由 rsync 生成
+/build/nginx/
