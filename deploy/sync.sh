@@ -112,8 +112,8 @@ echo "自检（逐文件 md5，容器读到的必须就是产物内容）："
 
 host_web=$( (cd build/nginx && find . -type f -exec md5sum {} +) | sort | md5sum | cut -c1-12 )
 ctr_web=$( docker exec ai3000-nginx sh -c 'cd /usr/share/nginx/html && find . -type f -exec md5sum {} +' 2>/dev/null | sort | md5sum | cut -c1-12 )
-host_api=$( (cd build/backend && { md5sum auth-server.js config.js chat-proxy.js; find paipan -type f -exec md5sum {} +; }) | sort | md5sum | cut -c1-12 )
-ctr_api=$( docker exec ai3000-backend sh -c 'cd /app && { md5sum auth-server.js config.js chat-proxy.js; find paipan -type f -exec md5sum {} +; }' 2>/dev/null | sort | md5sum | cut -c1-12 )
+host_api=$( (cd build/backend && { md5sum auth-server.js config.js chat-proxy.js chat-tools.js; find paipan -type f -exec md5sum {} +; }) | sort | md5sum | cut -c1-12 )
+ctr_api=$( docker exec ai3000-backend sh -c 'cd /app && { md5sum auth-server.js config.js chat-proxy.js chat-tools.js; find paipan -type f -exec md5sum {} +; }' 2>/dev/null | sort | md5sum | cut -c1-12 )
 
 printf "  %-18s 产物 %s / 容器 %s  %s\n" "ai3000-nginx"   "$host_web" "$ctr_web" "$([ "$host_web" = "$ctr_web" ] && echo ✓ || echo ✗)"
 printf "  %-18s 产物 %s / 容器 %s  %s\n" "ai3000-backend" "$host_api" "$ctr_api" "$([ "$host_api" = "$ctr_api" ] && echo ✓ || echo ✗)"

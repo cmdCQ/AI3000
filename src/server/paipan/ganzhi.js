@@ -50,12 +50,13 @@
 const path = require('path');
 
 // lunar-javascript 是后端既有依赖；本地对拍（容器外无 node_modules）退回
-// nginx 里那份同版本 UMD 构建。容器内该路径不存在，退回分支不会触发。
+// `src/web/js/` 里那份同版本 UMD 构建 —— 就是 nginx 对外发的那个目录。
+// 容器内 node_modules 在，走不到这里。
 let lunar;
 try {
   lunar = require('lunar-javascript');
 } catch (e) {
-  lunar = require(path.join(__dirname, '..', '..', 'nginx', 'js', 'lunar.min.js'));
+  lunar = require(path.join(__dirname, '..', '..', 'web', 'js', 'lunar.min.js'));
 }
 const Solar = lunar.Solar;
 

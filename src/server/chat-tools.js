@@ -13,25 +13,23 @@
 //   给模型一段**有界的文本**读，给前端一份**卡片结构**渲染。
 //   两者必须出自同一次计算，所以每个工具都调用**已有端点用的那一个出口**：
 //     meihua → `prompt.meihuaChartFromParams` + `prompt.meihuaBlock`
-//     liuyao → `prompt.liuyaoChartFromCard`   + `liuyao.formatChart`
 //     bazi   → `baziFull.buildBaziFull`       + `bazi_report.baziReportPrompt`
 //   本文件不自己算任何术数，也不自己格式化任何盘面 —— 一旦在这里另写一份，
 //   「用户看到的盘」与「AI 读到的盘」就会分叉，那是这个项目最贵的病。
 //
-// ⚠ 起卦法与装卦的**入参形状**是本文件唯一容易错的地方，三处都已在注释里写明：
+//   六爻**刻意不在工具层**：装卦要六爻各自真实的阴阳与动静，模型编出来的
+//   六个 6/7/8/9 是拿电脑冒充掷铜钱。用户问六爻时 AI 只引导他去 `/liuyao/`
+//   摇完再回来解读（口径写在 `TOOL_SYSTEM_ADDON` 里）。
+//
+// ⚠ 起卦与排盘的**入参形状**是本文件唯一容易错的地方，两处都已在注释里写明：
 //   · `meihuaChartFromParams` 认的 `method` 是 `time|number|character|split|manual`
 //     （**不是**中文展示名「数字起卦」）。传中文名会在 `qigua()` 里抛
 //     「不支持的起卦法」。
-//   · `liuyaoChartFromCard` 不认六爻阴阳数组，只认 `cardData.hexagrams.benGua/bianGua`
-//     的**上下卦号**（与前端 `liuyao_render.js` 发给 `/api/chat/send` 的形状同）。
-//     故这里自己把 6 个数折成上下卦号 —— 用 `meihua.fromGua` 生成，不手写卦序表。
 //   · `baziReportPrompt(chart, opts)` 第一个参数是**排好的 chart**，不是出生参数。
 //     排盘要走 `auth-server.js` 的 `baziChartFromParams()`（由 `setDeps` 注入），
 //     那里同时补挂了 `dayun`/`liunian` 两张表 —— 少挂一张，AI 就只能看见当前一步大运。
 // ══════════════════════════════════════════════════════════════════
 
-const liuyaoPaipan = require('./paipan/liuyao.js');
-const meihuaPaipan = require('./paipan/meihua.js');
 const promptLib = require('./paipan/prompt.js');
 const ganzhiLib = require('./paipan/ganzhi.js');
 
@@ -68,76 +66,6 @@ function nowSizhu() {
 }
 
 /* ──────────────────────────────────────────────────────────────
-   六爻：6 个阴阳数 → 上下卦号 + 动爻
-   ──────────────────────────────────────────────────────────────
-   掷币得到的六个数（自下而上，初爻在前）：
-     6 = 老阴（阴，动）   7 = 少阳（阳，静）
-     8 = 少阴（阴，静）   9 = 老阳（阳，动）
-   折成卦号用 `meihua.fromGua(upper, lower, moving)` —— 那是本项目
-   「上下卦号 → 完整卦象」的唯一出口，六爻与梅花共用同一张八卦表。
-
-   ⚠ `linesOfTrigram` 给的三爻顺序是**下→上**（与 `TRIGRAM_BY_LINES`
-     的键一致），故这里的位权也必须从下往上：`(lines[0]&1)` 是初爻。 */
-
-function linesToNumbers(lines) {
-  const yang = lines.map(v => (v === 7 || v === 9) ? 1 : 0);
-  const moving = [];
-  lines.forEach((v, i) => { if (v === 6 || v === 9) moving.push(i + 1); });
-  // 动爻全无 → 六爻无变卦。`fromGua` 要求 1-6，故静卦时借第 1 爻
-  // **只为生成一个合法卦体**，变卦另行置为与本卦相同（不动就没有变）。
-  const movingForBuild = moving.length ? moving[0] : 1;
-
-  // `trigramOfLines` 直接收三爻数组（下→上），不另建位权
-  const lower = meihuaPaipan.trigramOfLines(yang.slice(0, 3));
-  const upper = meihuaPaipan.trigramOfLines(yang.slice(3, 6));
-  return { upper, lower, moving, movingForBuild, yang };
-}
-
-/**
- * 本卦/变卦的上下卦号 —— 与前端 `liuyao_render.js` 发出去的形状逐字对齐。
- *
- * 变卦 = 本卦的**动爻**翻转。静卦（无 6/9）时变卦与本卦相同 —— 六爻里
- * 「六爻不动」就是没有变卦，此处按同卦处理，不下别的结论。
- */
-function hexagramsFromLines(lines) {
-  const { upper, lower, moving, movingForBuild, yang } = linesToNumbers(lines);
-
-  const ben = meihuaPaipan.deriveAll(yang, [movingForBuild]);
-  let bianUpper = upper, bianLower = lower;
-  if (moving.length) {
-    const flipped = yang.slice();
-    moving.forEach(pos => { flipped[pos - 1] = flipped[pos - 1] ? 0 : 1; });
-    bianLower = meihuaPaipan.trigramOfLines(flipped.slice(0, 3));
-    bianUpper = meihuaPaipan.trigramOfLines(flipped.slice(3, 6));
-  }
-  // 变卦的动爻位置本卦与变卦相同（只是阴阳翻了），故 moving 仍取本卦的动爻
-  const bian = meihuaPaipan.deriveAll(
-    moving.length ? yang.map((v, i) => (moving.includes(i + 1) ? (v ? 0 : 1) : v)) : yang,
-    [movingForBuild]
-  );
-
-  const tri = (g, k) => (g && g.trigrams && g.trigrams[k]) || '';
-  const shape = (hex, up, lo) => ({
-    name: (hex && hex.name) || '',
-    upper: up, lower: lo,
-    upperTri: { name: tri(hex, 'upper') },
-    lowerTri: { name: tri(hex, 'lower') },
-  });
-
-  return {
-    moving,
-    hexagrams: {
-      benGua: shape(ben.main, upper, lower),
-      bianGua: shape(bian.main, bianUpper, bianLower),
-      movingLines: moving.length ? moving : [],
-    },
-    benGuaName: (ben.main && ben.main.name) || '',
-    bianGuaName: (bian.main && bian.main.name) || '',
-    movingLines: moving.length ? moving : [],
-  };
-}
-
-/* ──────────────────────────────────────────────────────────────
    工具定义（喂给模型）
    ──────────────────────────────────────────────────────────────
    写法遵循：描述「做什么、返回什么、什么时候用」；
@@ -161,29 +89,6 @@ const TOOL_DEFS = [
           question: { type: 'string', description: '用户想问的事由，用于判定体用与断卦侧重' },
         },
         required: ['n1', 'n2'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'qigua_liuyao',
-      description:
-        '六爻纳甲装卦，返回本卦与变卦、六亲、世应、六神、旬空、用神。'
-        + '需要六爻的阴阳与动爻信息（用户掷铜钱得到，自下而上）。'
-        + '用户只报数字或只说「起一卦」时用 qigua_meihua，不要用这个。',
-      parameters: {
-        type: 'object',
-        properties: {
-          lines: {
-            type: 'array', minItems: 6, maxItems: 6,
-            items: { type: 'integer', minimum: 6, maximum: 9 },
-            description: '六爻，自下而上（初爻在前）。6=老阴(动) 7=少阳 8=少阴 9=老阳(动)',
-          },
-          topic: { type: 'string', description: '所问之事，用于取用神' },
-          gender: { type: 'string', enum: ['male', 'female'], description: '求测者性别，取用神时需要' },
-        },
-        required: ['lines', 'topic'],
       },
     },
   },
@@ -251,7 +156,7 @@ const TOOL_SYSTEM_ADDON = [
   '【可用工具】你可以调用工具查数据、起卦、排盘，不要凭记忆编造盘面。',
   '· 用户问运势、感情、事业、财运、出行这类问题但**没给数字** → 先自然地向他要两三个任意数字（1-9），不要自己编数字，也不要先讲一大段道理。',
   '· 用户给出数字后 → 调 qigua_meihua 起卦，再依据返回的卦象解读。',
-  '· 用户给出六爻的六个阴阳数（6/7/8/9）→ 调 qigua_liuyao 装卦。只说「起一卦」而给的是数字 → 用 qigua_meihua。',
+  '· 用户提到六爻、摇卦、铜钱 → 你**不能替他装卦**，六个爻值编不出来。请他去「六爻」页掷铜钱摇完，回来把卦象贴给你或直接问怎么解。',
   '· 用户给出出生年月日时 → 调 paipan_bazi 排盘；出生时间不全就先问，不要猜。',
   '· 用户提到「我的命盘」「上次那卦」「之前排的」→ 调 get_my_charts 先看他存过什么。',
   '· 用户说「就现在」「今天」→ 可先调 get_datetime 拿当下干支，再决定要不要起卦。',
@@ -283,7 +188,6 @@ async function executeTool(name, args, ctx) {
   try {
     switch (name) {
       case 'qigua_meihua':   return toolMeihua(args);
-      case 'qigua_liuyao':   return toolLiuyao(args);
       case 'paipan_bazi':    return toolBazi(args);
       case 'get_my_charts':  return await toolMyCharts(args, ctx);
       case 'get_datetime':   return toolDatetime();
@@ -338,52 +242,6 @@ function toolMeihua(a) {
       topic: a.question || '',
     },
     ben ? `本卦 ${ben}` : '已起卦'
-  );
-}
-
-/* ---- 六爻 ---- */
-function toolLiuyao(a) {
-  const lines = Array.isArray(a.lines) ? a.lines.map(Number) : null;
-  if (!lines || lines.length !== 6) return fail('lines 需要 6 个数，自下而上');
-  if (!lines.every(v => Number.isInteger(v) && v >= 6 && v <= 9)) {
-    return fail('每爻需为 6/7/8/9');
-  }
-  const gender = a.gender === 'female' ? 'female' : 'male';
-  const { hexagrams, moving } = hexagramsFromLines(lines);
-
-  // 用当下四柱装卦 —— 与 `/api/liuyao/paipan` 同一条出口（`liuyaoChartFromCard`）
-  const { sizhu, lunar } = nowSizhu();
-  const card = {
-    divinationTime: sizhu && sizhu.input ? sizhu.input : new Date().toISOString(),
-    topic: a.topic || '',
-    gender,
-    hexagrams: Object.assign({ gender }, hexagrams),
-  };
-  // `sizhuFromCard` 认的是扁平的 yearGZ/… （见 `prompt.js`），补上，
-  // 否则四柱会退回「按服务器当前时刻算」而两侧口径不一致。
-  card.yearGZ = sizhu && sizhu.year_gz;
-  card.monthGZ = sizhu && sizhu.month_gz;
-  card.dayGZ = sizhu && sizhu.day_gz;
-  card.hourGZ = sizhu && sizhu.hour_gz;
-  card.lunarInfo = { text: lunar };
-
-  const built = promptLib.liuyaoChartFromCard(card, a.topic || '');
-  if (!built || !built.chart) return fail('装卦失败：拿不到本卦上下卦号');
-
-  return ok(
-    `【起卦】铜钱起卦：${lines.join(' ')}（自下而上）`
-    + `\n【动爻】${moving.length ? moving.join('、') + ' 爻动' : '六爻不动'}`
-    + `\n【四柱】${[card.yearGZ, card.monthGZ, card.dayGZ, card.hourGZ].filter(Boolean).join(' ')}`
-    + (a.topic ? `\n【所问】${a.topic}` : '')
-    + '\n' + liuyaoPaipan.formatChart(built.chart),
-    {
-      type: 'liuyao',
-      chart: built.chart,
-      sizhu: built.sizhu || sizhu,
-      display: liuyaoPaipan.displayMeta ? liuyaoPaipan.displayMeta(card, built.chart) : null,
-      topic: a.topic || '',
-    },
-    `本卦 ${(built.chart.ben && built.chart.ben.name) || ''}`.trim()
   );
 }
 

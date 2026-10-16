@@ -67,6 +67,10 @@ services:
       - /var/www/sqw.somtfly.com/build/backend/auth-server.js:/app/auth-server.js:ro
       - /var/www/sqw.somtfly.com/build/backend/config.js:/app/config.js:ro
       - /var/www/sqw.somtfly.com/build/backend/chat-proxy.js:/app/chat-proxy.js:ro
+      # AI 对话的工具层。**不加这一行，backend 会起不来**（auth-server 顶部
+      # `require('./chat-tools.js')` 直接 MODULE_NOT_FOUND），而它是单文件挂载，
+      # rsync 把文件放进 build/backend 并不会让它出现在容器里。
+      - /var/www/sqw.somtfly.com/build/backend/chat-tools.js:/app/chat-tools.js:ro
       # 排盘/装卦模块（六爻纳甲、八宫世应、旬空、旺衰、伏神、卦身）。只读挂载；
       # 改这里要 `docker compose up -d backend` 重建容器（backend 无热重载）
       - /var/www/sqw.somtfly.com/build/backend/paipan:/app/paipan:ro

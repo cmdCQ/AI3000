@@ -26,6 +26,9 @@ const baziReportLib = require('./paipan/bazi_report.js');
 const baziFortuneLib = require('./paipan/bazi_fortune.js');
 const ganzhiLib = require('./paipan/ganzhi.js');
 const paipanConst = require('./paipan/constants.js');
+// AI 对话的工具层（模型自己决定起卦/排盘/查记录）。与 `auth-server` 是单向依赖：
+// 它不认识本文件，排盘出口由下面的 `setDeps` 注入。
+const chatTools = require('./chat-tools.js');
 
 // ===== 阿里云号码认证服务（PNVS）短信验证码 =====
 const DypnsapiClient = require('@alicloud/dypnsapi20170525').default;
@@ -2689,6 +2692,64 @@ function baziChartFromParams(card) {
     }),
   };
 }
+
+/* ──────────────────────────────────────────────────────────────
+   AI 对话工具层的两个依赖出口（`chat-tools.js` 由 `setDeps` 注入）
+   ────────────────────────────────────────────────────────────── */
+
+/**
+ * 「我的排盘记录」提要 —— 供工具 `get_my_charts` 用。
+ *
+ * 三张表各存各的（`charts` / `mhys_records` / `liuyao_records`），这里只汇总
+ * 「哪几条 + 一句话提要」。**刻意不返回完整盘面**：一是工具输出必须有界，
+ * 二是完整盘面各有各的页面端点（`/api/charts`、`/api/mhys-records` …），
+ * 工具层再建一条读盘出口，就又多一处会跟页面漂移的地方。
+ */
+async function queryMyCharts(username, kind, limit) {
+  const n = Math.min(Math.max(Number(limit) || 5, 1), 20);
+  const pad2 = v => String(v == null ? '' : v).padStart(2, '0');
+  const day = v => (v ? new Date(v).toISOString().slice(0, 10) : '');
+  const out = [];
+
+  if (!kind || kind === 'bazi') {
+    const [rows] = await db.query(
+      'SELECT id, name, gender, birth_year, birth_month, birth_day, birth_hour, created_at'
+      + ' FROM charts WHERE user_id = ? ORDER BY created_at DESC LIMIT ?', [username, n]);
+    for (const r of rows) {
+      out.push({
+        kind: 'bazi', id: r.id, title: r.name || '命盘',
+        summary: [r.gender,
+          r.birth_year + '-' + pad2(r.birth_month) + '-' + pad2(r.birth_day),
+          r.birth_hour == null ? '' : r.birth_hour + '时'].filter(Boolean).join(' '),
+        createdAt: day(r.created_at),
+      });
+    }
+  }
+
+  if (!kind || kind === 'mhys' || kind === 'liuyao') {
+    const isLiuyao = kind === 'liuyao';
+    const table = isLiuyao ? 'liuyao_records' : 'mhys_records';
+    const [rows] = await db.query(
+      'SELECT id, topic, method, created_at FROM ' + table
+      + ' WHERE user_id = ? ORDER BY created_at DESC LIMIT ?', [username, n]);
+    for (const r of rows) {
+      out.push({
+        kind: isLiuyao ? 'liuyao' : 'mhys', id: r.id,
+        title: r.topic || '未命名', summary: r.method || '', createdAt: day(r.created_at),
+      });
+    }
+  }
+
+  out.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+  return out;
+}
+
+/**
+ * 把工具层要的两个出口交出去。
+ * `buildBaziChart` **直接复用上面那条出口** —— 工具排的盘与 `/api/bazi/paipan`
+ * 排的盘必须是同一份，少挂 `dayun`/`liunian` 就会让 AI 只看得见当前一步大运。
+ */
+chatTools.setDeps({ buildBaziChart: baziChartFromParams, queryMyCharts });
 
 /**
  * 盘面显示专用的历法项：农历、生肖、节气区间、四柱旬空。
