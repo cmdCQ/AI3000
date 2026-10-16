@@ -56,7 +56,15 @@ let lunar;
 try {
   lunar = require('lunar-javascript');
 } catch (e) {
-  lunar = require(path.join(__dirname, '..', '..', 'web', 'js', 'lunar.min.js'));
+  // 这份代码会被 sync.sh 复制到 build/backend/paipan/，而「上一级」在两个位置不是同一个
+  // 目录（src/server -> src/web；build/backend -> build/nginx）。两个候选都试，别写死一个。
+  for (const c of [
+    path.join(__dirname, '..', '..', 'web', 'js', 'lunar.min.js'),
+    path.join(__dirname, '..', '..', 'nginx', 'js', 'lunar.min.js'),
+  ]) {
+    try { lunar = require(c); break; } catch (_) {}
+  }
+  if (!lunar) throw e;
 }
 const Solar = lunar.Solar;
 

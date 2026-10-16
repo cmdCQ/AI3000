@@ -1028,8 +1028,11 @@ function renderMarkdown(text) {
     return '<blockquote class="md-quote">' + inline(body) + '</blockquote>';
   });
 
-  // 无序列表：允许 '-' / '*' 后**没有**空格（兼容 "-**重点**" 这种输出）
-  text = text.replace(/^[\s]*[-*]\s*(.+)$/gm, function(m, content){
+  // 无序列表：允许 '-' / '*' 后**没有**空格（兼容 "-**重点**" 这种输出）。
+  // ⚠ 但必须排除「整行以 `**` 开头」——那是**加粗段落**，不是列表项。原来的
+  //   `[-*]\s*` 会吃掉第一个 `*` 当项目符号，加粗标记被吃剩一半，用户眼前
+  //   就多一个裸 `*`（八字报告里「**综合命盘评分：72/100…**」那行正是如此）。
+  text = text.replace(/^(?!\s*\*\*)[\s]*[-*]\s*(.+)$/gm, function(m, content){
     if (!content.trim()) return m;
     return '<div class="md-li md-li-ul">' + inline(content) + '</div>';
   });

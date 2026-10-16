@@ -31,6 +31,17 @@ node_modules/
 __pycache__/
 *.pyc
 
+# ── duipan/ 对拍 harness 的产物 ────────────────────────────
+# 基准是 golden_*.json（**进库**，它们就是「shushu 说了什么」的记录）。
+# 下面两类是跑回归时吐出来的，别进库 —— 合起来 ~347MB：
+#   js_*.json         runner 跑一遍 JS 实现的结果
+#   probe_meihua.json probe_meihua.js:90 吐的，给 coverage_meihua.py:66 当输入
+#   *_strict.json     diff 脚本当场切出来的「严格段」子集（diff_bazi_chart.py:189、
+#                     diff_bazi_fortune.py:245 写的，**不是基准**）
+/duipan/js_*.json
+/duipan/probe_meihua.json
+/duipan/*_strict.json
+
 # ── build/ 全是部署产物，由 src/ 生成，不入库 ──────────────
 # 人只改 src/，然后跑 deploy/sync.sh：
 #   src/web/    → build/nginx/    nginx 容器挂载 /usr/share/nginx/html
