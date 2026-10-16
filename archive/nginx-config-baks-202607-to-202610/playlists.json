@@ -1,0 +1,12 @@
+[
+  {
+    "id": "favorites",
+    "name": "Favorites",
+    "songs": []
+  },
+  {
+    "id": "visual-set",
+    "name": "Visual Set",
+    "songs": []
+  }
+]

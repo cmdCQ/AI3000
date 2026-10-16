@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>排盘结果 · 梅花易数</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/mhys_result.css?v=4">
+</head>
+<body>
+
+<div class="mh-wrapper">
+  <div class="mh-header">
+    <a href="/mhys/" class="mh-back">← 返回排盘</a>
+    <h1 class="mh-title">排盘结果</h1>
+    <!-- 页头那颗「试试自动解析」已删（理由见 `mhys/index.html` 同一处注释）：
+         这一页的块由 load() 里的 `refreshAIPanel()` 摆出来。 -->
+  </div>
+
+  <div id="contentArea">
+    <div class="load-state">
+      <div class="spinner"></div>
+      <p>加载中...</p>
+    </div>
+  </div>
+
+  <!-- 解卦区（本卦/互卦/变卦…的解析）。**必须摆在正文容器的下一个兄弟位置**：
+       AI 面板的宿主 `#aiInlineHost` 由引擎插在「正文容器 nextSibling」上
+       （`ai_panel.js::aiInlineHost()`），所以顺序是
+         排盘信息 → 起卦结果 → ☯ AI 解读 → 解卦区
+       —— 用户 2026-09-25 要的就是「梅花的自动解析移到卦象解析前面」。
+       ⚠ 别把解析区挪回 #contentArea 里面：那样宿主只能排到整个结果之后，
+       AI 块又被压到最底下（这正是用户报的那个版面）。
+       加载中是 hidden 的空框，`renderAnalysis()` 落内容时自己取消 hidden。 -->
+  <div class="analysis-card" id="analysisArea" hidden></div>
+</div>
+
+<script src="/js/auth.js?v=1787305221"></script>
+<script src="/js/ui_common.js?v=1"></script>
+<script src="/js/hexagrams_data.js?v=1"></script>
+<script src="/js/mhys_render.js?v=4"></script>
+<script>
+// ===== 加载数据 =====
+async function load() {
+  var area = document.getElementById('contentArea');
+  var urlParams = new URLSearchParams(window.location.search);
+  var id = urlParams.get('id');
+  var isAdmin = urlParams.get('admin') === '1';
+
+  if (id) {
+    try {
+      var token;
+      if (isAdmin) {
+        // 管理员查看：使用 admin token
+        token = localStorage.getItem('sqw_admin_token');
+      } else {
+        token = AUTH.getToken();
+      }
+      var headers = token ? { 'Authorization':'Bearer '+token } : {};
+      var resp = await fetch('/api/mhys-records/'+id, { headers:headers });
+      if (!resp.ok) {
+        area.innerHTML = '<div class="load-state"><p>排盘记录不存在或已删除</p></div>';
+        return;
+      }
+      var data = await resp.json();
+      var result = typeof data.result_data === 'string' ? JSON.parse(data.result_data) : data.result_data;
+      result.topic = data.topic;
+      result.createdAt = data.created_at ? new Date(data.created_at) : null;
+      currentResultMeta = {
+        divinationTime: result.divinationTime || '',
+        createdAt: result.createdAt ? (result.createdAt instanceof Date ? result.createdAt.toISOString() : result.createdAt) : (data.created_at || ''),
+        method: result.method || ''
+      };
+      currentAiPayload = {
+        numbers: result.numbers || '',
+        lunarInfo: result.lunarInfo || {}
+      };
+      area.innerHTML = renderResult(result);
+      renderAnalysis();
+      // ⚠ 这两项**必须在 renderResult() 之后**挂：那个函数会把与「上一卦」绑定的
+      //   状态清空（savedAnalysis / currentRecordId，理由写在它里面）。
+      //   顺序反过来 = 从记录点进来时既看不到已存的解读、解析也没法回写这条记录。
+      currentRecordId = id;
+      savedAnalysis = data.ai_analysis || '';
+      // 盘已经在了 → 把 AI 块摆出来（有存过的解读就直接展示，没有就是「开始解卦」）。
+      // 必须在上面两行**之后**：早了 panel 认不到这份解析，画的还是「开始解卦」。
+      if (typeof refreshAIPanel === 'function') refreshAIPanel();
+    } catch(e) {
+      area.innerHTML = '<div class="load-state"><p>加载失败，请重试</p></div>';
+    }
+  } else {
+    var stored = localStorage.getItem('mhys_result') || sessionStorage.getItem('mhys_result');
+    if (!stored) {
+      area.innerHTML = '<div class="load-state"><p>没有排盘结果</p><a href="/mhys/" style="color:var(--accent);font-size:0.85rem;text-decoration:none;margin-top:0.5rem;display:inline-block">返回排盘</a></div>';
+      return;
+    }
+    localStorage.removeItem('mhys_result');
+    sessionStorage.removeItem('mhys_result');
+    var result = JSON.parse(stored);
+    currentResultMeta = {
+      divinationTime: result.divinationTime || '',
+      createdAt: result.createdAt || '',
+      method: result.method || ''
+    };
+    currentAiPayload = {
+      numbers: result.numbers || '',
+      lunarInfo: result.lunarInfo || {}
+    };
+    area.innerHTML = renderResult(result);
+    renderAnalysis();
+    // ⚠ 这个分支**没有 await**（数据直接从 localStorage 读），所以跑到这儿时页面还在
+    //    解析中，末尾的 `/js/ai_panel.js` 很可能还没执行 —— 直接调会静默什么都不发生。
+    //    等 DOMContentLoaded：解析阻塞型脚本全都执行完之后才触发，那时引擎一定在了。
+    //    （上面 id 分支有 fetch 的 await，那时 DOM 早已就绪，直接调即可。）
+    //    —— 顺带一提：现在没有页面往 localStorage 写 `mhys_result` 了（排盘改成原地出
+    //    结果），这条路是旧版留下的，留着是为了别让老链接白屏。
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function() {
+        if (typeof refreshAIPanel === 'function') refreshAIPanel();
+      });
+    } else if (typeof refreshAIPanel === 'function') {
+      refreshAIPanel();
+    }
+  }
+}
+
+load();
+</script>
+
+<!-- AI 面板引擎与梅花的配置（引擎与六爻页共用一份）。
+     overlay 的点击关闭在引擎里绑，本页不再绑一次 —— 绑两处会关两次，
+     看着一样，但那是两份 DOM 监听在各自为政。 -->
+<script src="/js/ai_panel.js?v=6"></script>
+<script src="/js/mhys_ai_panel.js?v=2"></script>
+
+</body>
+</html>

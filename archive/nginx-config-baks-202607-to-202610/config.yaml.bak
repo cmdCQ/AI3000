@@ -1,0 +1,59 @@
+# AI三千问 - RAG 后端配置
+server:
+  host: "0.0.0.0"
+  port: 8800
+  reload: false
+
+embedding:
+  mode: "local"
+  model_name: "BAAI/bge-small-zh-v1.5"
+  dimension: 512
+  batch_size: 8
+  remote_api_base: "https://api.deepseek.com/v1"
+  remote_api_key: "${DEEPSEEK_API_KEY}"
+  remote_model_name: "text-embedding-v4"
+
+llm:
+  api_base: "https://api.deepseek.com/v1"
+  api_key: "${DEEPSEEK_API_KEY}"
+  model: "deepseek-v4-flash"
+  max_tokens: 2000
+  temperature: 0.7
+
+chunking:
+  chunk_size: 600
+  chunk_overlap: 100
+  separators:
+    - "\n\n"
+    - "\n"
+    - "。"
+    - "！"
+    - "？"
+    - "；"
+    - "，"
+    - " "
+
+vector_store:
+  persist_directory: "./vector_db"
+  top_k: 5
+  similarity_threshold: 0.5
+
+categories:
+  - name: "四柱八字"
+    slug: "bazi"
+    description: "渊海子平、三命通会、滴天髓等八字经典"
+  - name: "梅花易数"
+    slug: "meihua"
+    description: "梅花易数、周易相关"
+  - name: "六爻"
+    slug: "liuyao"
+    description: "卜筮正宗、增删卜易等六爻经典"
+  - name: "奇门遁甲"
+    slug: "qimen"
+    description: "奇门遁甲经典"
+  - name: "易经"
+    slug: "yijing"
+    description: "易经经典，全类型通用知识库"
+  - name: "通用术数"
+    slug: "general"
+    description: "通用命理、五行基础"
