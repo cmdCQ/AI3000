@@ -27,9 +27,13 @@ services:
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
       DEEPSEEK_BASE_URL: https://api.deepseek.com/v1
       RAG_EMBEDDING_MODE: local
+      # fastembed 默认把模型缓存到容器内的 /tmp/fastembed_cache（可写层），容器一重建就没了，
+      # 而本模型在 fastembed 注册表里没有 hf 源、唯一的 GCS 源已 403，下载不回来 → 检索全 500。
+      # 钉到 /app/model_cache 并挂卷持久化。卷内容由 deploy/fetch-embedding-model.sh 生成。
+      FASTEMBED_CACHE_PATH: /app/model_cache
     volumes:
       - ai3000_rag_vector_db:/app/vector_db
-      - ai3000_huggingface_cache:/root/.cache/huggingface
+      - ai3000_model_cache:/app/model_cache
     networks:
       - ai3000_net
     healthcheck:
@@ -139,7 +143,8 @@ volumes:
   ai3000_nginx_certs:
     external: true
     name: ai3000_nginx_certs
-  ai3000_huggingface_cache:
-    name: ai3000_huggingface_cache
+  ai3000_model_cache:
+    external: true
+    name: ai3000_model_cache
   ai3000_upload_data:
     name: ai3000_upload_data
