@@ -38,6 +38,8 @@ data/                      运行时数据（users.json 等，已 gitignore）
 `build/nginx/` = `src/web/` 的产物（nginx 目录挂载，普通 rsync）。
 `build/backend/` = `src/server/` 的产物（**单文件挂载，必须 `--inplace`**，见 §4）。
 
+`src/rag/` **没有产物目录**：它的代码烤在 `docker-rag` 镜像里，`sync.sh` 完全不管它（见 §4h）。
+
 ---
 
 ## 2. 改完必须做的三件事
@@ -118,6 +120,20 @@ git config http.curloptResolve github.com:443:140.82.114.3
 ```
 该 IP 失效就换一个（`140.82.112.3`、`20.27.177.113` 也可用）。凭据放
 `~/.git-credentials`(600)，不要写进 `.git/config` 或入库文件。
+
+**h) 改 `src/rag/` 跑 `sync.sh` 会静默不生效**
+`sync.sh` 只覆盖 web 和 backend，rag 没有产物目录，所以它会一路自检 ✓ 而线上仍是旧代码。
+rag 的代码是 `COPY src/ ./src/` 烤进镜像的，必须重建镜像。**但别直接 `docker build src/rag`**：
+`requirements.txt` 只锁顶层，传递依赖会漂（实测 tenacity 9.1.4→9.2.1、orjson 3.11.9→3.13.0、
+mmh3 4.1.0→5.3.1），且 pip 层无缓存挂载，PyPI 抖一次就废掉整轮 11 分钟。
+在现有已知可用镜像上覆盖源码层即可，5 秒、不联网：
+```sh
+printf 'FROM docker-rag:latest\nCOPY src/ ./src/\n' > /tmp/Dockerfile.rag
+docker build -f /tmp/Dockerfile.rag -t docker-rag:latest src/rag
+docker compose -f docker/docker-compose.yml up -d --force-recreate rag
+```
+新镜像要先 `docker run --rm --entrypoint sh <img> -c 'python -c "import chromadb,fastembed"'`
+确认依赖还在，再切 `latest`。
 
 ---
 
