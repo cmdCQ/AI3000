@@ -29,3 +29,10 @@ node_modules/
 
 # 独立博客应用，非本项目内容（含第三方 jar/主题，39M）
 halo/
+
+# ── faker/ 是构建产物，不入库 ──────────────────────────────
+# 源码: /root/.openclaw/workspace/faker-site  (Vite + React 18)
+# 重建: cd /root/.openclaw/workspace/faker-site && npm i && npm run build
+#       rsync -a --delete dist/ /var/www/sqw.somtfly.com/build/nginx/faker/
+# 注意: node_modules 不在本仓库，也不在 faker-site/ 里，首次重建需要联网 npm i
+build/nginx/faker/
