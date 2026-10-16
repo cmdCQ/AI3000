@@ -36,3 +36,7 @@ halo/
 #       rsync -a --delete dist/ /var/www/sqw.somtfly.com/build/nginx/faker/
 # 注意: node_modules 不在本仓库，也不在 faker-site/ 里，首次重建需要联网 npm i
 build/nginx/faker/
+
+# Python 字节码缓存（生成物，不该入库）
+__pycache__/
+*.pyc
