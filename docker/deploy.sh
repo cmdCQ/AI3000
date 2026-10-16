@@ -1,26 +1,33 @@
 #!/bin/bash
-# 易三千 快速部署脚本
+# 易三千 部署入口
+#
+# 现在只有一条路能保证「源码 → 产物 → 容器」三者一致：deploy/sync.sh
+# （它做 rsync -c + 必要时 --force-recreate + md5 自检）。这个脚本只是它的快捷方式，
+# 免得有人凭记忆敲 docker compose restart，然后发现改了 src/ 却什么都没变。
+#
 # 用法:
-#   ./deploy.sh           — 重启 nginx + backend，前端/后端代码修改即时生效
-#   ./deploy.sh --build   — 完整重建镜像（依赖变更时需要）
+#   ./deploy.sh              同步源码到产物并自检（等价于 ../deploy/sync.sh）
+#   ./deploy.sh --dry-run    只看会改什么，不动任何文件
+#   ./deploy.sh --build      重建镜像（⚠️ 见下）
 
 set -e
 cd "$(dirname "$0")"
 
-if [ "$1" = "--build" ]; then
-  echo "==> 完整重建 Docker 镜像..."
-  docker compose build
-  echo "==> 重新部署..."
-  docker compose up -d
-else
-  echo "==> 文件变更即时生效（bind mount），重启容器..."
-  docker compose restart nginx backend
-fi
-
-echo "==> 等待健康检查..."
-sleep 5
-docker ps --format 'table {{.Names}}\t{{.Status}}' | grep ai3000
-echo ""
-echo "✅ 部署完成"
-echo "   现在修改文件后只需运行 ./deploy.sh 即可生效"
-echo "   依赖变更时运行 ./deploy.sh --build"
+case "${1:-}" in
+  --build)
+    echo "⚠️  --build 已失效。"
+    echo "    docker-compose.yml 里所有服务都是 image: docker-*:latest，没有 build: 键，"
+    echo "    所以 docker compose build 是空操作（不会报错，也不会重建任何东西）。"
+    echo "    真要重建镜像，手动指定 dockerfile 和上下文："
+    echo "      docker build -f deploy/Dockerfile.nginx -t docker-nginx:latest    deploy"
+    echo "      docker build -f src/server/Dockerfile   -t docker-backend:latest  src/server"
+    echo "      docker build -f src/rag/Dockerfile      -t docker-rag:latest      src/rag"
+    echo "      docker build -f src/upload/Dockerfile   -t docker-upload:latest   src/upload"
+    echo "    （nginx 的 Dockerfile 在 deploy/ 而不是 src/web/：它不再 COPY 任何 webroot，"
+    echo "      只装 nginx+curl，页面与配置全部靠挂载进来。重建后需 force-recreate nginx。）"
+    exit 1
+    ;;
+  *)
+    exec ../deploy/sync.sh "$@"
+    ;;
+esac

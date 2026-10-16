@@ -1,0 +1,215 @@
+/* ⚠ 本页原自带 :root（--accent: var(--gold) 等），已移除 ——
+   令牌统一由 /css/tokens.css 提供，否则旧金值会覆盖新主题。 */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html,body { background:var(--bg); color:var(--text); font-family:var(--sans); min-height:100vh; -webkit-font-smoothing:antialiased; }
+.mh-wrapper { max-width:420px; margin:0 auto; padding:1.5rem 1.2rem 4rem; }
+/* 表头与结果页对齐（都要放得下右边那颗「自动解析」按钮，窄屏得能换行） */
+.mh-header { display:flex; flex-wrap:wrap; align-items:center; gap:0.4rem 0.6rem; margin-bottom:1.2rem; }
+.mh-back { color:var(--text-muted); text-decoration:none; font-size:0.85rem; transition:color 0.2s; flex-shrink:0; }
+.mh-back:hover { color:var(--text-dim); }
+.mh-title { font-family:var(--serif); font-size:1.25rem; font-weight:600; letter-spacing:0.06em; flex-shrink:0; }
+
+/* Card */
+.card { background:var(--card-bg); border:1px solid var(--border); border-radius:var(--radius); padding:1rem 1.1rem; margin-bottom:0.8rem; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
+.card-title { font-family:var(--serif); font-size:0.85rem; font-weight:600; letter-spacing:0.04em; margin-bottom:0.6rem; color:var(--text); }
+
+/* 输入框 */
+.input-field { width:100%; padding:0.55rem 0.8rem; font-size:0.85rem; font-family:inherit; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--bg); color:var(--text); outline:none; transition:border-color 0.2s; }
+.input-field:focus { border-color:var(--border-active); }
+.input-field::placeholder { color:var(--text-muted); }
+
+/* 起卦时间 */
+.time-display { font-size:0.82rem; color:var(--text); font-weight:500; }
+.time-label { font-size:0.72rem; color:var(--text-dim); margin-bottom:0.2rem; }
+
+/* 起卦方式选择器 */
+.method-selector { position:relative; }
+.method-display { display:flex; align-items:center; justify-content:space-between; padding:0.55rem 0.8rem; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--card-bg); cursor:pointer; font-size:0.85rem; font-weight:500; transition:border-color 0.2s; }
+.method-display:hover { border-color:var(--border-active); }
+.method-display .arrow { font-size:0.7rem; color:var(--text-muted); transition:transform 0.2s; }
+.method-dropdown { position:absolute; top:100%; left:0; right:0; z-index:10; background:var(--card-bg); border:1px solid var(--border); border-radius:var(--radius-sm); margin-top:4px; overflow:hidden; display:none; box-shadow:0 4px 16px rgba(0,0,0,0.08); }
+.method-dropdown.open { display:block; }
+.method-option { padding:0.6rem 0.9rem; font-size:0.82rem; cursor:pointer; transition:background 0.15s; display:flex; align-items:center; gap:0.5rem; }
+.method-option:hover { background:var(--bg); }
+.method-option.selected { color:var(--accent); font-weight:500; background:var(--gold-wash); }
+.method-option .check { color:var(--accent); font-size:0.75rem; opacity:0; }
+.method-option.selected .check { opacity:1; }
+
+/* 算法说明 */
+.algo-text { font-size:0.74rem; color:var(--text-dim); line-height:1.8; background:var(--bg); border-radius:var(--radius-sm); padding:0.6rem 0.8rem; margin-top:0.6rem; white-space:pre-line; }
+
+/* 数字输入 */
+.num-input-row { display:flex; gap:0.5rem; align-items:center; margin-bottom:0.5rem; }
+.num-input-row input { flex:1; padding:0.5rem 0.7rem; font-size:0.82rem; font-family:inherit; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--bg); color:var(--text); outline:none; }
+.num-input-row input:focus { border-color:var(--border-active); }
+.num-input-row input::placeholder { color:var(--text-muted); font-size:0.75rem; }
+
+/* 复选框 */
+.cb-row { display:flex; align-items:center; gap:0.4rem; font-size:0.76rem; color:var(--text-dim); margin-top:0.4rem; }
+.cb-row input[type=checkbox] { accent-color:var(--accent); width:16px; height:16px; cursor:pointer; }
+.cb-inline { display:flex; align-items:center; gap:0.3rem; font-size:0.74rem; color:var(--text-dim); white-space:nowrap; cursor:pointer; margin-left:0.3rem; }
+.cb-inline input[type=checkbox] { accent-color:var(--accent); width:15px; height:15px; cursor:pointer; }
+
+/* 手动指定 */
+.form-row { display:flex; gap:0.5rem; margin-bottom:0.5rem; align-items:center; }
+.form-row label { font-size:0.78rem; color:var(--text-dim); min-width:3.5em; flex-shrink:0; }
+.form-row select { flex:1; padding:0.5rem 0.7rem; font-size:0.82rem; font-family:inherit; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--bg); color:var(--text); outline:none; }
+.form-row select:focus { border-color:var(--border-active); }
+
+/* 按钮 */
+.btn-primary { display:block; width:100%; padding:0.65rem; margin-top:0.5rem; font-size:0.88rem; font-family:inherit; font-weight:500; color:#fff; background:var(--accent); border:none; border-radius:var(--radius); cursor:pointer; letter-spacing:0.06em; box-shadow:0 2px 8px rgba(var(--gold-rgb),0.25); transition:opacity 0.2s; }
+.btn-primary:hover { opacity:0.85; }
+.btn-primary:disabled { opacity:0.4; cursor:default; }
+.btn-primary.loading { opacity:0.7; pointer-events:none; }
+
+/* 排盘记录入口 */
+.record-entry { display:flex; align-items:center; justify-content:space-between; padding:0.7rem 0.9rem; background:var(--card-bg); border:1px solid var(--border); border-radius:var(--radius); margin-top:0.8rem; cursor:pointer; text-decoration:none; color:var(--text); transition:border-color 0.2s; }
+.record-entry:hover { border-color:var(--border-active); }
+.record-entry .re-left { display:flex; align-items:center; gap:0.5rem; }
+.record-entry .re-icon { font-size:1.1rem; }
+.record-entry .re-text { font-size:0.82rem; font-weight:500; }
+.record-entry .re-arrow { font-size:0.8rem; color:var(--text-muted); }
+
+@media (max-width:400px) {
+  .mh-wrapper { padding:1rem 1rem 4rem; }
+}
+
+/* ========== 时间选择器 ========== */
+.tp-overlay {
+  position:fixed; inset:0; z-index:200; background:rgba(0,0,0,0.35);
+  display:flex; align-items:flex-end; justify-content:center;
+  animation:tpFadeIn 0.2s ease;
+}
+@keyframes tpFadeIn { from{opacity:0} to{opacity:1} }
+
+.tp-panel {
+  width:100%; max-width:420px; max-height:85vh;
+  background:var(--card-bg); border-radius:16px 16px 0 0;
+  display:flex; flex-direction:column;
+  animation:tpSlideUp 0.25s ease;
+}
+@keyframes tpSlideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+
+.tp-top {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0.9rem 1.2rem; border-bottom:1px solid var(--border);
+}
+.tp-top-title { font-family:var(--serif); font-size:1rem; font-weight:600; letter-spacing:0.04em; }
+.tp-top-display { font-size:0.82rem; color:var(--text-dim); text-align:center; flex:1; }
+
+/* 公历/农历切换 */
+.tp-toggle {
+  display:flex; margin:0.8rem 1.2rem;
+  border:1px solid var(--accent); border-radius:10px; overflow:hidden;
+}
+.tp-toggle-btn {
+  flex:1; padding:0.4rem 0; font-size:0.78rem; font-family:inherit; text-align:center;
+  border:none; cursor:pointer; transition:all 0.2s;
+  background:transparent; color:var(--accent);
+}
+.tp-toggle-btn.active {
+  background:var(--accent); color:#fff;
+}
+
+/* 滚轮选择区 */
+.tp-picker {
+  display:flex; justify-content:center; gap:0;
+  padding:0.4rem 0.2rem; position:relative;
+  height:200px; overflow:hidden;
+}
+/* 中间高亮条 */
+.tp-picker::before {
+  content:''; position:absolute; left:0.2rem; right:0.2rem; top:50%;
+  transform:translateY(-50%); height:38px;
+  border-top:1px solid var(--border); border-bottom:1px solid var(--border);
+  pointer-events:none; z-index:1;
+}
+
+.tp-col {
+  flex:1; overflow-y:auto; scroll-snap-type:y mandatory;
+  -webkit-overflow-scrolling:touch;
+  padding:81px 0; /* center area */
+  scrollbar-width:none;
+  position:relative; z-index:0;
+}
+.tp-col::-webkit-scrollbar { display:none; }
+
+.tp-item {
+  height:38px; display:flex; align-items:center; justify-content:center;
+  font-size:0.78rem; color:var(--text-muted);
+  scroll-snap-align:center;
+  transition:color 0.15s, font-size 0.15s;
+  user-select:none;
+}
+.tp-item.active {
+  color:var(--text); font-weight:600; font-size:0.88rem;
+}
+
+/* 底部按钮 */
+.tp-actions {
+  display:flex; border-top:1px solid var(--border);
+}
+.tp-actions button {
+  flex:1; padding:0.9rem; font-size:0.88rem; font-family:inherit;
+  border:none; background:transparent; cursor:pointer;
+  transition:background 0.15s;
+}
+.tp-btn-cancel { color:var(--text-dim); }
+.tp-btn-cancel:hover { background:var(--bg); }
+.tp-btn-confirm { color:var(--accent); font-weight:600; border-left:1px solid var(--border)!important; }
+.tp-btn-confirm:hover { background:var(--gold-wash); }
+
+/* 时间展示行可点击 */
+.tp-time-row {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0.55rem 0.8rem; border:1px solid var(--border);
+  border-radius:var(--radius-sm); background:var(--bg);
+  cursor:pointer; transition:border-color 0.2s;
+}
+.tp-time-row:hover { border-color:var(--border-active); }
+.tp-time-text { font-size:0.82rem; color:var(--text); font-weight:500; }
+.tp-time-edit { font-size:0.68rem; color:var(--text-muted); }
+
+@media (max-width:400px) {
+  .tp-item { font-size:0.72rem; }
+  .tp-item.active { font-size:0.82rem; }
+  .tp-top { padding:0.7rem 1rem; }
+  .tp-toggle { margin:0.6rem 1rem; }
+}
+
+/* ===== Markdown 渲染（renderMarkdown 产出） =====
+   原先由 JS 写死行内 style，这里收敛为类。
+   注意 .md-quote 用于引用块 —— 修掉了「先转义再做引用匹配」导致
+   引用块永远渲染成字面量 '> 文字' 的历史 bug。 */
+.md-h {
+  font-family: var(--serif);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-semi);
+  color: var(--gold-ink);
+  margin: var(--space-3) 0 var(--space-1);
+  letter-spacing: 0.04em;
+}
+.md-quote {
+  margin: var(--space-3) 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--gold-line);
+  background: var(--bg-sunken);
+  border-radius: 0 var(--r-xs) var(--r-xs) 0;
+  color: var(--text-dim);
+  font-size: var(--fs-base);
+  line-height: var(--lh-normal);
+}
+.md-quote strong { color: var(--gold-ink); }
+.md-li {
+  display: block;
+  padding-left: var(--space-4);
+  margin: var(--space-1) 0;
+  line-height: var(--lh-normal);
+}
+.md-li-ul { position: relative; }
+.md-li-ul::before {
+  content: '•';
+  position: absolute;
+  left: 0.3rem;
+  color: var(--gold-line);
+}

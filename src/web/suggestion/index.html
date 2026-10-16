@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>提交建议 · 易三千</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all';this.onload=null">
+<link rel="stylesheet" href="/css/page-suggestion.css">
+<link rel="stylesheet" href="/css/tokens.css">
+</head>
+<body>
+
+<div class="sg-wrap">
+
+  <div class="sg-header">
+    <a href="/" class="sg-back">← 返回首页</a>
+    <div class="sg-title">我们需要你宝贵的建议</div>
+    <div class="sg-sub">你的每一条反馈，都在帮我们变得更好</div>
+  </div>
+
+  <!-- ===== 融合评测卡片 ===== -->
+  <div id="sgForm">
+
+    <div class="sg-ratings-card">
+      <div class="sg-card-title">给各个维度打个分吧</div>
+
+      <div class="sg-rating-row">
+        <span class="sg-rating-name">总体评价</span>
+        <div class="sg-stars" data-rating="overall">
+          <span class="sg-star" data-score="1">☆</span>
+          <span class="sg-star" data-score="2">☆</span>
+          <span class="sg-star" data-score="3">☆</span>
+          <span class="sg-star" data-score="4">☆</span>
+          <span class="sg-star" data-score="5">☆</span>
+          <span class="sg-star-label" id="label_overall">请评分</span>
+        </div>
+      </div>
+
+      <div class="sg-rating-row">
+        <span class="sg-rating-name">UI 界面舒适度</span>
+        <div class="sg-stars" data-rating="ui">
+          <span class="sg-star" data-score="1">☆</span>
+          <span class="sg-star" data-score="2">☆</span>
+          <span class="sg-star" data-score="3">☆</span>
+          <span class="sg-star" data-score="4">☆</span>
+          <span class="sg-star" data-score="5">☆</span>
+          <span class="sg-star-label" id="label_ui">请评分</span>
+        </div>
+      </div>
+
+      <div class="sg-rating-row">
+        <span class="sg-rating-name">功能适用度</span>
+        <div class="sg-stars" data-rating="feature">
+          <span class="sg-star" data-score="1">☆</span>
+          <span class="sg-star" data-score="2">☆</span>
+          <span class="sg-star" data-score="3">☆</span>
+          <span class="sg-star" data-score="4">☆</span>
+          <span class="sg-star" data-score="5">☆</span>
+          <span class="sg-star-label" id="label_feature">请评分</span>
+        </div>
+      </div>
+
+      <div class="sg-rating-row">
+        <span class="sg-rating-name">AI 解析准确度</span>
+        <div class="sg-stars" data-rating="ai">
+          <span class="sg-star" data-score="1">☆</span>
+          <span class="sg-star" data-score="2">☆</span>
+          <span class="sg-star" data-score="3">☆</span>
+          <span class="sg-star" data-score="4">☆</span>
+          <span class="sg-star" data-score="5">☆</span>
+          <span class="sg-star-label" id="label_ai">请评分</span>
+        </div>
+      </div>
+
+      <div class="sg-rating-row">
+        <span class="sg-rating-name">响应速度</span>
+        <div class="sg-stars" data-rating="responseSpeed">
+          <span class="sg-star" data-score="1">☆</span>
+          <span class="sg-star" data-score="2">☆</span>
+          <span class="sg-star" data-score="3">☆</span>
+          <span class="sg-star" data-score="4">☆</span>
+          <span class="sg-star" data-score="5">☆</span>
+          <span class="sg-star-label" id="label_responseSpeed">请评分</span>
+        </div>
+      </div>
+
+      <div class="sg-rating-row">
+        <span class="sg-rating-name">解析内容丰富度</span>
+        <div class="sg-stars" data-rating="accuracy">
+          <span class="sg-star" data-score="1">☆</span>
+          <span class="sg-star" data-score="2">☆</span>
+          <span class="sg-star" data-score="3">☆</span>
+          <span class="sg-star" data-score="4">☆</span>
+          <span class="sg-star" data-score="5">☆</span>
+          <span class="sg-star-label" id="label_accuracy">请评分</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sg-text-card">
+      <div class="sg-card-title">具体建议 <span style="color:var(--text-muted);font-size:0.65rem;">（必填）</span></div>
+      <textarea class="sg-textarea" id="sgContent" placeholder="说说你的想法… 比如想增加什么功能、哪里不好用" maxlength="4000" oninput="updateCharCount()"></textarea>
+      <div class="sg-char-counter" id="charCounter">0 / 4000</div>
+    </div>
+
+    <button class="sg-submit" id="sgSubmitBtn" onclick="submitSuggestion()">提交建议 ✦</button>
+    <div class="sg-hint">你的信息仅管理员可见</div>
+  </div>
+
+  <!-- 登录提示 -->
+  <div class="sg-login-required" id="sgLoginRequired">
+    <div class="cg-icon">🔒</div>
+    <div class="cg-title">登录后提交建议</div>
+    <div class="cg-desc">登录后才可以提交建议，让我知道你是谁</div>
+    <a href="javascript:void(0)" onclick="openAuthModal(\'login\')" class="cg-btn">去登录</a>
+  </div>
+
+  <!-- Success -->
+  <div class="sg-success" id="sgSuccess">
+    <div class="sg-success-icon">✓</div>
+    <div class="sg-success-title">感谢你的建议</div>
+    <div class="sg-success-desc">每一条反馈都会被认真对待</div>
+  </div>
+
+</div>
+
+<script src="/js/page-suggestion.js"></script>
+</body>
+</html>

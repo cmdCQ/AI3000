@@ -1,0 +1,413 @@
+/* ===== 时间滑动选择器 — 触控拖拽版 ===== */
+.time-picker-wrap {
+  position: relative;
+  margin-top: 0.15rem;
+}
+
+.time-picker-labels {
+  display: flex;
+  margin-bottom: 0.3rem;
+  padding: 0 0.6rem;
+}
+
+.tp-label {
+  flex: 1;
+  text-align: center;
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  letter-spacing: 0.12em;
+  font-weight: 500;
+}
+
+.time-picker {
+  display: flex;
+  gap: 0;
+  height: 11rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  background: #fafafa;
+  position: relative;
+}
+
+/* 渐变遮罩 */
+.time-picker::before,
+.time-picker::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  height: 3.6rem;
+  z-index: 3;
+  pointer-events: none;
+}
+.time-picker::before {
+  top: 0;
+  background: linear-gradient(to bottom, #fafafa 15%, transparent 100%);
+}
+.time-picker::after {
+  bottom: 0;
+  background: linear-gradient(to top, #fafafa 15%, transparent 100%);
+}
+
+.time-col {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  text-align: center;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.time-col:first-child {
+  border-right: 1px solid var(--border);
+}
+
+/* 选项轨道 — 触控拖拽的核心 */
+.time-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  will-change: transform;
+}
+
+.time-opt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.5rem;
+  font-size: 1.05rem;
+  color: #bababa;
+  transition: color 0.18s ease, font-weight 0.18s ease, font-size 0.18s ease;
+  user-select: none;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+  font-family: 'DM Mono', 'SF Mono', 'Menlo', monospace;
+}
+
+.time-opt.near {
+  color: #8c8c8c;
+  font-weight: 450;
+}
+
+.time-opt.selected {
+  color: var(--text);
+  font-weight: 650;
+  font-size: 1.3rem;
+}
+
+/* 高亮指示条 */
+.time-highlight {
+  position: absolute;
+  left: 0.5rem;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 2.5rem;
+  border-top: 1.5px solid #c8c8c8;
+  border-bottom: 1.5px solid #c8c8c8;
+  background: linear-gradient(
+    180deg,
+    rgba(0,0,0,0.018) 0%,
+    rgba(0,0,0,0.04) 50%,
+    rgba(0,0,0,0.018) 100%
+  );
+  pointer-events: none;
+  border-radius: 10px;
+  z-index: 2;
+}
+
+/* 时间显示条 */
+.time-display-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-top: 0.35rem;
+  font-size: 0.7rem;
+}
+.td-label { color: var(--text-dim); }
+.td-value {
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  font-family: 'DM Mono', 'SF Mono', 'Menlo', monospace;
+  letter-spacing: 0.04em;
+}
+
+/* 星期几显示 */
+.date-info {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  margin-top: 0.2rem;
+  text-align: center;
+  min-height: 1.1rem;
+}
+
+/* ===== 地点搜索框 ===== */
+.place-search-wrap {
+  position: relative;
+  margin-bottom: 0.5rem;
+}
+
+.place-search {
+  width: 100%;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.85rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.place-search:focus {
+  border-color: var(--border-active);
+}
+
+.place-search::placeholder {
+  color: var(--text-dim);
+}
+
+/* 搜索建议下拉 */
+.place-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0; right: 0;
+  max-height: 14rem;
+  overflow-y: auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  z-index: 100;
+  display: none;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.03);
+}
+
+.place-suggestions.show {
+  display: block;
+}
+
+.place-suggest-item {
+  padding: 0.55rem 0.7rem;
+  cursor: pointer;
+  font-size: 0.82rem;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+}
+
+.place-suggest-item:last-child {
+  border-bottom: none;
+}
+
+.place-suggest-item:hover,
+.place-suggest-item.active {
+  background: var(--bg-hover);
+}
+
+.place-suggest-item .path {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  margin-left: 0.3rem;
+}
+
+.place-suggest-empty {
+  padding: 0.7rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+/* ===== 省市区选择器 ===== */
+.region-row {
+  display: flex; gap: 0.4rem;
+}
+
+.region-row select {
+  flex: 1; min-width: 0;
+}
+
+.coord-display {
+  margin-top: 0.4rem;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  display: flex; gap: 0.8rem;
+}
+
+/* 农历日期提示 */
+.lunar-hint {
+  font-size: 0.72rem;
+  color: var(--accent);
+  margin-top: 0.15rem;
+  text-align: center;
+}
+
+/* 返回按钮 */
+
+/* ===== 底部弹出日历面板 ===== */
+.cal-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,0.55);
+  display: flex; align-items: flex-end;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.25s var(--ease);
+}
+.cal-overlay.show { opacity: 1; pointer-events: auto; }
+
+.cal-panel {
+  width: 100%; max-width: 500px;
+  margin: 0 auto;
+  background: #1a1a24;
+  border-radius: 20px 20px 0 0;
+  color: #e8e3d8;
+  transform: translateY(100%);
+  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  padding-bottom: env(safe-area-inset-bottom);
+  max-height: 76vh;
+  overflow-y: auto;
+}
+.cal-overlay.show .cal-panel { transform: translateY(0); }
+
+.cal-panel-header {
+  text-align: center;
+  padding: 0.8rem 1.2rem 0.3rem;
+}
+.cal-panel-title {
+  font-family: "Noto Serif SC", serif;
+  font-size: 0.95rem; color: #e8e3d8;
+  letter-spacing: 0.08em;
+}
+
+/* 日历面板 — 三段滚轮选择器（复刻时间选择器） */
+.cal-picker-labels {
+  display: flex; padding: 0.3rem 0.6rem;
+}
+.cal-plabel {
+  flex: 1; text-align: center;
+  font-size: 0.65rem; color: #6a6458;
+  letter-spacing: 0.12em; font-weight: 500;
+}
+.cal-picker {
+  display: flex; height: 11rem;
+  border: 1px solid rgba(232,227,216,0.1);
+  border-radius: 14px; overflow: hidden;
+  background: #14141c; position: relative;
+  margin: 0 0.4rem;
+}
+.cal-picker::before, .cal-picker::after {
+  content: ''; position: absolute; left: 0; right: 0;
+  height: 3.6rem; z-index: 3; pointer-events: none;
+}
+.cal-picker::before {
+  top: 0;
+  background: linear-gradient(to bottom, #14141c 15%, transparent 100%);
+}
+.cal-picker::after {
+  bottom: 0;
+  background: linear-gradient(to top, #14141c 15%, transparent 100%);
+}
+.cal-col {
+  flex: 1; overflow: hidden; position: relative;
+  text-align: center; touch-action: none;
+  user-select: none; -webkit-user-select: none;
+}
+.cal-col + .cal-col { border-left: 1px solid rgba(232,227,216,0.06); }
+
+.cal-track {
+  position: absolute; left: 0; right: 0; top: 0;
+  will-change: transform;
+}
+
+.cal-opt {
+  display: flex; align-items: center; justify-content: center;
+  height: 2.5rem; font-size: 1.05rem;
+  color: #56514a;
+  transition: color 0.18s ease, font-weight 0.18s ease, font-size 0.18s ease;
+  user-select: none; cursor: pointer;
+  font-variant-numeric: tabular-nums;
+  font-family: 'DM Mono','SF Mono',monospace;
+}
+.cal-opt.near { color: #8a8478; font-weight: 450; }
+.cal-opt.selected {
+  color: #e8e3d8; font-weight: 650; font-size: 1.3rem;
+}
+
+.cal-highlight {
+  position: absolute; left: 0.5rem; right: 0.5rem;
+  top: 50%; transform: translateY(-50%);
+  height: 2.5rem;
+  border-top: 1.5px solid var(--warm-line);
+  border-bottom: 1.5px solid var(--warm-line);
+  background: linear-gradient(180deg,
+    var(--warm-wash) 0%,
+    var(--gold-wash) 50%,
+    var(--warm-wash) 100%
+  );
+  pointer-events: none; border-radius: 10px; z-index: 2;
+}
+
+.cal-display-bar {
+  display: flex; align-items: center; justify-content: center;
+  gap: 0.5rem; padding: 0.4rem 0 0.25rem;
+  font-size: 0.7rem;
+}
+.cal-display-bar .cd-label { color: #6a6458; }
+.cal-display-bar .cd-value {
+  color: #e8e3d8; font-weight: 600; font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  font-family: 'DM Mono','SF Mono',monospace;
+}
+
+.cal-footer {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  padding: 0.3rem 1.2rem 0.8rem;
+}
+.cal-footer .lunar-preview {
+  font-size: 0.7rem; color: #6a6458;
+}
+.cal-footer .confirm-btn {
+  padding: 0.4rem 1.2rem;
+  border-radius: 10px;
+  background: var(--gold);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.78rem;
+  border: none; cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 0.04em;
+}
+
+/* 日期显示区域（替代原生 input date） */
+.date-display {
+  width: 100%;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.85rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  display: flex; align-items: center;
+  justify-content: space-between;
+  min-height: 2.55rem;
+}
+.date-display:hover { border-color: var(--border-active); }
+.date-display .dd-text { font-variant-numeric: tabular-nums; }
+.date-display .dd-icon {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  transition: transform 0.2s;
+}
+
+/* 底部留白给悬浮导航 */
+.charts-footer {
+  padding-bottom: 3rem;
+}

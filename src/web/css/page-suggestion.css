@@ -1,0 +1,146 @@
+/* ⚠ 本页原自带 :root（--accent: var(--gold) 等），已移除 ——
+   令牌统一由 /css/tokens.css 提供，否则旧金值会覆盖新主题。 */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html, body {
+  background:var(--bg); color:var(--text);
+  font-family:"Noto Sans SC", -apple-system, sans-serif;
+  min-height:100vh; line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+.sg-wrap {
+  max-width:560px; margin:0 auto; padding:2rem 1.2rem 3rem;
+}
+.sg-header { text-align:center; padding:1rem 0 1.5rem; }
+.sg-back {
+  display:inline-flex; align-items:center; gap:0.3rem;
+  font-size:0.75rem; color:var(--text-dim); text-decoration:none;
+  padding:0.35rem 0.7rem; border-radius:10px;
+  transition:all 0.2s var(--ease); margin-bottom:0.8rem;
+}
+.sg-back:hover { color:var(--text); background:var(--bg-hover); }
+.sg-title {
+  font-family:"Noto Serif SC", serif;
+  font-size:1.3rem; font-weight:600;
+  letter-spacing:0.1em; color:var(--text);
+}
+.sg-sub {
+  font-size:0.78rem; color:var(--text-muted);
+  margin-top:0.3rem; letter-spacing:0.05em;
+}
+
+/* ===== 融合卡片 ===== */
+.sg-ratings-card {
+  background:var(--bg-card); border:1px solid var(--border);
+  border-left:3px solid var(--accent);
+  border-radius:var(--radius-md);
+  padding:0.8rem 1.2rem 0.4rem;
+  box-shadow:0 1px 4px rgba(0,0,0,0.04);
+  margin-bottom:0.7rem;
+}
+.sg-ratings-card .sg-card-title {
+  font-size:0.75rem; color:var(--text-dim);
+  letter-spacing:0.04em; margin-bottom:0.5rem;
+}
+.sg-rating-row {
+  display:flex; align-items:center; gap:0.5rem;
+  padding:0.45rem 0;
+  border-bottom:1px solid #f5f5f5;
+}
+.sg-rating-row:last-of-type { border-bottom:none; }
+.sg-rating-name {
+  font-size:0.76rem; color:var(--text);
+  letter-spacing:0.03em; flex-shrink:0;
+}
+.sg-stars {
+  display:flex; gap:0.15rem; align-items:center;
+  margin-left:auto;
+}
+.sg-star {
+  font-size:1.25rem; cursor:pointer;
+  color:var(--star); transition:all 0.15s var(--ease);
+  user-select:none; line-height:1;
+}
+.sg-star.active { color:var(--star-active); }
+.sg-star-label {
+  font-size:0.65rem; color:var(--text-muted);
+  margin-left:0.3rem; width:3.6rem; text-align:left;
+  flex-shrink:0; display:inline-block;
+}
+
+/* ===== 文本框卡片 ===== */
+.sg-text-card {
+  background:var(--bg-card); border:1px solid var(--border);
+  border-left:3px solid var(--border-active);
+  border-radius:var(--radius-md);
+  padding:0.9rem 1.2rem;
+  box-shadow:0 1px 4px rgba(0,0,0,0.04);
+  margin-bottom:0.7rem;
+}
+.sg-text-card .sg-card-title {
+  font-size:0.75rem; color:var(--text-dim);
+  letter-spacing:0.04em; margin-bottom:0.5rem;
+}
+.sg-textarea {
+  width:100%; min-height:110px; padding:0.65rem 0.75rem;
+  font-family:"Noto Sans SC", sans-serif;
+  font-size:0.83rem; line-height:1.6;
+  background:var(--bg); color:var(--text);
+  border:1px solid var(--border); border-radius:10px;
+  outline:none; resize:vertical;
+  transition:border-color 0.2s var(--ease);
+}
+.sg-textarea:focus { border-color:var(--border-active); }
+.sg-textarea::placeholder { color:var(--text-muted); }
+.sg-char-counter {
+  text-align:right; font-size:0.65rem; color:var(--text-muted);
+  margin-top:0.3rem; letter-spacing:0.02em;
+}
+
+/* Submit */
+.sg-submit {
+  display:block; width:100%; padding:0.65rem 1rem;
+  font-size:0.88rem; font-weight:500;
+  font-family:"Noto Sans SC", sans-serif;
+  background:var(--accent); color:#fff;
+  border:none; border-radius:14px; cursor:pointer;
+  letter-spacing:0.06em;
+  box-shadow:0 2px 8px rgba(var(--gold-rgb),0.25);
+  transition:all 0.2s var(--ease); margin-top:1rem;
+}
+.sg-submit:hover { opacity:0.85; }
+.sg-submit:active { transform:scale(0.98); }
+.sg-submit:disabled { opacity:0.4; cursor:not-allowed; }
+
+/* Login prompt */
+.sg-login-required {
+  text-align:center; padding:3rem 1.5rem; display:none;
+}
+.sg-login-required .cg-icon { font-size:2.4rem; margin-bottom:0.5rem; opacity:0.4; }
+.sg-login-required .cg-title { font-size:0.95rem; font-weight:500; margin-bottom:0.15rem; letter-spacing:0.03em; }
+.sg-login-required .cg-desc { font-size:0.76rem; color:var(--text-dim); margin-bottom:1.2rem; }
+.sg-login-required .cg-btn {
+  display:inline-block; padding:0.4rem 1.3rem; font-size:0.82rem;
+  border-radius:14px; text-decoration:none; font-family:inherit;
+  background:var(--accent); color:#fff;
+  box-shadow:0 2px 8px rgba(var(--gold-rgb),0.25);
+  transition:all 0.2s var(--ease); letter-spacing:0.02em;
+}
+.sg-login-required .cg-btn:hover { opacity:0.85; }
+
+/* Success */
+.sg-success { display:none; text-align:center; padding:3rem 1.5rem; }
+.sg-success-icon { font-size:2.5rem; margin-bottom:0.8rem; }
+.sg-success-title {
+  font-family:"Noto Serif SC", serif;
+  font-size:1.1rem; color:var(--text);
+  letter-spacing:0.06em; margin-bottom:0.3rem;
+}
+.sg-success-desc { font-size:0.8rem; color:var(--text-dim); margin-bottom:1.5rem; }
+
+.sg-hint { font-size:0.68rem; color:var(--text-muted); text-align:center; margin-top:1.5rem; }
+
+@media (max-width:420px) {
+  .sg-rating-name { font-size:0.72rem; }
+  .sg-star { font-size:1.1rem; }
+  .sg-rating-row { padding:0.38rem 0; }
+}

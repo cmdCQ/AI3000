@@ -77,22 +77,6 @@ services:
       timeout: 5s
       retries: 5
 
-  music-api:
-    image: docker-music-api:latest
-    container_name: ai3000-music-api
-    restart: unless-stopped
-    environment:
-      PORT: "4173"
-    volumes:
-      - ai3000_music_data:/app/data
-    networks:
-      - ai3000_net
-    healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:4173/api/playlists',r=>{process.exit(r.statusCode===200?0:1)})"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-
   upload:
     image: docker-upload:latest
     container_name: ai3000-upload
@@ -121,6 +105,14 @@ services:
       - ai3000_nginx_certs:/etc/letsencrypt
       - /etc/letsencrypt:/host_letsencrypt:ro
       - /var/www/sqw.somtfly.com/build/nginx:/usr/share/nginx/html:ro
+      # 配置改为宿主机挂载（2026-10-16）：改完只要 `docker exec ai3000-nginx nginx -s reload`，
+      # 不再依赖 docker cp（容器一重建就丢，且镜像里烤进去的是带 cheak 拼写错误的旧版）。
+      # 整目录挂载（2026-10-16）：原来挂单个文件，宿主机一替换文件（编辑器/sed -i
+      # 都会换 inode），容器里看到的还是旧 inode，改配置不生效又看不出来 —— 这个坑
+      # 导致过一次线上 HTTPS 全挂。挂目录就能看到目录内文件的新旧替换。
+      - /var/www/sqw.somtfly.com/deploy/nginx-conf:/etc/nginx/conf.d:ro
+      # billion-context 面板的 basic auth 凭据
+      - /etc/dsh-bili:/etc/nginx/dsh-bili:ro
     networks:
       - ai3000_net
     depends_on:
@@ -149,7 +141,5 @@ volumes:
     name: ai3000_nginx_certs
   ai3000_huggingface_cache:
     name: ai3000_huggingface_cache
-  ai3000_music_data:
-    name: ai3000_music_data
   ai3000_upload_data:
     name: ai3000_upload_data

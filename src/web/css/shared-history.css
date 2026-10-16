@@ -1,0 +1,73 @@
+/* ⚠ 本页原自带 :root（--accent: var(--gold) 等），已移除 ——
+   令牌统一由 /css/tokens.css 提供，否则旧金值会覆盖新主题。 */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html,body { background:var(--bg); color:var(--text); font-family:var(--sans); min-height:100vh; -webkit-font-smoothing:antialiased; }
+
+/* ===== 悬浮菜单 ===== */
+.float-menu { position:sticky; top:0; z-index:100; background:rgba(250,248,245,0.92); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border-bottom:1px solid var(--border); padding:0.7rem 1.2rem; margin-bottom:0.8rem; }
+.fm-top { display:flex; align-items:center; justify-content:space-between; }
+.fm-left { display:flex; align-items:center; gap:0.5rem; }
+.fm-back { color:var(--text-dim); text-decoration:none; font-size:0.85rem; transition:color 0.2s; flex-shrink:0; }
+.fm-back:hover { color:var(--text); }
+.fm-title { font-family:var(--serif); font-size:1rem; font-weight:600; letter-spacing:0.05em; color:var(--text); }
+.fm-right { display:flex; align-items:center; gap:0.4rem; }
+.fm-btn { padding:0.35rem 0.75rem; font-size:0.78rem; font-family:inherit; border:1px solid var(--border); border-radius:8px; background:var(--card-bg); color:var(--text-dim); cursor:pointer; transition:all 0.2s; }
+.fm-btn:hover { border-color:var(--border-active); color:var(--text); }
+.fm-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+.fm-btn.manage-btn { border-color:var(--accent-dim); color:var(--accent); font-weight:500; }
+.fm-btn.manage-btn:hover { background:var(--gold-wash); border-color:var(--accent); }
+
+/* 搜索框 */
+.fm-search { margin-top:0.5rem; display:flex; align-items:center; gap:0.4rem; }
+.fm-search input { flex:1; padding:0.45rem 0.7rem; font-size:0.8rem; font-family:inherit; border:1px solid var(--border); border-radius:8px; background:var(--card-bg); color:var(--text); outline:none; transition:border-color 0.2s; }
+.fm-search input:focus { border-color:var(--border-active); }
+.fm-search input::placeholder { color:var(--text-muted); }
+.fm-search-clear { background:none; border:none; color:var(--text-muted); font-size:1rem; cursor:pointer; padding:0.3rem 0.5rem; display:none; }
+.fm-search-clear.visible { display:block; }
+
+/* 管理操作栏 */
+.fm-actions { margin-top:0.5rem; display:none; align-items:center; justify-content:space-between; }
+.fm-actions.show { display:flex; }
+.fm-actions .fm-select-all { font-size:0.75rem; color:var(--text-dim); cursor:pointer; }
+.fm-actions .fm-delete-selected { padding:0.35rem 0.75rem; font-size:0.75rem; font-family:inherit; border:1px solid #c94a4a; border-radius:8px; background:var(--card-bg); color:#c94a4a; cursor:pointer; transition:all 0.2s; }
+.fm-actions .fm-delete-selected:hover { background:rgba(201,74,74,0.08); }
+.fm-actions .fm-delete-selected:disabled { opacity:0.4; cursor:default; }
+
+/* 主内容区 */
+.mh-wrapper { max-width:420px; margin:0 auto; padding:0 1.2rem 4rem; }
+
+/* 记录卡片 */
+.record-list { display:flex; flex-direction:column; gap:0.6rem; }
+.record-card { background:var(--card-bg); border:1px solid var(--border); border-radius:var(--radius); padding:0.85rem 1rem; cursor:pointer; transition:all 0.2s; box-shadow:0 1px 3px rgba(0,0,0,0.03); display:flex; align-items:center; gap:0.6rem; position:relative; }
+.record-card:hover { border-color:var(--border-active); box-shadow:0 3px 12px rgba(0,0,0,0.06); transform:translateY(-1px); }
+.record-card .rc-emoji { font-size:1.4rem; flex-shrink:0; }
+.record-card .rc-info { flex:1; min-width:0; }
+.record-card .rc-topic { font-size:0.88rem; font-weight:500; color:var(--text); margin-bottom:0.15rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.record-card .rc-meta { font-size:0.7rem; color:var(--text-dim); display:flex; gap:0.6rem; }
+.record-card .rc-arrow { font-size:1rem; color:var(--text-muted); flex-shrink:0; transition:transform 0.2s; }
+.record-card:hover .rc-arrow { transform:translateX(2px); }
+
+/* 管理模式 */
+.manage-mode .record-card { cursor:pointer; }
+.manage-mode .record-card:hover { border-color:rgba(201,74,74,0.3); }
+.manage-mode .record-card.selected { border-color:#c94a4a; background:rgba(201,74,74,0.03); box-shadow:0 2px 8px rgba(201,74,74,0.1); }
+.manage-mode .record-card.selected .rc-arrow { color:#c94a4a; }
+.manage-mode .rc-checkbox { width:20px; height:20px; border:2px solid var(--border); border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:all 0.2s; }
+.manage-mode .rc-checkbox::after { content:'✓'; font-size:0.7rem; color:#fff; opacity:0; }
+.manage-mode .record-card.selected .rc-checkbox { border-color:#c94a4a; background:#c94a4a; }
+.manage-mode .record-card.selected .rc-checkbox::after { opacity:1; }
+
+/* 空状态 */
+.empty-state { text-align:center; padding:3rem 0; color:var(--text-dim); }
+.empty-state .empty-icon { font-size:2.5rem; margin-bottom:0.6rem; }
+.empty-state p { font-size:0.85rem; }
+
+/* 加载 */
+.load-state { text-align:center; padding:3rem 0; color:var(--text-dim); }
+.spinner { width:32px; height:32px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 0.5rem; }
+@keyframes spin { to{transform:rotate(360deg);} }
+
+@media (max-width:400px) {
+  .float-menu { padding:0.6rem 1rem; }
+  .mh-wrapper { padding:0 1rem 4rem; }
+}

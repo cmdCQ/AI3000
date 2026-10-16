@@ -1,0 +1,847 @@
+/* ═══════════════════════════════════════════
+   AI 对话页 · 样式
+   依赖: /css/tokens.css（须先于本块加载）
+   ═══════════════════════════════════════════ */
+
+/* 注意：不再重复定义 :root 令牌 —— 全部由 tokens.css 提供。
+   本文件只保留对话页特有的局部变量。 */
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 16px;
+  height: 100%;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+.chat-app {
+  display: flex; flex-direction: column;
+  height: 100%;
+  max-width: var(--chat-max);
+  margin: 0 auto;
+  position: relative;
+}
+
+/* ===== 顶栏 =====
+   旧版：左箭头 / 居中标题 / 「清空」三者基线不齐，且点按区只有约 24x20px。
+   改为：三栏等宽网格（图标 — 标题 — 操作），标题真正居中，
+   两侧操作都撑到 44px 触控下限。 */
+.chat-topbar {
+  display: grid;
+  grid-template-columns: var(--tap-min) 1fr auto;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  /* 顶栏高度随安全区自适应 */
+  padding-top: calc(var(--space-2) + env(safe-area-inset-top, 0px));
+}
+
+.chat-topbar .back-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: var(--tap-min); height: var(--tap-min);
+  margin-left: calc(var(--space-2) * -1);   /* 视觉左对齐，点按区仍足量 */
+  background: none; border: none;
+  font-size: 1.15rem; line-height: 1;
+  font-family: var(--sans);
+  color: var(--text-dim);
+  border-radius: var(--r-full);
+  cursor: pointer;
+  transition: background-color var(--dur-fast), color var(--dur-fast);
+}
+.chat-topbar .back-btn:hover { background: var(--bg-hover); color: var(--text); }
+.chat-topbar .back-btn:active { transform: scale(0.94); }
+
+.chat-topbar .title {
+  text-align: center;
+  font-family: var(--serif);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semi);
+  letter-spacing: 0.08em;
+  color: var(--text);
+}
+
+/* 「清空」旧版 0.72rem(11.5px) 且对比度不足。
+   改为胶囊描边按钮：可读性、可点性、危险语义都清晰。 */
+.chat-topbar .clear-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 2rem;
+  padding: var(--space-1) var(--space-3);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  font-size: var(--fs-xs);
+  font-family: var(--sans);
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--dur-fast), border-color var(--dur-fast), background-color var(--dur-fast);
+}
+.chat-topbar .clear-btn:hover {
+  color: var(--danger);
+  border-color: rgba(176,58,58,0.35);
+  background: var(--danger-wash);
+}
+
+/* ===== 消息区 =====
+   旧版有 scroll-behavior:smooth —— 流式输出每 120ms 设一次 scrollTop，
+   会不断打断未完成的平滑滚动动画，导致抖动。已移除，改由 JS 直接定位。 */
+.msgs-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4) var(--space-3) var(--space-2);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* ===== 空态 =====
+   旧版是个大而弱的图标 + 两行小字，像加载失败。
+   改为：圆形浅金底座 + 引导性文案 + 可点的示例问题。 */
+.msgs-empty {
+  display: flex; flex-direction: column; align-items: center;
+  padding: var(--space-8) var(--space-4) var(--space-4);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.msgs-empty .empty-icon {
+  width: 3.5rem; height: 3.5rem;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: var(--space-4);
+  font-size: 1.5rem; line-height: 1;
+  background: var(--gold-wash);
+  border: 1px solid var(--border-gold);
+  border-radius: var(--r-full);
+  filter: saturate(0.92);
+}
+
+.msgs-empty .empty-title {
+  font-family: var(--serif);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semi);
+  color: var(--text);
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-2);
+}
+
+.msgs-empty .empty-desc {
+  font-size: var(--fs-sm);
+  line-height: var(--lh-relaxed);
+  color: var(--text-muted);
+  max-width: 17rem;
+}
+
+/* ===== 消息气泡 ===== */
+.msg {
+  max-width: 92%;
+  margin-bottom: var(--space-3);
+  animation: msgIn var(--dur-base) var(--ease-out);
+}
+
+@keyframes msgIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.msg-user { margin-left: auto; }
+.msg-ai   { margin-right: auto; }
+
+/* 正文 13.4px → 15px。旧版在手机上读长文非常吃力。
+   行高 1.8 是中文长回答的可读性底线。 */
+.msg-bubble {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--r-md);
+  font-size: var(--fs-body);
+  line-height: var(--lh-relaxed);
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* 用户气泡：白字压金色。
+   旧版白字在 #b8960a 上只有 2.84:1，现在玉青实底 6.32:1。 */
+.msg-user .msg-bubble {
+  background: var(--gold);
+  color: var(--text-on-gold);
+  border-bottom-right-radius: 5px;   /* 指向说话者的一角收窄 */
+  box-shadow: 0 2px 8px rgba(var(--gold-rgb),0.18);
+}
+.msg-user .msg-bubble p { margin-bottom: var(--space-1); }
+.msg-user .msg-bubble p:last-child { margin-bottom: 0; }
+.msg-user .msg-bubble a { color: var(--text-on-gold); text-decoration: underline; text-underline-offset: 2px; }
+
+/* AI 气泡：纸面色 + 细描边，靠留白而非重描边区分 */
+.msg-ai .msg-bubble {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 5px;
+  box-shadow: var(--shadow-xs);
+}
+
+/* 等待指示：旧的 16px 边框转圈太朴素，改为三点跳动 */
+.msg-ai .msg-bubble .ai-spinner {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  vertical-align: middle;
+  margin-right: var(--space-2);
+}
+.msg-ai .msg-bubble .ai-spinner::before,
+.msg-ai .msg-bubble .ai-spinner::after,
+.msg-ai .msg-bubble .ai-spinner i {
+  content: '';
+  display: block;
+  width: 5px; height: 5px;
+  border-radius: var(--r-full);
+  background: var(--gold-line);
+  animation: dotBounce 1.3s var(--ease-inout) infinite;
+}
+.msg-ai .msg-bubble .ai-spinner::after { animation-delay: 0.16s; }
+.msg-ai .msg-bubble .ai-spinner i     { animation-delay: 0.32s; }
+
+@keyframes dotBounce {
+  0%, 60%, 100% { opacity: 0.28; transform: translateY(0); }
+  30%           { opacity: 1;    transform: translateY(-3px); }
+}
+
+/* 等待阶段的文案与计时：让「正在工作」可感知，而不是一个不动的转圈 */
+.msg-ai .msg-bubble .think-text {
+  color: var(--text-dim);
+  font-size: var(--fs-base);
+}
+.msg-ai .msg-bubble .think-timer {
+  margin-left: var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;   /* 数字等宽，秒数跳动不抖 */
+}
+
+/* 流式输出中：幽灵光标，让「还在写」这件事可见。
+   注意用 :not(.thinking) —— 等待阶段还没有任何文字，不该出现光标。 */
+.msg-ai.streaming:not(.thinking) .msg-bubble::after {
+  content: '';
+  display: inline-block;
+  width: 2px; height: 1em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  background: var(--gold-line);
+  animation: caret 1s steps(2, start) infinite;
+}
+@keyframes caret { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
+
+.msg-ai .msg-bubble p { margin-bottom: var(--space-2); }
+.msg-ai .msg-bubble p:last-child { margin-bottom: 0; }
+
+/* 重点词：旧版 font-weight:600 但颜色是低对比金。
+   现在颜色用深金（6.84:1），字重保持 600。 */
+.msg-ai .msg-bubble strong {
+  color: var(--gold-ink);
+  font-weight: var(--fw-semi);
+}
+
+/* Markdown 标题：旧版 h3 只有 11.7px，比正文还小 —— 层级是反的。
+   修正为 h2 > h3 > 正文。 */
+.msg-ai .msg-bubble h2 {
+  font-family: var(--serif);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semi);
+  color: var(--text);
+  margin: var(--space-4) 0 var(--space-2);
+  letter-spacing: 0.03em;
+}
+.msg-ai .msg-bubble h3 {
+  font-family: var(--serif);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-semi);
+  color: var(--text);
+  margin: var(--space-3) 0 var(--space-1);
+  letter-spacing: 0.02em;
+}
+.msg-ai .msg-bubble h2:first-child,
+.msg-ai .msg-bubble h3:first-child { margin-top: 0; }
+
+.msg-ai .msg-bubble hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: var(--space-3) 0;
+}
+
+.msg-ai .msg-bubble blockquote {
+  padding: var(--space-2) var(--space-3);
+  margin: var(--space-3) 0;
+  border-left: 3px solid var(--gold-line);
+  background: var(--bg-sunken);
+  border-radius: 0 var(--r-xs) var(--r-xs) 0;
+  font-size: var(--fs-base);
+  color: var(--text-dim);
+}
+
+.msg-ai .msg-bubble ul,
+.msg-ai .msg-bubble ol { padding-left: var(--space-5); margin-bottom: var(--space-2); }
+.msg-ai .msg-bubble li { margin-bottom: var(--space-1); }
+
+.msg-ai .msg-bubble code {
+  background: var(--bg-sunken);
+  padding: 0.1rem 0.35rem;
+  border-radius: var(--r-xs);
+  font-size: 0.85em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.msg-ai .msg-bubble pre {
+  background: var(--bg-sunken);
+  padding: var(--space-3);
+  border-radius: var(--r-sm);
+  font-size: 0.8rem;
+  line-height: var(--lh-snug);
+  overflow-x: auto;
+  margin: var(--space-2) 0;
+}
+
+/* 积分行：旧版 0.62rem = 9.9px，几乎不可读，提到 12px */
+.msg-token {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  padding: var(--space-1) var(--space-1) 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* 错误消息 */
+.msg-ai .msg-error { color: var(--danger); }
+
+/* ===== 排盘卡片 =====
+   旧版卡片内文字低至 0.55rem(8.8px)、卦名 0.72rem(11.5px)。
+   排盘数据是产品的核心信息，不能比正文小一半。
+   整体上提一档字号，并给卦象区域更大的留白。 */
+.msg-card { max-width: 98%; margin-bottom: var(--space-3); animation: msgIn var(--dur-base) var(--ease-out); }
+
+.msg-card .card-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-xs);
+}
+
+.card-box .card-hdr {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-sunken);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+}
+.card-box .card-hdr .card-type-icon { font-size: 0.95rem; line-height: 1; filter: saturate(0.92); }
+.card-box .card-hdr .card-type-label { font-weight: var(--fw-semi); color: var(--text); letter-spacing: 0.02em; }
+
+.card-box .card-body { padding: var(--space-3); font-size: var(--fs-base); line-height: var(--lh-snug); }
+
+.card-box .card-meta {
+  display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3);
+  margin-bottom: var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+.card-box .card-meta span { white-space: nowrap; }
+
+.card-box .card-essence {
+  padding: var(--space-3);
+  background: var(--bg-sunken);
+  border-radius: var(--r-sm);
+  color: var(--text);
+}
+.card-box .card-essence .essence-label {
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  margin-bottom: 0.15rem;
+}
+.card-box .card-essence .essence-value {
+  font-family: var(--serif);
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semi);
+  color: var(--text);
+  line-height: var(--lh-normal);
+  word-break: break-word;
+}
+
+/* ---- 卦象：五卦 / 双列 ---- */
+.card-hex-mini {
+  display: flex; gap: 0;
+  margin: var(--space-2) 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+.card-hex-mini .hex-item {
+  flex: 1;
+  text-align: center;
+  padding: var(--space-2) var(--space-1);
+  font-size: var(--fs-xs);
+}
+.card-hex-mini .hex-item + .hex-item { border-left: 1px solid var(--border); }
+.card-hex-mini .hex-item .hex-label {
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+  margin-bottom: var(--space-1);
+}
+.card-hex-mini .hex-item .hex-name {
+  font-family: var(--serif);
+  font-weight: var(--fw-semi);
+  font-size: var(--fs-sm);
+  color: var(--text);
+  line-height: var(--lh-tight);
+}
+.card-hex-mini .hex-item .hex-lines {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 3px;
+  margin: var(--space-1) 0;
+}
+/* 爻线：旧版 2.5px 高、22px 宽。加粗到 3px 让阴阳更易分辨 */
+.card-hex-mini .hex-item .hex-line { height: 3px; border-radius: 1px; }
+.card-hex-mini .hex-item .hl-yang { width: 24px; background: var(--text); }
+.card-hex-mini .hex-item .hl-yin { display: flex; gap: 6px; justify-content: center; }
+.card-hex-mini .hex-item .hl-yin span {
+  width: 9px; height: 3px;
+  background: var(--text);
+  border-radius: 1px;
+  display: block;
+}
+
+.card-ly-hex {
+  display: flex; gap: 0;
+  margin: var(--space-2) 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+.card-ly-hex .ly-col {
+  flex: 1;
+  text-align: center;
+  padding: var(--space-2) var(--space-1);
+  font-size: var(--fs-xs);
+}
+.card-ly-hex .ly-col + .ly-col { border-left: 1px solid var(--border); }
+.card-ly-hex .ly-col .ly-title {
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+  margin-bottom: var(--space-1);
+  font-weight: var(--fw-semi);
+}
+
+.card-ly-rows { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+
+.card-ly-row {
+  display: flex; align-items: center; gap: 3px;
+  font-size: var(--fs-micro);
+  line-height: 1.4;
+}
+.card-ly-row .ly-lq { width: 1.3rem; text-align: right; color: var(--text-dim); }
+.card-ly-row .ly-dz { width: 1.2rem; text-align: center; color: var(--text-dim); }
+.card-ly-row .ly-bar { width: 1.5rem; text-align: center; }
+.card-ly-row .ly-bar .b-yang {
+  display: inline-block;
+  width: 16px; height: 2.5px;
+  background: var(--text);
+  border-radius: 1px;
+}
+.card-ly-row .ly-bar .b-yin { display: inline-flex; gap: 3px; justify-content: center; }
+.card-ly-row .ly-bar .b-yin i {
+  display: block;
+  width: 6px; height: 2.5px;
+  background: var(--text);
+  border-radius: 1px;
+}
+/* 动爻标记：旧版只是个极小的字符，改为明显的红点 */
+.card-ly-row .ly-mv {
+  width: 0.8rem; text-align: center;
+  font-size: var(--fs-micro);
+  color: var(--danger);
+  font-weight: var(--fw-semi);
+}
+
+/* ---- 命盘卡片 ---- */
+.card-chart-info { display: flex; flex-direction: column; gap: var(--space-1); }
+.card-chart-info .cci-row {
+  display: flex; align-items: center; gap: var(--space-2);
+  font-size: var(--fs-base);
+}
+.card-chart-info .cci-label {
+  color: var(--text-muted);
+  min-width: 3em;
+  font-size: var(--fs-xs);
+}
+
+.card-chart-bazi {
+  display: flex; gap: var(--space-2);
+  margin: var(--space-2) 0;
+  justify-content: center;
+}
+.card-chart-bazi .bazi-pillar { display: flex; flex-direction: column; align-items: center; }
+/* 四柱是本产品的核心信息，字号从 1rem 提到 1.15rem */
+.card-chart-bazi .bazi-ganzhi {
+  font-family: var(--serif);
+  font-size: 1.15rem;
+  color: var(--text);
+  font-weight: var(--fw-semi);
+  letter-spacing: 0.02em;
+}
+.card-chart-bazi .bazi-label {
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+}
+
+.card-chart-footer {
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  border-top: 1px solid var(--border);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+.card-chart-footer .ccf-tag {
+  display: inline-block;
+  padding: 0.1rem var(--space-2);
+  margin-right: var(--space-1);
+  border-radius: var(--r-full);
+  background: var(--gold-wash);
+  border: 1px solid var(--border-gold);
+  color: var(--gold);
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-medium);
+}
+
+/* ===== 输入区 ===== */
+.input-area {
+  flex-shrink: 0;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border);
+  padding: var(--space-2) var(--space-3);
+  padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
+}
+
+.input-share-bar { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
+
+.input-share-btn {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  min-height: 1.9rem;
+  font-size: var(--fs-xs);
+  font-family: var(--sans);
+  font-weight: var(--fw-medium);
+  color: var(--gold);
+  background: var(--gold-wash);
+  border: 1px solid var(--border-gold);
+  border-radius: var(--r-full);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
+}
+.input-share-btn:hover {
+  background: var(--gold-wash-2);
+  border-color: var(--gold-line);
+  color: var(--gold-ink);
+}
+.input-share-btn .share-icon { font-size: 0.8rem; line-height: 1; filter: saturate(0.92); }
+
+/* 待发送卡片预览：旧版用了硬编码的 #fef9ec/#4f3e0f 等散色。
+   改为令牌，并让金色语义和其他金色元素一致。 */
+.pending-card-bar {
+  display: flex; align-items: flex-start; gap: var(--space-2);
+  margin: 0 var(--space-3) var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: linear-gradient(180deg, var(--gold-wash) 0%, var(--gold-wash-2) 100%);
+  border: 1px solid var(--border-gold);
+  border-radius: var(--r-sm);
+}
+.pending-card-bar .pcard-content { flex: 1; min-width: 0; font-size: var(--fs-sm); line-height: var(--lh-snug); }
+.pending-card-bar .pcard-label {
+  font-size: var(--fs-micro);
+  color: var(--gold);
+  letter-spacing: 0.03em;
+  margin-bottom: 0.1rem;
+}
+.pending-card-bar .pcard-title {
+  font-weight: var(--fw-semi);
+  color: var(--gold-deep);
+  font-size: var(--fs-base);
+}
+.pending-card-bar .pcard-meta {
+  font-size: var(--fs-micro);
+  color: var(--gold-ink);
+  margin-top: 0.1rem;
+}
+.pending-card-bar .pcard-remove {
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  width: 1.75rem; height: 1.75rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--r-full);
+  background: rgba(79,62,4,0.08);
+  color: var(--gold-ink);
+  font-size: var(--fs-sm);
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color var(--dur-fast);
+}
+.pending-card-bar .pcard-remove:hover { background: rgba(79,62,4,0.16); }
+
+.input-row { display: flex; gap: var(--space-2); align-items: flex-end; }
+
+/* 输入框：旧版无 font-size → 继承 0.84rem(13.4px)，
+   iOS Safari 会在聚焦时自动放大页面，而页面又设了 user-scalable=no，
+   用户会卡在放大态。16px 是 iOS 不缩放的硬阈值。 */
+.input-row textarea {
+  flex: 1;
+  padding: var(--space-2) var(--space-3);
+  min-height: 2.75rem;
+  /* 必须 >=16px：iOS Safari 对 <16px 的输入框会在聚焦时自动放大页面，
+     而 viewport 里又设了 user-scalable=no，用户会卡在放大态无法缩回。 */
+  font-size: 16px;
+  font-family: var(--sans);
+  line-height: var(--lh-snug);
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  outline: none;
+  resize: none;
+  max-height: 120px;
+  transition: border-color var(--dur-base), background-color var(--dur-base), box-shadow var(--dur-base);
+}
+.input-row textarea:focus {
+  border-color: var(--gold-line);
+  background: var(--bg-card);
+  box-shadow: 0 0 0 3px var(--gold-wash);
+}
+.input-row textarea::placeholder { color: var(--text-muted); }
+
+/* 发送 / 停止按钮：2.2rem = 35px，低于 44px 触控下限，提到 2.75rem */
+.input-send-btn {
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  width: 2.75rem; height: 2.75rem;
+  background: var(--gold);
+  color: var(--text-on-gold);
+  border: none;
+  border-radius: var(--r-full);
+  font-size: 1.05rem;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(var(--gold-rgb),0.22);
+  transition: background-color var(--dur-fast), transform var(--dur-fast), opacity var(--dur-fast);
+}
+.input-send-btn:not(:disabled):hover { background: var(--gold-ink); }
+.input-send-btn:not(:disabled):active { transform: scale(0.92); }
+.input-send-btn:disabled { opacity: 0.35; cursor: default; box-shadow: none; }
+
+.input-stop-btn {
+  flex-shrink: 0;
+  display: none;
+  align-items: center; justify-content: center;
+  width: 2.75rem; height: 2.75rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-full);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: color var(--dur-fast), border-color var(--dur-fast), background-color var(--dur-fast);
+}
+.input-stop-btn:hover {
+  color: var(--danger);
+  border-color: rgba(176,58,58,0.4);
+  background: var(--danger-wash);
+}
+.input-stop-btn.visible { display: flex; }
+
+/* ===== 分享选择器 ===== */
+.picker-overlay {
+  position: fixed; inset: 0;
+  z-index: var(--z-overlay);
+  background: rgba(40,32,12,0.32);
+  display: none;
+}
+.picker-overlay.open { display: block; animation: overlayIn var(--dur-fast) var(--ease-out); }
+
+@keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
+
+.picker-panel {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  z-index: calc(var(--z-overlay) + 1);
+  max-width: var(--chat-max);
+  margin: 0 auto;
+  max-height: 70vh;
+  display: none; flex-direction: column;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  box-shadow: 0 -8px 32px rgba(60,48,20,0.12);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.picker-panel.open { display: flex; animation: slideUp var(--dur-slow) var(--ease-out); }
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+.picker-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--space-4) var(--space-4) var(--space-2);
+  font-family: var(--serif);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semi);
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+.picker-hdr .picker-close {
+  display: flex; align-items: center; justify-content: center;
+  width: 2rem; height: 2rem;
+  padding: 0;
+  background: none; border: none;
+  border-radius: var(--r-full);
+  color: var(--text-muted);
+  font-size: 1.05rem;
+  line-height: 1;
+  font-family: var(--sans);
+  cursor: pointer;
+  transition: background-color var(--dur-fast), color var(--dur-fast);
+}
+.picker-hdr .picker-close:hover { background: var(--bg-hover); color: var(--text); }
+
+.picker-tabs { display: flex; gap: var(--space-2); padding: 0 var(--space-4); flex-shrink: 0; }
+
+/* Tab 旧版是个小描边按钮，选中态直接铺满金色 —— 对比度低且形状突兀。
+   改为下划线式 tab，选中用金色文字 + 底部金线。 */
+.picker-tab {
+  padding: var(--space-2) var(--space-1);
+  min-height: 2.5rem;
+  font-size: var(--fs-base);
+  font-family: var(--sans);
+  font-weight: var(--fw-medium);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color var(--dur-base), border-color var(--dur-base);
+}
+.picker-tab:hover { color: var(--text-dim); }
+.picker-tab.active {
+  color: var(--gold);
+  border-bottom-color: var(--gold-line);
+  font-weight: var(--fw-semi);
+}
+
+.picker-body {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  -webkit-overflow-scrolling: touch;
+}
+
+.picker-item {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-3);
+  min-height: var(--tap-min);
+  margin-bottom: var(--space-2);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: border-color var(--dur-fast), background-color var(--dur-fast), transform var(--dur-fast);
+}
+.picker-item:hover { border-color: var(--border-gold); background: var(--gold-wash); }
+.picker-item:active { transform: scale(0.99); }
+
+.picker-item .pi-icon { flex-shrink: 0; font-size: 1.1rem; line-height: 1; filter: saturate(0.92); }
+.picker-item .pi-body { flex: 1; min-width: 0; }
+.picker-item .pi-topic {
+  font-size: var(--fs-body);
+  font-weight: var(--fw-semi);
+  color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.picker-item .pi-meta {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  margin-top: 0.1rem;
+}
+
+.picker-empty { text-align: center; padding: var(--space-6) 0; color: var(--text-muted); font-size: var(--fs-base); }
+.picker-loading { text-align: center; padding: var(--space-6) 0; color: var(--text-dim); font-size: var(--fs-base); }
+.picker-loading .pk-spinner {
+  width: 20px; height: 20px;
+  margin: 0 auto var(--space-2);
+  border: 2px solid var(--border);
+  border-top-color: var(--gold-line);
+  border-radius: var(--r-full);
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== 小屏微调 ===== */
+@media (max-width: 420px) {
+  .msgs-area { padding: var(--space-3) var(--space-2) var(--space-2); }
+  .msg { max-width: 95%; }
+  .msg-bubble { padding: var(--space-3); }
+  .input-area { padding: var(--space-2); padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom, 0px)); }
+  .msgs-empty { padding: var(--space-6) var(--space-3) var(--space-3); }
+}
+
+/* ===== AI Markdown 输出 =====
+   renderMarkdown 现在产出 .md-h / .md-quote / .md-li，
+   样式集中在此（首页 home.css 有一份等价副本，用于公告弹窗）。
+   历史 bug：renderMarkdown 先做 HTML 转义再匹配引用块，
+   导致 `> 引用` 永远显示为字面量 '> 文字'。 */
+.md-h {
+  font-family: var(--serif);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-semi);
+  color: var(--gold-ink);
+  margin: var(--space-3) 0 var(--space-1);
+  letter-spacing: 0.04em;
+}
+.md-quote {
+  margin: var(--space-3) 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--gold-line);
+  background: var(--bg-sunken);
+  border-radius: 0 var(--r-xs) var(--r-xs) 0;
+  color: var(--text-dim);
+  font-size: var(--fs-base);
+  line-height: var(--lh-normal);
+}
+.md-quote strong { color: var(--gold-ink); }
+.md-li {
+  display: block;
+  padding-left: var(--space-4);
+  margin: var(--space-1) 0;
+  line-height: var(--lh-normal);
+}
+.md-li-ul { position: relative; }
+.md-li-ul::before {
+  content: '•';
+  position: absolute;
+  left: 0.3rem;
+  color: var(--gold-line);
+}
+.md-li-num { position: relative; }
+.md-li-num::before {
+  content: attr(data-n) '.';
+  position: absolute;
+  left: 0;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}

@@ -1,0 +1,15 @@
+# ai3000-nginx 的镜像。
+#
+# 以前这个 Dockerfile 是 `COPY . /usr/share/nginx/html/` —— 把当时的整个 webroot
+# 烘进镜像层，连 14 个 nginx-default.conf.bak-* 和 nginx-stage1.conf 一起。
+# 那些文件后来从 webroot 删掉了，镜像层里的副本却还在：一旦 bind mount 失效或
+# 有人不带挂载起容器，公网就能拿到已经封掉的配置和旧页面。
+#
+# 现在 webroot 和 nginx 配置都只从宿主机挂载进来，镜像只负责「nginx + curl」：
+#   /var/www/sqw.somtfly.com/build/nginx         -> /usr/share/nginx/html   (ro)
+#   /var/www/sqw.somtfly.com/deploy/nginx-conf   -> /etc/nginx/conf.d       (ro)
+# curl 是 docker-compose.yml 里 healthcheck 用的。
+FROM nginx:alpine
+RUN apk add --no-cache curl
+EXPOSE 80 443
+CMD ["nginx", "-g", "daemon off;"]

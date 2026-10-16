@@ -1,0 +1,259 @@
+/* ═══════════════════════════════════════════════════════════════
+   易三千 · 设计令牌 (design tokens)
+   单一事实来源 —— 首页与 AI 对话页共用
+   ═══════════════════════════════════════════════════════════════
+
+   ── 配色方案：净白画布 + 玉青主色 + 暖金装饰线 ──
+
+   为什么这样配：
+     · 原方案的「土」有两个来源 —— 暖米画布（#faf8f5）本身就是土色，
+       而 7% 透明度的金盖在暖米上，混出来是脏米黄，强调色全部发闷。
+       把画布提到接近纯白后，同一个强调色立刻干净很多。
+     · 主色从暗金改为玉青（青瓷调），冷暖中和，比纯冷色更贴合「命理」题材。
+     · 暖金不删除，退到「只做装饰线条」的位置 —— 青瓷配描金是中式配色里
+       现成的解法，既清了土气，又保住了传统质感。
+
+   对比度策略：
+     主色 #1f6b5e 做主色时同时满足两个方向 ——
+       作为文字压在浅底上：最小 5.58:1
+       作为实底承载白字：  6.32:1
+     文字三级在各底色上全部 ≥4.5:1（见文末实测表）。
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── 底色 ──────────────────────────────────
+     从暖米 #faf8f5 提到近纯白 #fcfcfa，只留一丝暖度。
+     这是消掉「土气」最关键的一步 —— 比换主色更有效。 */
+  --bg:            #fcfcfa;   /* 页面底 */
+  --bg-card:       #ffffff;   /* 卡片面 */
+  --bg-hover:      #f6f6f3;   /* 悬停 / 次级面 */
+  --bg-sunken:     #f1f1ec;   /* 凹陷区（引用底、代码块）*/
+
+  /* ── 描边 ──────────────────────────────────
+     三级：常态 hairline / 可交互态 / 金色强调容器 */
+  --border:        #e6e6df;   /* hairline 分隔线 */
+  --border-strong: #d5d5c9;   /* 悬停 / 激活描边 */
+  --border-gold:   #dcd3b4;   /* 暖金描边（强调容器）*/
+
+  /* ── 文字 ──────────────────────────────────
+     三级全部在四种底色上 ≥4.5:1 */
+  --text:          #1a1a1a;   /* 主文字   15.4~17.4:1 */
+  --text-dim:      #56514a;   /* 次要文字  6.9~7.9:1 */
+  --text-muted:    #6a655c;   /* 弱化文字  5.1~5.8:1 */
+  --text-on-gold:  #ffffff;   /* 实底上的白字  6.32:1 */
+
+  /* ── 主色：玉青 ─────────────────────────────
+     名字沿用 --gold* 是为了不改动任何既有规则的选择器，
+     语义上它就是「主色 / 强调色」。 */
+  --gold:          #1f6b5e;   /* 主色：文字 & 实底按钮   5.58:1 | 白字其上 6.32:1 */
+  --gold-ink:      #175349;   /* 深一档：悬停 / 强调     7.82:1 */
+  --gold-deep:     #0f3d36;   /* 最深：深底反白场景     10.64:1 */
+
+  /* ── 装饰暖金 ───────────────────────────────
+     只用于线条、描边、指示条、光晕 —— 不承载任何文字，
+     所以只需要与背景可分辨（2.2~2.4:1），品牌暖感靠它保留。 */
+  --gold-line:     #c9a227;
+
+  /* ── 暖金（第二色）───────────────────────────
+     青玉是主色（UI、按钮、正文强调），暖金退到**装饰与温度**上：
+     页头金线、区块标记、卡片左边一道、导航活动条、页脚链接、悬停提示、
+     引用块左边框 —— 这些不承载长文字，是页面的"暖"。
+     三级：
+       --warm      与暖金文字/描边，需过 AA（5.23:1）
+       --warm-ink  悬停态
+       --warm-line 纯装饰线条（不承载文字，仅需可辨 2.4:1） */
+  --warm:          #7a6109;
+  --warm-ink:      #634e07;
+  --warm-line:     #c9a227;
+  --warm-wash:     rgba(201,162,39,0.10);
+  --gold-wash:     rgba(31,107,94,0.10);   /* 玉青浅底 */
+  --gold-wash-2:   rgba(31,107,94,0.17);   /* 玉青浅底 · 悬停 */
+
+  /* ── 语义色 ────────────────────────────────── */
+  --danger:        #b03a3a;   /* 撤销 / 错误   5.28:1 */
+  --danger-wash:   rgba(176,58,58,0.08);
+  --success:       #1f8a4c;   /* 在线指示点 */
+
+  /* ── 字体 ──────────────────────────────────
+     中文优先落到系统字体：零下载、立即渲染。
+     Noto 保留在后面作为有则用、无则跳的增强。 */
+  --sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC",
+          "Source Han Sans SC", "Noto Sans SC", "Microsoft YaHei", "Hiragino Sans GB",
+          sans-serif;
+  --serif: "Songti SC", "Source Han Serif SC", "Noto Serif SC", "STSong",
+           "SimSun", Georgia, serif;
+
+  /* ── 字号体系（8 级）────────────────────────
+     原先首页 23 种 / 对话页 21 种且无规律。 */
+  --fs-micro:  0.6875rem;  /* 11px  角标、计数 */
+  --fs-xs:     0.75rem;    /* 12px  辅助说明、时间戳 */
+  --fs-sm:     0.8125rem;  /* 13px  标签、次要正文 */
+  --fs-base:   0.875rem;   /* 14px  紧凑正文 */
+  --fs-body:   0.9375rem;  /* 15px  正文（气泡、卡片描述）*/
+  --fs-lg:     1.0625rem;  /* 17px  区块标题 */
+  --fs-xl:     1.375rem;   /* 22px  页面标题 */
+  --fs-2xl:    1.75rem;    /* 28px  品牌字 */
+
+  /* ── 行高 ──────────────────────────────────
+     中文需要比拉丁文更松，1.8 是长文可读性底线 */
+  --lh-tight:  1.3;
+  --lh-snug:   1.5;
+  --lh-normal: 1.65;
+  --lh-relaxed:1.8;
+
+  /* ── 字重 ──────────────────────────────────
+     中文黑体下 500 与 400 几乎无差，强调用 600 才有区分度。 */
+  --fw-normal: 400;
+  --fw-medium: 500;
+  --fw-semi:   600;
+
+  /* ── 间距体系（4px 基准）──────────────────── */
+  --space-1: 0.25rem;   /*  4px */
+  --space-2: 0.5rem;    /*  8px */
+  --space-3: 0.75rem;   /* 12px */
+  --space-4: 1rem;      /* 16px */
+  --space-5: 1.5rem;    /* 24px */
+  --space-6: 2rem;      /* 32px */
+  --space-7: 2.5rem;    /* 40px */
+  --space-8: 3rem;      /* 48px */
+
+  /* ── 圆角 ────────────────────────────────── */
+  --r-xs:   6px;
+  --r-sm:   10px;
+  --r-md:   14px;
+  --r-lg:   18px;
+  --r-full: 999px;
+
+  /* ── 投影 ──────────────────────────────────
+     统一暖黑色相，跟随新画布微调。 */
+  --shadow-xs:   0 1px 2px rgba(50,55,48,0.04);
+  --shadow-card: 0 1px 3px rgba(50,55,48,0.05), 0 4px 12px rgba(50,55,48,0.04);
+  --shadow-pop:  0 8px 28px rgba(50,55,48,0.10), 0 2px 8px rgba(50,55,48,0.06);
+  --shadow-modal:0 16px 48px rgba(50,55,48,0.18);
+
+  /* ── 动效 ────────────────────────────────── */
+  --ease-out:   cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring:cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast:   120ms;
+  --dur-base:   200ms;
+  --dur-slow:   320ms;
+
+  /* ── 层级 ────────────────────────────────── */
+  --z-nav:      100;
+  --z-overlay:  200;
+  --z-chat:     900;
+  --z-modal:   1000;
+  --z-toast:   1100;
+
+  /* ── 尺寸 ────────────────────────────────── */
+  --tap-min:   44px;
+  --page-max:  680px;
+  --chat-max:  500px;
+  --nav-h:     3.5rem;
+
+  /* ── 主色 RGB 分量（用于需要 rgba 的场景）── */
+  --gold-rgb:  31,107,94;
+  --warm-rgb:  201,162,39;
+
+  /* ── 向后兼容别名 ────────────────────────────
+     全站还有约 165 处 var(--accent*)（六爻/梅花/命盘/六十四卦/管理后台等页面
+     不引用 tokens.css，用的是各自 <style> 里的旧变量名）。
+     这里把旧名映射到新主色，避免那些页面因为找不到变量而失去强调色
+     （var() 取不到值时会回退到 initial，那些元素会直接变黑或消失）。
+
+     迁移完成后可以删掉这一段，并同步替换各页面的 --accent。 */
+  --accent:      var(--gold);
+  --accent-dim:  var(--gold-ink);
+  --accent-bg:   var(--gold-wash);
+  --accent-faint:#f1f1ec;
+
+  /* 旧圆角/缓动名 —— 首页 home.css 仍在用（--radius / --radius-md / --ease），
+     以及 --border-active（旧版的两级描边，语义等同新的 --border-strong）。
+     一并映射到新令牌，这样老样式表不用改也能吃到新主题。 */
+  --radius:        var(--r-md);
+  --radius-md:     var(--r-md);
+  --radius-sm:     var(--r-sm);
+  --ease:          var(--ease-out);
+  --border-active: var(--border-strong);
+
+  /* 各页仍在用的旧名 —— 一并映射，使老样式表不改也能吃到新主题 */
+  --card-bg:       var(--bg-card);
+  --bg-input:      var(--bg-sunken);
+  --bg-elevated:   var(--bg-card);
+  --bg-cell:       var(--bg-sunken);
+  --radius-lg:     var(--r-lg);
+  --danger-dim:    var(--danger-wash);
+  --mono:          ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* 建议页的星级：空心灰 → 点亮用主色 */
+  --star:          var(--border-strong);
+  --star-active:   var(--gold);
+  --star-main:     var(--gold);
+  --star-aux:      var(--text-muted);
+
+  /* 四化（紫微斗数）语义色 —— 禄权科忌，保持各自可辨 */
+  --sihua-lu:      #1f8a4c;
+  --sihua-quan:    #b03a3a;
+  --sihua-ke:      #3f5a86;
+  --sihua-ji:      #6a655c;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   可访问性基线 —— 全站统一，各页面不要重复定义
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 键盘焦点：原版两页 :focus 规则数为 0，键盘用户完全看不到焦点 */
+:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+  border-radius: var(--r-xs);
+}
+:focus:not(:focus-visible) { outline: none; }
+
+/* 尊重系统「减弱动态效果」：前庭敏感用户不应被强制动画 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* 触屏设备去掉点击高亮蓝框（改为自绘反馈） */
+@media (hover: none) {
+  a, button, [onclick] { -webkit-tap-highlight-color: transparent; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   对比度实测记录（WCAG 2.1 · sRGB）
+   画布： --bg #fcfcfa · --bg-card #ffffff · --bg-hover #f6f6f3 · --bg-sunken #f1f1ec
+   ───────────────────────────────────────────────────────────────
+   token              底色      卡片      悬停底    凹陷底
+   --text            16.94     17.40     16.07     15.36   AAA
+   --text-dim         7.65      7.86      7.26      6.94   AA+
+   --text-muted       5.63      5.79      5.34      5.11   AA
+   --gold 玉青         6.15      6.32      5.84      5.58   AA
+   --gold-ink         8.63      8.86      8.18      7.82   AA+
+   --gold-deep       11.74     12.06     11.14     10.64   AAA
+   --danger           5.82      5.98      5.52      5.28   AA
+
+   实心底上的白字：
+     #fff on --gold 玉青      6.32:1  ✓
+     #fff on --gold-ink      8.86:1  ✓
+     #fff on --danger        5.98:1  ✓
+
+   装饰暖金 --gold-line #c9a227：与各底色 2.13~2.42:1
+     —— 仅用于线条/描边/指示条，不承载文字，只需可分辨 ✓
+
+   层级梯度（相邻两级是否肉眼可辨）：
+     --text ↔ --text-dim        2.21x
+     --text-dim ↔ --text-muted  1.36x
+     --gold ↔ --text-dim        1.24x
+
+   旧值对照（改版前，全部不达标）：
+     --text-muted #aaaaaa  2.19:1 ✗
+     --accent     #b8960a  2.68:1 ✗（白字其上 2.84:1 ✗）
+     --accent-dim #9a8b7a  3.12:1 ✗
+   ═══════════════════════════════════════════════════════════════ */

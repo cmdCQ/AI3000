@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>排盘结果 · 六爻</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all';this.onload=null">
+<!-- 设计系统与梅花结果页同一份（令牌/卡片/AI 面板/爻符），六爻盘面另加一份，必须引在后面 -->
+<link rel="stylesheet" href="/css/mhys_result.css">
+<link rel="stylesheet" href="/css/liuyao_result.css">
+</head>
+<body>
+
+<div class="mh-wrapper">
+  <div class="mh-header">
+    <a href="/liuyao/" class="mh-back">← 返回排盘</a>
+    <h1 class="mh-title">排盘结果</h1>
+    <!-- 页头那颗「试试自动解析」已删（2026-09-25 用户拍板）：这一页的块由 load() 里的
+         `refreshAIPanel()` 摆出来，收起/展开那颗控件长在块的标题栏里。 -->
+  </div>
+
+  <div id="contentArea">
+    <div class="load-state">
+      <div class="spinner"></div>
+      <p>加载中...</p>
+    </div>
+  </div>
+</div>
+
+<script src="/js/auth.js"></script>
+<script src="/js/ui_common.js"></script>
+<script src="/js/liuyao_render.js"></script>
+<script src="/js/page-liuyao-result.js"></script>
+
+<!-- AI 面板引擎与六爻的配置（引擎与梅花页共用一份） -->
+<script src="/js/ai_panel.js"></script>
+<script src="/js/liuyao_ai_panel.js"></script>
+
+</body>
+</html>

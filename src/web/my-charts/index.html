@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>我的命盘 · 易三千</title>
+<!-- ⚠ 顺序要紧：mhys_result.css 里有 AI 面板那一套（.ai-panel / .ai-response …，全站共用一份），
+     但它也定义了 :root 变量（--text-dim 等）且与 charts.css 的值**不同**。
+     故 charts.css 必须放在**后面** —— 本页的灰阶文字才不会被面板那份顶成纯黑。 -->
+<link rel="stylesheet" href="/css/mhys_result.css">
+<link rel="stylesheet" href="/css/charts.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all';this.onload=null">
+<link rel="stylesheet" href="/css/page-my-charts.css">
+<link rel="stylesheet" href="/css/tokens.css">
+</head>
+<body>
+
+<div class="mc-page">
+  <div id="mc-content">
+    <div class="mc-loading">加载中…</div>
+  </div>
+</div>
+
+<nav class="mc-bottom-nav">
+  <button class="mc-nav-item" onclick="location.href='/'">命理与术数</button>
+  <button class="mc-nav-item active">我的命盘</button>
+  <button class="mc-nav-item" onclick="location.href='/my/'">我的</button>
+</nav>
+
+<script src="/js/auth.js"></script>
+<script src="/js/charts-store.js"></script>
+<script src="/js/ui_common.js"></script>
+<script src="/js/bazi_render.js"></script>
+<script src="/js/ai_panel.js"></script>
+<script src="/js/bazi_ai_panel.js"></script>
+<script src="/js/page-my-charts.js"></script>
+</body>
+</html>

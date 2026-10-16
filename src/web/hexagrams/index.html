@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>六十四卦 · 易三千</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all';this.onload=null">
+<link rel="stylesheet" href="/css/page-hexagrams.css">
+<link rel="stylesheet" href="/css/tokens.css">
+</head>
+<body>
+<div class="wrapper">
+  <div class="header">
+    <a href="/" class="back">← 首页</a>
+    <h1 class="title">六十四卦</h1>
+  </div>
+  <div class="search-wrap">
+    <input type="text" class="search-input" placeholder="搜索卦名、拼音、卦象…" oninput="filterGrid(this.value)">
+  </div>
+  <div class="grid" id="grid"></div>
+  <div class="detail" id="detail">
+    <div class="detail-empty">
+      <div style="font-size:1rem;font-weight:600;color:var(--text);margin-bottom:0.3rem">如何使用</div>
+      <div class="use-grid">
+        <div class="use-item"><span class="use-icon">🎯</span><div class="use-body"><strong>浏览查询</strong>点击任意卦象，查看完整的卦辞、爻辞、象传和现代解读</div></div>
+        <div class="use-item"><span class="use-icon">🪙</span><div class="use-body"><strong>占卜查卦</strong>使用三枚硬币/铜钱法起卦后，根据结果查看对应卦象</div></div>
+        <div class="use-item"><span class="use-icon">📚</span><div class="use-body"><strong>学习研究</strong>系统学习六十四卦，每卦包含历史典故和现代应用案例</div></div>
+        <div class="use-item"><span class="use-icon">🔗</span><div class="use-body"><strong>关联阅读</strong>每个卦象页面都推荐相关卦象，帮助理解卦象之间的联系</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/hexagrams_data.js"></script>
+<script src="/js/page-hexagrams.js"></script>
+</body>
+</html>

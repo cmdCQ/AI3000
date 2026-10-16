@@ -1,0 +1,128 @@
+/* ⚠ 本页原自带 :root（--accent: var(--gold) 等），已移除 ——
+   令牌统一由 /css/tokens.css 提供，否则旧金值会覆盖新主题。 */
+.mc-page { max-width: 500px; margin: 0 auto; padding: 0 1rem 5rem; }
+
+.mc-topbar { display: flex; align-items: center; justify-content: space-between; padding: 1.2rem 0 0.6rem; }
+.mc-topbar h1 { font-family:"Noto Serif SC",serif; font-size:1.15rem; font-weight:600; letter-spacing:0.08em; color:var(--text); }
+.mc-topbar .mc-add-btn { display:inline-flex; align-items:center; justify-content:center; width:2.2rem; height:2.2rem; border:1px solid var(--border); border-radius:50%; font-size:1.2rem; color:var(--text-dim); text-decoration:none; transition:all 0.2s; line-height:1; }
+.mc-topbar .mc-add-btn:hover { color:var(--text); border-color:var(--border-active); background:var(--bg-hover); }
+
+/* ===== 列表卡片 ===== */
+.mc-list { display:flex; flex-direction:column; gap:0.5rem; }
+
+.mc-card { display:flex; align-items:center; padding:1rem 1.05rem; background:var(--bg-card); border:1px solid var(--border); border-left:3px solid var(--accent); border-radius:var(--radius-md); cursor:pointer; transition:all 0.25s; }
+.mc-card:active { transform:scale(0.98); }
+
+.mc-card .card-zodiac { width:2.6rem; height:2.6rem; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.5rem; flex-shrink:0; background:linear-gradient(135deg, var(--gold-wash), transparent); margin-right:0.8rem; }
+
+.mc-card .card-body { flex:1; min-width:0; }
+.mc-card .card-name { font-size:0.92rem; font-weight:500; color:var(--text); letter-spacing:0.04em; margin-bottom:0.2rem; }
+.mc-card .card-name { font-size:0.92rem; font-weight:500; color:var(--text); letter-spacing:0.04em; margin-bottom:0.15rem; }
+.mc-card .card-info { font-size:0.78rem; color:var(--text-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.mc-card .card-arrow { font-size:1.2rem; color:var(--text-dim); cursor:pointer; padding:0.2rem; border-radius:50%; transition:all 0.2s; display:block; line-height:1; }
+.mc-card .card-arrow:hover { background:rgba(0,0,0,0.04); }
+/* 右侧元数据区 */
+.mc-card .card-meta-right { display:flex; flex-direction:column; align-items:center; flex-shrink:0; margin-left:0.4rem; }
+.mc-card .card-create-time { font-size:0.55rem; color:var(--text-dim); margin-top:2px; white-space:nowrap; opacity:0.7; }
+
+/* ===== ⋯ 弹出菜单 ===== */
+.card-menu-overlay { position:fixed; top:0; left:0; right:0; bottom:0; z-index:200; }
+.card-menu-popup { position:absolute; z-index:201; background:#fff; border:1px solid #e8e3d8; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.1); min-width:130px; overflow:hidden; }
+.card-menu-popup .menu-item { display:block; width:100%; padding:0.65rem 1rem; font-size:0.82rem; font-family:inherit; color:#333; background:none; border:none; text-align:left; cursor:pointer; transition:background 0.15s; letter-spacing:0.03em; }
+.card-menu-popup .menu-item:hover { background:#f5f5f5; }
+.card-menu-popup .menu-item.danger { color:#c94a4a; }
+.card-menu-popup .menu-item + .menu-item { border-top:1px solid #e8e3d8; }
+
+/* ===== 空状态 & Loading ===== */
+.mc-empty { text-align:center; padding:4rem 1.5rem 2rem; }
+.mc-empty .empty-icon { font-size:3rem; margin-bottom:0.6rem; opacity:0.3; }
+.mc-empty .empty-title { font-family:"Noto Serif SC",serif; font-size:1rem; font-weight:500; color:var(--text); margin-bottom:0.3rem; }
+.mc-empty .empty-desc { font-size:0.76rem; color:var(--text-dim); margin-bottom:1.4rem; line-height:1.5; }
+.mc-empty .empty-btn { display:inline-block; padding:0.5rem 1.5rem; background:var(--gold); color:#fff; box-shadow:0 2px 8px rgba(var(--gold-rgb),0.25); border:none; border-radius:14px; font-size:0.82rem; text-decoration:none; letter-spacing:0.04em; font-weight:500; cursor:pointer; transition:opacity 0.2s; }
+.mc-empty .empty-btn:hover { opacity:0.85; }
+.mc-loading { text-align:center; padding:6rem 1rem; color:var(--text-dim); font-size:0.82rem; }
+
+/* ===== 详情页 ===== */
+.detail-page { padding-bottom:2rem; }
+
+.detail-back { display:inline-flex; align-items:center; gap:0.25rem; font-size:0.8rem; color:var(--text-dim); text-decoration:none; padding:0.9rem 0 0.3rem; }
+.detail-back:hover { color:var(--text); }
+
+/* Hero 区 */
+.detail-hero { text-align:center; padding:1rem 0 0.5rem; }
+.detail-hero .zodiac-frame { width:4rem; height:4rem; margin:0 auto 0.5rem; border-radius:50%; border:2px solid var(--accent); display:flex; align-items:center; justify-content:center; font-size:2rem; background:var(--bg-card); }
+.detail-hero .hero-name { font-family:"Noto Serif SC",serif; font-size:1.5rem; font-weight:600; color:var(--text); letter-spacing:0.1em; }
+
+/* 四柱八字展示 */
+.bazi-pillar { display:flex; flex-direction:column; align-items:center; min-width:3rem; }
+.bazi-ganzhi { font-family:"Noto Serif SC",serif; font-size:1.15rem; color:#1a1a1a; letter-spacing:0.1em; font-weight:600; }
+.bazi-label { font-size:0.6rem; color:var(--text-muted); margin-top:0.1rem; letter-spacing:0.08em; }
+
+/* 信息区 */
+.detail-sheet { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-md); margin-top:0.8rem; overflow:hidden; box-shadow:var(--shadow-card); }
+
+.sheet-row { display:flex; align-items:baseline; padding:0.75rem 1.05rem; font-size:0.84rem; line-height:1.5; }
+.sheet-row:nth-child(even) { background:var(--bg-cell); }
+
+.sheet-row .label { color:var(--text-dim); font-size:0.72rem; min-width:5em; flex-shrink:0; }
+.sheet-row .value { color:var(--text); flex:1; }
+
+/* 双列行 — Grid 确保性别/生肖对齐 */
+.sheet-row.split { display:grid; grid-template-columns:3fr 2fr; gap:0.5rem; }
+.sheet-row.split .half { display:flex; align-items:baseline; white-space:nowrap; }
+.sheet-row.split .half .label { min-width:3.5em; flex-shrink:0; }
+
+/* 红色高亮 */
+.red-tag { color:#c94a4a; }
+
+/* 操作 */
+.detail-actions { display:flex; gap:0.5rem; margin:1.2rem 0 0.5rem; }
+.detail-actions .btn { flex:1; text-align:center; padding:0.5rem; font-size:0.78rem; border-radius:12px; font-family:inherit; letter-spacing:0.03em; text-decoration:none; cursor:pointer; transition:all 0.2s; border:1px solid var(--border); background:transparent; color:var(--text-dim); }
+.detail-actions .btn:hover { color:var(--text); border-color:var(--border-active); }
+.detail-actions .btn-danger { color:#1a1a1a; border-color:rgba(201,74,74,0.2); }
+.detail-actions .btn-danger:hover { background:rgba(201,74,74,0.06); border-color:rgba(201,74,74,0.4); }
+
+/* ===== 底部导航 ===== */
+.mc-bottom-nav { position:fixed; bottom:0; left:0; right:0; z-index:100; display:flex; background:rgba(255,255,255,0.95); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); border-top:1px solid var(--border); padding:0.5rem 0 0.4rem; padding-bottom:calc(0.4rem + env(safe-area-inset-bottom,0px)); }
+.mc-nav-item { flex:1; display:flex; align-items:center; justify-content:center; background:none; border:none; cursor:pointer; font-family:inherit; font-size:0.82rem; letter-spacing:0.06em; font-weight:400; color:var(--text-muted); transition:color 0.2s; position:relative; padding:0.4rem; }
+.mc-nav-item.active { color:var(--text); }
+.mc-nav-item.active::after { content:''; position:absolute; bottom:-0.15rem; left:50%; transform:translateX(-50%); width:1rem; height:3px; background:var(--accent); border-radius:1px; }
+
+@media (min-width:640px) { .mc-page { padding:0 0 5rem; } }
+
+/* ===== Markdown 渲染（renderMarkdown 产出） =====
+   原先由 JS 写死行内 style，这里收敛为类。
+   注意 .md-quote 用于引用块 —— 修掉了「先转义再做引用匹配」导致
+   引用块永远渲染成字面量 '> 文字' 的历史 bug。 */
+.md-h {
+  font-family: var(--serif);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-semi);
+  color: var(--gold-ink);
+  margin: var(--space-3) 0 var(--space-1);
+  letter-spacing: 0.04em;
+}
+.md-quote {
+  margin: var(--space-3) 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--gold-line);
+  background: var(--bg-sunken);
+  border-radius: 0 var(--r-xs) var(--r-xs) 0;
+  color: var(--text-dim);
+  font-size: var(--fs-base);
+  line-height: var(--lh-normal);
+}
+.md-quote strong { color: var(--gold-ink); }
+.md-li {
+  display: block;
+  padding-left: var(--space-4);
+  margin: var(--space-1) 0;
+  line-height: var(--lh-normal);
+}
+.md-li-ul { position: relative; }
+.md-li-ul::before {
+  content: '•';
+  position: absolute;
+  left: 0.3rem;
+  color: var(--gold-line);
+}

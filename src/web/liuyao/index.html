@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>六爻 · 易三千</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all';this.onload=null">
+<!-- 结果页的样式与渲染层跟本页共用一份（原地出结果，不跳 result.html），别在本页再抄一份。
+     mhys_result.css 是**梅花与六爻共用的底**（令牌、卡片、AI 面板、卦象画法），
+     liuyao_result.css 只补六爻盘面独有的部分，必须引在它后面。 -->
+<link rel="stylesheet" href="/css/mhys_result.css">
+<link rel="stylesheet" href="/css/liuyao_result.css">
+<link rel="stylesheet" href="/css/page-liuyao.css">
+<link rel="stylesheet" href="/css/tokens.css">
+</head>
+<body>
+
+<div class="mh-wrapper">
+  <div class="mh-header">
+    <a href="/" class="mh-back">← 返回</a>
+    <h1 class="mh-title">六爻</h1>
+  </div>
+
+  <!-- 1. 事项内容 -->
+  <div class="card">
+    <div class="card-title">📝 事项内容</div>
+    <input type="text" id="topicInput" class="input-field" placeholder="选填" maxlength="100">
+  </div>
+
+  <!-- 2. 性别（六爻用神取法依赖性别） -->
+  <div class="card">
+    <div class="card-title">🧑 性别</div>
+    <div class="gender-row" id="genderRow">
+      <button type="button" class="gender-btn active" data-gender="male" onclick="selectGender('male')">
+        <span class="gender-icon">♂</span> 男
+      </button>
+      <button type="button" class="gender-btn" data-gender="female" onclick="selectGender('female')">
+        <span class="gender-icon">♀</span> 女
+      </button>
+    </div>
+  </div>
+
+  <!-- 3. 起卦时间 -->
+  <div class="card">
+    <div class="card-title">🕐 起卦时间</div>
+    <div class="tp-time-row" id="timeDisplayRow" onclick="openTimePicker()">
+      <span class="tp-time-text" id="timeDisplay">--</span>
+      <span class="tp-time-edit">修改 ▸</span>
+    </div>
+  </div>
+
+  <!-- 4. 起卦方式 -->
+  <div class="card">
+    <div class="card-title">☯ 起卦方式</div>
+    <div class="method-selector" id="methodSelector">
+      <div class="method-display" id="methodDisplay" onclick="toggleDropdown()">
+        <span id="methodLabel">铜钱摇卦</span>
+        <span class="arrow" id="methodArrow">▾</span>
+      </div>
+      <div class="method-dropdown" id="methodDropdown">
+        <div class="method-option selected" data-method="coin" onclick="selectMethod('coin',this)">
+          <span class="check">✓</span>铜钱摇卦
+        </div>
+        <div class="method-option" data-method="manual" onclick="selectMethod('manual',this)">
+          <span class="check">✓</span>手动指定
+        </div>
+        <div class="method-option" data-method="auto" onclick="selectMethod('auto',this)">
+          <span class="check">✓</span>自动起卦
+        </div>
+      </div>
+    </div>
+
+    <!-- 方法参数面板 -->
+    <div id="methodParams"></div>
+  </div>
+
+  <!-- 5. 开始排盘按钮 -->
+  <button type="button" class="btn-primary" id="startBtn" onclick="startDivination(event)">开始排盘</button>
+
+  <!-- 盘面就渲染在本页下面（不再跳 result.html）—— 上面的表单保持原样，用户要改
+       起卦方式/时间直接在原处改，不用从结果页退回来 -->
+  <div id="resultArea"></div>
+
+  <!-- 6. 排盘记录 -->
+  <a href="/liuyao/history.html" class="record-entry">
+    <div class="re-left">
+      <span class="re-text">排盘记录</span>
+    </div>
+    <span class="re-arrow">›</span>
+  </a>
+
+  <!-- 时间选择器弹窗 -->
+  <div class="tp-overlay" id="tpOverlay" style="display:none" onclick="closeTimePicker(event)">
+    <div class="tp-panel" onclick="event.stopPropagation()">
+      <div class="tp-top">
+        <span class="tp-top-title">选择起卦时间</span>
+        <span class="tp-top-display" id="tpDisplay"></span>
+      </div>
+      <div class="tp-toggle" id="tpToggle">
+        <button class="tp-toggle-btn active" data-cal="gregorian" onclick="switchCalendar('gregorian')">公历</button>
+        <button class="tp-toggle-btn" data-cal="lunar" onclick="switchCalendar('lunar')">农历</button>
+      </div>
+      <div class="tp-picker" id="tpPicker">
+        <div class="tp-col" id="tpColYear"></div>
+        <div class="tp-col" id="tpColMonth"></div>
+        <div class="tp-col" id="tpColDay"></div>
+        <div class="tp-col" id="tpColHour"></div>
+        <div class="tp-col" id="tpColMinute"></div>
+      </div>
+      <div class="tp-actions">
+        <button class="tp-btn-cancel" onclick="closeTimePicker()">取消</button>
+        <button class="tp-btn-confirm" onclick="confirmTimePicker()">确定</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/lunar.min.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/ui_common.js"></script>
+<script src="/js/liuyao_render.js"></script>
+<script src="/js/page-liuyao.js"></script>
+
+<!-- AI 面板引擎与六爻的配置（引擎与梅花页共用一份） -->
+<script src="/js/ai_panel.js"></script>
+<script src="/js/liuyao_ai_panel.js"></script>
+
+</body>
+</html>

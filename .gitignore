@@ -13,6 +13,13 @@ data/server_config.json
 
 # Backups
 backups/
+# 手工备份残留：*.bak-<时间戳> 曾被真的 commit 进库，这里结构性挡掉
+*.bak
+*.bak-*
+*.bak.*
+*.old
+*.orig
+*.save
 
 # Docker volumes
 docker/volumes/
@@ -20,5 +27,14 @@ docker/volumes/
 # Node
 node_modules/
 
-# 独立博客应用，非本项目内容（含第三方 jar/主题，39M）
-halo/
+# Python 字节码缓存（生成物，不该入库）
+__pycache__/
+*.pyc
+
+# ── build/ 全是部署产物，由 src/ 生成，不入库 ──────────────
+# 人只改 src/，然后跑 deploy/sync.sh：
+#   src/web/    → build/nginx/    nginx 容器挂载 /usr/share/nginx/html
+#   src/server/ → build/backend/  backend 容器挂载单文件，rsync --inplace 保住 inode
+#   src/rag/、src/upload/ 不被挂载，是构建 docker-rag / docker-upload 镜像的源码
+# rm -rf build/ && ./deploy/sync.sh 可完全重建（已实测通过）
+/build/

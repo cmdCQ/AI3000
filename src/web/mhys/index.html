@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>梅花易数 · 易三千</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all';this.onload=null">
+<!-- 结果页的样式与渲染层跟本页共用一份（原地出结果），别在本页再抄一份 -->
+<link rel="stylesheet" href="/css/mhys_result.css">
+<link rel="stylesheet" href="/css/page-mhys.css">
+<link rel="stylesheet" href="/css/tokens.css">
+</head>
+<body>
+
+<div class="mh-wrapper">
+  <div class="mh-header">
+    <a href="/" class="mh-back">← 返回</a>
+    <h1 class="mh-title">梅花易数</h1>
+    <!-- 2026-09-25 删掉页头那颗「☯ 看不懂？试试自动解析」：用户拍板
+         「我不想要这个按钮，折叠功能你完全可以添加在那个 ai 解析的板块里面」。
+         现在排完盘 AI 块自己出现在卦象下面（`showResultHere` → `refreshAIPanel`），
+         收起/展开那颗控件长在块的标题栏里（`js/ai_panel.js` 的 `aiFoldBtn`）。 -->
+  </div>
+
+  <!-- 1. 事项内容 -->
+  <div class="card">
+    <div class="card-title">📝 事项内容</div>
+    <input type="text" id="topicInput" class="input-field" placeholder="选填" maxlength="100">
+  </div>
+
+  <!-- 2. 起卦时间 -->
+  <div class="card">
+    <div class="card-title">🕐 起卦时间</div>
+    <div class="tp-time-row" id="timeDisplayRow" onclick="openTimePicker()">
+      <span class="tp-time-text" id="timeDisplay">--</span>
+      <span class="tp-time-edit">修改 ▸</span>
+    </div>
+  </div>
+
+  <!-- 3. 起卦方式 -->
+  <div class="card">
+    <div class="card-title">☯ 起卦方式</div>
+    <div class="method-selector" id="methodSelector">
+      <div class="method-display" id="methodDisplay" onclick="toggleDropdown()">
+        <span id="methodLabel">报数起卦（三个数）</span>
+        <span class="arrow" id="methodArrow">▾</span>
+      </div>
+      <!-- `data-method` 一律用**后端起卦法的原名**（time/number/split/character/
+           manual）：页面只把用户选的名字转交给后端，自己不认这些名字。旧记录里
+           的 `num1`（拆半）`num2`（三数）不在下拉里，但两个展示表都留着别名，
+           老记录仍显示中文。 -->
+      <div class="method-dropdown" id="methodDropdown">
+        <div class="method-option" data-method="time" onclick="selectMethod('time',this)">
+          <span class="check">✓</span>时间起卦
+        </div>
+        <div class="method-option" data-method="manual" onclick="selectMethod('manual',this)">
+          <span class="check">✓</span>手动指定
+        </div>
+        <div class="method-option selected" data-method="number" onclick="selectMethod('number',this)">
+          <span class="check">✓</span>报数起卦（三个数）
+        </div>
+        <div class="method-option" data-method="split" onclick="selectMethod('split',this)">
+          <span class="check">✓</span>报数起卦（拆半求和）
+        </div>
+        <div class="method-option" data-method="character" onclick="selectMethod('character',this)">
+          <span class="check">✓</span>字占（按原文分层）
+        </div>
+        <div class="method-option" data-method="auto" onclick="selectMethod('auto',this)">
+          <span class="check">✓</span>自动起卦
+        </div>
+      </div>
+    </div>
+
+    <!-- 方法参数面板 -->
+    <div id="methodParams"></div>
+  </div>
+
+  <!-- 4. 开始排盘按钮 -->
+  <button type="button" class="btn-primary" id="startBtn" onclick="startDivination(event)">开始排盘</button>
+
+  <!-- 5. 排盘记录 -->
+  <a href="/mhys/history.html" class="record-entry">
+    <div class="re-left">
+      <span class="re-text">排盘记录</span>
+    </div>
+    <span class="re-arrow">›</span>
+  </a>
+
+  <!-- 6. 结果区：排完盘就地在下面出结果，不再跳结果页。空的时候是空的，不占位。 -->
+  <div id="resultArea"></div>
+
+  <!-- 6b. 解卦区（本卦/互卦/变卦…的解析）。**必须摆在结果区的下一个兄弟位置**：
+       AI 面板的宿主 `#aiInlineHost` 由引擎插在「结果容器 nextSibling」上
+       （`ai_panel.js::aiInlineHost()`），所以顺序是
+         排盘信息 → 起卦结果 → ☯ AI 解读 → 解卦区
+       —— 用户 2026-09-25 要的就是「梅花的自动解析移到卦象解析前面」。
+       ⚠ 这两块的先后由**这里的 DOM 顺序**决定，别把解析区挪回 #resultArea 里面
+       （那样宿主只能排到整个结果之后，AI 块又被压到最底下）。
+       起卦前它是 hidden 的空框，`renderAnalysis()` 落内容时自己取消 hidden。 -->
+  <div class="analysis-card" id="analysisArea" hidden></div>
+
+  <!-- 时间选择器弹窗 -->
+  <div class="tp-overlay" id="tpOverlay" style="display:none" onclick="closeTimePicker(event)">
+    <div class="tp-panel" onclick="event.stopPropagation()">
+      <div class="tp-top">
+        <span class="tp-top-title">选择起卦时间</span>
+        <span class="tp-top-display" id="tpDisplay"></span>
+      </div>
+      <div class="tp-toggle" id="tpToggle">
+        <button class="tp-toggle-btn active" data-cal="gregorian" onclick="switchCalendar('gregorian')">公历</button>
+        <button class="tp-toggle-btn" data-cal="lunar" onclick="switchCalendar('lunar')">农历</button>
+      </div>
+      <div class="tp-picker" id="tpPicker">
+        <div class="tp-col" id="tpColYear"></div>
+        <div class="tp-col" id="tpColMonth"></div>
+        <div class="tp-col" id="tpColDay"></div>
+        <div class="tp-col" id="tpColHour"></div>
+        <div class="tp-col" id="tpColMinute"></div>
+      </div>
+      <div class="tp-actions">
+        <button class="tp-btn-cancel" onclick="closeTimePicker()">取消</button>
+        <button class="tp-btn-confirm" onclick="confirmTimePicker()">确定</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/lunar.min.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/ui_common.js"></script>
+<!-- 渲染层与结果页共用一份。TRIGRAMS 也在 mhys_render.js 里，本页不再另抄一份
+     （原先两边各抄一份，改一处漏一处就会悄悄对不上）。 -->
+<script src="/js/mhys_render.js"></script>
+<script src="/js/ai_panel.js"></script>
+<script src="/js/mhys_ai_panel.js"></script>
+<script src="/js/page-mhys.js"></script>
+</body>
+</html>
