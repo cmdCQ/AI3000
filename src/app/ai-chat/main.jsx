@@ -1,57 +1,54 @@
-// ===== 八卦/六爻帮助函数 =====
-const TRIGRAMS = {
-  1:{name:'乾',symbol:'☰'},2:{name:'兑',symbol:'☱'},3:{name:'离',symbol:'☲'},
-  4:{name:'震',symbol:'☳'},5:{name:'巽',symbol:'☴'},6:{name:'坎',symbol:'☵'},
-  7:{name:'艮',symbol:'☶'},8:{name:'坤',symbol:'☷'}
-};
-
-// ===== 记账行（「消耗积分：…」）=====
+// AI 对话页 —— 忠实搬运自 src/web/js/page-ai-chat.js（1264 行）+ src/web/ai-chat/index.html。
+// 阶段 2a：**零行为变更**。不许顺手修的任何东西（extractDigits 的宽松匹配、
+// 假 SSE、两支流式实现的不一致收尾）都原样留着，阶段 2b 才动。
 //
-// 后端流式返回的正文末尾挂着后端拼的记账行，本页要把它**切成单独一行小字**
-// （`.msg-token`），不能当正文渲染。
+// ─────────────────────────────────────────────────────────────
+// 架构：外壳是 React，消息区是**命令式**的（有意为之）
+// ─────────────────────────────────────────────────────────────
+// React 负责静态外壳（顶栏 / 空态 / 待发送条 / 输入区 / 分享弹层），
+// 消息流本身仍然用老代码那套 document.createElement + innerHTML 往 #msgsArea 里塞。
 //
-// ⚠ 本页自己有一份，没复用 `/js/ai_panel.js` 里那套：本页的 DOM 结构与排盘面板
-//   完全不同（消息流 vs 单块面板），共用渲染反而要往引擎里塞本页的形状。
-//   **代价是标记字符串有第二份** —— 后端 `POINTS_LABEL` 改了，这里和 ai_panel.js
-//   要一起改（两处都写了这条注释，就是为了改的时候搜得到另一个）。
-//   老消息里存的是旧字「消耗 Token：」，故两个标记都认。
-var AI_POINTS_MARKS = ['\n消耗积分：', '\n消耗 Token：'];
+// 为什么消息区不改成 React 列表渲染 —— 有一条硬证据：
+//   page-ai-chat.css:144 `.msg { animation: msgIn var(--dur-base) var(--ease-out); }`
+//   老代码里流式气泡是**同一个 DOM 节点**：先是 `.msg.msg-ai.streaming`，收尾时
+//   就地 `classList.remove('streaming')` + 换 innerHTML。msgIn 因此**只播一次**。
+//   若改成 React 渲染列表、收尾时把流式气泡换成 messages 数组里的一条新元素，
+//   React 会**新建一个节点** → msgIn 在回答结束时再播一次，肉眼可见的回归。
+// 另外 clearHistory 的 `:scope > .msg/.msg-card/.msg-token` 删除、stopStream 的
+//   "空才删"、doStreamRender 的节点缓存与 isNearBottom 跟随，全都依赖节点身份。
+// 所以这一层保持命令式；等阶段 4 真正重构渲染时再一起改。
+//
+// 组件内**没有任何 state**，装载后 React 不再重渲染 —— 也就不会和命令式代码抢 DOM。
+// ─────────────────────────────────────────────────────────────
 
-function pointsIdx(t) {
-  var i = -1;
-  for (var k = 0; k < AI_POINTS_MARKS.length; k++) {
-    var j = t.lastIndexOf(AI_POINTS_MARKS[k]);
-    if (j > i) i = j;
-  }
-  return i;
-}
+import { flushSync } from 'react-dom'
+import { createRoot } from 'react-dom/client'
 
-/** 切成 { body: 正文, points: 记账行（已统一改称「积分」） }。 */
-function splitPoints(t) {
-  var i = pointsIdx(t || '');
-  if (i <= 0) return { body: t || '', points: '' };
-  return {
-    body: t.substring(0, i).replace(/\s*---\s*$/, '').replace(/\s+$/, ''),
-    points: t.substring(i + 1).trim().replace(/^消耗 Token：/, '消耗积分：')
-  };
-}
-
-/** 老消息里存的旧字「消耗 Token」在显示时统一改称「积分」（存量数据不迁移）。 */
-function pointsLabel(t) {
-  return t ? String(t).replace(/^消耗 Token：/, '消耗积分：') : t;
-}
+import { isLoggedIn, getToken, openAuthModal } from '../lib/auth.js'
+import { streamChat } from '../lib/aiStream.js'
+import { renderMarkdown } from '../lib/markdown.js'
+import { splitPoints, pointsLabel } from '../lib/points.js'
+import {
+  TRIGRAMS, escHtml, escAttr, renderCard, getCardSummary,
+} from '../lib/hexRender.js'
+import './style.css'
 
 // ===== 状态 =====
-var isSending = false;
-var streamAbort = null;
-var currentXHR = null;
-var allMessages = [];
-var pendingCard = null;  // {type:'mhys'|'liuyao', cardData:{...}}
+// 与老文件同名的模块级可变状态（page-ai-chat.js:44-49）。
+// streamAbort 在老代码里声明了但从未赋值/使用 —— 一并留着，别当成"可以删的死变量"
+// 而在阶段 2b 之前动它。
+let isSending = false;
+let streamAbort = null;
+let currentXHR = null;
+let allMessages = [];
+let pendingCard = null;  // {type:'mhys'|'liuyao', cardData:{...}}
 
 // ===== 初始化 =====
-document.addEventListener('DOMContentLoaded', function() {
+// 老代码挂在 DOMContentLoaded 上（page-ai-chat.js:52）。这里改成"mount 之后立刻调"，
+// 时序等价：都在 visual-polish.js 的 boot() 之前，也都在用户可交互之前。
+function initPage() {
   // 检查登录状态
-  if (!AUTH.isLoggedIn()) {
+  if (!isLoggedIn()) {
     openAuthModal('login');
     return;
   }
@@ -71,7 +68,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // 等一帧，确保上面那些渲染函数都已就绪
     setTimeout(function () { sendMessage(); }, 120);
   }
-});
+}
 
 // ===== 返回/关闭 =====
 function handleBack() {
@@ -84,6 +81,7 @@ function handleBack() {
 }
 
 // ===== 渲染消息 =====
+// ⚠ 死代码：全文没有调用点（老文件里也没有）。按"忠实搬运"原样保留。
 function renderMessages() {
   var area = document.getElementById('msgsArea');
   var empty = document.getElementById('emptyState');
@@ -99,6 +97,7 @@ function renderMessages() {
   scrollToBottom();
 }
 
+// ⚠ 只被上面那个死函数调用，属传导性死代码。原样保留。
 function normalizeHistoryMessage(msg) {
   if (!msg || typeof msg !== 'object') return { role:'assistant', content:'', type:'text' };
   var out = Object.assign({}, msg);
@@ -153,229 +152,21 @@ function appendMessageDOM(msg, animate) {
   }
 }
 
-// ===== 渲染卡片 =====
-function renderCard(type, cardData, userText, asBubble) {
-  if (asBubble) {
-    var bubbleH = '<div style="background:var(--bg-card);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:14px 14px 4px 14px;padding:0.56rem 0.7rem;font-size:0.8rem;line-height:1.6;max-width:100%;text-align:left;box-shadow:0 1px 3px rgba(0,0,0,0.04)">';
-    bubbleH += renderCardInner(type, cardData, userText);
-    bubbleH += '</div>';
-    return bubbleH;
-  }
-  var h = '<div class="card-box">';
-  h += '<div class="card-hdr"><span class="card-type-icon">' + getCardIcon(type) + '</span><span class="card-type-label">' + getCardLabel(type) + '</span></div>';
-  h += '<div class="card-body">';
-  var summary = getCardSummary(type, cardData);
-  if (summary.time) h += '<div class="card-meta"><span>🕐 ' + escHtml(summary.time) + '</span></div>';
-  h += renderHexMini(type, cardData);
-  h += '<div class="card-essence"><div class="essence-label">卦象内容</div><div class="essence-value">' + escHtml(summary.essence || '暂无卦象内容') + '</div></div>';
-  h += '</div></div>';
-  return h;
-}
-
-function getCardIcon(type) {
-  if (type === 'mhys') return '🌸';
-  if (type === 'liuyao') return '🪙';
-  if (type === 'chart') return '🔮';
-  return '📖';
-}
-function getCardLabel(type) {
-  if (type === 'mhys') return '梅花易数';
-  if (type === 'liuyao') return '六爻';
-  if (type === 'chart') return '命盘';
-  return '排盘';
-}
-
-function renderCardInner(type, cardData, userText) {
-  var icon = getCardIcon(type), label = getCardLabel(type);
-  var summary = getCardSummary(type, cardData);
-
-  // 顶行：图标 + 类型 + 时间
-  var h = '<div style="display:flex;align-items:center;gap:0.3rem;margin-bottom:0.3rem">';
-  h += '<span style="font-size:0.85rem">' + icon + '</span>';
-  h += '<span style="font-family:var(--serif);font-size:0.74rem;font-weight:600;color:var(--accent);letter-spacing:0.04em">' + label + '</span>';
-  if (summary.time) h += '<span style="margin-left:auto;font-size:0.6rem;color:var(--text-muted)">' + escHtml(summary.time) + '</span>';
-  h += '</div>';
-
-  // 卦象缩略图
-  h += renderHexMini(type, cardData);
-
-  // 摘要文字
-  h += '<div style="font-size:0.76rem;color:var(--text);line-height:1.55;margin-top:0.25rem">' + escHtml(summary.essence || cardData.topic || '') + '</div>';
-
-  return h;
-}
-
-function renderHexMini(type, cardData) {
-  if (!cardData || !cardData.hexagrams) return '';
-  if (type === 'mhys') return renderMhysHexMiniInline(cardData.hexagrams);
-  if (type === 'liuyao') return renderLiuyaoHexMiniInline(cardData.hexagrams);
-  return '';
-}
-
-// 梅花易数迷你五卦行内版（比原版更紧凑）
-function renderMhysHexMiniInline(g) {
-  function triLines(n) { var m={'1':[1,1,1],'2':[1,1,0],'3':[1,0,1],'4':[1,0,0],'5':[0,1,1],'6':[0,1,0],'7':[0,0,1],'8':[0,0,0]}; return m[String(n)]||[0,0,0]; }
-  var guas = [{key:'本',g:g.benGua},{key:'互',g:g.huGua},{key:'变',g:g.bianGua},{key:'错',g:g.cuoGua},{key:'综',g:g.zongGua}];
-  var h = '<div style="display:flex;gap:0;margin:0.25rem 0;border:1px solid var(--border);border-radius:6px;overflow:hidden;font-size:0.6rem">';
-  for (var i = 0; i < guas.length; i++) {
-    var gg = guas[i].g;
-    if (!gg) continue;
-    var up = triLines(gg.upper), lo = triLines(gg.lower);
-    var allLines = [up[2],up[1],up[0],lo[2],lo[1],lo[0]];
-    h += '<div style="flex:1;text-align:center;padding:0.2rem 0.1rem;border-right:1px solid var(--border)">';
-    h += '<div style="font-size:0.52rem;color:var(--text-muted);margin-bottom:0.1rem">' + guas[i].key + '</div>';
-    h += '<div style="display:flex;flex-direction:column;align-items:center;gap:1px">';
-    for (var li = 0; li < 6; li++) {
-      h += '<div style="height:2px;border-radius:1px;' + (allLines[li] ? 'width:18px;background:var(--text)' : 'display:flex;gap:3px') + '">';
-      if (!allLines[li]) h += '<span style="width:6px;height:2px;background:var(--text);border-radius:1px;display:block"></span><span style="width:6px;height:2px;background:var(--text);border-radius:1px;display:block"></span>';
-      h += '</div>';
-    }
-    h += '</div><div style="font-family:var(--serif);font-weight:600;font-size:0.6rem;color:var(--text);margin-top:0.08rem">' + (gg.name||'') + '</div></div>';
-  }
-  h += '</div>';
-  return h;
-}
-
-// 六爻双列行内版
-function renderLiuyaoHexMiniInline(g) {
-  if (!g.benGua) return '';
-  var ben = g.benGua, bian = g.bianGua;
-  function triLines(n) { var m={'1':[1,1,1],'2':[1,1,0],'3':[1,0,1],'4':[1,0,0],'5':[0,1,1],'6':[0,1,0],'7':[0,0,1],'8':[0,0,0]}; return m[String(n)]||[0,0,0]; }
-  var l1 = triLines(ben.upper).concat(triLines(ben.lower));
-  l1 = [l1[2],l1[1],l1[0],l1[5],l1[4],l1[3]];
-  var l2 = bian && bian.upper ? triLines(bian.upper).concat(triLines(bian.lower)) : null;
-  if (l2) l2 = [l2[2],l2[1],l2[0],l2[5],l2[4],l2[3]];
-  function bar(y) { return y ? '<span style="display:inline-block;width:14px;height:2px;background:var(--text);border-radius:1px"></span>' : '<span style="display:inline-flex;gap:3px"><i style="display:block;width:5px;height:2px;background:var(--text);border-radius:1px"></i><i style="display:block;width:5px;height:2px;background:var(--text);border-radius:1px"></i></span>'; }
-  var h = '<div style="display:flex;gap:0;margin:0.25rem 0;border:1px solid var(--border);border-radius:6px;overflow:hidden;font-size:0.58rem">';
-  h += '<div style="flex:1;text-align:center;padding:0.2rem 0.15rem"><div style="color:var(--text-muted);margin-bottom:0.15rem">本卦 · ' + (ben.name||'') + '</div>';
-  for (var i = 0; i < 6; i++) h += '<div style="margin:1px 0">' + bar(l1[i]) + '</div>';
-  h += '</div>';
-  if (l2 && bian && bian.name) {
-    h += '<div style="flex:1;text-align:center;padding:0.2rem 0.15rem;border-left:1px solid var(--border)"><div style="color:var(--text-muted);margin-bottom:0.15rem">变卦 · ' + bian.name + '</div>';
-    for (var i = 0; i < 6; i++) h += '<div style="margin:1px 0">' + bar(l2[i]) + '</div>';
-    h += '</div>';
-  }
-  h += '</div>';
-  return h;
-}
-
-function getCardSummary(type, cardData) {
-  var summary = { time: '', essence: '' };
-  if (!cardData) return summary;
-  if (type === 'mhys') { summary.time = cardData.divinationTime || ''; summary.essence = getMhysEssence(cardData); return summary; }
-  if (type === 'liuyao') { summary.time = cardData.divinationTime || ''; summary.essence = getLiuyaoEssence(cardData); return summary; }
-  if (type === 'chart') { summary.time = getChartTime(cardData); summary.essence = getChartEssence(cardData); return summary; }
-  return summary;
-}
-
-function getMhysEssence(cardData) {
-  var g = cardData.hexagrams || {};
-  var parts = [];
-  if (g.benGua && g.benGua.name) parts.push('本卦：' + g.benGua.name);
-  if (g.huGua && g.huGua.name) parts.push('互卦：' + g.huGua.name);
-  if (g.bianGua && g.bianGua.name) parts.push('变卦：' + g.bianGua.name);
-  if (g.cuoGua && g.cuoGua.name) parts.push('错卦：' + g.cuoGua.name);
-  if (g.zongGua && g.zongGua.name) parts.push('综卦：' + g.zongGua.name);
-  if (g.verdict && g.verdict.text) parts.push('断：' + g.verdict.text);
-  if (!parts.length && cardData.topic) parts.push(cardData.topic);
-  return parts.join(' · ');
-}
-
-function getLiuyaoEssence(cardData) {
-  var g = cardData.hexagrams || {};
-  var parts = [];
-  if (g.benGua && g.benGua.name) parts.push('本卦：' + g.benGua.name);
-  if (g.bianGua && g.bianGua.name) parts.push('变卦：' + g.bianGua.name);
-  if (g.gong && g.gong.name) parts.push('宫：' + g.gong.name);
-  if (g.shiYao && g.shiYao.name) parts.push('世：' + g.shiYao.name);
-  if (g.yingYao && g.yingYao.name) parts.push('应：' + g.yingYao.name);
-  if (!parts.length && cardData.topic) parts.push(cardData.topic);
-  return parts.join(' · ');
-}
-
-function getChartTime(cardData) {
-  if (cardData.birthYear) return cardData.birthYear + '年' + (cardData.birthMonth || '') + '月' + (cardData.birthDay || '') + '日' + ((cardData.birthHour || cardData.birthTime) ? ' ' + (cardData.birthHour || cardData.birthTime) + '时' : '');
-  return cardData.createdAt || cardData.created_at || cardData.savedAt || '';
-}
-
-function getChartEssence(cardData) {
-  var parts = [];
-  if (cardData.bazi) parts.push('八字：' + cardData.bazi);
-  if (cardData.zodiac || cardData.shengxiao) parts.push('生肖：' + (cardData.zodiac || cardData.shengxiao));
-  if (cardData.dayMaster) parts.push('日主：' + cardData.dayMaster);
-  if (!parts.length && (cardData.name || cardData.topic)) parts.push('命盘：' + (cardData.name || cardData.topic));
-  return parts.join(' · ');
-}
-
-function renderMhysHex(g) {
-  function triLines(n) { var m={'1':[1,1,1],'2':[1,1,0],'3':[1,0,1],'4':[1,0,0],'5':[0,1,1],'6':[0,1,0],'7':[0,0,1],'8':[0,0,0]}; return m[String(n)]||[0,0,0]; }
-  function renderLines(lvs) { var h='<div class="hex-lines">'; for(var i=0;i<lvs.length;i++){h+='<div class="hex-line'+(lvs[i]?' hl-yang"':'"')+'><span></span><span></span></div>';} h+='</div>'; return h; }
-
-  var guas = [
-    {key:'本',g:g.benGua},{key:'互',g:g.huGua},{key:'变',g:g.bianGua},{key:'错',g:g.cuoGua},{key:'综',g:g.zongGua}
-  ];
-  var h = '<div class="card-hex-mini">';
-  for (var i = 0; i < guas.length; i++) {
-    var gg = guas[i].g;
-    if (!gg) continue;
-    var up = triLines(gg.upper), lo = triLines(gg.lower);
-    var allLines = [up[2], up[1], up[0], lo[2], lo[1], lo[0]];
-    h += '<div class="hex-item"><div class="hex-label">' + guas[i].key + '</div><div class="hex-lines">';
-    for (var li = 0; li < 6; li++) {
-      h += '<div class="hex-line' + (allLines[li] ? ' hl-yang' : '') + '">';
-      if (!allLines[li]) h += '<span></span><span></span>';
-      h += '</div>';
-    }
-    h += '</div><div class="hex-name">' + (gg.name || '') + '</div></div>';
-  }
-  h += '</div>';
-  return h;
-}
-
-function renderLiuyaoHex(g) {
-  if (!g.benGua) return '';
-  // 简化的六爻卡片：本卦+变卦并排
-  var ben = g.benGua, bian = g.bianGua;
-  function triLines(n) { var m={'1':[1,1,1],'2':[1,1,0],'3':[1,0,1],'4':[1,0,0],'5':[0,1,1],'6':[0,1,0],'7':[0,0,1],'8':[0,0,0]}; return m[String(n)]||[0,0,0]; }
-  var l1 = triLines(ben.upper).concat(triLines(ben.lower));
-  var l2 = bian && bian.upper ? triLines(bian.upper).concat(triLines(bian.lower)) : null;
-  // 反过来
-  l1 = [l1[2],l1[1],l1[0],l1[5],l1[4],l1[3]];
-  if (l2) l2 = [l2[2],l2[1],l2[0],l2[5],l2[4],l2[3]];
-
-  function bar(y) { return y ? '<span class="b-yang"></span>' : '<span class="b-yin"><i></i><i></i></span>'; }
-  var h = '<div class="card-ly-hex">';
-  h += '<div class="ly-col"><div class="ly-title">本卦 · ' + (ben.name || '') + '</div><div class="card-ly-rows">';
-  for (var i = 0; i < 6; i++) {
-    h += '<div class="card-ly-row"><div class="ly-bar">' + bar(l1[i]) + '</div></div>';
-  }
-  h += '</div></div>';
-  if (l2 && bian && bian.name) {
-    h += '<div class="ly-col"><div class="ly-title">变卦 · ' + bian.name + '</div><div class="card-ly-rows">';
-    for (var i = 0; i < 6; i++) {
-      h += '<div class="card-ly-row"><div class="ly-bar">' + bar(l2[i]) + '</div></div>';
-    }
-    h += '</div></div>';
-  }
-  h += '</div>';
-  return h;
-}
-
 // ===== 发送消息 =====
 async function sendMessage() {
   if (isSending) return;
   var input = document.getElementById('chatInput');
   var text = input.value.trim();
-  
+
   // 获取当前待发送的排盘卡片（如果有）
   var card = pendingCard;
-  
+
   // 既没有文字也没有待发送卡片 → 不发送
   if (!text && !card) return;
 
   input.value = '';
   autoResizeInput(input);
-  
+
   // 清除待发送卡片
   clearPendingCard();
 
@@ -408,7 +199,7 @@ async function sendMessage() {
       }
       return;
     }
-    
+
     // 添加用户消息（正常文字）
     var userMsg = { role: 'user', content: text, type: 'text', createdAt: Date.now() };
     allMessages.push(userMsg);
@@ -439,84 +230,66 @@ async function sendMessage() {
   scrollToBottom();
 
   try {
-    var xhr = new XMLHttpRequest();
-    currentXHR = xhr;
-    xhr.open('POST', '/api/chat/send');
-    xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.setRequestHeader('Authorization', 'Bearer ' + AUTH.getToken());
-
-    var fullText = '';
-
-    xhr.onprogress = function() {
-      var newText = xhr.responseText.substring(fullText.length);
-      if (newText) {
-        if (fullText === '') {
-          // 移除 loading
-          var loading = document.getElementById('aiLoading');
-          if (loading) loading.remove();
-        }
-        fullText = xhr.responseText;
-        updateStreamText(fullText);
-      }
-    };
-
-    xhr.onloadend = function() {
-      isSending = false;
-      document.getElementById('sendBtn').disabled = false;
-      document.getElementById('stopBtn').classList.remove('visible');
-      currentXHR = null;
-      
-      var loading = document.getElementById('aiLoading');
-      if (loading) loading.remove();
-
-      // 401 → 清除错误内容并弹出登录窗口
-      var streamEl401 = document.querySelector('.msg-ai.streaming');
-      if (handleApiUnauthorized(xhr, streamEl401)) return;
-
-      if (fullText) {
-        // 提取 token 信息
-        var sp = splitPoints(fullText);
-        var tokenInfo = sp.points;
-        var aiContent = sp.body;
-
-        // 替换流式 div 为最终消息
-        var streamDiv = document.querySelector('.msg-ai.streaming');
-        if (streamDiv) {
-          streamDiv.classList.remove('streaming');
-          streamDiv.innerHTML = '<div class="msg-bubble">' + renderMarkdown(aiContent) + '</div>';
-          if (tokenInfo) {
-            var tokDiv = document.createElement('div');
-            tokDiv.className = 'msg-token';
-            tokDiv.textContent = tokenInfo;
-            streamDiv.parentNode.insertBefore(tokDiv, streamDiv.nextSibling);
-          }
-        }
-
-        // 保存到历史
-        var aiMsg = { role: 'assistant', content: aiContent, type: 'text', createdAt: Date.now() };
-        if (tokenInfo) aiMsg.tokenInfo = tokenInfo;
-        allMessages.push(aiMsg);
-      }
-      scrollToBottom();
-    };
-
-    xhr.onerror = function() {
-      isSending = false;
-      document.getElementById('sendBtn').disabled = false;
-      document.getElementById('stopBtn').classList.remove('visible');
-      currentXHR = null;
-      var loading = document.getElementById('aiLoading');
-      if (loading) loading.remove();
-      showError('连接失败，请重试');
-    };
-
     // 构建请求体
     var reqBody = {
       message: text || '',
       cardType: card ? card.type : 'text',
     };
     if (card) reqBody.cardData = card.cardData;
-    xhr.send(JSON.stringify(reqBody));
+
+    currentXHR = streamChat({
+      body: reqBody,
+      onChunk: function (fullText) { updateStreamText(fullText); },
+      onLoadEnd: function (xhr, fullText) {
+        isSending = false;
+        document.getElementById('sendBtn').disabled = false;
+        document.getElementById('stopBtn').classList.remove('visible');
+        currentXHR = null;
+
+        var loading = document.getElementById('aiLoading');
+        if (loading) loading.remove();
+
+        // 401 → 清除错误内容并弹出登录窗口
+        // ⚠ 借老全局（src/web/js/auth.js:50 挂的），与 openAuthModal 同一条死期：阶段 4。
+        var streamEl401 = document.querySelector('.msg-ai.streaming');
+        if (window.handleApiUnauthorized(xhr, streamEl401)) return;
+
+        if (fullText) {
+          // 提取 token 信息
+          var sp = splitPoints(fullText);
+          var tokenInfo = sp.points;
+          var aiContent = sp.body;
+
+          // 替换流式 div 为最终消息
+          var streamDiv = document.querySelector('.msg-ai.streaming');
+          if (streamDiv) {
+            streamDiv.classList.remove('streaming');
+            streamDiv.innerHTML = '<div class="msg-bubble">' + renderMarkdown(aiContent) + '</div>';
+            if (tokenInfo) {
+              var tokDiv = document.createElement('div');
+              tokDiv.className = 'msg-token';
+              tokDiv.textContent = tokenInfo;
+              streamDiv.parentNode.insertBefore(tokDiv, streamDiv.nextSibling);
+            }
+          }
+
+          // 保存到历史
+          var aiMsg = { role: 'assistant', content: aiContent, type: 'text', createdAt: Date.now() };
+          if (tokenInfo) aiMsg.tokenInfo = tokenInfo;
+          allMessages.push(aiMsg);
+        }
+        scrollToBottom();
+      },
+      onError: function () {
+        isSending = false;
+        document.getElementById('sendBtn').disabled = false;
+        document.getElementById('stopBtn').classList.remove('visible');
+        currentXHR = null;
+        var loading = document.getElementById('aiLoading');
+        if (loading) loading.remove();
+        showError('连接失败，请重试');
+      },
+    });
 
   } catch (e) {
     isSending = false;
@@ -528,21 +301,21 @@ async function sendMessage() {
 }
 
 // ===== 流式渲染（首次立即渲染，后续节流 120ms）=====
-var streamRenderTimer = null;
-var streamPendingText = '';
-var streamDivCache = null;
-var streamFirstRender = true;
+let streamRenderTimer = null;
+let streamPendingText = '';
+let streamDivCache = null;
+let streamFirstRender = true;
 
 function updateStreamText(text) {
   streamPendingText = text;
-  
+
   // 首次渲染：立即执行，不节流
   if (streamFirstRender) {
     streamFirstRender = false;
     doStreamRender();
     return;
   }
-  
+
   // 后续更新：节流 120ms
   if (streamRenderTimer) return;
   streamRenderTimer = setTimeout(doStreamRender, 120);
@@ -585,7 +358,7 @@ function showError(msg) {
 // ===== 发送排盘卡片（预览模式：卡片暂存于输入框上方，用户可补充文字后发送）=====
 async function sendCard(type, record) {
   if (isSending) return;
-  
+
   closeSharePicker();
 
   // 如果是命盘分享（type=chart），保留兼容但 tab 已移除
@@ -609,7 +382,7 @@ async function sendCard(type, record) {
   try {
     var apiPath = type === 'mhys' ? '/api/mhys-records/' + record.id : '/api/liuyao-records/' + record.id;
     var resp = await fetch(apiPath, {
-      headers: { 'Authorization': 'Bearer ' + AUTH.getToken() }
+      headers: { 'Authorization': 'Bearer ' + getToken() }
     });
     if (!resp.ok) { showError('获取排盘详情失败'); return; }
     fullData = await resp.json();
@@ -673,22 +446,22 @@ function renderPendingCard() {
   var bar = document.getElementById('pendingCardBar');
   var content = document.getElementById('pendingCardContent');
   if (!bar || !content) return;
-  
+
   if (!pendingCard) {
     bar.style.display = 'none';
     return;
   }
-  
+
   var type = pendingCard.type;
   var cardData = pendingCard.cardData;
   var icon = type === 'mhys' ? '🌸' : '🪙';
   var label = type === 'mhys' ? '梅花易数' : '六爻';
   var summary = getCardSummary(type, cardData);
-  
+
   content.innerHTML = '<div class="pcard-label">📤 待发送 · ' + icon + ' ' + label + '</div>' +
     '<div class="pcard-title">' + escHtml(cardData.topic || '未命名') + '</div>' +
     '<div class="pcard-meta">' + escHtml(summary.time || '') + (summary.time && summary.essence ? ' · ' : '') + escHtml(summary.essence || '') + '</div>';
-  
+
   bar.style.display = 'flex';
   // 聚焦输入框方便用户补充文字
   document.getElementById('chatInput').focus();
@@ -701,7 +474,7 @@ function clearPendingCard() {
 }
 
 // ===== 分享排盘选择器 =====
-var pickerType = 'mhys';
+let pickerType = 'mhys';
 
 function openSharePicker() {
   document.getElementById('pickerOverlay').classList.add('open');
@@ -734,7 +507,7 @@ function calcQuickGuaData(upper, lower, move) {
   var upTri = TRIGRAMS[String(upper)] || {name:'?',symbol:'?'};
   var loTri = TRIGRAMS[String(lower)] || {name:'?',symbol:'?'};
   var hexName = getHexagramName(upper, lower);
-  
+
   // 互卦：本卦中间四爻
   var allLines = [
     triToLinesArr(upper)[2], triToLinesArr(upper)[1], triToLinesArr(upper)[0],
@@ -796,11 +569,11 @@ function calcTiYong(upper, lower, move) {
   var yongTri = isUpperMove ? upper : lower;
   var tiT = TRIGRAMS[String(tiTri)] || {name:'?',symbol:'?',element:'?'};
   var yoN = TRIGRAMS[String(yongTri)] || {name:'?',symbol:'?',element:'?'};
-  
+
   var wx = {1:'金',2:'金',3:'火',4:'木',5:'木',6:'水',7:'土',8:'土'};
   tiT.element = wx[tiTri] || '?';
   yoN.element = wx[yongTri] || '?';
-  
+
   var sheng = {木:'火',火:'土',土:'金',金:'水',水:'木'};
   var ke = {木:'土',土:'水',水:'火',火:'金',金:'木'};
 
@@ -876,7 +649,7 @@ function loadPickerData(type) {
   else apiPath = '/api/charts';
 
   fetch(apiPath, {
-    headers: { 'Authorization': 'Bearer ' + AUTH.getToken() }
+    headers: { 'Authorization': 'Bearer ' + getToken() }
   })
   .then(function(r){ return r.json(); })
   .then(function(data){
@@ -926,7 +699,7 @@ function clearHistory() {
   // 后端异步清空
   fetch('/api/chat/history', {
     method: 'DELETE',
-    headers: { 'Authorization': 'Bearer ' + AUTH.getToken() }
+    headers: { 'Authorization': 'Bearer ' + getToken() }
   }).catch(function(){});
   // 重置流式渲染状态
   streamFirstRender = true;
@@ -957,15 +730,6 @@ function stopStream() {
   if (streamRenderTimer) { clearTimeout(streamRenderTimer); streamRenderTimer = null; }
   streamDivCache = null;
 }
-
-function escHtml(s) {
-  if (!s) return '';
-  var d = document.createElement('div');
-  d.textContent = s;
-  return d.innerHTML;
-}
-
-function escAttr(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
 function autoResizeInput(el) {
   el.style.height = 'auto';
@@ -998,68 +762,6 @@ function onInputKeydown(e) {
   }
 }
 
-function renderMarkdown(text) {
-  if (!text) return '';
-  text = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-
-  // 行内加粗/斜体 —— 抽成函数，供列表项与引用块内部复用。
-  // 星号归一化：容忍数据里 "-**文字"（DB 公告里就有这种写法，
-  // 单个 ** 会因为没有配对而成对匹配成空粗体，先把连续 3 个以上压成 2 个）。
-  function inline(s) {
-    s = s.replace(/\*{3,}/g, '**');
-    s = s.replace(/\*\*([^*]*)\*\*/g, '<strong>$1</strong>')
-         .replace(/\*([^*]+)\*/g, '<em>$1</em>');
-    // 兜底：清掉没配对的 ** / * 标记，避免把 markdown 符号显示给用户。
-    // 典型来源是数据里的 "-**文字"（少一个空格）以及 AI 偶发的未闭合标记。
-    return s.replace(/\*\*/g, '').replace(/\*(?=[^\s])/g, '');
-  }
-
-  text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, function(m,a,code){ return '<pre>'+code.trim()+'</pre>'; });
-  text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
-  text = text.replace(/^---+\s*$/gm, '<hr>');
-  text = text.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-  text = text.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-  text = text.replace(/^# (.+)$/gm, '<h2>$1</h2>');
-  text = text.replace(/^【([^】]+)】/gm, function(m, t){ return '<div class="md-h">【'+t+'】</div>'; });
-
-  // 引用块。注意：此处 '>' 已在上面被转义成 '&gt;'，
-  // 所以必须匹配 '&gt;'，否则这条规则永远不会命中（历史 bug）。
-  text = text.replace(/^&gt;\s?(.*)$/gm, function(m, body){
-    return '<blockquote class="md-quote">' + inline(body) + '</blockquote>';
-  });
-
-  // 无序列表：允许 '-' / '*' 后**没有**空格（兼容 "-**重点**" 这种输出）。
-  // ⚠ 但必须排除「整行以 `**` 开头」——那是**加粗段落**，不是列表项。原来的
-  //   `[-*]\s*` 会吃掉第一个 `*` 当项目符号，加粗标记被吃剩一半，用户眼前
-  //   就多一个裸 `*`（八字报告里「**综合命盘评分：72/100…**」那行正是如此）。
-  text = text.replace(/^(?!\s*\*\*)[\s]*[-*]\s*(.+)$/gm, function(m, content){
-    if (!content.trim()) return m;
-    return '<div class="md-li md-li-ul">' + inline(content) + '</div>';
-  });
-  // 有序列表 —— 保留原序号，交给 CSS counter 显示
-  text = text.replace(/^[\s]*(\d+)\.\s*(.+)$/gm, function(m, num, content){
-    return '<div class="md-li md-li-num" data-n="' + num + '">' + inline(content) + '</div>';
-  });
-
-  // 段落外的残留加粗/斜体（列表与引用已就地处理，这里兜底）
-  text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-  text = text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-
-  var lines = text.split(/\n/);
-  var out = [], inPara = false;
-  for (var i = 0; i < lines.length; i++) {
-    var l = lines[i];
-    // div 也要算作块级，否则 .md-h / .md-li 会被塞进 <p> 里
-    var isBlock = /^<(h[23]|pre|blockquote|hr|div|span)/.test(l);
-    var isEmpty = l.trim() === '';
-    if (isBlock) { if (inPara) { out.push('</p>'); inPara = false; } out.push(l); }
-    else if (isEmpty) { if (inPara) { out.push('</p>'); inPara = false; } }
-    else { if (!inPara) { out.push('<p>'); inPara = true; } else { out.push('<br>'); } out.push(l); }
-  }
-  if (inPara) out.push('</p>');
-  return out.join('');
-}
-
 // ===== 自动起卦（检测用户消息中的三个数字）=====
 
 function getShichenNum() {
@@ -1079,6 +781,8 @@ function getShichenNum() {
 }
 
 // 从消息中检测三个数字（1-9），返回 [n1,n2,n3] 或 null
+// ⚠ 这个实现是出了名的宽松：strip 掉所有非数字后逐位拆开，只要有 >=2 位就返回，
+//   所以「我今年 35 岁」会直接自动起卦。**阶段 2a 刻意原样保留**，2b 再改。
 function extractDigits(text) {
   // 提取所有连续数字字符
   var digits = text.replace(/[^0-9]/g, '').split('').map(Number).filter(function(n){ return !isNaN(n); });
@@ -1087,6 +791,10 @@ function extractDigits(text) {
 }
 
 // 发送排盘卡片给 AI 解析（数字起卦 1 & 2 共用）
+// ⚠ 两处与 sendMessage 的**不一致**是既存事实，忠实地留着：
+//   · 加载文案是「正在解卦…」
+//   · onloadend 里**没有**复位 #stopBtn（也没有 onerror、没有 try/catch）
+//   · **不设 currentXHR** → 这条路径上点「中断输出」其实 abort 不掉（currentXHR 为 null）
 function sendDivinationCard(cardData, userText) {
   var cardMsg = { role: 'user', type: 'mhys', cardData: cardData, content: '', createdAt: Date.now() };
   allMessages.push(cardMsg);
@@ -1119,58 +827,42 @@ function sendDivinationCard(cardData, userText) {
   area.appendChild(loadingDiv);
   scrollToBottom();
 
-  var xhr = new XMLHttpRequest();
-  xhr.open('POST', '/api/chat/send');
-  xhr.setRequestHeader('Content-Type', 'application/json');
-  xhr.setRequestHeader('Authorization', 'Bearer ' + AUTH.getToken());
+  streamChat({
+    body: { message: userText || '', cardType: 'mhys', cardData: cardData },
+    onChunk: function (fullText) { updateStreamText(fullText); },
+    onLoadEnd: function (xhr, fullText) {
+      isSending = false;
+      document.getElementById('sendBtn').disabled = false;
+      var loading = document.getElementById('aiLoading');
+      if (loading) loading.remove();
 
-  var fullText = '';
+      // 401 → 清除错误内容并弹出登录窗口
+      // ⚠ 借老全局（src/web/js/auth.js:50 挂的），与 openAuthModal 同一条死期：阶段 4。
+      var streamEl401 = document.querySelector('.msg-ai.streaming');
+      if (window.handleApiUnauthorized(xhr, streamEl401)) return;
 
-  xhr.onprogress = function() {
-    var newText = xhr.responseText.substring(fullText.length);
-    if (newText) {
-      if (fullText === '') {
-        var loading = document.getElementById('aiLoading');
-        if (loading) loading.remove();
-      }
-      fullText = xhr.responseText;
-      updateStreamText(fullText);
-    }
-  };
-
-  xhr.onloadend = function() {
-    isSending = false;
-    document.getElementById('sendBtn').disabled = false;
-    var loading = document.getElementById('aiLoading');
-    if (loading) loading.remove();
-
-    // 401 → 清除错误内容并弹出登录窗口
-    var streamEl401 = document.querySelector('.msg-ai.streaming');
-    if (handleApiUnauthorized(xhr, streamEl401)) return;
-
-    if (fullText) {
-      var sp = splitPoints(fullText);
-      var tokenInfo = sp.points;
-      var aiContent = sp.body;
-      var streamDiv = document.querySelector('.msg-ai.streaming');
-      if (streamDiv) {
-        streamDiv.classList.remove('streaming');
-        streamDiv.innerHTML = '<div class="msg-bubble">' + renderMarkdown(aiContent) + '</div>';
-        if (tokenInfo) {
-          var tokDiv = document.createElement('div');
-          tokDiv.className = 'msg-token';
-          tokDiv.textContent = tokenInfo;
-          streamDiv.parentNode.insertBefore(tokDiv, streamDiv.nextSibling);
+      if (fullText) {
+        var sp = splitPoints(fullText);
+        var tokenInfo = sp.points;
+        var aiContent = sp.body;
+        var streamDiv = document.querySelector('.msg-ai.streaming');
+        if (streamDiv) {
+          streamDiv.classList.remove('streaming');
+          streamDiv.innerHTML = '<div class="msg-bubble">' + renderMarkdown(aiContent) + '</div>';
+          if (tokenInfo) {
+            var tokDiv = document.createElement('div');
+            tokDiv.className = 'msg-token';
+            tokDiv.textContent = tokenInfo;
+            streamDiv.parentNode.insertBefore(tokDiv, streamDiv.nextSibling);
+          }
         }
+        var aiMsg = { role: 'assistant', content: aiContent, type: 'text', createdAt: Date.now() };
+        if (tokenInfo) aiMsg.tokenInfo = tokenInfo;
+        allMessages.push(aiMsg);
       }
-      var aiMsg = { role: 'assistant', content: aiContent, type: 'text', createdAt: Date.now() };
-      if (tokenInfo) aiMsg.tokenInfo = tokenInfo;
-      allMessages.push(aiMsg);
-    }
-    scrollToBottom();
-  };
-
-  xhr.send(JSON.stringify({ message: userText || '', cardType: 'mhys', cardData: cardData }));
+      scrollToBottom();
+    },
+  });
 }
 
 // 数字起卦1：任意位数，前后半求和作为上下卦，动爻=上+下（+时辰）
@@ -1262,3 +954,96 @@ function doAutoDivination(n1, n2, n3, userText) {
 
   sendDivinationCard(cardData, userText);
 }
+
+// ===== React 外壳 =====
+// 只有静态结构；动态内容全部由上面的命令式代码写进对应容器。
+// 老 HTML 里的内联 onclick 在这里换成 React 事件处理器（行为相同，只是 DOM 上
+// 不再有 onclick 属性）；**HTML 字符串里**那些内联 onclick 保持原样，因此
+// sendCardFromPicker / showErrorToast 必须挂在 window 上（见文件末尾）。
+function AiChatPage() {
+  return (
+    <>
+      <div className="chat-app">
+
+        {/* Top Bar */}
+        <div className="chat-topbar">
+          <button className="back-btn" id="backBtn" onClick={handleBack}>←</button>
+          <span className="title">AI 对话</span>
+          <button className="clear-btn" id="clearBtn" onClick={clearHistory}>清空</button>
+        </div>
+
+        {/* Messages */}
+        <div className="msgs-area" id="msgsArea">
+          <div className="msgs-empty" id="emptyState">
+            <div className="empty-icon">💬</div>
+            <div className="empty-title">开始对话</div>
+            <div className="empty-desc">可以直接提问命理问题<br />或点击下方「分享排盘」发送排盘记录</div>
+          </div>
+        </div>
+
+        {/* Pending Card Preview */}
+        <div className="pending-card-bar" id="pendingCardBar" style={{ display: 'none' }}>
+          <div className="pcard-content" id="pendingCardContent"></div>
+          <button className="pcard-remove" onClick={clearPendingCard}>✕</button>
+        </div>
+
+        {/* Input Area */}
+        <div className="input-area">
+          <div className="input-share-bar">
+            <button className="input-share-btn" onClick={openSharePicker}><span className="share-icon">📤</span> 分享排盘</button>
+          </div>
+          <div className="input-row">
+            <textarea
+              id="chatInput" rows="1" placeholder="输入消息…" maxLength={2000}
+              onKeyDown={onInputKeydown}
+              onInput={function (e) { autoResizeInput(e.target); }}
+            ></textarea>
+            <button className="input-stop-btn" id="stopBtn" onClick={stopStream} title="中断输出">■</button>
+            <button className="input-send-btn" id="sendBtn" onClick={sendMessage}>➤</button>
+          </div>
+        </div>
+
+      </div>
+
+      {/* Share Picker Overlay */}
+      <div className="picker-overlay" id="pickerOverlay" onClick={closeSharePicker}></div>
+      <div className="picker-panel" id="pickerPanel">
+        <div className="picker-hdr">
+          <span>📤 分享到对话</span>
+          <button className="picker-close" onClick={closeSharePicker}>✕</button>
+        </div>
+        <div className="picker-tabs">
+          <button className="picker-tab active" data-type="mhys" onClick={function () { switchPickerTab('mhys'); }}>🌸 梅花易数</button>
+          <button className="picker-tab" data-type="liuyao" onClick={function () { switchPickerTab('liuyao'); }}>🪙 六爻</button>
+        </div>
+        <div className="picker-body" id="pickerBody">
+          <div className="picker-loading"><div className="pk-spinner"></div><div>加载中…</div></div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ===== 挂载 =====
+// 用 flushSync 把首次提交做成**同步**的，这不是性能考虑，是正确性：
+// visual-polish.js 的 boot()（它挂在 DOMContentLoaded 上）第一件事就是
+// `document.getElementById('msgsArea')`，读不到就**直接 return 且不报错** ——
+// 于是等待态的计时与阶段文案会静默失效。React 的并发渲染不保证在
+// DOMContentLoaded 之前提交，同步提交才排得掉这个竞态。
+const root = createRoot(document.getElementById('root'));
+flushSync(function () {
+  root.render(<AiChatPage />);
+});
+
+// 页面初始化（老代码挂在 DOMContentLoaded 上；此处此时机等价且更早）
+initPage();
+
+// ===== 必须挂在 window 上的两个名字（内联 HTML 里引用它们）=====
+// 1) sendCardFromPicker —— loadPickerData 生成的条目里写死了
+//    `onclick="sendCardFromPicker(this)"`。老页面是传统 script，顶层函数天然全局；
+//    ESM 里不是，必须显式挂，否则**点分享列表里的任何一条都毫无反应**。
+window.sendCardFromPicker = sendCardFromPicker;
+// 2) showErrorToast —— visual-polish.js:62 会
+//    `typeof window.showErrorToast === 'function'` 后再调（等待超过 60s 时提示
+//    「等待时间较长，可点击 ■ 中断后重试」）。不挂，那句提示永远不会出现。
+window.showErrorToast = showErrorToast;
