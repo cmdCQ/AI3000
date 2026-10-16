@@ -7,20 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-:root {
-  --bg: #faf8f5;
-  --text: #1a1a1a;
-  --text-dim: #555;
-  --text-muted: #999;
-  --accent: #b8960a;
-  --accent-bg: rgba(184,150,10,0.06);
-  --border: #e8e3d8;
-  --card-bg: #fff;
-  --radius: 14px;
-  --radius-sm: 10px;
-  --sans: "Noto Sans SC", -apple-system, sans-serif;
-  --serif: "Noto Serif SC", serif;
-}
+/* ⚠ 本页原自带 :root（--accent: var(--gold) 等），已移除 ——
+   令牌统一由 /css/tokens.css 提供，否则旧金值会覆盖新主题。 */
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 html,body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;-webkit-font-smoothing:antialiased}
 .wrapper{max-width:720px;margin:0 auto;padding:1.5rem 1.2rem 3rem}
@@ -71,7 +59,7 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--sans);min-hei
 .yao-item{display:flex;align-items:flex-start;gap:0.4rem;padding:0.25rem 0.5rem;border-radius:6px;background:var(--bg);font-size:0.72rem}
 .yao-item .yn{min-width:1.4rem;text-align:center;font-weight:600;color:var(--accent);font-size:0.65rem}
 .yao-item .yt{flex:1;line-height:1.6;color:var(--text-dim)}
-.yongyao{padding:0.3rem 0.5rem;border-radius:6px;background:rgba(184,150,10,0.06);border:1px solid rgba(184,150,10,0.15);font-size:0.72rem;margin-bottom:0.5rem;color:var(--accent)}
+.yongyao{padding:0.3rem 0.5rem;border-radius:6px;background:var(--gold-wash);border:1px solid var(--border-gold);font-size:0.72rem;margin-bottom:0.5rem;color:var(--accent)}
 
 .app-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin-bottom:0.5rem}
 .app-item{padding:0.5rem;border-radius:var(--radius-sm);font-size:0.7rem;line-height:1.6}
@@ -83,7 +71,7 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--sans);min-hei
 .sc-tags{display:flex;flex-wrap:wrap;gap:0.3rem;margin-bottom:0.4rem}
 .sc-tags span{padding:0.12rem 0.6rem;border-radius:12px;background:var(--bg);border:1px solid var(--border);font-size:0.65rem;color:var(--text-dim)}
 
-.history{padding:0.5rem 0.8rem;background:linear-gradient(135deg,#fffbeb,#ffedd5);border-radius:var(--radius-sm);border:1px solid rgba(184,150,10,0.15);font-size:0.7rem;color:var(--text-dim);line-height:1.7}
+.history{padding:0.5rem 0.8rem;background:linear-gradient(135deg,#fffbeb,#ffedd5);border-radius:var(--radius-sm);border:1px solid var(--border-gold);font-size:0.7rem;color:var(--text-dim);line-height:1.7}
 
 .related{display:flex;flex-wrap:wrap;gap:0.3rem}
 .related a{text-decoration:none;padding:0.12rem 0.6rem;border-radius:12px;background:var(--bg);border:1px solid var(--border);font-size:0.65rem;color:var(--text-dim);cursor:pointer}
@@ -101,6 +89,7 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--sans);min-hei
   .app-grid{grid-template-columns:1fr}
 }
 </style>
+<link rel="stylesheet" href="/css/tokens.css">
 </head>
 <body>
 <div class="wrapper">

@@ -1,23 +1,8 @@
+/* ⚠ 本文件原自带 :root（--accent: #b8960a 等）。已移除 ——
+   令牌统一由 /css/tokens.css 提供，否则旧金值会覆盖新主题。 */
 /* ═══════════════════════════════════════════
    易三千 · 命盘/选择页 — 白色极简风
    ═══════════════════════════════════════════ */
-
-:root {
-  --bg: #faf8f5;
-  --bg-card: #ffffff;
-  --bg-hover: #f5f2ec;
-  --bg-cell: #f5f2ec;
-  --border: #e8e3d8;
-  --border-active: #d4c9b0;
-  --accent: #b8960a;
-  --accent-dim: #9a8b7a;
-  --accent-faint: #f5f5f5;
-  --text: #1a1a1a;
-  --text-dim: #777777;
-  --text-muted: #aaaaaa;
-  --radius: 12px;
-  --ease: cubic-bezier(0.16, 1, 0.3, 1);
-}
 
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 

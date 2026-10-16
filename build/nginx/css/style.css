@@ -1,30 +1,8 @@
+/* ⚠ 本文件原自带 :root（--accent: var(--gold) 等）。已移除 ——
+   令牌统一由 /css/tokens.css 提供，否则旧金值会覆盖新主题。 */
 /* ═══════════════════════════════════════════
    易三千 — 白色极简风
    ═══════════════════════════════════════════ */
-
-:root {
-  --bg: #faf8f5;
-  --bg-card: #ffffff;
-  --bg-hover: #f5f2ec;
-  --bg-cell: #f5f2ec;
-  --bg-input: #ffffff;
-  --border: #e8e3d8;
-  --border-active: #d4c9b0;
-  --accent: #b8960a;
-  --accent-dim: #9a8b7a;
-  --accent-faint: #f2f2f2;
-  --text: #1a1a1a;
-  --text-dim: #777777;
-  --text-muted: #aaaaaa;
-  --sihua-lu: #2d8a4e;
-  --sihua-quan: #b8960a;
-  --sihua-ke: #3a7abd;
-  --sihua-ji: #c94a4a;
-  --star-main: #b8960a;
-  --star-aux: #9a8b7a;
-  --radius: 12px;
-  --ease: cubic-bezier(0.16, 1, 0.3, 1);
-}
 
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -98,7 +76,7 @@ html, body {
 
 .btn-chart {
   background: var(--accent); color: #fff;
-  box-shadow: 0 2px 8px rgba(184,150,10,0.25);
+  box-shadow: 0 2px 8px rgba(var(--gold-rgb),0.25);
   border: none;
   border-radius: 14px; padding: 0.5rem 1.4rem; font-size: 0.85rem;
   cursor: pointer; font-family: inherit; letter-spacing: 0.04em;
@@ -216,7 +194,7 @@ html, body {
 /* ===== AI Button ===== */
 .btn-ai {
   background: var(--accent); color: #fff;
-  box-shadow: 0 2px 8px rgba(184,150,10,0.25);
+  box-shadow: 0 2px 8px rgba(var(--gold-rgb),0.25);
   border: none;
   border-radius: 14px; padding: 0.4rem 1.1rem;
   font-size: 0.8rem; cursor: pointer;

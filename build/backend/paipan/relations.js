@@ -24,12 +24,18 @@
  *    这是潜伏不一致，不是活的 bug；本文件**照 shushu 各留各的表**，
  *    不为「统一」擅改基准（要动需用户拍板）。
  *
- * ── 与 shushu 的两处已知差异（均已在别处申报，此处只备注） ─────────
- *   a) `liuyao.js` 里另有一份进退神表（`JIN_SHEN`/`TUI_SHEN`），
- *      比 `relations.py` 多 辰→未 / 戌→丑 / 未→辰 / 丑→戌 四条 —— 同上不可达。
- *      两处合一是后续清理项，本轮不动以免扩大改动面。
- *   b) shushu `najia.analyze_hua_qi` 是**死代码**（仅测试引用，无生产调用点），
- *      其四库土进神表取向与上两者又相反；因无调用点故不可达，未移植。
+ * ── 与 shushu 的已知差异（此处只备注，均已申报） ───────────────────
+ *   a) shushu `najia.analyze_hua_qi` 是**死代码**（仅测试引用，无生产调用点），
+ *      其四库土进神表取向与 `advanced_features._is_jin_shen` 又相反；
+ *      因无调用点故不可达，未移植。
+ *
+ *   b) **历史遗留已清**：`liuyao.js` 原先自带一份进退神表（`JIN_SHEN`/`TUI_SHEN`）
+ *      与 `huiTou`/`sanHeJu`/`dayRelationOf` 等自造近似判定，与本源重复。
+ *      2026-09-24 已**全部删除、改调本模块**：进退神→`checkJinTuiShen`，
+ *      回头生克→`analyzeChangedLineRelation`，三合三会→`detectSanheSanhui`。
+ *      旧表比 `DIZHI_PROGRESS_GROUPS` 多的四对（辰→未/戌→丑/未→辰/丑→戌）
+ *      由文档改称「不可达」为**实跑证明**：720 例穷举出的 88 种实达支对与
+ *      该四对**零交集**（`duipan/verify_format_chart.js`）。
  */
 
 'use strict';

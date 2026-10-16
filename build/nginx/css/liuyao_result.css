@@ -1,0 +1,111 @@
+/* 六爻结果页样式 —— 2026-09-25 起，六爻盘面按用户给的参考图重排。
+ *
+ * 本文件**必须与 `css/mhys_result.css` 一起引**，且引在它后面：
+ * 令牌（:root）、卡片、`.load-state`、AI 面板那一整套、以及卦象画的
+ * `.yao-yang`/`.yao-yin` 都在那一份里 —— 那是「六爻页与梅花页同一套设计」的
+ * 物理保证（同一份 CSS，两页不可能长歪）。这里只写**六爻盘面独有**的东西。
+ *
+ * 由此带来一个名字上的小别扭：六爻页要引一个叫 `mhys_` 的 CSS。留着不改是因为
+ * 那份文件刚过完对拍（41 项），改名要连带动两页的 <link> 与部署；等哪天顺手
+ * 把它改名成 `base.css` 更合适。
+ *
+ * 布局的出处：参考图自上而下是「信息表 → 卦盘（左本卦右变卦）→ 卦型标注」，
+ * 每爻一行，行内自左至右「六神 · 六亲地支五行 · 纳甲干 · 爻符 · 世应 ·
+ * 动爻箭头 · 变爻符 · 变六亲地支五行 · 变纳甲干」。
+ */
+
+/* ── 信息表 ─────────────────────────────────────────────── */
+/* 与梅花页的信息表不同：这一张是**有格线的**（参考图如此），
+   因为六爻这一屏字更密，没有格线分不清哪一格属哪一柱。 */
+.ly-info-card { padding: 0; overflow: hidden; }
+.ly-info-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+.ly-info-table tr { border-bottom: 1px solid var(--border); }
+.ly-info-table tr:last-child { border-bottom: none; }
+.ly-info-table td { padding: 0.42rem 0.5rem; }
+.ly-info-table td + td { border-left: 1px solid var(--border); }
+.ly-td-label {
+  width: 4.2em; white-space: nowrap;
+  color: var(--accent); background: var(--accent-bg);
+  font-family: var(--serif); font-size: 0.82rem; font-weight: 500;
+  letter-spacing: 0.16em; text-align: center;
+}
+.ly-td-value { text-align: center; color: var(--text); }
+.ly-td-sub { text-align: center; color: var(--text); font-variant-numeric: tabular-nums; }
+/* 月建日辰是六爻的提纲，参考图上用红色标出来 —— 这一处的颜色有含义，别当装饰删掉 */
+.ly-gz-key { color: #a33a2c; font-weight: 600; }
+.ly-td-muted { color: #a8a29a; }
+.ly-td-small { font-size: 0.72rem; color: var(--text); }
+.ly-td-ss { padding: 0.42rem 0.6rem; }
+.ly-ss-item { display: inline-block; margin-right: 0.7rem; font-size: 0.76rem; }
+.ly-ss-item:last-child { margin-right: 0; }
+
+/* ── 卦盘 ───────────────────────────────────────────────── */
+.ly-pan-card { padding: 0.9rem 0.7rem 0.7rem; }
+
+.ly-pan-head { display: flex; margin-bottom: 0.5rem; }
+.ly-pan-head-cell {
+  flex: 1; text-align: center;
+  font-family: var(--serif); font-size: 0.84rem; font-weight: 600;
+  letter-spacing: 0.04em; white-space: nowrap;
+}
+.ly-palace { color: var(--accent); font-weight: 500; }
+
+/* 九列一格：六神 · 六亲干支 · 纳甲干 · 爻符 · 世应 ｜ 动 ｜ 爻符 · 变六亲干支 · 纳甲干
+   行用 `display:contents` 交给这张九列网格排 —— 只有这样**各行的爻符才会对齐**
+   （每行各自成网格的话，列宽各行算各行的，盘面会歪）。 */
+.ly-pan {
+  display: grid;
+  grid-template-columns: 1.2em auto 0.8em 34px 1.5em 1.8em 34px auto 0.8em;
+  column-gap: 0.24rem;
+  align-items: center;
+}
+.ly-row { display: contents; }
+.ly-pan > span { padding: 0.48rem 0; }
+/* 无变卦（本卦无动爻）时整个右半不出现 */
+.ly-pan-solo { grid-template-columns: 1.2em auto 0.8em 34px 1.5em; }
+.ly-pan-head-solo { }
+.ly-pan-head-solo .ly-pan-head-cell,
+.ly-pan-foot-solo .ly-pan-foot-cell { flex: 1; }
+
+.ly-c-shen { font-size: 0.72rem; color: #a33a2c; text-align: center; }
+.ly-c-qin { font-size: 0.78rem; color: #a33a2c; text-align: left; white-space: nowrap; }
+.ly-c-qin .ly-c-gz { color: var(--text); }
+.ly-c-gan { font-size: 0.72rem; color: #a8a29a; text-align: center; }
+.ly-c-bar { display: flex; align-items: center; justify-content: center; }
+.ly-c-shiying { font-size: 0.72rem; color: var(--text); text-align: center; }
+.ly-c-move { font-size: 0.7rem; color: var(--text); text-align: center; white-space: nowrap; }
+.ly-c-qin-bian { padding-left: 0.24rem; }
+
+.ly-pan-foot { display: flex; margin-top: 0.6rem; }
+.ly-pan-foot-cell { flex: 1; text-align: center; font-size: 0.76rem; }
+.ly-pan-foot-cell .ly-tag-label { color: #1a7d33; }
+.ly-pan-foot-cell .ly-tag { color: #1a7d33; font-weight: 600; }
+.ly-pan-foot-bian .ly-tag-label { color: #a8a29a; }
+.ly-pan-foot-bian .ly-tag { color: #1a7d33; }
+
+/* ── 断卦要点 ───────────────────────────────────────────── */
+.ly-key-yong { font-size: 0.82rem; margin-bottom: 0.3rem; }
+.ly-key-yong strong { color: var(--accent); }
+.ly-key-pos { margin-left: 0.5rem; font-size: 0.74rem; color: #a8a29a; }
+.ly-key-why { font-size: 0.74rem; color: var(--text); line-height: 1.7; margin-bottom: 0.5rem; }
+.ly-key-list { list-style: none; }
+.ly-key-list li {
+  font-size: 0.76rem; line-height: 1.75; color: var(--text);
+  padding-left: 0.9rem; position: relative; margin-bottom: 0.2rem;
+}
+.ly-key-list li::before { content: '·'; position: absolute; left: 0.25rem; color: var(--accent); }
+.ly-key-shi {
+  margin-top: 0.5rem; font-size: 0.74rem; line-height: 1.7;
+  color: var(--text); background: var(--bg);
+  border-radius: var(--radius-sm); padding: 0.5rem 0.6rem;
+}
+
+/* 术语小抄：默认折起来 —— 需要的人自己展开，不需要的人不被它挡住 */
+.ly-legend { margin-top: 0.7rem; border-top: 1px solid var(--border); padding-top: 0.5rem; }
+.ly-legend summary {
+  cursor: pointer; font-size: 0.76rem; color: var(--accent);
+  font-family: var(--serif); letter-spacing: 0.04em; outline: none;
+}
+.ly-legend-body { margin-top: 0.5rem; }
+.ly-legend-body p { font-size: 0.74rem; line-height: 1.8; color: var(--text); margin-bottom: 0.4rem; }
+.ly-legend-body b { color: var(--accent); font-weight: 600; margin-right: 0.35rem; }

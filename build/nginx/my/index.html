@@ -4,12 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>我的 · 易三千</title>
-<link rel="stylesheet" href="/css/auth.css?v=1780920000">
+<link rel="stylesheet" href="/css/auth.css?v=1780828613">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
-  --gold: #b8960a;
+  --gold: var(--gold);
   --bg-page: #faf8f5;
   --border-warm: #e8e3d8;
 }
@@ -75,7 +75,7 @@
   color: #fff;
   background: var(--gold);
   border: none;
-  box-shadow: 0 2px 8px rgba(184,150,10,0.25);
+  box-shadow: 0 2px 8px rgba(var(--gold-rgb),0.25);
 }
 .guest-btn.primary:hover { opacity: 0.85; }
 
@@ -83,7 +83,7 @@
   color: #1a1a1a; background: transparent;
   border: 1px solid var(--border-warm);
 }
-.guest-btn.secondary:hover { border-color: #b8960a; }
+.guest-btn.secondary:hover { border-color: var(--gold); }
 
 /* 信息卡片 */
 .my-card {
@@ -178,6 +178,7 @@
 }
 .my-nav-item:not(.active):hover { color: #888; }
 </style>
+<link rel="stylesheet" href="/css/tokens.css">
 </head>
 <body>
 
@@ -264,11 +265,11 @@
       var remainCount = isUnlimited ? null : Math.floor((tokenLimit - tokenUsed) / 1500);
 
       el.innerHTML =
-        '<div class="my-card" style="border-left-color:' + (tier === 2 ? '#b8960a' : tier === 1 ? '#8a8a8a' : '#bbb') + '">' +
+        '<div class="my-card" style="border-left-color:' + (tier === 2 ? 'var(--gold)' : tier === 1 ? 'var(--text-muted)' : 'var(--text-muted)') + '">' +
           '<div class="my-card-body" style="gap:0.3rem">' +
             '<div style="display:flex;align-items:center;justify-content:space-between">' +
               '<span style="font-family:"Noto Serif SC",serif;font-size:0.88rem;font-weight:600;color:#1a1a1a">' + esc(u) + '</span>' +
-              '<span style="font-size:0.68rem;padding:0.12rem 0.5rem;border-radius:8px;background:' + (tier === 2 ? 'rgba(184,150,10,0.12)' : '#f5f4f0') + ';color:' + (tier === 2 ? '#b8960a' : '#888') + ';font-weight:500">' + tierName + '</span>' +
+              '<span style="font-size:0.68rem;padding:0.12rem 0.5rem;border-radius:8px;background:' + (tier === 2 ? 'var(--gold-wash)' : 'var(--bg-sunken)') + ';color:' + (tier === 2 ? 'var(--gold)' : 'var(--text-dim)') + ';font-weight:500">' + tierName + '</span>' +
             '</div>' +
             '<div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.15rem">' +
               '<span style="font-size:0.72rem;color:#999">AI 解析用量</span>' +

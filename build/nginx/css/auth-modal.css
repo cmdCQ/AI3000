@@ -1,3 +1,5 @@
+/* ⚠ 依赖 /css/tokens.css（玉青主色 + 暖金装饰）。
+   本文件原为硬编码旧金 #b8960a，已改为令牌引用。 */
 /* ═══════════════════════════════════════════
    易三千 · 嵌入式登录/注册弹窗
    ═══════════════════════════════════════════ */
@@ -62,7 +64,7 @@
   border: none;
   background: transparent;
   font-size: 1.2rem;
-  color: #bbb;
+  color: var(--text-muted);
   cursor: pointer;
   border-radius: 50%;
   transition: all 0.2s;
@@ -72,7 +74,7 @@
 
 .auth-modal-close:hover {
   color: #555;
-  background: #f5f5f5;
+  background: var(--bg-sunken);
 }
 
 /* ===== Header ===== */
@@ -88,7 +90,7 @@
 
 .auth-modal-card .auth-modal-sub {
   font-size: 0.8rem;
-  color: #888;
+  color: var(--text-dim);
   text-align: center;
   margin-bottom: 1.4rem;
 }
@@ -135,7 +137,7 @@
 .auth-modal-form label {
   font-size: 0.76rem;
   font-weight: 500;
-  color: #333;
+  color: var(--text);
   margin-top: 0.25rem;
 }
 
@@ -150,19 +152,19 @@
   font-family: inherit;
   color: #1a1a1a;
   background: transparent;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border);
   border-radius: 14px;
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .auth-modal-form input:focus {
-  border-color: #d4c9b0;
-  box-shadow: 0 0 0 3px rgba(184, 150, 10, 0.08);
+  border-color: var(--warm-line);
+  box-shadow: 0 0 0 3px var(--warm-wash);
 }
 
 .auth-modal-form input::placeholder {
-  color: #bbb;
+  color: var(--text-muted);
 }
 
 /* ===== SMS Row ===== */
@@ -178,11 +180,11 @@
 .auth-modal-sms-btn {
   flex-shrink: 0;
   padding: 0 0.85rem;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
   border-radius: 14px;
-  background: #faf8f5;
+  background: var(--bg);
   font-size: 0.8rem;
-  color: #333;
+  color: var(--text);
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.2s;
@@ -190,8 +192,8 @@
 }
 
 .auth-modal-sms-btn:hover:not(:disabled) {
-  background: #f5f5f5;
-  border-color: #999;
+  background: var(--bg-sunken);
+  border-color: var(--text-muted);
 }
 
 .auth-modal-sms-btn:disabled {
@@ -208,8 +210,8 @@
   font-family: inherit;
   font-weight: 500;
   color: #fff;
-  background: #b8960a;
-  box-shadow: 0 2px 8px rgba(184, 150, 10, 0.25);
+  background: var(--gold);
+  box-shadow: 0 2px 8px rgba(var(--gold-rgb),0.25);
   border: none;
   border-radius: 14px;
   cursor: pointer;
@@ -222,7 +224,7 @@
 }
 
 .auth-modal-btn:active {
-  box-shadow: 0 2px 8px rgba(184, 150, 10, 0.3);
+  box-shadow: 0 2px 8px rgba(var(--gold-rgb),0.3);
 }
 
 .auth-modal-btn:disabled {
@@ -242,21 +244,21 @@
 .auth-modal-link {
   text-align: center;
   font-size: 0.78rem;
-  color: #888;
+  color: var(--text-dim);
   margin-top: 1rem;
 }
 
 .auth-modal-link a {
-  color: #b8960a;
+  color: var(--gold);
   text-decoration: none;
   font-weight: 500;
-  border-bottom: 1px solid rgba(184, 150, 10, 0.3);
+  border-bottom: 1px solid var(--warm-line);
   transition: border-color 0.2s;
   cursor: pointer;
 }
 
 .auth-modal-link a:hover {
-  border-bottom-color: #b8960a;
+  border-bottom-color: var(--warm-line);
 }
 
 /* ===== Mobile: full width ===== */

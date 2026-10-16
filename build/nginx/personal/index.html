@@ -8,13 +8,9 @@
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="preload" as="image" href="bg-placeholder.webp" fetchpriority="high">
 <style>
-  :root {
-    --text: #ffffff;
-    --text-dim: rgba(255,255,255,0.65);
-    --accent: #64b5f6;
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+  /* ⚠ 本页原自带 :root（--accent: #b8960a 等），已移除 ——
+   令牌统一由 /css/tokens.css 提供，否则旧金值会覆盖新主题。 */
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Noto Sans SC", sans-serif;
@@ -330,6 +326,7 @@
     }
   }
 </style>
+<link rel="stylesheet" href="/css/tokens.css">
 </head>
 <body>
 

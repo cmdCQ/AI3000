@@ -7,23 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-:root {
-  --bg: #faf8f5;
-  --bg-card: #ffffff;
-  --bg-hover: #f5f2ec;
-  --border: #e8e3d8;
-  --border-active: #d4c9b0;
-  --accent: #b8960a;
-  --accent-dim: #9a8b7a;
-  --text: #1a1a1a;
-  --text-dim: #777777;
-  --text-muted: #aaaaaa;
-  --radius: 12px;
-  --radius-md: 14px;
-  --ease: cubic-bezier(0.16, 1, 0.3, 1);
-  --star: #d4c9b0;
-  --star-active: #b8960a;
-}
+/* ⚠ 本页原自带 :root（--accent: var(--gold) 等），已移除 ——
+   令牌统一由 /css/tokens.css 提供，否则旧金值会覆盖新主题。 */
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 html, body {
   background:var(--bg); color:var(--text);
@@ -128,7 +113,7 @@ html, body {
   background:var(--accent); color:#fff;
   border:none; border-radius:14px; cursor:pointer;
   letter-spacing:0.06em;
-  box-shadow:0 2px 8px rgba(184,150,10,0.25);
+  box-shadow:0 2px 8px rgba(var(--gold-rgb),0.25);
   transition:all 0.2s var(--ease); margin-top:1rem;
 }
 .sg-submit:hover { opacity:0.85; }
@@ -146,7 +131,7 @@ html, body {
   display:inline-block; padding:0.4rem 1.3rem; font-size:0.82rem;
   border-radius:14px; text-decoration:none; font-family:inherit;
   background:var(--accent); color:#fff;
-  box-shadow:0 2px 8px rgba(184,150,10,0.25);
+  box-shadow:0 2px 8px rgba(var(--gold-rgb),0.25);
   transition:all 0.2s var(--ease); letter-spacing:0.02em;
 }
 .sg-login-required .cg-btn:hover { opacity:0.85; }
@@ -169,6 +154,7 @@ html, body {
   .sg-rating-row { padding:0.38rem 0; }
 }
 </style>
+<link rel="stylesheet" href="/css/tokens.css">
 </head>
 <body>
 

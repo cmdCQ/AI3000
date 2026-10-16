@@ -7,196 +7,854 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-:root {
-  --bg: #faf8f5;
-  --bg-card: #ffffff;
-  --bg-hover: #f5f2ec;
-  --border: #e8e3d8;
-  --border-active: #d4c9b0;
-  --accent: #b8960a;
-  --accent-dim: #9a8b7a;
-  --accent-bg: rgba(184,150,10,0.06);
-  --text: #1a1a1a;
-  --text-dim: #777777;
-  --text-muted: #aaaaaa;
-  --radius: 12px;
-  --radius-sm: 10px;
-  --radius-md: 14px;
-  --shadow-card: 0 1px 4px rgba(0,0,0,0.06);
-  --sans: "Noto Sans SC", -apple-system, sans-serif;
-  --serif: "Noto Serif SC", serif;
+/* ═══════════════════════════════════════════
+   AI 对话页 · 样式
+   依赖: /css/tokens.css（须先于本块加载）
+   ═══════════════════════════════════════════ */
+
+/* 注意：不再重复定义 :root 令牌 —— 全部由 tokens.css 提供。
+   本文件只保留对话页特有的局部变量。 */
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 16px;
+  height: 100%;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
 }
-*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
-html,body { background:var(--bg); color:var(--text); font-family:var(--sans); height:100%; overflow:hidden; -webkit-font-smoothing:antialiased; }
-.chat-app { display:flex; flex-direction:column; height:100%; max-width:500px; margin:0 auto; position:relative; }
 
-/* ===== Top Bar ===== */
-.chat-topbar { display:flex; align-items:center; padding:0.6rem 0.8rem; border-bottom:1px solid var(--border); background:var(--bg-card); flex-shrink:0; }
-.chat-topbar .back-btn { background:none; border:none; font-size:1.1rem; color:var(--text-dim); cursor:pointer; padding:0.2rem 0.4rem; border-radius:8px; transition:all 0.2s; font-family:var(--sans); }
-.chat-topbar .back-btn:hover { background:var(--bg-hover); color:var(--text); }
-.chat-topbar .title { flex:1; text-align:center; font-family:var(--serif); font-size:0.95rem; font-weight:600; letter-spacing:0.06em; color:var(--text); }
-.chat-topbar .clear-btn { background:none; border:none; font-size:0.72rem; color:var(--text-muted); cursor:pointer; padding:0.2rem 0.5rem; border-radius:6px; transition:all 0.2s; font-family:var(--sans); }
-.chat-topbar .clear-btn:hover { color:var(--text-dim); }
-
-/* ===== Messages Area ===== */
-.msgs-area { flex:1; overflow-y:auto; padding:1rem 0.8rem 0.5rem; -webkit-overflow-scrolling:touch; scroll-behavior:smooth; }
-
-.msgs-empty { text-align:center; padding:3rem 1rem; color:var(--text-muted); }
-.msgs-empty .empty-icon { font-size:2.5rem; margin-bottom:0.4rem; opacity:0.3; }
-.msgs-empty .empty-title { font-family:var(--serif); font-size:0.95rem; color:var(--text-dim); margin-bottom:0.3rem; }
-.msgs-empty .empty-desc { font-size:0.76rem; line-height:1.7; }
-
-/* Message Bubbles */
-.msg { max-width:92%; margin-bottom:0.7rem; animation:fadeIn 0.2s ease; }
-@keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
-
-.msg-user { margin-left:auto; }
-.msg-ai { margin-right:auto; }
-
-.msg-bubble { padding:0.65rem 0.85rem; border-radius:var(--radius-md); font-size:0.84rem; line-height:1.7; word-break:break-word; }
-
-.msg-user .msg-bubble { background:var(--accent); color:#fff; border-bottom-right-radius:4px; }
-.msg-user .msg-bubble p { margin-bottom:0.3rem; }
-.msg-user .msg-bubble p:last-child { margin-bottom:0; }
-.msg-user .msg-bubble a { color:#fff; text-decoration:underline; }
-
-.msg-ai .msg-bubble { background:var(--bg-card); border:1px solid var(--border); border-bottom-left-radius:4px; box-shadow:var(--shadow-card); }
-
-.msg-ai .msg-bubble .ai-spinner { display:inline-block; width:16px; height:16px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:sp 0.7s linear infinite; vertical-align:middle; margin-right:0.4rem; }
-@keyframes sp { to{transform:rotate(360deg)} }
-
-.msg-ai .msg-bubble p { margin-bottom:0.4rem; }
-.msg-ai .msg-bubble p:last-child { margin-bottom:0; }
-.msg-ai .msg-bubble strong { color:var(--accent); font-weight:600; }
-.msg-ai .msg-bubble h3 { font-family:var(--serif); font-size:0.82rem; font-weight:600; margin:0.6rem 0 0.3rem; color:var(--text); }
-.msg-ai .msg-bubble h2 { font-family:var(--serif); font-size:0.9rem; font-weight:600; margin:0.7rem 0 0.3rem; color:var(--text); }
-.msg-ai .msg-bubble hr { border:none; border-top:1px solid var(--border); margin:0.5rem 0; }
-.msg-ai .msg-bubble blockquote { padding:0.3rem 0.6rem; margin:0.3rem 0; border-left:3px solid var(--accent); background:var(--bg); border-radius:0 6px 6px 0; font-size:0.78rem; color:var(--text-dim); }
-.msg-ai .msg-bubble ul, .msg-ai .msg-bubble ol { padding-left:1.2rem; margin-bottom:0.3rem; }
-.msg-ai .msg-bubble li { margin-bottom:0.15rem; }
-.msg-ai .msg-bubble code { background:#f5f4f0; padding:0.1rem 0.3rem; border-radius:3px; font-size:0.78rem; }
-.msg-ai .msg-bubble pre { background:#f5f4f0; padding:0.6rem; border-radius:6px; font-size:0.75rem; overflow-x:auto; margin:0.4rem 0; line-height:1.5; }
-
-.msg-token { font-size:0.62rem; color:var(--text-muted); padding:0.2rem 0.85rem 0; text-align:right; }
-
-/* Error message */
-.msg-ai .msg-error { color:#c94a4a; }
-
-/* ===== Card Share Messages ===== */
-.msg-card { max-width:98%; margin-bottom:0.7rem; animation:fadeIn 0.2s ease; }
-.msg-card .card-box { background:var(--bg-card); border:1px solid var(--border); border-left:3px solid var(--accent); border-radius:var(--radius-md); overflow:hidden; box-shadow:var(--shadow-card); }
-
-.card-box .card-hdr { display:flex; align-items:center; gap:0.4rem; padding:0.52rem 0.75rem; background:var(--bg); border-bottom:1px solid var(--border); font-size:0.72rem; color:var(--text-dim); }
-.card-box .card-hdr .card-type-icon { font-size:0.9rem; }
-.card-box .card-hdr .card-type-label { font-weight:500; }
-
-.card-box .card-body { padding:0.6rem 0.75rem 0.7rem; font-size:0.78rem; line-height:1.6; }
-
-.card-box .card-meta { display:flex; flex-wrap:wrap; gap:0.3rem 0.6rem; margin-bottom:0.35rem; font-size:0.68rem; color:var(--text-dim); }
-.card-box .card-meta span { white-space:nowrap; }
-
-.card-box .card-essence { padding:0.5rem 0.6rem; background:var(--bg); border-radius:8px; color:var(--text); }
-.card-box .card-essence .essence-label { font-size:0.62rem; color:var(--text-dim); letter-spacing:0.04em; margin-bottom:0.12rem; }
-.card-box .card-essence .essence-value { font-family:var(--serif); font-size:0.8rem; font-weight:600; color:var(--text); line-height:1.65; word-break:break-word; }
-
-/* 排盘卡片 - 迷你五卦显示 */
-.card-hex-mini { display:flex; gap:0; margin:0.3rem 0; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
-.card-hex-mini .hex-item { flex:1; text-align:center; padding:0.3rem 0.15rem; font-size:0.7rem; }
-.card-hex-mini .hex-item + .hex-item { border-left:1px solid var(--border); }
-.card-hex-mini .hex-item .hex-label { font-size:0.58rem; color:var(--text-muted); margin-bottom:0.15rem; }
-.card-hex-mini .hex-item .hex-name { font-family:var(--serif); font-weight:600; font-size:0.72rem; color:var(--text); }
-.card-hex-mini .hex-item .hex-lines { display:flex; flex-direction:column; align-items:center; gap:3px; margin:0.15rem 0; }
-.card-hex-mini .hex-item .hex-line { height:2.5px; border-radius:1px; }
-.card-hex-mini .hex-item .hl-yang { width:22px; background:var(--text); }
-.card-hex-mini .hex-item .hl-yin { display:flex; gap:5px; justify-content:center; }
-.card-hex-mini .hex-item .hl-yin span { width:8px; height:2.5px; background:var(--text); border-radius:1px; display:block; }
-
-/* 六爻双列卡片 */
-.card-ly-hex { display:flex; gap:0; margin:0.3rem 0; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
-.card-ly-hex .ly-col { flex:1; text-align:center; padding:0.3rem 0.2rem; font-size:0.65rem; }
-.card-ly-hex .ly-col + .ly-col { border-left:1px solid var(--border); }
-.card-ly-hex .ly-col .ly-title { font-size:0.6rem; color:var(--text-muted); margin-bottom:0.2rem; font-weight:500; }
-.card-ly-rows { display:flex; flex-direction:column; align-items:center; gap:2px; }
-.card-ly-row { display:flex; align-items:center; gap:2px; font-size:0.6rem; }
-.card-ly-row .ly-lq { width:1.2rem; text-align:right; color:var(--text-dim); }
-.card-ly-row .ly-dz { width:1.1rem; text-align:center; color:var(--text-dim); }
-.card-ly-row .ly-bar { width:1.4rem; text-align:center; }
-.card-ly-row .ly-bar .b-yang { display:inline-block; width:14px; height:2px; background:var(--text); border-radius:1px; }
-.card-ly-row .ly-bar .b-yin { display:inline-flex; gap:3px; justify-content:center; }
-.card-ly-row .ly-bar .b-yin i { display:block; width:5px; height:2px; background:var(--text); border-radius:1px; }
-.card-ly-row .ly-mv { width:0.7rem; text-align:center; font-size:0.55rem; }
-
-/* 命盘卡片 */
-.card-chart-info { display:flex; flex-direction:column; gap:0.2rem; }
-.card-chart-info .cci-row { display:flex; align-items:center; gap:0.4rem; font-size:0.76rem; }
-.card-chart-info .cci-label { color:var(--text-dim); min-width:3em; font-size:0.68rem; }
-.card-chart-bazi { display:flex; gap:0.3rem; margin:0.3rem 0; justify-content:center; }
-.card-chart-bazi .bazi-pillar { display:flex; flex-direction:column; align-items:center; }
-.card-chart-bazi .bazi-ganzhi { font-family:var(--serif); font-size:1rem; color:var(--text); font-weight:600; }
-.card-chart-bazi .bazi-label { font-size:0.55rem; color:var(--text-muted); margin-top:0.05rem; }
-.card-chart-footer { font-size:0.65rem; color:var(--text-muted); padding:0.3rem 0.7rem 0.4rem; border-top:1px solid var(--border); }
-.card-chart-footer .ccf-tag { display:inline-block; padding:0.05rem 0.4rem; border-radius:4px; background:var(--accent-bg); color:var(--accent-dim); font-size:0.6rem; margin-right:0.3rem; }
-
-/* ===== Input Area ===== */
-.input-area { border-top:1px solid var(--border); background:var(--bg-card); padding:0.5rem 0.6rem; padding-bottom:calc(0.5rem + env(safe-area-inset-bottom,0px)); flex-shrink:0; }
-
-.input-share-bar { display:flex; align-items:center; gap:0.3rem; margin-bottom:0.4rem; }
-.input-share-btn { display:inline-flex; align-items:center; gap:0.2rem; padding:0.25rem 0.55rem; font-size:0.7rem; font-family:var(--sans); color:var(--accent-dim); background:var(--accent-bg); border:1px solid rgba(184,150,10,0.15); border-radius:8px; cursor:pointer; transition:all 0.15s; white-space:nowrap; }
-.input-share-btn:hover { background:rgba(184,150,10,0.12); border-color:var(--border-active); color:var(--accent); }
-.input-share-btn .share-icon { font-size:0.75rem; }
-	/* ===== Pending Card Preview Bar ===== */
-	.pending-card-bar { display:flex; align-items:flex-start; gap:0.4rem; margin:0 0.6rem 0.4rem; padding:0.45rem 0.55rem; background:linear-gradient(180deg,#fef9ec 0%,#f9f1d5 100%); border:1px solid #e3d2a5; border-radius:10px; }
-	.pending-card-bar .pcard-content { flex:1; min-width:0; font-size:0.73rem; line-height:1.5; }
-	.pending-card-bar .pcard-label { font-size:0.62rem; color:#8d7441; margin-bottom:0.08rem; }
-	.pending-card-bar .pcard-title { font-weight:600; color:#4f3e0f; font-size:0.76rem; }
-	.pending-card-bar .pcard-meta { font-size:0.64rem; color:#8d7441; margin-top:0.05rem; }
-	.pending-card-bar .pcard-remove { flex-shrink:0; width:1.4rem; height:1.4rem; border:none; background:rgba(0,0,0,0.06); border-radius:50%; cursor:pointer; font-size:0.7rem; color:#8d7441; display:flex; align-items:center; justify-content:center; transition:all 0.15s; padding:0; line-height:1; }
-	.pending-card-bar .pcard-remove:hover { background:rgba(0,0,0,0.12); color:#4f3e0f; }
-
-.input-row { display:flex; gap:0.4rem; align-items:flex-end; }
-.input-row textarea { flex:1; padding:0.5rem 0.65rem; font-size:0.84rem; font-family:var(--sans); border:1px solid var(--border); border-radius:12px; background:var(--bg); color:var(--text); outline:none; resize:none; line-height:1.5; max-height:120px; transition:border-color 0.2s; }
-.input-row textarea:focus { border-color:var(--border-active); }
-.input-row textarea::placeholder { color:var(--text-muted); }
-.input-send-btn { width:2.2rem; height:2.2rem; display:flex; align-items:center; justify-content:center; background:var(--accent); color:#fff; border:none; border-radius:50%; cursor:pointer; font-size:1rem; transition:opacity 0.15s; flex-shrink:0; }
-.input-send-btn:disabled { opacity:0.4; cursor:default; }
-.input-send-btn:not(:disabled):hover { opacity:0.85; }
-.input-stop-btn { width:2.2rem; height:2.2rem; flex-shrink:0; border:1px solid #ccc; border-radius:50%; background:#fff; color:#999; font-size:0.8rem; cursor:pointer; display:none; align-items:center; justify-content:center; transition:all 0.2s; }
-.input-stop-btn:hover { border-color:#c55; color:#c55; background:#fef2f2; }
-.input-stop-btn.visible { display:flex; }
-
-/* ===== Share Picker Overlay ===== */
-.picker-overlay { position:fixed; inset:0; z-index:200; background:rgba(0,0,0,0.25); display:none; animation:fadeIn 0.15s ease; }
-.picker-overlay.open { display:block; }
-.picker-panel { position:fixed; left:0; right:0; bottom:0; z-index:201; max-width:500px; margin:0 auto; background:var(--bg-card); border-radius:16px 16px 0 0; border:1px solid var(--border); border-bottom:none; box-shadow:0 -4px 24px rgba(0,0,0,0.1); display:none; flex-direction:column; max-height:70vh; animation:slideUp 0.25s ease; }
-@keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
-.picker-panel.open { display:flex; }
-.picker-hdr { display:flex; align-items:center; justify-content:space-between; padding:0.8rem 1rem 0.4rem; font-family:var(--serif); font-size:0.9rem; font-weight:600; flex-shrink:0; }
-.picker-hdr .picker-close { cursor:pointer; font-size:1.1rem; color:var(--text-muted); opacity:0.5; transition:opacity 0.2s; line-height:1; background:none; border:none; font-family:var(--sans); padding:0.2rem; }
-.picker-hdr .picker-close:hover { opacity:1; }
-
-.picker-tabs { display:flex; padding:0 1rem; gap:0.3rem; flex-shrink:0; }
-.picker-tab { padding:0.35rem 0.75rem; font-size:0.78rem; font-family:var(--sans); border:1px solid var(--border); border-radius:8px; background:transparent; color:var(--text-dim); cursor:pointer; transition:all 0.15s; }
-.picker-tab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
-
-.picker-body { flex:1; overflow-y:auto; padding:0.5rem 1rem 1rem; -webkit-overflow-scrolling:touch; }
-.picker-item { display:flex; align-items:center; gap:0.6rem; padding:0.65rem 0.7rem; border:1px solid var(--border); border-radius:10px; margin-bottom:0.4rem; cursor:pointer; transition:all 0.15s; }
-.picker-item:hover { border-color:var(--border-active); background:var(--bg-hover); }
-.picker-item .pi-icon { font-size:1.1rem; flex-shrink:0; opacity:0.5; }
-.picker-item .pi-body { flex:1; min-width:0; }
-.picker-item .pi-topic { font-size:0.82rem; font-weight:500; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.picker-item .pi-meta { font-size:0.66rem; color:var(--text-dim); margin-top:0.05rem; }
-.picker-empty { text-align:center; padding:2rem 0; color:var(--text-muted); font-size:0.78rem; }
-.picker-loading { text-align:center; padding:2rem 0; color:var(--text-dim); font-size:0.78rem; }
-.picker-loading .pk-spinner { width:20px; height:20px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:sp 0.7s linear infinite; margin:0 auto 0.4rem; }
-
-
-
-@media (max-width:420px) {
-  .msgs-area { padding:0.8rem 0.5rem 0.3rem; }
-  .msg { max-width:95%; }
-  .msg-bubble { padding:0.55rem 0.7rem; font-size:0.8rem; }
-  .input-area { padding:0.4rem 0.5rem; }
+.chat-app {
+  display: flex; flex-direction: column;
+  height: 100%;
+  max-width: var(--chat-max);
+  margin: 0 auto;
+  position: relative;
 }
+
+/* ===== 顶栏 =====
+   旧版：左箭头 / 居中标题 / 「清空」三者基线不齐，且点按区只有约 24x20px。
+   改为：三栏等宽网格（图标 — 标题 — 操作），标题真正居中，
+   两侧操作都撑到 44px 触控下限。 */
+.chat-topbar {
+  display: grid;
+  grid-template-columns: var(--tap-min) 1fr auto;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  /* 顶栏高度随安全区自适应 */
+  padding-top: calc(var(--space-2) + env(safe-area-inset-top, 0px));
+}
+
+.chat-topbar .back-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: var(--tap-min); height: var(--tap-min);
+  margin-left: calc(var(--space-2) * -1);   /* 视觉左对齐，点按区仍足量 */
+  background: none; border: none;
+  font-size: 1.15rem; line-height: 1;
+  font-family: var(--sans);
+  color: var(--text-dim);
+  border-radius: var(--r-full);
+  cursor: pointer;
+  transition: background-color var(--dur-fast), color var(--dur-fast);
+}
+.chat-topbar .back-btn:hover { background: var(--bg-hover); color: var(--text); }
+.chat-topbar .back-btn:active { transform: scale(0.94); }
+
+.chat-topbar .title {
+  text-align: center;
+  font-family: var(--serif);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semi);
+  letter-spacing: 0.08em;
+  color: var(--text);
+}
+
+/* 「清空」旧版 0.72rem(11.5px) 且对比度不足。
+   改为胶囊描边按钮：可读性、可点性、危险语义都清晰。 */
+.chat-topbar .clear-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 2rem;
+  padding: var(--space-1) var(--space-3);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  font-size: var(--fs-xs);
+  font-family: var(--sans);
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--dur-fast), border-color var(--dur-fast), background-color var(--dur-fast);
+}
+.chat-topbar .clear-btn:hover {
+  color: var(--danger);
+  border-color: rgba(176,58,58,0.35);
+  background: var(--danger-wash);
+}
+
+/* ===== 消息区 =====
+   旧版有 scroll-behavior:smooth —— 流式输出每 120ms 设一次 scrollTop，
+   会不断打断未完成的平滑滚动动画，导致抖动。已移除，改由 JS 直接定位。 */
+.msgs-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4) var(--space-3) var(--space-2);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* ===== 空态 =====
+   旧版是个大而弱的图标 + 两行小字，像加载失败。
+   改为：圆形浅金底座 + 引导性文案 + 可点的示例问题。 */
+.msgs-empty {
+  display: flex; flex-direction: column; align-items: center;
+  padding: var(--space-8) var(--space-4) var(--space-4);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.msgs-empty .empty-icon {
+  width: 3.5rem; height: 3.5rem;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: var(--space-4);
+  font-size: 1.5rem; line-height: 1;
+  background: var(--gold-wash);
+  border: 1px solid var(--border-gold);
+  border-radius: var(--r-full);
+  filter: saturate(0.92);
+}
+
+.msgs-empty .empty-title {
+  font-family: var(--serif);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semi);
+  color: var(--text);
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-2);
+}
+
+.msgs-empty .empty-desc {
+  font-size: var(--fs-sm);
+  line-height: var(--lh-relaxed);
+  color: var(--text-muted);
+  max-width: 17rem;
+}
+
+/* ===== 消息气泡 ===== */
+.msg {
+  max-width: 92%;
+  margin-bottom: var(--space-3);
+  animation: msgIn var(--dur-base) var(--ease-out);
+}
+
+@keyframes msgIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.msg-user { margin-left: auto; }
+.msg-ai   { margin-right: auto; }
+
+/* 正文 13.4px → 15px。旧版在手机上读长文非常吃力。
+   行高 1.8 是中文长回答的可读性底线。 */
+.msg-bubble {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--r-md);
+  font-size: var(--fs-body);
+  line-height: var(--lh-relaxed);
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* 用户气泡：白字压金色。
+   旧版白字在 #b8960a 上只有 2.84:1，现在玉青实底 6.32:1。 */
+.msg-user .msg-bubble {
+  background: var(--gold);
+  color: var(--text-on-gold);
+  border-bottom-right-radius: 5px;   /* 指向说话者的一角收窄 */
+  box-shadow: 0 2px 8px rgba(var(--gold-rgb),0.18);
+}
+.msg-user .msg-bubble p { margin-bottom: var(--space-1); }
+.msg-user .msg-bubble p:last-child { margin-bottom: 0; }
+.msg-user .msg-bubble a { color: var(--text-on-gold); text-decoration: underline; text-underline-offset: 2px; }
+
+/* AI 气泡：纸面色 + 细描边，靠留白而非重描边区分 */
+.msg-ai .msg-bubble {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 5px;
+  box-shadow: var(--shadow-xs);
+}
+
+/* 等待指示：旧的 16px 边框转圈太朴素，改为三点跳动 */
+.msg-ai .msg-bubble .ai-spinner {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  vertical-align: middle;
+  margin-right: var(--space-2);
+}
+.msg-ai .msg-bubble .ai-spinner::before,
+.msg-ai .msg-bubble .ai-spinner::after,
+.msg-ai .msg-bubble .ai-spinner i {
+  content: '';
+  display: block;
+  width: 5px; height: 5px;
+  border-radius: var(--r-full);
+  background: var(--gold-line);
+  animation: dotBounce 1.3s var(--ease-inout) infinite;
+}
+.msg-ai .msg-bubble .ai-spinner::after { animation-delay: 0.16s; }
+.msg-ai .msg-bubble .ai-spinner i     { animation-delay: 0.32s; }
+
+@keyframes dotBounce {
+  0%, 60%, 100% { opacity: 0.28; transform: translateY(0); }
+  30%           { opacity: 1;    transform: translateY(-3px); }
+}
+
+/* 等待阶段的文案与计时：让「正在工作」可感知，而不是一个不动的转圈 */
+.msg-ai .msg-bubble .think-text {
+  color: var(--text-dim);
+  font-size: var(--fs-base);
+}
+.msg-ai .msg-bubble .think-timer {
+  margin-left: var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;   /* 数字等宽，秒数跳动不抖 */
+}
+
+/* 流式输出中：幽灵光标，让「还在写」这件事可见。
+   注意用 :not(.thinking) —— 等待阶段还没有任何文字，不该出现光标。 */
+.msg-ai.streaming:not(.thinking) .msg-bubble::after {
+  content: '';
+  display: inline-block;
+  width: 2px; height: 1em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  background: var(--gold-line);
+  animation: caret 1s steps(2, start) infinite;
+}
+@keyframes caret { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
+
+.msg-ai .msg-bubble p { margin-bottom: var(--space-2); }
+.msg-ai .msg-bubble p:last-child { margin-bottom: 0; }
+
+/* 重点词：旧版 font-weight:600 但颜色是低对比金。
+   现在颜色用深金（6.84:1），字重保持 600。 */
+.msg-ai .msg-bubble strong {
+  color: var(--gold-ink);
+  font-weight: var(--fw-semi);
+}
+
+/* Markdown 标题：旧版 h3 只有 11.7px，比正文还小 —— 层级是反的。
+   修正为 h2 > h3 > 正文。 */
+.msg-ai .msg-bubble h2 {
+  font-family: var(--serif);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semi);
+  color: var(--text);
+  margin: var(--space-4) 0 var(--space-2);
+  letter-spacing: 0.03em;
+}
+.msg-ai .msg-bubble h3 {
+  font-family: var(--serif);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-semi);
+  color: var(--text);
+  margin: var(--space-3) 0 var(--space-1);
+  letter-spacing: 0.02em;
+}
+.msg-ai .msg-bubble h2:first-child,
+.msg-ai .msg-bubble h3:first-child { margin-top: 0; }
+
+.msg-ai .msg-bubble hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: var(--space-3) 0;
+}
+
+.msg-ai .msg-bubble blockquote {
+  padding: var(--space-2) var(--space-3);
+  margin: var(--space-3) 0;
+  border-left: 3px solid var(--gold-line);
+  background: var(--bg-sunken);
+  border-radius: 0 var(--r-xs) var(--r-xs) 0;
+  font-size: var(--fs-base);
+  color: var(--text-dim);
+}
+
+.msg-ai .msg-bubble ul,
+.msg-ai .msg-bubble ol { padding-left: var(--space-5); margin-bottom: var(--space-2); }
+.msg-ai .msg-bubble li { margin-bottom: var(--space-1); }
+
+.msg-ai .msg-bubble code {
+  background: var(--bg-sunken);
+  padding: 0.1rem 0.35rem;
+  border-radius: var(--r-xs);
+  font-size: 0.85em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.msg-ai .msg-bubble pre {
+  background: var(--bg-sunken);
+  padding: var(--space-3);
+  border-radius: var(--r-sm);
+  font-size: 0.8rem;
+  line-height: var(--lh-snug);
+  overflow-x: auto;
+  margin: var(--space-2) 0;
+}
+
+/* 积分行：旧版 0.62rem = 9.9px，几乎不可读，提到 12px */
+.msg-token {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  padding: var(--space-1) var(--space-1) 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* 错误消息 */
+.msg-ai .msg-error { color: var(--danger); }
+
+/* ===== 排盘卡片 =====
+   旧版卡片内文字低至 0.55rem(8.8px)、卦名 0.72rem(11.5px)。
+   排盘数据是产品的核心信息，不能比正文小一半。
+   整体上提一档字号，并给卦象区域更大的留白。 */
+.msg-card { max-width: 98%; margin-bottom: var(--space-3); animation: msgIn var(--dur-base) var(--ease-out); }
+
+.msg-card .card-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-xs);
+}
+
+.card-box .card-hdr {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-sunken);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+}
+.card-box .card-hdr .card-type-icon { font-size: 0.95rem; line-height: 1; filter: saturate(0.92); }
+.card-box .card-hdr .card-type-label { font-weight: var(--fw-semi); color: var(--text); letter-spacing: 0.02em; }
+
+.card-box .card-body { padding: var(--space-3); font-size: var(--fs-base); line-height: var(--lh-snug); }
+
+.card-box .card-meta {
+  display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3);
+  margin-bottom: var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+.card-box .card-meta span { white-space: nowrap; }
+
+.card-box .card-essence {
+  padding: var(--space-3);
+  background: var(--bg-sunken);
+  border-radius: var(--r-sm);
+  color: var(--text);
+}
+.card-box .card-essence .essence-label {
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  margin-bottom: 0.15rem;
+}
+.card-box .card-essence .essence-value {
+  font-family: var(--serif);
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semi);
+  color: var(--text);
+  line-height: var(--lh-normal);
+  word-break: break-word;
+}
+
+/* ---- 卦象：五卦 / 双列 ---- */
+.card-hex-mini {
+  display: flex; gap: 0;
+  margin: var(--space-2) 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+.card-hex-mini .hex-item {
+  flex: 1;
+  text-align: center;
+  padding: var(--space-2) var(--space-1);
+  font-size: var(--fs-xs);
+}
+.card-hex-mini .hex-item + .hex-item { border-left: 1px solid var(--border); }
+.card-hex-mini .hex-item .hex-label {
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+  margin-bottom: var(--space-1);
+}
+.card-hex-mini .hex-item .hex-name {
+  font-family: var(--serif);
+  font-weight: var(--fw-semi);
+  font-size: var(--fs-sm);
+  color: var(--text);
+  line-height: var(--lh-tight);
+}
+.card-hex-mini .hex-item .hex-lines {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 3px;
+  margin: var(--space-1) 0;
+}
+/* 爻线：旧版 2.5px 高、22px 宽。加粗到 3px 让阴阳更易分辨 */
+.card-hex-mini .hex-item .hex-line { height: 3px; border-radius: 1px; }
+.card-hex-mini .hex-item .hl-yang { width: 24px; background: var(--text); }
+.card-hex-mini .hex-item .hl-yin { display: flex; gap: 6px; justify-content: center; }
+.card-hex-mini .hex-item .hl-yin span {
+  width: 9px; height: 3px;
+  background: var(--text);
+  border-radius: 1px;
+  display: block;
+}
+
+.card-ly-hex {
+  display: flex; gap: 0;
+  margin: var(--space-2) 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+.card-ly-hex .ly-col {
+  flex: 1;
+  text-align: center;
+  padding: var(--space-2) var(--space-1);
+  font-size: var(--fs-xs);
+}
+.card-ly-hex .ly-col + .ly-col { border-left: 1px solid var(--border); }
+.card-ly-hex .ly-col .ly-title {
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+  margin-bottom: var(--space-1);
+  font-weight: var(--fw-semi);
+}
+
+.card-ly-rows { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+
+.card-ly-row {
+  display: flex; align-items: center; gap: 3px;
+  font-size: var(--fs-micro);
+  line-height: 1.4;
+}
+.card-ly-row .ly-lq { width: 1.3rem; text-align: right; color: var(--text-dim); }
+.card-ly-row .ly-dz { width: 1.2rem; text-align: center; color: var(--text-dim); }
+.card-ly-row .ly-bar { width: 1.5rem; text-align: center; }
+.card-ly-row .ly-bar .b-yang {
+  display: inline-block;
+  width: 16px; height: 2.5px;
+  background: var(--text);
+  border-radius: 1px;
+}
+.card-ly-row .ly-bar .b-yin { display: inline-flex; gap: 3px; justify-content: center; }
+.card-ly-row .ly-bar .b-yin i {
+  display: block;
+  width: 6px; height: 2.5px;
+  background: var(--text);
+  border-radius: 1px;
+}
+/* 动爻标记：旧版只是个极小的字符，改为明显的红点 */
+.card-ly-row .ly-mv {
+  width: 0.8rem; text-align: center;
+  font-size: var(--fs-micro);
+  color: var(--danger);
+  font-weight: var(--fw-semi);
+}
+
+/* ---- 命盘卡片 ---- */
+.card-chart-info { display: flex; flex-direction: column; gap: var(--space-1); }
+.card-chart-info .cci-row {
+  display: flex; align-items: center; gap: var(--space-2);
+  font-size: var(--fs-base);
+}
+.card-chart-info .cci-label {
+  color: var(--text-muted);
+  min-width: 3em;
+  font-size: var(--fs-xs);
+}
+
+.card-chart-bazi {
+  display: flex; gap: var(--space-2);
+  margin: var(--space-2) 0;
+  justify-content: center;
+}
+.card-chart-bazi .bazi-pillar { display: flex; flex-direction: column; align-items: center; }
+/* 四柱是本产品的核心信息，字号从 1rem 提到 1.15rem */
+.card-chart-bazi .bazi-ganzhi {
+  font-family: var(--serif);
+  font-size: 1.15rem;
+  color: var(--text);
+  font-weight: var(--fw-semi);
+  letter-spacing: 0.02em;
+}
+.card-chart-bazi .bazi-label {
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+}
+
+.card-chart-footer {
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  border-top: 1px solid var(--border);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+.card-chart-footer .ccf-tag {
+  display: inline-block;
+  padding: 0.1rem var(--space-2);
+  margin-right: var(--space-1);
+  border-radius: var(--r-full);
+  background: var(--gold-wash);
+  border: 1px solid var(--border-gold);
+  color: var(--gold);
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-medium);
+}
+
+/* ===== 输入区 ===== */
+.input-area {
+  flex-shrink: 0;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border);
+  padding: var(--space-2) var(--space-3);
+  padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
+}
+
+.input-share-bar { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
+
+.input-share-btn {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  min-height: 1.9rem;
+  font-size: var(--fs-xs);
+  font-family: var(--sans);
+  font-weight: var(--fw-medium);
+  color: var(--gold);
+  background: var(--gold-wash);
+  border: 1px solid var(--border-gold);
+  border-radius: var(--r-full);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
+}
+.input-share-btn:hover {
+  background: var(--gold-wash-2);
+  border-color: var(--gold-line);
+  color: var(--gold-ink);
+}
+.input-share-btn .share-icon { font-size: 0.8rem; line-height: 1; filter: saturate(0.92); }
+
+/* 待发送卡片预览：旧版用了硬编码的 #fef9ec/#4f3e0f 等散色。
+   改为令牌，并让金色语义和其他金色元素一致。 */
+.pending-card-bar {
+  display: flex; align-items: flex-start; gap: var(--space-2);
+  margin: 0 var(--space-3) var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: linear-gradient(180deg, var(--gold-wash) 0%, var(--gold-wash-2) 100%);
+  border: 1px solid var(--border-gold);
+  border-radius: var(--r-sm);
+}
+.pending-card-bar .pcard-content { flex: 1; min-width: 0; font-size: var(--fs-sm); line-height: var(--lh-snug); }
+.pending-card-bar .pcard-label {
+  font-size: var(--fs-micro);
+  color: var(--gold);
+  letter-spacing: 0.03em;
+  margin-bottom: 0.1rem;
+}
+.pending-card-bar .pcard-title {
+  font-weight: var(--fw-semi);
+  color: var(--gold-deep);
+  font-size: var(--fs-base);
+}
+.pending-card-bar .pcard-meta {
+  font-size: var(--fs-micro);
+  color: var(--gold-ink);
+  margin-top: 0.1rem;
+}
+.pending-card-bar .pcard-remove {
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  width: 1.75rem; height: 1.75rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--r-full);
+  background: rgba(79,62,4,0.08);
+  color: var(--gold-ink);
+  font-size: var(--fs-sm);
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color var(--dur-fast);
+}
+.pending-card-bar .pcard-remove:hover { background: rgba(79,62,4,0.16); }
+
+.input-row { display: flex; gap: var(--space-2); align-items: flex-end; }
+
+/* 输入框：旧版无 font-size → 继承 0.84rem(13.4px)，
+   iOS Safari 会在聚焦时自动放大页面，而页面又设了 user-scalable=no，
+   用户会卡在放大态。16px 是 iOS 不缩放的硬阈值。 */
+.input-row textarea {
+  flex: 1;
+  padding: var(--space-2) var(--space-3);
+  min-height: 2.75rem;
+  /* 必须 >=16px：iOS Safari 对 <16px 的输入框会在聚焦时自动放大页面，
+     而 viewport 里又设了 user-scalable=no，用户会卡在放大态无法缩回。 */
+  font-size: 16px;
+  font-family: var(--sans);
+  line-height: var(--lh-snug);
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  outline: none;
+  resize: none;
+  max-height: 120px;
+  transition: border-color var(--dur-base), background-color var(--dur-base), box-shadow var(--dur-base);
+}
+.input-row textarea:focus {
+  border-color: var(--gold-line);
+  background: var(--bg-card);
+  box-shadow: 0 0 0 3px var(--gold-wash);
+}
+.input-row textarea::placeholder { color: var(--text-muted); }
+
+/* 发送 / 停止按钮：2.2rem = 35px，低于 44px 触控下限，提到 2.75rem */
+.input-send-btn {
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  width: 2.75rem; height: 2.75rem;
+  background: var(--gold);
+  color: var(--text-on-gold);
+  border: none;
+  border-radius: var(--r-full);
+  font-size: 1.05rem;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(var(--gold-rgb),0.22);
+  transition: background-color var(--dur-fast), transform var(--dur-fast), opacity var(--dur-fast);
+}
+.input-send-btn:not(:disabled):hover { background: var(--gold-ink); }
+.input-send-btn:not(:disabled):active { transform: scale(0.92); }
+.input-send-btn:disabled { opacity: 0.35; cursor: default; box-shadow: none; }
+
+.input-stop-btn {
+  flex-shrink: 0;
+  display: none;
+  align-items: center; justify-content: center;
+  width: 2.75rem; height: 2.75rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-full);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: color var(--dur-fast), border-color var(--dur-fast), background-color var(--dur-fast);
+}
+.input-stop-btn:hover {
+  color: var(--danger);
+  border-color: rgba(176,58,58,0.4);
+  background: var(--danger-wash);
+}
+.input-stop-btn.visible { display: flex; }
+
+/* ===== 分享选择器 ===== */
+.picker-overlay {
+  position: fixed; inset: 0;
+  z-index: var(--z-overlay);
+  background: rgba(40,32,12,0.32);
+  display: none;
+}
+.picker-overlay.open { display: block; animation: overlayIn var(--dur-fast) var(--ease-out); }
+
+@keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
+
+.picker-panel {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  z-index: calc(var(--z-overlay) + 1);
+  max-width: var(--chat-max);
+  margin: 0 auto;
+  max-height: 70vh;
+  display: none; flex-direction: column;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  box-shadow: 0 -8px 32px rgba(60,48,20,0.12);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.picker-panel.open { display: flex; animation: slideUp var(--dur-slow) var(--ease-out); }
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+.picker-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--space-4) var(--space-4) var(--space-2);
+  font-family: var(--serif);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semi);
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+.picker-hdr .picker-close {
+  display: flex; align-items: center; justify-content: center;
+  width: 2rem; height: 2rem;
+  padding: 0;
+  background: none; border: none;
+  border-radius: var(--r-full);
+  color: var(--text-muted);
+  font-size: 1.05rem;
+  line-height: 1;
+  font-family: var(--sans);
+  cursor: pointer;
+  transition: background-color var(--dur-fast), color var(--dur-fast);
+}
+.picker-hdr .picker-close:hover { background: var(--bg-hover); color: var(--text); }
+
+.picker-tabs { display: flex; gap: var(--space-2); padding: 0 var(--space-4); flex-shrink: 0; }
+
+/* Tab 旧版是个小描边按钮，选中态直接铺满金色 —— 对比度低且形状突兀。
+   改为下划线式 tab，选中用金色文字 + 底部金线。 */
+.picker-tab {
+  padding: var(--space-2) var(--space-1);
+  min-height: 2.5rem;
+  font-size: var(--fs-base);
+  font-family: var(--sans);
+  font-weight: var(--fw-medium);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color var(--dur-base), border-color var(--dur-base);
+}
+.picker-tab:hover { color: var(--text-dim); }
+.picker-tab.active {
+  color: var(--gold);
+  border-bottom-color: var(--gold-line);
+  font-weight: var(--fw-semi);
+}
+
+.picker-body {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  -webkit-overflow-scrolling: touch;
+}
+
+.picker-item {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-3);
+  min-height: var(--tap-min);
+  margin-bottom: var(--space-2);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: border-color var(--dur-fast), background-color var(--dur-fast), transform var(--dur-fast);
+}
+.picker-item:hover { border-color: var(--border-gold); background: var(--gold-wash); }
+.picker-item:active { transform: scale(0.99); }
+
+.picker-item .pi-icon { flex-shrink: 0; font-size: 1.1rem; line-height: 1; filter: saturate(0.92); }
+.picker-item .pi-body { flex: 1; min-width: 0; }
+.picker-item .pi-topic {
+  font-size: var(--fs-body);
+  font-weight: var(--fw-semi);
+  color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.picker-item .pi-meta {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  margin-top: 0.1rem;
+}
+
+.picker-empty { text-align: center; padding: var(--space-6) 0; color: var(--text-muted); font-size: var(--fs-base); }
+.picker-loading { text-align: center; padding: var(--space-6) 0; color: var(--text-dim); font-size: var(--fs-base); }
+.picker-loading .pk-spinner {
+  width: 20px; height: 20px;
+  margin: 0 auto var(--space-2);
+  border: 2px solid var(--border);
+  border-top-color: var(--gold-line);
+  border-radius: var(--r-full);
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== 小屏微调 ===== */
+@media (max-width: 420px) {
+  .msgs-area { padding: var(--space-3) var(--space-2) var(--space-2); }
+  .msg { max-width: 95%; }
+  .msg-bubble { padding: var(--space-3); }
+  .input-area { padding: var(--space-2); padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom, 0px)); }
+  .msgs-empty { padding: var(--space-6) var(--space-3) var(--space-3); }
+}
+
+/* ===== AI Markdown 输出 =====
+   renderMarkdown 现在产出 .md-h / .md-quote / .md-li，
+   样式集中在此（首页 home.css 有一份等价副本，用于公告弹窗）。
+   历史 bug：renderMarkdown 先做 HTML 转义再匹配引用块，
+   导致 `> 引用` 永远显示为字面量 '> 文字'。 */
+.md-h {
+  font-family: var(--serif);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-semi);
+  color: var(--gold-ink);
+  margin: var(--space-3) 0 var(--space-1);
+  letter-spacing: 0.04em;
+}
+.md-quote {
+  margin: var(--space-3) 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--gold-line);
+  background: var(--bg-sunken);
+  border-radius: 0 var(--r-xs) var(--r-xs) 0;
+  color: var(--text-dim);
+  font-size: var(--fs-base);
+  line-height: var(--lh-normal);
+}
+.md-quote strong { color: var(--gold-ink); }
+.md-li {
+  display: block;
+  padding-left: var(--space-4);
+  margin: var(--space-1) 0;
+  line-height: var(--lh-normal);
+}
+.md-li-ul { position: relative; }
+.md-li-ul::before {
+  content: '•';
+  position: absolute;
+  left: 0.3rem;
+  color: var(--gold-line);
+}
+.md-li-num { position: relative; }
+.md-li-num::before {
+  content: attr(data-n) '.';
+  position: absolute;
+  left: 0;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 </style>
 </head>
 <body>
@@ -256,8 +914,8 @@ html,body { background:var(--bg); color:var(--text); font-family:var(--sans); he
 
 
 
+<link rel="stylesheet" href="/css/tokens.css">
 <script src="/js/auth.js?v=1787305221"></script>
-<script src="/js/hexagrams_data.js?v=2"></script>
 <script>
 // ===== 八卦/六爻帮助函数 =====
 const TRIGRAMS = {
@@ -265,6 +923,42 @@ const TRIGRAMS = {
   4:{name:'震',symbol:'☳'},5:{name:'巽',symbol:'☴'},6:{name:'坎',symbol:'☵'},
   7:{name:'艮',symbol:'☶'},8:{name:'坤',symbol:'☷'}
 };
+
+// ===== 记账行（「消耗积分：…」）=====
+//
+// 后端流式返回的正文末尾挂着后端拼的记账行，本页要把它**切成单独一行小字**
+// （`.msg-token`），不能当正文渲染。
+//
+// ⚠ 本页自己有一份，没复用 `/js/ai_panel.js` 里那套：本页的 DOM 结构与排盘面板
+//   完全不同（消息流 vs 单块面板），共用渲染反而要往引擎里塞本页的形状。
+//   **代价是标记字符串有第二份** —— 后端 `POINTS_LABEL` 改了，这里和 ai_panel.js
+//   要一起改（两处都写了这条注释，就是为了改的时候搜得到另一个）。
+//   老消息里存的是旧字「消耗 Token：」，故两个标记都认。
+var AI_POINTS_MARKS = ['\n消耗积分：', '\n消耗 Token：'];
+
+function pointsIdx(t) {
+  var i = -1;
+  for (var k = 0; k < AI_POINTS_MARKS.length; k++) {
+    var j = t.lastIndexOf(AI_POINTS_MARKS[k]);
+    if (j > i) i = j;
+  }
+  return i;
+}
+
+/** 切成 { body: 正文, points: 记账行（已统一改称「积分」） }。 */
+function splitPoints(t) {
+  var i = pointsIdx(t || '');
+  if (i <= 0) return { body: t || '', points: '' };
+  return {
+    body: t.substring(0, i).replace(/\s*---\s*$/, '').replace(/\s+$/, ''),
+    points: t.substring(i + 1).trim().replace(/^消耗 Token：/, '消耗积分：')
+  };
+}
+
+/** 老消息里存的旧字「消耗 Token」在显示时统一改称「积分」（存量数据不迁移）。 */
+function pointsLabel(t) {
+  return t ? String(t).replace(/^消耗 Token：/, '消耗积分：') : t;
+}
 
 // ===== 状态 =====
 var isSending = false;
@@ -279,6 +973,22 @@ document.addEventListener('DOMContentLoaded', function() {
   if (!AUTH.isLoggedIn()) {
     openAuthModal('login');
     return;
+  }
+  // 首页输入框带来的首句：自动发出去，用户不必再打一遍。
+  // 取完立刻删掉 —— 否则刷新一次就会重发。
+  var pending = null;
+  try {
+    pending = sessionStorage.getItem('sqw_pending_ask');
+    if (pending) sessionStorage.removeItem('sqw_pending_ask');
+  } catch (e) { pending = null; }
+  if (pending) {
+    var input = document.getElementById('chatInput');
+    if (input) {
+      input.value = pending;
+      if (typeof autoResizeInput === 'function') autoResizeInput(input);
+    }
+    // 等一帧，确保上面那些渲染函数都已就绪
+    setTimeout(function () { sendMessage(); }, 120);
   }
 });
 
@@ -354,7 +1064,8 @@ function appendMessageDOM(msg, animate) {
     if (msg.tokenInfo) {
       var tokDiv = document.createElement('div');
       tokDiv.className = 'msg-token';
-      tokDiv.textContent = msg.tokenInfo;
+      // 历史消息里存的是旧字「消耗 Token」，显示时统一改称「积分」（存量不迁移）
+      tokDiv.textContent = pointsLabel(msg.tokenInfo);
       area.appendChild(tokDiv);
     }
     scrollToBottom();
@@ -635,8 +1346,13 @@ async function sendMessage() {
   // 显示加载中
   var area = document.getElementById('msgsArea');
   var loadingDiv = document.createElement('div');
-  loadingDiv.className = 'msg msg-ai';
-  loadingDiv.innerHTML = '<div class="msg-bubble"><span class="ai-spinner"></span> ' + (card ? '解析中…' : '思考中…') + '</div>';
+  loadingDiv.className = 'msg msg-ai thinking';
+  loadingDiv.innerHTML =
+    '<div class="msg-bubble">' +
+      '<span class="ai-spinner"><i></i></span>' +
+      '<span class="think-text">' + (card ? '正在解析排盘…' : '正在推演…') + '</span>' +
+      '<span class="think-timer"></span>' +
+    '</div>';
   loadingDiv.id = 'aiLoading';
   area.appendChild(loadingDiv);
   scrollToBottom();
@@ -678,13 +1394,9 @@ async function sendMessage() {
 
       if (fullText) {
         // 提取 token 信息
-        var tokenInfo = '';
-        var tokenIdx = fullText.lastIndexOf('\n消耗 Token：');
-        var aiContent = fullText;
-        if (tokenIdx > 0) {
-          tokenInfo = fullText.substring(tokenIdx).trim();
-          aiContent = fullText.substring(0, tokenIdx).trim();
-        }
+        var sp = splitPoints(fullText);
+        var tokenInfo = sp.points;
+        var aiContent = sp.body;
 
         // 替换流式 div 为最终消息
         var streamDiv = document.querySelector('.msg-ai.streaming');
@@ -772,10 +1484,8 @@ function doStreamRender() {
     streamDivCache = streamDiv;
   }
 
-  // 去掉 token 行用于渲染 markdown
-  var displayText = full;
-  var tokenIdx = full.lastIndexOf('\n消耗 Token：');
-  if (tokenIdx > 0) displayText = full.substring(0, tokenIdx);
+  // 去掉记账行再渲染 markdown（尾巴由收尾处切成 `.msg-token` 单独显示）
+  var displayText = splitPoints(full).body;
 
   streamDiv.innerHTML = '<div class="msg-bubble">' + renderMarkdown(displayText) + '</div>';
   // 流式输出中：只在用户位于底部时自动跟随，不强制打断用户阅读
@@ -1210,22 +1920,54 @@ function onInputKeydown(e) {
 function renderMarkdown(text) {
   if (!text) return '';
   text = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  // 行内加粗/斜体 —— 抽成函数，供列表项与引用块内部复用。
+  // 星号归一化：容忍数据里 "-**文字"（DB 公告里就有这种写法，
+  // 单个 ** 会因为没有配对而成对匹配成空粗体，先把连续 3 个以上压成 2 个）。
+  function inline(s) {
+    s = s.replace(/\*{3,}/g, '**');
+    s = s.replace(/\*\*([^*]*)\*\*/g, '<strong>$1</strong>')
+         .replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    // 兜底：清掉没配对的 ** / * 标记，避免把 markdown 符号显示给用户。
+    // 典型来源是数据里的 "-**文字"（少一个空格）以及 AI 偶发的未闭合标记。
+    return s.replace(/\*\*/g, '').replace(/\*(?=[^\s])/g, '');
+  }
+
   text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, function(m,a,code){ return '<pre>'+code.trim()+'</pre>'; });
   text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
   text = text.replace(/^---+\s*$/gm, '<hr>');
   text = text.replace(/^### (.+)$/gm, '<h3>$1</h3>');
   text = text.replace(/^## (.+)$/gm, '<h2>$1</h2>');
   text = text.replace(/^# (.+)$/gm, '<h2>$1</h2>');
-  text = text.replace(/^【([^】]+)】/gm, '<div style="font-family:var(--serif);font-size:0.88rem;font-weight:700;color:var(--accent);margin:0.5rem 0 0.2rem;letter-spacing:0.04em">【$1】</div>');
-  text = text.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
-  text = text.replace(/^[\s]*[-*] (.+)$/gm, function(m,c){ return '<span style="display:block;padding-left:1rem;position:relative;line-height:1.8"><span style="position:absolute;left:0.1rem">•</span>'+c+'</span>'; });
-  text = text.replace(/^[\s]*\d+\. (.+)$/gm, function(m,c){ return '<span style="display:block;padding-left:1rem;line-height:1.8">'+c+'</span>'; });
+  text = text.replace(/^【([^】]+)】/gm, function(m, t){ return '<div class="md-h">【'+t+'】</div>'; });
+
+  // 引用块。注意：此处 '>' 已在上面被转义成 '&gt;'，
+  // 所以必须匹配 '&gt;'，否则这条规则永远不会命中（历史 bug）。
+  text = text.replace(/^&gt;\s?(.*)$/gm, function(m, body){
+    return '<blockquote class="md-quote">' + inline(body) + '</blockquote>';
+  });
+
+  // 无序列表：允许 '-' / '*' 后**没有**空格（兼容 "-**重点**" 这种输出）
+  text = text.replace(/^[\s]*[-*]\s*(.+)$/gm, function(m, content){
+    if (!content.trim()) return m;
+    return '<div class="md-li md-li-ul">' + inline(content) + '</div>';
+  });
+  // 有序列表 —— 保留原序号，交给 CSS counter 显示
+  text = text.replace(/^[\s]*(\d+)\.\s*(.+)$/gm, function(m, num, content){
+    return '<div class="md-li md-li-num" data-n="' + num + '">' + inline(content) + '</div>';
+  });
+
+  // 段落外的残留加粗/斜体（列表与引用已就地处理，这里兜底）
   text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   text = text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
   var lines = text.split(/\n/);
   var out = [], inPara = false;
   for (var i = 0; i < lines.length; i++) {
-    var l = lines[i], isBlock = /^<(h[23]|pre|blockquote|hr|span|div)/.test(l), isEmpty = l.trim() === '';
+    var l = lines[i];
+    // div 也要算作块级，否则 .md-h / .md-li 会被塞进 <p> 里
+    var isBlock = /^<(h[23]|pre|blockquote|hr|div|span)/.test(l);
+    var isEmpty = l.trim() === '';
     if (isBlock) { if (inPara) { out.push('</p>'); inPara = false; } out.push(l); }
     else if (isEmpty) { if (inPara) { out.push('</p>'); inPara = false; } }
     else { if (!inPara) { out.push('<p>'); inPara = true; } else { out.push('<br>'); } out.push(l); }
@@ -1282,8 +2024,13 @@ function sendDivinationCard(cardData, userText) {
   streamDivCache = null;
 
   var loadingDiv = document.createElement('div');
-  loadingDiv.className = 'msg msg-ai';
-  loadingDiv.innerHTML = '<div class="msg-bubble"><span class="ai-spinner"></span> 解卦中…</div>';
+  loadingDiv.className = 'msg msg-ai thinking';
+  loadingDiv.innerHTML =
+    '<div class="msg-bubble">' +
+      '<span class="ai-spinner"><i></i></span>' +
+      '<span class="think-text">正在解卦…</span>' +
+      '<span class="think-timer"></span>' +
+    '</div>';
   loadingDiv.id = 'aiLoading';
   area.appendChild(loadingDiv);
   scrollToBottom();
@@ -1318,13 +2065,9 @@ function sendDivinationCard(cardData, userText) {
     if (handleApiUnauthorized(xhr, streamEl401)) return;
 
     if (fullText) {
-      var tokenInfo = '';
-      var tokenIdx = fullText.lastIndexOf('\n消耗 Token：');
-      var aiContent = fullText;
-      if (tokenIdx > 0) {
-        tokenInfo = fullText.substring(tokenIdx).trim();
-        aiContent = fullText.substring(0, tokenIdx).trim();
-      }
+      var sp = splitPoints(fullText);
+      var tokenInfo = sp.points;
+      var aiContent = sp.body;
       var streamDiv = document.querySelector('.msg-ai.streaming');
       if (streamDiv) {
         streamDiv.classList.remove('streaming');
@@ -1437,5 +2180,6 @@ function doAutoDivination(n1, n2, n3, userText) {
 }
 
 </script>
+<script src="/js/visual-polish.js"></script>
 </body>
 </html>

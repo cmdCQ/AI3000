@@ -354,12 +354,12 @@
   position: absolute; left: 0.5rem; right: 0.5rem;
   top: 50%; transform: translateY(-50%);
   height: 2.5rem;
-  border-top: 1.5px solid rgba(184,150,10,0.45);
-  border-bottom: 1.5px solid rgba(184,150,10,0.45);
+  border-top: 1.5px solid var(--warm-line);
+  border-bottom: 1.5px solid var(--warm-line);
   background: linear-gradient(180deg,
-    rgba(184,150,10,0.03) 0%,
-    rgba(184,150,10,0.06) 50%,
-    rgba(184,150,10,0.03) 100%
+    var(--warm-wash) 0%,
+    var(--gold-wash) 50%,
+    var(--warm-wash) 100%
   );
   pointer-events: none; border-radius: 10px; z-index: 2;
 }
@@ -387,7 +387,7 @@
 .cal-footer .confirm-btn {
   padding: 0.4rem 1.2rem;
   border-radius: 10px;
-  background: #b8960a;
+  background: var(--gold);
   color: #fff;
   font-weight: 600;
   font-size: 0.78rem;
@@ -425,6 +425,7 @@
   padding-bottom: 3rem;
 }
 </style>
+<link rel="stylesheet" href="/css/tokens.css">
 </head>
 <body>
 

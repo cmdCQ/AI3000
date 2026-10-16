@@ -1,28 +1,9 @@
 /* 后台管理 v3 — 白色极简风 · 与前厅统一 */
 
-:root {
-  --bg: #faf8f5;
-  --bg-elevated: #ffffff;
-  --bg-hover: #f5f2ec;
-  --bg-input: #ffffff;
-  --border: #e8e3d8;
-  --border-light: #ebebeb;
-  --accent: #b8960a;
-  --accent-dim: #9a8b7a;
-  --accent-glow: #f5f5f5;
-  --text: #1a1a1a;
-  --text-dim: #777777;
-  --text-muted: #aaaaaa;
-  --danger: #c94a4a;
-  --danger-dim: #fdf0f0;
-  --radius-sm: 8px;
-  --radius: 12px;
-  --radius-lg: 14px;
-  --ease: cubic-bezier(0.16, 1, 0.3, 1);
-  --mono: 'SF Mono', 'DM Mono', 'JetBrains Mono', monospace;
-  --sans: 'Noto Sans SC', 'Inter', -apple-system, sans-serif;
-  --serif: 'Noto Serif SC', 'Songti SC', serif;
-}
+/* ⚠ 本文件原自带 :root（21 个变量）。已移除 —— 其中 19 个 tokens.css 里都有，
+   而 admin/index.html 是「先 admin.css、后 tokens.css」，本文件的值本来就赢不了；
+   余下 2 个（--accent-glow、--border-light）全站零引用。
+   令牌唯一来源 = /css/tokens.css。本文件只准「用」变量，不准再定义 :root。 */
 
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 html, body { background:var(--bg); color:var(--text); font-family:var(--sans); font-size:15px; line-height:1.6; min-height:100vh; -webkit-font-smoothing:antialiased; }
@@ -39,7 +20,7 @@ body { overflow-x:hidden; }
   display:inline-flex; align-items:center; justify-content:center;
   width:100%; padding:0.55rem 1rem; font-size:0.85rem; font-family:var(--sans);
   background:var(--accent); color:#fff; font-weight:600;
-  box-shadow:0 2px 8px rgba(184,150,10,0.25);
+  box-shadow:0 2px 8px rgba(31,107,94,0.25);
   border:none; border-radius:14px; cursor:pointer;
   letter-spacing:0.04em; font-weight:500;
   transition:opacity 0.2s var(--ease);
@@ -251,32 +232,32 @@ body { overflow-x:hidden; }
 .adm-table .adm-search-input {
   padding:0.35rem 0.7rem;
   font-size:0.78rem;
-  font-family:var(--adm-font);
-  border:1px solid var(--adm-border);
+  font-family:var(--sans);
+  border:1px solid var(--border);
   border-radius:8px;
   background:#fff;
-  color:var(--adm-text);
+  color:var(--text);
   outline:none;
   width:160px;
   transition:border-color 0.15s;
 }
-.adm-search-input:focus { border-color:var(--adm-accent); }
+.adm-search-input:focus { border-color:var(--accent); }
 .adm-search-input::placeholder { color:#aaa; }
 
 .adm-tier-select {
   padding:0.2rem 0.3rem;
   font-size:0.72rem;
   font-family:inherit;
-  border:1px solid var(--adm-border);
+  border:1px solid var(--border);
   border-radius:6px;
   background:#fff;
-  color:var(--adm-text);
+  color:var(--text);
   cursor:pointer;
   outline:none;
   transition:border-color 0.15s;
 }
-.adm-tier-select:hover { border-color:var(--adm-accent); }
-.adm-tier-select:focus { border-color:var(--adm-accent); }
+.adm-tier-select:hover { border-color:var(--accent); }
+.adm-tier-select:focus { border-color:var(--accent); }
 
 .adm-del-btn {
   padding:0.2rem 0.6rem; font-size:0.65rem; font-family:var(--sans);
@@ -286,7 +267,7 @@ body { overflow-x:hidden; }
 }
 .adm-ingest-btn {
   padding:0.2rem 0.6rem; font-size:0.65rem; font-family:var(--sans);
-  background:transparent; color:var(--adm-accent); border:1px solid var(--adm-accent);
+  background:transparent; color:var(--accent); border:1px solid var(--accent);
   border-radius:8px; cursor:pointer; letter-spacing:0.03em;
   transition:all 0.15s; margin-right:0.3rem;
 }
@@ -436,7 +417,7 @@ body { overflow-x:hidden; }
   border-radius:12px; padding:0.8rem 1rem;
   transition:border-color 0.2s;
 }
-.adm-prompt-item.adm-prompt-custom { border-color:#b8960a; background:rgba(184,150,10,0.03); }
+.adm-prompt-item.adm-prompt-custom { border-color:var(--accent); background:rgba(31,107,94,0.04); }
 .adm-prompt-head {
   display:flex; align-items:center; justify-content:space-between;
   margin-bottom:0.4rem;
@@ -450,7 +431,7 @@ body { overflow-x:hidden; }
   font-family:var(--mono);
 }
 .adm-prompt-default .adm-prompt-status { background:var(--bg); color:var(--text-muted); }
-.adm-prompt-custom .adm-prompt-status { background:rgba(184,150,10,0.12); color:#8b6d0a; }
+.adm-prompt-custom .adm-prompt-status { background:rgba(31,107,94,0.12); color:var(--accent); }
 .adm-prompt-textarea {
   width:100%; min-height:80px; padding:0.55rem 0.7rem;
   font-size:0.68rem; font-family:var(--mono); line-height:1.55;

@@ -217,6 +217,31 @@ const KONG_WANG_BY_XUN = [
   ['辰', '巳'], ['寅', '卯'], ['子', '丑'],
 ];
 
+// ── 神煞（盘面用）──────────────────────────────────────────
+// 移植自 shushu `core/constants.py`：`禄`（第 348 行起）、`驿马`（第 358 行起）、
+// `桃花`（第 490 行起），口诀与《三命通会》通行取法一致——
+//   驿马：申子辰马在寅、寅午戌马在申、巳酉丑马在亥、亥卯未马在巳
+//   桃花：同三合局取「四正」（申子辰在酉、寅午戌在卯、巳酉丑在午、亥卯未在子）
+//   禄：日干临官之位（甲寅、乙卯、丙戊巳、丁己午、庚申、辛酉、壬亥、癸子）
+// **只按日支/日干取**：六爻盘面的神煞行以日辰为准（年支另取会得到另一个字）。
+// 这三项**不进 `formatChart` 正文**，只随 `displayMeta` 给页面渲染用。
+const YI_MA_BY_ZHI = {
+  申: '寅', 子: '寅', 辰: '寅',
+  寅: '申', 午: '申', 戌: '申',
+  巳: '亥', 酉: '亥', 丑: '亥',
+  亥: '巳', 卯: '巳', 未: '巳',
+};
+const TAO_HUA_BY_ZHI = {
+  申: '酉', 子: '酉', 辰: '酉',
+  寅: '卯', 午: '卯', 戌: '卯',
+  巳: '午', 酉: '午', 丑: '午',
+  亥: '子', 卯: '子', 未: '子',
+};
+const LU_BY_GAN = {
+  甲: '寅', 乙: '卯', 丙: '巳', 丁: '午', 戊: '巳',
+  己: '午', 庚: '申', 辛: '酉', 壬: '亥', 癸: '子',
+};
+
 // ── 四时旺相休囚死（严格派，六爻断旺衰用）──────────────────
 // 春（寅卯辰）木旺火相水休金囚土死，余季类推。
 const STRENGTH_STRICT = {
@@ -247,7 +272,60 @@ const HEX64_NAME = {
   '8_1': '地天泰', '8_2': '地泽临', '8_3': '地火明夷', '8_4': '地雷复', '8_5': '地风升', '8_6': '地水师', '8_7': '地山谦', '8_8': '坤为地',
 };
 
+// ── 八卦的「方位 / 卦德」（梅花断法要引，TRIGRAMS 里原本没有这两项）──
+// key 为先天数 1..8。数据真源：shushu `core/constants.TRIGRAMS`。
+// **不重复五行/卦名**：那两项一律从上面的 TRIGRAMS 取，免得两处各存一份
+// 哪天改一处忘一处（本项目已吃过大五行表重复定义的亏）。
+const TRIGRAM_CLASSICAL = {
+  1: { direction: '西北', nature: '天' },   // 乾
+  2: { direction: '西',   nature: '泽' },   // 兑
+  3: { direction: '南',   nature: '火' },   // 离
+  4: { direction: '东',   nature: '雷' },   // 震
+  5: { direction: '东南', nature: '风' },   // 巽
+  6: { direction: '北',   nature: '水' },   // 坎
+  7: { direction: '东北', nature: '山' },   // 艮
+  8: { direction: '西南', nature: '地' },   // 坤
+};
+
+// ── 文王卦序 ↔ 上下卦（梅花按卦序取卦、断卦要写卦序）──────────
+// 行 = 上卦、列 = 下卦，均按先天数 1..8（乾…坤），与 `HEX64_NAME` 的
+// `上_下` 键同一套编号。
+//
+// 真源：shushu `core/liuyao/hexagram_data.HEXAGRAM_TRIGRAM_MAPPING`。
+// **独立佐证**：与前端 `build/nginx/js/hexagrams_data.js` 的 `HEXAGRAM_MAP`
+// 逐格比对，64 格全同 —— 两张表来源互不相干（一为 shushu、一为 cast64.com），
+// 64 格全同即文王卦序没抄错。`coverage_meihua.py` 把这条写成断言。
+// 另：梅花对拍覆盖全部 64 个卦序（见 README 层 7），转抄错一位就会报差异。
+const HEX64_MAP = [
+  [1,  10, 13, 25, 44, 6,  33, 12],   // 上卦 乾
+  [43, 58, 49, 17, 28, 47, 31, 45],   // 上卦 兑
+  [14, 38, 30, 21, 50, 64, 56, 35],   // 上卦 离
+  [34, 54, 55, 51, 32, 40, 62, 16],   // 上卦 震
+  [9,  61, 37, 42, 57, 59, 53, 20],   // 上卦 巽
+  [5,  60, 63, 3,  48, 29, 39, 8],    // 上卦 坎
+  [26, 41, 22, 27, 18, 4,  52, 23],   // 上卦 艮
+  [11, 19, 36, 24, 46, 7,  15, 2],    // 上卦 坤
+];
+
+// 卦序 → {lower, upper}（上面那张表的反查，构造一次）
+const HEX64_TRIGRAMS = {};
+for (let u = 1; u <= 8; u++) {
+  for (let l = 1; l <= 8; l++) HEX64_TRIGRAMS[HEX64_MAP[u - 1][l - 1]] = { lower: l, upper: u };
+}
+
 // ── 工具函数 ────────────────────────────────────────────────
+
+/** 上下卦（先天数）→ 文王卦序。与 getHexName 同样是 (上, 下) 的次序。 */
+function getHexNumber(upper, lower) {
+  const row = HEX64_MAP[upper - 1];
+  return row ? row[lower - 1] : 0;
+}
+
+/** 文王卦序 → {lower, upper}（先天数）。 */
+function getHexTrigrams(number) {
+  return HEX64_TRIGRAMS[number] || null;
+}
+
 
 /** 干支字符串 → 60 甲子序（0..59）；无法解析返回 -1 */
 function ganzhiIndex(gz) {
@@ -267,6 +345,17 @@ function getKongWang(dayGZ) {
   const idx = ganzhiIndex(dayGZ);
   if (idx < 0) return [];
   return KONG_WANG_BY_XUN[Math.floor(idx / 10) % 6].slice();
+}
+
+/** 日柱 → 神煞三件（驿马、桃花按日支，日禄按日干）。取不到日柱则三项皆空串 */
+function getShenSha(dayGZ) {
+  const gan = dayGZ ? dayGZ[0] : '';
+  const zhi = dayGZ && dayGZ.length > 1 ? dayGZ[1] : '';
+  return {
+    yiMa: YI_MA_BY_ZHI[zhi] || '',
+    taoHua: TAO_HUA_BY_ZHI[zhi] || '',
+    riLu: LU_BY_GAN[gan] || '',
+  };
 }
 
 /** 五行在某月支下的旺相休囚死 */
@@ -368,8 +457,10 @@ module.exports = {
   LIUSHEN, LIUSHEN_START, PALACE_ELEMENT, PALACE_TABLE,
   PALACE_POS_TYPE, PALACE_POS_OF, PALACE_POS_NAME,
   KONG_WANG_BY_XUN, STRENGTH_STRICT,
+  YI_MA_BY_ZHI, TAO_HUA_BY_ZHI, LU_BY_GAN,
   CHANGSHENG_START, CHANGSHENG_ORDER, GAN_YINYANG, HEX64_NAME,
-  ganzhiIndex, getKongWang, getStrength, getChangsheng,
+  TRIGRAM_CLASSICAL, HEX64_MAP, HEX64_TRIGRAMS, getHexNumber, getHexTrigrams,
+  ganzhiIndex, getKongWang, getStrength, getChangsheng, getShenSha,
   getLiuQin, getLiuShen, getHexName, getPalace,
   guaLines, changedLines, linesToTrigrams, getGuaShen, getShiShen,
 };

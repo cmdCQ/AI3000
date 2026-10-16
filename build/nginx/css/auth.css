@@ -1,3 +1,5 @@
+/* ⚠ 依赖 /css/tokens.css（玉青主色 + 暖金装饰）。
+   本文件原为硬编码旧金 #b8960a，已改为令牌引用。 */
 /* ═══════════════════════════════════════════
    易三千 · 登录/注册 — 极简白风 (moxin 灵感)
    ═══════════════════════════════════════════ */
@@ -5,7 +7,7 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 html, body {
-  background: #faf8f5;
+  background: var(--bg);
   color: #1a1a1a;
   font-family: "Noto Sans SC", "Public Sans", -apple-system, sans-serif;
   min-height: 100vh;
@@ -36,7 +38,7 @@ html, body {
 
 .auth-card .sub {
   font-size: 0.85rem;
-  color: #888;
+  color: var(--text-dim);
   margin-bottom: 1.8rem;
 }
 
@@ -45,7 +47,7 @@ html, body {
 .auth-form label {
   font-size: 0.78rem;
   font-weight: 500;
-  color: #333;
+  color: var(--text);
   margin-top: 0.3rem;
 }
 
@@ -58,19 +60,19 @@ html, body {
   font-family: inherit;
   color: #1a1a1a;
   background: transparent;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border);
   border-radius: 14px;
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .auth-form input:focus {
-  border-color: #d4c9b0;
-  box-shadow: 0 0 0 3px rgba(184,150,10,0.08);
+  border-color: var(--warm-line);
+  box-shadow: 0 0 0 3px var(--warm-wash);
 }
 
 .auth-form input::placeholder {
-  color: #bbb;
+  color: var(--text-muted);
   font-weight: 400;
 }
 
@@ -82,8 +84,8 @@ html, body {
   font-family: inherit;
   font-weight: 500;
   color: #fff;
-  background: #b8960a;
-  box-shadow: 0 2px 8px rgba(184,150,10,0.25);
+  background: var(--gold);
+  box-shadow: 0 2px 8px rgba(var(--gold-rgb),0.25);
   border: none;
   border-radius: 14px;
   cursor: pointer;
@@ -92,7 +94,7 @@ html, body {
 }
 
 .auth-btn:hover { opacity: 0.85; }
-.auth-btn:active { box-shadow: 0 2px 8px rgba(184,150,10,0.3); }
+.auth-btn:active { box-shadow: 0 2px 8px rgba(var(--gold-rgb),0.3); }
 
 .auth-btn:disabled {
   opacity: 0.4;
@@ -117,19 +119,19 @@ html, body {
 .sms-btn {
   flex-shrink: 0;
   padding: 0 1rem;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
   border-radius: 14px;
-  background: #faf8f5;
+  background: var(--bg);
   font-size: 0.82rem;
-  color: #333;
+  color: var(--text);
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.2s;
   font-family: inherit;
 }
 .sms-btn:hover:not(:disabled) {
-  background: #f5f5f5;
-  border-color: #999;
+  background: var(--bg-sunken);
+  border-color: var(--text-muted);
 }
 .sms-btn:disabled {
   opacity: 0.5;
@@ -139,33 +141,33 @@ html, body {
 .auth-link {
   text-align: center;
   font-size: 0.8rem;
-  color: #888;
+  color: var(--text-dim);
   margin-top: 1.2rem;
 }
 
 .auth-link a {
-  color: #b8960a;
+  color: var(--gold);
   text-decoration: none;
   font-weight: 500;
-  border-bottom: 1px solid rgba(184,150,10,0.3);
+  border-bottom: 1px solid var(--warm-line);
   transition: border-color 0.2s;
 }
 
 .auth-link a:hover {
-  border-bottom-color: #b8960a;
+  border-bottom-color: var(--warm-line);
 }
 
 .auth-back {
   display: block;
   text-align: center;
   font-size: 0.78rem;
-  color: #bbb;
+  color: var(--text-muted);
   text-decoration: none;
   margin-top: 1.2rem;
   transition: color 0.2s;
 }
 
-.auth-back:hover { color: #666; }
+.auth-back:hover { color: var(--text-dim); }
 
 /* ===== Responsive ===== */
 @media (max-width: 500px) {

@@ -121,6 +121,11 @@ services:
       - ai3000_nginx_certs:/etc/letsencrypt
       - /etc/letsencrypt:/host_letsencrypt:ro
       - /var/www/sqw.somtfly.com/build/nginx:/usr/share/nginx/html:ro
+      # 配置改为宿主机挂载（2026-10-16）：改完只要 `docker exec ai3000-nginx nginx -s reload`，
+      # 不再依赖 docker cp（容器一重建就丢，且镜像里烤进去的是带 cheak 拼写错误的旧版）。
+      - /var/www/sqw.somtfly.com/build/nginx/nginx-default.conf:/etc/nginx/conf.d/default.conf:ro
+      # billion-context 面板的 basic auth 凭据
+      - /etc/dsh-bili:/etc/nginx/dsh-bili:ro
     networks:
       - ai3000_net
     depends_on:

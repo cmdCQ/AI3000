@@ -19,7 +19,7 @@
     padding:1rem 1.05rem;
     background:#fff;
     border:1px solid #e8e3d8;
-    border-left:3px solid #b8960a;
+    border-left:3px solid var(--gold);
     border-radius:14px;
     box-shadow:0 1px 4px rgba(0,0,0,0.04);
     cursor:pointer;
@@ -32,7 +32,7 @@
     border-radius:50%;
     display:flex; align-items:center; justify-content:center;
     font-size:1.5rem; flex-shrink:0;
-    background:linear-gradient(135deg, rgba(184,150,10,0.1), transparent);
+    background:linear-gradient(135deg, var(--gold-wash), transparent);
     margin-right:0.8rem;
   }
 
@@ -63,11 +63,11 @@
     display:block; width:100%; padding:0.62rem;
     margin-top:1rem;
     font-size:0.85rem; font-family:inherit; font-weight:500;
-    color:#fff; background:#b8960a;
+    color:#fff; background:var(--gold);
     border:none; border-radius:14px; cursor:pointer;
     text-align:center; text-decoration:none;
     letter-spacing:0.04em;
-    box-shadow:0 2px 8px rgba(184,150,10,0.25);
+    box-shadow:0 2px 8px rgba(var(--gold-rgb),0.25);
     transition:opacity 0.2s;
   }
   .add-btn:hover { opacity:0.85; }
@@ -79,6 +79,7 @@
 
   .loading-msg { text-align:center; padding:2rem 0; color:#bbb; font-size:0.82rem; }
 </style>
+<link rel="stylesheet" href="/css/tokens.css">
 </head>
 <body>
 

@@ -12,6 +12,20 @@ const { Solar } = require('lunar-javascript');
 const config = require('./config.js');
 const chatProxy = require('./chat-proxy.js');
 const liuyaoPaipan = require('./paipan/liuyao.js');
+const meihuaPaipan = require('./paipan/meihua.js');
+const promptLib = require('./paipan/prompt.js');
+const baziFull = require('./paipan/bazi_full.js');
+const baziPromptLib = require('./paipan/bazi_prompt.js');
+// 八字解读的**产品输出层**（2026-09-25 用户拍板的新输出规格：命盘评分 + 8 模块）。
+// ⚠ 与 `bazi_prompt.js` 是两个东西，别互相替代：
+//   · `bazi_prompt.js` = shushu 的**逐字移植**（算法：ctx 变量表 + 五段正文），由
+//     `duipan/diff_bazi_prompt.py` 零申报把守 —— 改它一个字那一层就永久变红；
+//   · `bazi_report.js` = **文案**（怎么讲给用户听），由 `duipan/check_bazi_report.js` 把守。
+//   追问模板仍走 `baziPromptLib.baziFollowUpPrompt`（它不对拍，是产品自己的动作）。
+const baziReportLib = require('./paipan/bazi_report.js');
+const baziFortuneLib = require('./paipan/bazi_fortune.js');
+const ganzhiLib = require('./paipan/ganzhi.js');
+const paipanConst = require('./paipan/constants.js');
 
 // ===== 阿里云号码认证服务（PNVS）短信验证码 =====
 const DypnsapiClient = require('@alicloud/dypnsapi20170525').default;
@@ -243,15 +257,99 @@ const LOCKOUT_MS = 15 * 60 * 1000; // 15 min lockout
 const ADMIN_TOKEN_EXPIRY = 24 * 60 * 60 * 1000; // 24h
 const LLM_MODEL = 'deepseek-v4-flash';
 
+// 上游一次回答的 token 上限 —— **两条 AI 线共用这一个数**，不许各写各的。
+//
+// ⚠ 这个数不是「回答长度」。`deepseek-v4-flash` 默认**开着思考**（官方文档：思考模式
+// 默认打开、强度默认 high），思考先走 `reasoning_content`（用户看不见），而在本模型上
+// 实测**思考与正文共用这一个预算**：思考吃满就 `finish_reason='length'`，正文可能一个字
+// 都没有。原来的 3000 在难问题上几乎必翻车 —— 线上表现就是「HTTP 200 + 0 字节」空白回复
+// （见进度 10），而且**不抛错**，`catch` 抓不到。
+//
+// ⚠ 更正（2026-09-25）：我先前在这里写过「提到 8000 后同题实测正常出文」——
+// 那是**一次幸运的实测**，被我说成了结论。同一问题重复跑，8000 也出现过
+// 「思考 9863 字、正文 0 字」。真实的分布（都是真上游、同一条难问题）：
+//   · 上限 3000（不提 effort）：思考吃满 3000 → 正文 **0 字**
+//   · 上限 8000，不提 effort：正文 **0～3113 字**（不稳）
+//   · 上限 8000 + `reasoning_effort:'low'`：**3/3 都出了正文**（2698/2266/1511 字），
+//     但其中 2 次 `finish_reason='length'` —— 即**正文被截断**；每次约 40 秒、实收约 8000 token
+//
+// 官方文档（`api-docs.deepseek.com/zh-cn/guides/thinking_mode`）两条硬约束：
+//   ① `max_tokens` 默认 4096、**最大 8192** → 8000 已贴天花板，不能再靠调大腾地方；
+//   ② 思考模式下 `temperature` **不生效**（不报错也不起作用）—— 下面那个 0.7 在思考开着时
+//      其实没作用，留着是因为「关掉思考」那条路要用到它。
+//
+// 推论（得说清）：**思考开着时，「长解读不被截断」是做不到的** —— 思考与正文抢同一个
+// 8192 天花板。要「完整」就只能关思考（`thinking:{type:'disabled'}`：实测 9.5 秒、
+// 约 1900 token、`finish=stop`）。这是产品取舍，2026-09-25 用户选了「low」，
+// 故此处按「低强度思考」实现；「一个字都没出来」那种最坏情况由下面那句白话提示兜住。
+const LLM_MAX_TOKENS = 8000;
+
+// 思考强度。官方 OpenAI 格式下取值 `low/high/max`，默认 `high`。
+// ⚠ `'low'` 是**少想一点**，不是「不想」：实测思考仍有 6.7k～8.4k 字，难问题上照样顶到天花板。
+// （我另试过 `reasoning_effort:'none'` 与 `thinking:{type:'disabled'}`，两者都真能把思考
+//  关成 0 字；但 `'none'` 不在官方取值表里，属未文档化行为 —— 能不用就不用，免得哪天悄悄失效。）
+// 教训一条：参数被忽略是**不报错**的（我一度以为 `reasoning_effort:'low'` 无效，是因为
+// 拿小问题去试，思考本来就没多长；换到真业务的长问题才看出差别）。验参数必须用**真业务的输入**。
+const LLM_REASONING_EFFORT = 'low';
+
+// 八字那份长报告**关掉思考**（2026-09-25，与新输出规格一起来）。
+//
+// 为什么非关不可：新规格要求「命盘评分 + 8 个模块」，篇幅远超原来那段三段式。而
+// `LLM_MAX_TOKENS = 8000` 是**上游硬顶**（官方：最大 8192），**思考与正文共用这一个预算** ——
+// 上面那段实测分布里，`reasoning_effort:'low'` 时思考吃掉 6.7k～8.4k 字，正文只剩
+// 2266～2698 字，且 3 次里 2 次 `finish_reason='length'`。结论就是上面那句推论：
+// **「思考开着 + 长解读不被截断」做不到**。关掉思考后 8192 全给正文
+// （实测 9.5 秒 / 约 1900 token / `finish_reason='stop'`）—— 更快、更省、也不截断。
+//
+// 这是**产品取舍**，与「全局思考强度 low」不冲突：那条管聊天与追问（短问答，思考有助于
+// 质量），这条只管那份结构化长报告。故在调用处按 `!followUp` 挑，不是全局改。
+//
+// ⚠ 关掉思考后 `temperature` **才真正生效**（官方：思考模式下 temperature 不生效 ——
+//   原来那个 0.7 在思考开着时其实没作用）。所以这条线必须显式给一个温度：
+//   同一份盘面应当给出同一个分数，取低值更稳，配合 system 里的「打分口径」一节。
+const BAZI_REPORT_TEMPERATURE = 0.3;
+
+// 上游「一个字正文都没出」时给用户看的话。白话、不解释内部原因、给一个可做的动作。
+// 它**不算一次解析**（不落库、不记账）—— 判据是 `fullText` 有没有内容，
+// 这段提示是写给用户的，不是写进 `fullText` 的。
+const EMPTY_UPSTREAM_NOTICE = '抱歉，这次没能生成出内容。请再点一次；'
+  + '如果还是不行，就把问题问得更具体一点（比如具体问哪一年、哪一方面）。';
+
+/**
+ * 记账尾巴。**全站唯一一份**（`/api/chat/send` 与八字那条线各自拼过一次，是同一个
+ * 字符串 —— 两处各写一遍，改一处就会有一处漏）。
+ *
+ * 2026-09-25 用户拍板：「现在系统是 token 消耗制的，把这个改称积分」。
+ * 于是**只改用户看得见的标签**，底下的记账口径不动（仍然是上游回的真 token 数，
+ * `users.token_used` 也照旧累加）—— 改的是叫法，不是算法。
+ *
+ * ⚠ 前端按 `'\n消耗积分：'` 切正文（`ai_panel.js::AI_POINTS_MARKS`），
+ *   动这一行的**格式**会连着前端一起坏；老记录里存的是旧字「消耗 Token：」，
+ *   前端两个标记都认，故这里不需要数据迁移。
+ */
+const POINTS_LABEL = '消耗积分：';
+function pointsTrailer(inputTokens, outputTokens, totalTokens, remainText) {
+  return '\n\n---\n' + POINTS_LABEL + '输入 ' + inputTokens + ' + 输出 ' + outputTokens
+    + ' = ' + totalTokens + ' ｜ 剩余：' + remainText;
+}
+
+// 后台「提示词管理」页面里逐个模板展示的**默认值**，也必须是运行时的真实回落。
+//
+// ⚠ 这里曾经是一份**与运行时无关**的副本：本表里放着 8 条短模板（其中
+// `liuyao_prompt` 甚至写着「……（可复制现有完整模板，变量用 {{变量名}} 替换）」
+// 这种占位句），而 `buildLiuyaoPrompt()` 的回落读的是 `paipan/prompt.js` 里
+// 另一份长模板。于是后台页面上「默认值」显示的和线上真正跑的**是两个东西** ——
+// 管理员照着它改、以为改的是默认，其实连默认长什么样都没看到。
+// 现在一律指向 paipan/prompt.js 的常量：一处定义，后台与运行时同一个值。
 const DEFAULT_PROMPTS = {
   mhys_system: '你是梅花易数解卦师。回答顺序固定为：参考古籍→回答答案→你的现状→解卦逻辑。先给结果，再讲现状，最后解释依据。回答清晰、理性、简洁，避免绝对化断语，多用"可能""倾向"。',
-  mhys_prompt: '以下是一组梅花易数排盘数据。\n\n【求测事项】{{topic}}\n\n【卦象】\n本卦：{{benGuaUpper}}上{{benGuaLower}}下 → {{benGuaName}}\n互卦：{{huGuaUpper}}上{{huGuaLower}}下 → {{huGuaName}}\n变卦：{{bianGuaUpper}}上{{bianGuaLower}}下 → {{bianGuaName}}\n错卦：{{cuoGuaUpper}}上{{cuoGuaLower}}下 → {{cuoGuaName}}\n综卦：{{zongGuaUpper}}上{{zongGuaLower}}下 → {{zongGuaName}}\n\n【体用】体卦：{{tiName}}（{{tiElement}}）｜用卦：{{yongName}}（{{yongElement}}）\n生克：{{tiyongVerdict}} — {{tiyongDesc}}\n动爻：{{movingYao}}\n\n请按三段回复，每段以"---"分隔：\n\n【一、回答】大白话直接说结论（吉/凶/平/转机），结合变卦判断走向。不含卦象推导术语。\n\n【二、现状】用本卦说当前状况，用互卦点隐藏变数。也说大白话，不出现卦象推导。\n\n【三、解卦思路】推演：本卦定大局→互卦析过程→变卦断结局，错综对照。说明体用生克影响。可含卦象术语。末尾提醒卦象非绝对。\n\n避免绝对化断语（"必死""大吉"等），多用"可能""倾向"。语气干脆老练。用**加粗**标结论重点（会显示金色），###子标题适度。\n\n{{ragContext}}\n\n【四、补充】末尾引导用户补充背景："如有更多具体情况可补充，方便做更细致解读"——语气自然，单独一段。',
-  mhys_notopic: '你是一位梅花易数解卦师。用户还没说问什么事，请用一句话简短询问。',
-  mhys_followup: '针对「{{topic}}」的追问：\n\n【之前解读】{{context}}\n\n【追问】{{followUp}}\n\n请直接回答追问，不重复完整分析。结构：\n【一、回答】——结论和建议，不用卦象术语。\n【二、思路】（可选）——一两句推演依据。',
+  mhys_prompt: promptLib.DEFAULT_MHYS_PROMPT,
+  mhys_notopic: promptLib.DEFAULT_MHYS_NOTOPIC,
+  mhys_followup: promptLib.DEFAULT_MHYS_FOLLOWUP,
   liuyao_system: '你是六爻纳甲解卦师。断卦必须严格遵循七层标准流程：①定用神（据事项性别取六亲）→②看世应（世为己应为人，分人我吉凶）→③察日月（日主月提定旺衰，爻不敌日月）→④辨动爻（动为变化之机，独发力量最大）→⑤析生克（元神生用则吉，忌神克用则凶，贪生贪合可忘克）→⑥审空亡月破（辨真空假空，空忌吉空用凶）→⑦推应期（出空填实、冲墓冲合、生旺墓绝）。输出分三块：结论（直说吉凶，人话）→现状（世应六神说当下）→推演（七层逐步展开，引具体爻位六亲六神，含应期判断）。避免绝对断语，多用可能/倾向。用**加粗**标重点。',
-  liuyao_prompt: '以下是一组六爻排盘数据。请严格按照六爻断卦标准流程逐层分析。\n\n【求测事项】{{topic}}\n【求测者性别】{{gender}}\n\n【卦象】\n本卦：{{benGuaUpper}}上{{benGuaLower}}下 → {{benGuaName}}\n变卦：{{bianGuaUpper}}上{{bianGuaLower}}下 → {{bianGuaName}}\n\n══════ 断卦方法论（必须逐层执行） ══════\n\n【第一层·定用神】根据求测事项和性别确定用神……（可复制现有完整模板，变量用 {{变量名}} 替换）\n\n请严格按以下结构回复，每段以"---"分隔：\n\n【一、结论】直接说吉凶结论，1-2句话。结合用神旺衰与忌神动否。大白话。\n\n【二、现状分析】描述当前状况：世应关系、六神氛围、爻位事态阶段。不出现推导。\n\n【三、解卦推演】按七层方法论逐步推演，引用具体爻位六亲六神，含应期判断。可含术语。\n\n用**加粗**标重点。避免绝对化断语。\n\n{{ragContext}}\n\n【补充引导】末尾引导用户补充背景。',
-  liuyao_notopic: '你是一位六爻纳甲解卦师。用户还没说问什么事，请先回应排盘数据（本卦变卦名+世应位置），然后用一句话询问求测事项。',
-  liuyao_followup: '针对「{{topic}}」的追问：\n\n【之前解读】{{context}}\n\n【追问】{{followUp}}\n\n直接回答追问，不重复完整七层分析。聚焦追问涉及的层面。结构：\n【回答】——结论和建议，不用卦象术语。\n【依据】——简短推演依据（1-3句，引用原卦爻位）。',
+  liuyao_prompt: promptLib.DEFAULT_LIUYAO_PROMPT,
+  liuyao_notopic: promptLib.DEFAULT_LIUYAO_NOTOPIC,
+  liuyao_followup: promptLib.DEFAULT_LIUYAO_FOLLOWUP,
 };
 
 // ===== JWT =====
@@ -1150,6 +1248,43 @@ async function handle(req, res) {
     }
   }
 
+  // GET /api/bazi-analyses — 命盘的解析记录（**只读**，每方面可能有多条：旧版保留、不覆盖）
+  //
+  // 与六爻/梅花的 `*-records` 不一样，这里**没有** POST/PATCH/DELETE：
+  // 八字的解读由解读端点自己写库（`streamBaziParse` 跑完调 `saveBaziAnalysis`），
+  // 再加一套写入口就会变成「两处都能写、出事说不清谁写的」。所以只给读。
+  //
+  // 为什么单独需要它：六爻/梅花把解读存进**排盘记录那一行**（一个记录一条解读），
+  // 而八字的产品规则是「**每方面一条 + 旧版可展开**」——同一方面解过多次就得多行并存，
+  // 故前端要能按 `chartId` 把这批行取回来自己分组。
+  //
+  // 参数：`?chartId=xxx` 只看某一副命盘；不传则是这个用户的全部（「我的命盘」列表要用）。
+  // 返回**新到旧**。游客没有记录（他不落库），故未登录直接 401，与 `/api/charts` 一致。
+  if (req.method === 'GET' && pathname === '/api/bazi-analyses') {
+    const payload = checkAuth(req);
+    if (!payload) return json(res, { error: '请先登录' }, 401);
+    const chartId = url.searchParams.get('chartId') || '';
+    try {
+      const [rows] = chartId
+        ? await db.query('SELECT id, chart_id, aspect, question, analysis, created_at FROM bazi_analyses'
+          + ' WHERE user_id = ? AND chart_id = ? ORDER BY created_at DESC LIMIT 200',
+          [payload.username, chartId])
+        : await db.query('SELECT id, chart_id, aspect, question, analysis, created_at FROM bazi_analyses'
+          + ' WHERE user_id = ? ORDER BY created_at DESC LIMIT 200', [payload.username]);
+      return json(res, rows.map(r => ({
+        id: r.id,
+        chartId: r.chart_id,
+        aspect: r.aspect,
+        question: r.question,
+        analysis: r.analysis,
+        createdAt: r.created_at,
+      })));
+    } catch (e) {
+      console.error('Bazi analyses list error:', e);
+      return json(res, { error: '数据库错误' }, 500);
+    }
+  }
+
   // GET /api/admin/mhys-records — 管理员查看所有排盘记录
   if (req.method === 'GET' && pathname === '/api/admin/mhys-records') {
     const payload = checkAuth(req);
@@ -1220,235 +1355,6 @@ async function handle(req, res) {
     }
   }
 
-  // ===== 梅花易数 AI 解析 API（流式） =====
-  // POST /api/mhys/ai-analyze — AI智能解卦（SSE流式 + RAG检索）
-  if (req.method === 'POST' && pathname === '/api/mhys/ai-analyze') {
-    const { topic, hexagrams, followUp, context, recordId } = body;
-    if (!hexagrams) return json(res, { error: '缺少必要参数' }, 400);
-
-    // Token 限制检查（已登录用户）
-    const payload = checkAuth(req);
-    const username = payload ? payload.username : null;
-    if (username) {
-      try {
-        const [rows] = await db.query('SELECT token_used, tier FROM users WHERE username = ?', [username]);
-        if (rows.length > 0) {
-          const tier = rows[0].tier || 0;
-          const limit = getTokenLimit(tier);
-          if (limit !== null && rows[0].token_used >= limit) {
-            res.writeHead(200, {
-              'Content-Type': 'text/plain; charset=utf-8',
-              'Cache-Control': 'no-cache',
-            });
-            res.write('抱歉，你的AI解析次数已用完。');
-            res.write('如需继续使用，请联系管理员升级账户。');
-            res.end();
-            return;
-          }
-        }
-      } catch (e) { /* 数据库错误不阻塞 */ }
-    }
-
-    // RAG 检索：搜索 meihua + yijing 分类
-    let ragContext = '';
-    let ragSources = [];
-    try {
-      const searchQuery = topic || (hexagrams.benGua ? hexagrams.benGua.name + '卦' : '梅花易数解卦');
-      const ragRes = await fetch(`${RAG_URL}/api/retrieve`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: searchQuery, top_k: 15, categories: ['meihua', 'yijing'], similarity_threshold: 0.3 }),
-        signal: AbortSignal.timeout(30000),
-      });
-      const ragData = await ragRes.json();
-      if (ragData.results && ragData.results.length > 0) {
-        // 去重书籍名，取不同书的前3本
-        const seenBooks = new Set();
-        const diverseResults = [];
-        for (const r of ragData.results) {
-          if (!seenBooks.has(r.book_name)) {
-            seenBooks.add(r.book_name);
-            diverseResults.push(r);
-          }
-        }
-        const top3 = diverseResults.slice(0, 3);
-        ragContext = top3.map((r, i) => `【古籍 ${i + 1}】《${r.book_name}》${r.chapter ? ' - ' + r.chapter : ''}\n${r.text}`).join('\n\n');
-        ragSources = top3.map(r => r.book_name);
-      }
-    } catch (e) { console.error('RAG retrieve error:', e.message); }
-
-    const prompt = followUp
-      ? (topic ? buildFollowUpPrompt(topic, followUp, context, hexagrams) : buildMhysPrompt(followUp, hexagrams))
-      : buildMhysPrompt(topic, hexagrams, ragContext);
-
-    res.writeHead(200, {
-      'Content-Type': 'text/event-stream; charset=utf-8',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-      'X-Accel-Buffering': 'no',
-      'X-Rag-Sources': ragSources.length > 0 ? encodeURIComponent(ragSources.join('|')) : '',
-    });
-
-    try {
-      // 先估算输入 token
-      const inputTokens = estimateTokens(prompt);
-      const outputText = await streamDeepSeek(prompt, res, username ? 0 : 1200, req);
-      // 流完成后计数 token 并更新（即使用户已断开也继续执行）
-      if (outputText && username) {
-        const outputTokens = estimateTokens(outputText);
-        const totalTokens = inputTokens + outputTokens;
-        try {
-          await db.query('UPDATE users SET token_used = token_used + ? WHERE username = ?', [totalTokens, username]);
-          const [updated] = await db.query('SELECT token_used, tier FROM users WHERE username = ?', [username]);
-          if (updated.length > 0) {
-            var used = updated[0].token_used;
-            var limit = getTokenLimit(updated[0].tier || 0);
-            var remainText = limit === null ? '无限' : (limit - used).toLocaleString();
-            res.write('\n\n---\n消耗 Token：输入 ' + inputTokens + ' + 输出 ' + outputTokens + ' = ' + totalTokens + ' ｜ 剩余：' + remainText);
-          }
-        } catch (e) { /* 静默失败 */ }
-      }
-
-      // 后台自动保存到排盘记录（即使用户已断开页面）
-      if (outputText && recordId) {
-        let analysisText = outputText;
-        const tokenIdx = analysisText.lastIndexOf('\n消耗 Token：');
-        if (tokenIdx > 0) analysisText = analysisText.substring(0, tokenIdx).trim();
-        try {
-          await db.query('UPDATE mhys_records SET ai_analysis = ? WHERE id = ?', [analysisText, recordId]);
-        } catch (e) { console.error('Mhys auto-save error:', e); }
-      }
-      res.end();
-    } catch (e) {
-      console.error('Mhys AI stream error:', e.message);
-      if (!res.writableEnded) {
-        try { res.write('data: [ERROR] 解卦中断，请稍后重试\n\n'); } catch {}
-        try { res.end(); } catch {}
-      }
-    }
-    return;
-  }
-
-  // POST /api/liuyao/ai-analyze — 六爻AI智能解卦（SSE流式 + RAG检索）
-  if (req.method === 'POST' && pathname === '/api/liuyao/ai-analyze') {
-    const { topic, hexagrams, followUp, context, recordId, lunarInfo } = body;
-    if (!hexagrams) return json(res, { error: '缺少必要参数' }, 400);
-
-    const payload = checkAuth(req);
-    const username = payload ? payload.username : null;
-    if (username) {
-      try {
-        const [rows] = await db.query('SELECT token_used, tier FROM users WHERE username = ?', [username]);
-        if (rows.length > 0) {
-          const tier = rows[0].tier || 0;
-          const limit = getTokenLimit(tier);
-          if (limit !== null && rows[0].token_used >= limit) {
-            res.writeHead(200, {
-              'Content-Type': 'text/plain; charset=utf-8',
-              'Cache-Control': 'no-cache',
-            });
-            res.write('抱歉，你的AI解析次数已用完。');
-            res.write('如需继续使用，请联系管理员升级账户。');
-            res.end();
-            return;
-          }
-        }
-      } catch (e) { /* 静默 */ }
-    }
-
-    // RAG 检索：使用 liuyao + yijing 分类，多维度检索
-    let ragContext = '';
-    let ragSources = [];
-    try {
-      const benGuaName = hexagrams.benGua ? hexagrams.benGua.name : '';
-      // 构建结构化检索查询：融合卦名+事项+断卦方法论关键要素
-      const searchQueries = [
-        topic ? (topic + ' ' + benGuaName) : (benGuaName || '六爻解卦'),
-        benGuaName + ' 用神 世应 动爻 六亲',
-        benGuaName + ' 空亡 月破 应期 生克',
-      ];
-      const allResults = [];
-      for (const q of searchQueries.slice(0, 2)) {  // 取前2个查询，避免太多
-        const ragRes = await fetch(`${RAG_URL}/api/retrieve`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: q, top_k: 3, categories: ['liuyao', 'yijing'], similarity_threshold: 0.3 }),
-          signal: AbortSignal.timeout(30000),
-        });
-        const ragData = await ragRes.json();
-        if (ragData.results) allResults.push(...ragData.results);
-      }
-      // 去重并按分数排序
-      const seen = new Set();
-      const unique = [];
-      allResults.sort((a, b) => b.score - a.score);
-      for (const r of allResults) {
-        const key = r.text.slice(0, 60);
-        if (!seen.has(key)) { seen.add(key); unique.push(r); }
-      }
-      const topResults = unique.slice(0, 3);
-      if (topResults.length > 0) {
-        ragContext = topResults.map((r, i) => `【古籍 ${i + 1}】《${r.book_name}》${r.chapter ? ' - ' + r.chapter : ''}
-${r.text}`).join('\n\n');
-        const seenBooks = new Set();
-        ragSources = topResults.filter(r => { const k = r.book_name; return seenBooks.has(k) ? false : seenBooks.add(k); }).map(r => r.book_name);
-      }
-    } catch (e) { console.error('Liuyao RAG error:', e.message); }
-
-    const prompt = followUp
-      ? (topic ? buildLiuyaoFollowUpPrompt(topic, followUp, context, hexagrams, lunarInfo) : buildLiuyaoPrompt(followUp, hexagrams, '', lunarInfo))
-      : buildLiuyaoPrompt(topic, hexagrams, ragContext, lunarInfo);
-
-    res.writeHead(200, {
-      'Content-Type': 'text/event-stream; charset=utf-8',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-      'X-Accel-Buffering': 'no',
-      'X-Rag-Sources': ragSources.length > 0 ? encodeURIComponent(ragSources.join('|')) : '',
-    });
-
-    try {
-      // 先估算输入 token
-      const inputTokens = estimateTokens(prompt);
-      const outputText = await streamDeepSeekLiuyao(prompt, res, username ? 0 : 1200, req);
-      // 流完成后计数 token 并更新（即使用户已断开也继续执行）
-      if (outputText && username) {
-        const outputTokens = estimateTokens(outputText);
-        const totalTokens = inputTokens + outputTokens;
-        try {
-          await db.query('UPDATE users SET token_used = token_used + ? WHERE username = ?', [totalTokens, username]);
-          const [updated] = await db.query('SELECT token_used, tier FROM users WHERE username = ?', [username]);
-          if (updated.length > 0) {
-            var used = updated[0].token_used;
-            var limit = getTokenLimit(updated[0].tier || 0);
-            var remainText = limit === null ? '无限' : (limit - used).toLocaleString();
-            res.write('\n\n---\n消耗 Token：输入 ' + inputTokens + ' + 输出 ' + outputTokens + ' = ' + totalTokens + ' ｜ 剩余：' + remainText);
-          }
-        } catch (e) { /* 静默 */ }
-      }
-
-      // 后台自动保存到排盘记录（即使用户已断开页面）
-      if (outputText && recordId) {
-        let analysisText = outputText;
-        const tokenIdx = analysisText.lastIndexOf('\n消耗 Token：');
-        if (tokenIdx > 0) analysisText = analysisText.substring(0, tokenIdx).trim();
-        try {
-          await db.query('UPDATE liuyao_records SET ai_analysis = ? WHERE id = ?', [analysisText, recordId]);
-        } catch (e) { console.error('Liuyao auto-save error:', e); }
-      }
-      res.end();
-    } catch (e) {
-      console.error('Liuyao AI stream error:', e.message);
-      if (!res.writableEnded) {
-        try { res.write('data: [ERROR] 解卦中断，请稍后重试\n\n'); } catch {}
-        try { res.end(); } catch {}
-      }
-    }
-    return;
-  }
-
-  // ===== 用户 Token 用量 API =====
-  // GET /api/user/tokens — 获取当前用户的 token 用量
   if (req.method === 'GET' && pathname === '/api/user/tokens') {
     const payload = checkAuth(req);
     if (!payload) return json(res, { error: '请先登录' }, 401);
@@ -1643,7 +1549,10 @@ ${r.text}`).join('\n\n');
     const key = pathname.split('/').pop();
     var custom = readPrompts();
     custom[key] = body.value || '';
-    writePrompts(custom);
+    // 写盘失败必须回 500：原先是「写完就 ok」，磁盘/权限一出问题
+    // 管理员看到「已保存」，站点却仍旧跑默认模板 —— 静默失败最难查。
+    const err = writePrompts(custom);
+    if (err) return json(res, { error: '保存失败：' + err }, 500);
     return json(res, { ok: true, key: key });
   }
 
@@ -1654,7 +1563,8 @@ ${r.text}`).join('\n\n');
     const key = pathname.split('/').pop();
     var custom = readPrompts();
     delete custom[key];
-    writePrompts(custom);
+    const err2 = writePrompts(custom);
+    if (err2) return json(res, { error: '重置失败：' + err2 }, 500);
     return json(res, { ok: true, key: key });
   }
 
@@ -2045,6 +1955,247 @@ ${r.text}`).join('\n\n');
     }
   }
 
+  // ══════ 排盘端点（前端只渲染，不自己算）══════
+  //
+  // 前端从此**不再自己装卦/断卦**：把起卦原始数据（卦号、动爻、起卦时刻）发上来，
+  // 后端用对拍过的 `paipan/` 算完整盘面返回。这样前端与 AI 看到的必然是同一个卦 ——
+  // 原先前端算一份、后端算一份，两边一漂移用户分辨不出来（都是「一个卦」）。
+  //
+  // 匿名可用（排盘不花 token），也**未加频率限制**：这两个端点是纯计算，无 I/O、
+  // 无 LLM、毫秒级返回。本站其余 API 也都没有站点级限流，只给这两个新端点单独加
+  // 一个「看起来更严」的限制并不解决问题，只是把不一致藏起来 —— 要限流应当是对
+  // 全站（或至少 nginx 层）一次做掉的事。
+  // ── GET /api/now/gz — 当前时刻的干支与农历 ──
+  //
+  // 首页那条「当下」细条要显示此刻的四柱与农历。为什么不在前端算：
+  // 农历/干支换年换月换日有三套边界口径（立春时刻换年、交节时刻换月、晚子时换日），
+  // 这是本项目最痛的病根 ——「两边各算一份、慢慢对不上」。故一律走后端这一份
+  // `ganzhi.js`，与八字/六爻/梅花排盘用的是同一次实现。
+  //
+  // 纯计算、无副作用、不花 token，故匿名可用。响应很小，允许短暂缓存（同一分钟内
+  // 结果不变），避免首页每次刷新都打一次后端。
+  if (req.method === 'GET' && pathname === '/api/now/gz') {
+    try {
+      const now = new Date();
+      const t = ganzhiLib.sizhu(now);
+      const lunar = (() => { try { return ganzhiLib.lunarText(now); } catch (e) { return ''; } })();
+      const pad2 = n => String(n).padStart(2, '0');
+      return json(res, {
+        solar: `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())} `
+             + `${pad2(now.getHours())}:${pad2(now.getMinutes())}`,
+        lunar,
+        year_gz: t.year_gz, month_gz: t.month_gz, day_gz: t.day_gz, hour_gz: t.hour_gz,
+        hour_zhi: t.hour_zhi,
+        hour_name: t.hour_name || '',
+      });
+    } catch (e) {
+      return json(res, { error: '取当前干支失败：' + e.message }, 500);
+    }
+  }
+
+  if (req.method === 'POST' && (pathname === '/api/meihua/paipan' || pathname === '/api/liuyao/paipan')) {
+    const card = body || {};
+    try {
+      if (pathname === '/api/meihua/paipan') {
+        // 两种入参，一条出口：
+        //   · **起卦原始参数** —— 目标形态，卦由后端起（字占只能走这条，笔画表在
+        //     前端不存在；「加时辰」也才会用提交上来的时刻而不是真实时钟）。
+        //   · 老形态的 cardData（带 `hexagrams`）—— 历史档/AI 对话那条路仍在用，
+        //     只取卦号、其余重算。两条路都汇到 `prompt.js` 那一份断卦与那一份文本，
+        //     故端点给前端渲染的盘与 prompt 给 AI 读的盘不可能分叉。
+        //
+        // **判据是 `hexagrams` 而不是 `method`**：老 cardData 里也有一个 `method`
+        // 字段（起卦法的展示名），拿它做判据会把老入参误当新入参 —— 那种误判不会
+        // 报错，它会**静默地按服务器当前时刻重新起一卦**，于是同一份记录渲染出
+        // 另一个卦。（`duipan/smoke_paipan_endpoints.js` 就是这么抓到的。）
+        const useRaw = !!card && !card.hexagrams && !!card.method;
+        const raw = useRaw
+          ? promptLib.meihuaChartFromParams(card)
+          : promptLib.meihuaChartFromCard(card);
+        if (!raw.ok) return json(res, { error: raw.reason }, 400);
+        const q = raw.qigua || (raw.paipan && raw.paipan.qigua) || null;
+        return json(res, {
+          paipan: raw.paipan,
+          sizhu: raw.sizhu,
+          // 起卦结果（上/下卦号、动爻、取数过程）：前端渲染用，
+          // 与 AI 收到的排盘正文出自**同一次**起卦。
+          qigua: q,
+          text: promptLib.meihuaBlock(raw.paipan),
+        });
+      }
+      // 走 `prompt.js` 里那一个装卦出口 —— 端点给前端渲染的盘与 prompt 给 AI 读的
+      // 盘必须是同一次装卦的结果，两处各写一遍 `buildChart` 迟早分叉。
+      const built = promptLib.liuyaoChartFromCard(card, card.topic || '');
+      if (!built.chart) {
+        return json(res, { error: '装卦失败：拿不到本卦上下卦号' }, 400);
+      }
+      // `chart` 给前端分层渲染，`text` 与 AI 收到的排盘正文**逐字相同** ——
+      // 用户看到的盘面与 AI 读到的盘面必须是同一份，否则解读对不上画面。
+      //
+      // `display` 是**盘面显示专用的补充项**（农历、节气区间、四柱旬空、神煞、
+      // 变卦整列纳甲）：放在后端算是因为全是历法/术数口径，前端再算一份就是
+      // 又一处漂移源。它**不进** `text`，故 AI 读到的那一段逐字未变。
+      return json(res, {
+        chart: built.chart, sizhu: built.sizhu,
+        display: liuyaoPaipan.displayMeta(card, built.chart),
+        text: liuyaoPaipan.formatChart(built.chart),
+      });
+    } catch (e) {
+      return json(res, { error: '排盘失败：' + e.message }, 400);
+    }
+  }
+
+  // ── POST /api/bazi/paipan — 八字排盘（四柱/十神/藏干/纳音/神煞/格局/用神/大运…）──
+  //
+  // 与上面两个排盘端点同一约定：前端只发**出生原始参数**（公历年月日时分 + 性别），
+  // 盘由后端用对拍过的 `paipan/` 现算。前端从此不再自己排一份 —— 改造前
+  // `charts/index.html` 与 `my-charts/index.html` **各有一份** `calcBazi`，加上
+  // 写库时的快照，同一件事三处实现；「两边各算一份、慢慢对不上」正是本项目最痛的病。
+  //
+  // `text` = **AI 将读到的用户消息**（`paipan/bazi_report.js` 的 `baziReportPrompt`
+  // 渲染出来的，与解读端点 `/api/bazi/parse` 喂给 AI 的那一段出自**同一个函数**，
+  // 故不可能分叉 —— 2026-09-25 换新输出规格时这里也跟着换了，两处必须同进同退）。
+  // 此处**不含【古籍参考】**：检索要用用户提问，只有解读端点那一侧拿得到。
+  // （system 消息另外一段，同样在 `bazi_report.js`：`baziReportSystem()`。）
+  //
+  // 匿名可用（纯计算，不花 token），理由与上面两个端点同 —— 见那一段注释。
+  if (req.method === 'POST' && pathname === '/api/bazi/paipan') {
+    try {
+      const built = baziChartFromParams(body || {});
+      if (!built.ok) return json(res, { error: built.reason }, 400);
+      return json(res, {
+        chart: built.chart, sizhu: built.sizhu,
+        display: built.display, text: built.text,
+      });
+    } catch (e) {
+      return json(res, { error: '排盘失败：' + e.message }, 400);
+    }
+  }
+
+  // ── POST /api/bazi/parse — 八字解读（流式）──
+  //
+  // 请求体与 `/api/bazi/paipan` 同一个形状（**出生原始参数** + `tab` + `question`），
+  // 盘同样由后端现算 —— 「用户看到的盘」与「AI 读到的盘」出自同一份，不可能对不上。
+  //
+  // 与 `/api/chat/send` 的区别只有闸门：那一处匿名一律 401，这里**游客可以先解一次**
+  // （否则「引导登录」就无从谈起）。规则（2026-09-25 拍板）：
+  //   · 游客：**只能解一次**（服务端签名 cookie 记）+ 不许解**综合**（综合要通盘看，
+  //     篇幅最长、最贵，也正是最该引导登录的那一个）+ 同 IP 一天有总上限。
+  //   · 登录用户：与聊天同一条额度（token 用量照记），解读**存进解析记录**
+  //     （`bazi_analyses`，每方面一条 + 旧版保留）。**游客不落库**。
+  //
+  // ── 追问（2026-09-25 拍板：「要，但追问不落库」）──
+  // `followUp` 非空 = **这一次是追问**：接着上面那份解读往下问的一句话。
+  // 它是这条端点的第二个入口 —— `/api/chat/send` 只认 mhys / liuyao 两种 cardType，
+  // 八字在那儿没有分支，故追问也回到这里来。
+  // 一个入参管三件事（都是「这是一次追问」的直接后果）：
+  //   ① 换提示词 —— 追问模板，只答这一问，**不重来一遍完整分析**；
+  //   ② 换上下文 —— 带上刚才那份解读的正文（用户问「那…呢」，指的就是它）；
+  //   ③ **不落库** —— 追问不是一份独立解读，存进去会把「每方面一条」变成
+  //      「每方面一条 + 一堆追问碎片」。
+  // 三件事共用一个判据是**故意的**：少一个能配错的旋钮，客户端也没法把追问塞进记录里。
+  // 其余一概照旧：照样排盘、照样计 token、照样受闸门管（**追问不豁免游客那道闸**）。
+  //
+  // ⚠ `question` 是另一回事，别拿它当追问的判据：那是**首次解读**时的补充提问
+  //   （进 `{{question}}` 与检索词），首次带提问是正常用法（冒烟 ① 就是这一格）。
+  //
+  // 「算不算用掉一次」的判据与前端一致：**解读真跑完、用户真看到了才算**
+  // （客户端中途断开时 `streamBaziParse` 不调 `onFinish`）。
+  if (req.method === 'POST' && pathname === '/api/bazi/parse') {
+    const card = body || {};
+    let built;
+    try {
+      built = baziChartFromParams(card);
+    } catch (e) {
+      return json(res, { error: '排盘失败：' + e.message }, 400);
+    }
+    if (!built.ok) return json(res, { error: built.reason }, 400);
+
+    const asked = String(card.tab || '');
+    const aspect = BAZI_ASPECTS.indexOf(asked) >= 0 ? asked : '综合';
+    // 这一次是不是追问（见端点开头那段说明）。`question` 是首次解读的补充提问，两回事。
+    const followUp = String(card.followUp || '').trim();
+    const payload = checkAuth(req);
+    const username = payload ? payload.username : null;
+
+    let guest = null;
+    if (username) {
+      // 与 /api/chat/send 同一道额度闸（那边额满时也是回一句明说的正文，不是错误码）
+      try {
+        const [rows] = await db.query('SELECT token_used, tier FROM users WHERE username = ?', [username]);
+        if (rows.length > 0) {
+          const limit = getTokenLimit(rows[0].tier || 0);
+          if (limit !== null && rows[0].token_used >= limit) {
+            res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache' });
+            res.write('抱歉，你的AI解析次数已用完。\n如需继续使用，请联系管理员升级账户。');
+            res.end();
+            return;
+          }
+        }
+      } catch (e) { /* 静默，与聊天一致 */ }
+    } else {
+      if (aspect === '综合') {
+        return json(res, {
+          error: '游客可以先免费解析一个方面；「综合」要通盘看，登录后即可使用',
+          needLogin: true,
+        }, 403);
+      }
+      guest = await guestGate(req, res);
+      if (!guest.ok) return json(res, { error: guest.error, needLogin: true }, guest.status);
+    }
+
+    // 追问不检索古籍：`{{context}}` 里那份解读**当初就是带着古籍生成的**，再检索一遍
+    // 只会把同一批段落塞第二遍。梅花/六爻的追问也都是 `ragContext = ''`（同一条约定）。
+    // ⚠ 首次解读与追问**用两套提示词、两套 system**（2026-09-25 新输出规格起）：
+    //   首次 → `bazi_report.js`（命盘评分 + 8 模块）；
+    //   追问 → 仍是 `bazi_prompt.js` 的追问模板 + 自己的 system。
+    //   若追问也吃那份「8 个模块」的规格，用户问一句「那 2027 年呢」就会**重出一整套评分表**。
+    const userPrompt = followUp
+      ? baziPromptLib.baziFollowUpPrompt(built.chart, {
+        tab: aspect, followUp, context: card.context,
+      })
+      : baziReportLib.baziReportPrompt(built.chart, {
+        tab: aspect,
+        question: card.question || '',
+        ragText: await baziRagContext(built.chart, aspect, card.question),
+        currentYear: built.thisYear,
+      });
+
+    try {
+      await streamBaziParse(res, {
+        // 追问那一份 system 只是「只答这一问、别重出报告」，不是那份 8 模块规格。
+        systemPrompt: followUp
+          ? baziReportLib.baziReportFollowUpSystem()
+          : baziReportLib.baziReportSystem(),
+        // 首次（长报告）关思考以免正文被挤到截断；追问（短问答）照旧开低强度思考。
+        noThinking: !followUp,
+        userPrompt,
+        username,
+        onFinish: async ({ fullText }) => {
+          if (username) {
+            // 追问不落库 —— 只跳过这一步，额度照记（见端点开头那段说明）
+            if (!followUp) {
+              try {
+                await saveBaziAnalysis({
+                  username, chartId: card.chartId, aspect,
+                  question: card.question, analysis: fullText,
+                });
+              } catch (e) { console.error('[bazi] 存解析记录失败:', e.message); }
+            }
+          } else if (guest) {
+            await guestRecord(guest.anonId, guest.ip);
+          }
+        },
+      });
+    } catch (e) {
+      // 走到这里通常是「上游连不上」——响应可能已经开始写了，故只在没写时补一句
+      console.error('[bazi] 解读失败:', e && e.message);
+      if (!res.headersSent) return json(res, { error: '解读失败：' + e.message }, 500);
+      if (!res.writableEnded) { try { res.end(); } catch (e2) { /* 已断开 */ } }
+    }
+    return;
+  }
+
   // POST /api/chat/send — AI 对话（流式SSE），支持文字/排盘/命盘
   if (req.method === 'POST' && pathname === '/api/chat/send') {
     const { message, cardType, cardData } = body;
@@ -2159,10 +2310,17 @@ userPrompt += '\n\n注意：参考古籍已在最上方提供，请在回答开�
     });
 
     try {
-      // 估算输入 token
-      const inputTokens = estimateTokens(systemPrompt + '\n' + prompt);
-      
-      // 流式输出
+      // ── token 用量：取上游**真数**，不自己估 ──
+      // `estimateTokens` 是本地按字数猜的（见函数定义），而用户在按这个数扣额度。
+      // 实测 DeepSeek 流式支持 `stream_options.include_usage`，末尾会回一帧带
+      // `{prompt_tokens, completion_tokens, total_tokens, prompt_cache_hit_tokens, ...}`
+      // （2026-09-25 容器内实测，帧里带 `"usage":{"prompt_tokens":9,...}`）。
+      // 故：优先用真数，取不到才回落估算 —— 回落时**只打日志**，不改文案格式
+      // （那行是前端按 POINTS_LABEL 切的，动格式会连着前端一起坏 —— 尾巴由
+      //  `pointsTrailer()` 拼，别再就地手写一遍）。
+      let estInputTokens = estimateTokens(systemPrompt + '\n' + prompt);
+      let realUsage = null;
+
       const OpenAI = require('openai');
       const client = new OpenAI({
         apiKey: config.deepseek.apiKey,
@@ -2170,6 +2328,15 @@ userPrompt += '\n\n注意：参考古籍已在最上方提供，请在回答开�
       });
 
       const controller = new AbortController();
+      // 客户端断开时必须掐掉上游：不掐的话模型照旧把这个回答生成完 ——
+      // 用户看不到，我们照付钱，而且下面那段记账还照记。
+      let clientGone = false;
+      const onClose = () => {
+        clientGone = true;
+        try { controller.abort(); } catch (e) { /* 已结束 */ }
+      };
+      res.on('close', onClose);
+
       const stream = await client.chat.completions.create({
         model: LLM_MODEL,
         messages: [
@@ -2177,14 +2344,27 @@ userPrompt += '\n\n注意：参考古籍已在最上方提供，请在回答开�
           { role: 'user', content: prompt },
         ],
         stream: true,
-        max_tokens: 3000,
+        max_tokens: LLM_MAX_TOKENS,
         temperature: 0.7,
+        reasoning_effort: LLM_REASONING_EFFORT,
+        stream_options: { include_usage: true },
       }, { signal: controller.signal });
 
       let fullText = '';
       let stopped = false;
+      // 诊断用的两个数：出事时只留「什么都没出来」是没法查的（见 LLM_MAX_TOKENS 那段注）
+      let reasoningChars = 0;
+      let finishReason = null;
+      let wroteFallback = false;
       try {
         for await (const chunk of stream) {
+          // usage 帧的内容为空，必须在取 content **之前**收，否则会漏掉
+          if (chunk.usage) realUsage = chunk.usage;
+          const ch0 = chunk.choices && chunk.choices[0];
+          if (ch0 && ch0.delta && ch0.delta.reasoning_content) {
+            reasoningChars += ch0.delta.reasoning_content.length;
+          }
+          if (ch0 && ch0.finish_reason) finishReason = ch0.finish_reason;
           if (stopped) continue;
           const content = chunk.choices[0]?.delta?.content || '';
           if (content) {
@@ -2192,12 +2372,41 @@ userPrompt += '\n\n注意：参考古籍已在最上方提供，请在回答开�
             try { res.write(content); } catch(e) { stopped = true; }
           }
         }
-      } catch(e) { /* 流中断 */ }
+      } catch(e) {
+        // 原来这里是 `catch(e) { /* 流中断 */ }` —— 静默吞掉，用户会拿到一段
+        // 莫名截断的回答且无从分辨。现在留痕，并在**还没写出任何内容**时补一句
+        // 明说的提示（已写出内容时就只留痕，避免在正文中间插一句突兀的话）。
+        if (!clientGone) console.error('[chat] 流中断:', e && e.message);
+        if (!fullText && !clientGone && !res.writableEnded) {
+          try { res.write('抱歉，生成中断了，请重试一次。'); wroteFallback = true; } catch (e2) { /* 已断开 */ }
+        }
+      } finally {
+        res.removeListener('close', onClose);
+      }
 
-      // 流完成后计算 token
+      // 「流正常结束、但一个字正文都没有」——这不是异常，上面的 catch 抓不到，
+      // 而用户看到的就是一个空白回复。实测成因见 LLM_MAX_TOKENS 那段注
+      // （思考把预算吃光 → `finish_reason='length'`、正文 0 字）。
+      // 补一句白话提示，并把这几个数打进日志 —— 否则线上再犯一次，日志里
+      // 仍然只有「一切正常」，等于没线索（这次就是这样查了很久）。
+      if (!fullText && !wroteFallback && !clientGone && !res.writableEnded) {
+        console.error('[chat] 上游没出正文：finish=' + finishReason
+          + '，思考 ' + reasoningChars + ' 字，输出 token '
+          + (realUsage ? realUsage.completion_tokens : '（没收到 usage）') + '，上限 ' + LLM_MAX_TOKENS);
+        try { res.write(EMPTY_UPSTREAM_NOTICE); } catch (e) { /* 已断开 */ }
+      }
+
+      // 流完成后算 token
       if (fullText && username) {
-        const outputTokens = estimateTokens(fullText);
-        const totalTokens = inputTokens + outputTokens;
+        const inputTokens = realUsage ? realUsage.prompt_tokens : estInputTokens;
+        const outputTokens = realUsage ? realUsage.completion_tokens
+                                       : estimateTokens(fullText);
+        if (!realUsage) {
+          console.error('[chat] 上游未回 usage，token 记账回落为估算值（'
+            + inputTokens + '+' + outputTokens + '）');
+        }
+        const totalTokens = realUsage ? realUsage.total_tokens
+                                      : inputTokens + outputTokens;
         try {
           // 更新用户 token 用量
           await db.query('UPDATE users SET token_used = token_used + ? WHERE username = ?', [totalTokens, username]);
@@ -2206,7 +2415,7 @@ userPrompt += '\n\n注意：参考古籍已在最上方提供，请在回答开�
             const used = updated[0].token_used;
             const limit = getTokenLimit(updated[0].tier || 0);
             const remainText = limit === null ? '无限' : (limit - used).toLocaleString();
-            const tokenLine = '\n\n---\n消耗 Token：输入 ' + inputTokens + ' + 输出 ' + outputTokens + ' = ' + totalTokens + ' ｜ 剩余：' + remainText;
+            const tokenLine = pointsTrailer(inputTokens, outputTokens, totalTokens, remainText);
             fullText += tokenLine;
             res.write(tokenLine);
           }
@@ -2230,7 +2439,7 @@ userPrompt += '\n\n注意：参考古籍已在最上方提供，请在回答开�
           
           // 添加 AI 回复
           let aiContent = fullText || '';
-          const tokenIdx = aiContent.lastIndexOf('\n消耗 Token：');
+          const tokenIdx = aiContent.lastIndexOf('\n' + POINTS_LABEL);
           if (tokenIdx > 0) aiContent = aiContent.substring(0, tokenIdx).trim();
           
           const aiMsg = { role: 'assistant', content: aiContent, type: 'text', createdAt: Date.now() };
@@ -2397,6 +2606,423 @@ async function parseBody(req) {
   });
 }
 
+// ══════ 八字：排盘的**唯一出口** ══════
+//
+// `POST /api/bazi/paipan` 与 `/api/chat/send` 的 `bazi` 分支**都走这里**。
+// 两处各排一份盘、各渲染一次 prompt，就是两处可能分叉的地方 —— 而
+// 「用户看到的盘与 AI 读到的盘不是同一份」在本项目已经发生过（六爻那侧，
+// 见 `paipan/prompt.js` 文件头「只信前端传的起卦原始数据」那一段）。
+
+/** 生肖表：按**地支序**排，故查表即可，不必再走一遍历法库。 */
+const SHENGXIAO = ['鼠', '牛', '虎', '兔', '龙', '蛇',
+  '马', '羊', '猴', '鸡', '狗', '猪'];
+
+/**
+ * 出生原始参数 → 完整命盘 + 历法展示项 + AI 正文。
+ *
+ * @param {object} card 前端提交的出生参数
+ *   `{y, mo, d, h, mi, gender, tab, question}`
+ *   · `gender`：`male`/`female`（也收「男」「女」）—— `life_aspects.marriage` 要用。
+ *   · `tab`：综合/事业/财运/婚姻/健康。空值退成「综合」（与后台模板同一回落）。
+ *   · `question`：用户自由提问，可空；会**原样**进正文（见 `bazi_prompt.js` 的替换函数）。
+ * @returns {{ok:true, chart, sizhu, display, text} | {ok:false, reason}}
+ */
+function baziChartFromParams(card) {
+  const c = card || {};
+  const y = +c.y, mo = +c.mo, d = +c.d;
+  if (!y || !mo || !d) return { ok: false, reason: '缺少出生日期（公历年月日）' };
+  const h = (c.h === '' || c.h == null) ? 0 : +c.h;
+  const mi = (c.mi === '' || c.mi == null) ? 0 : +c.mi;
+  const gender = c.gender === '女' ? 'female'
+    : (c.gender === '男' ? 'male' : (c.gender || ''));
+
+  // 「今年」只取一次，下面 `buildBaziFull` 与「【大运一览】标出当前所在」用的是同一个数 ——
+  // 分两处各调一次 `new Date()` 理论上能跨年（年末那一瞬间），没必要留这个缝。
+  const thisYear = new Date().getFullYear();
+
+  const chart = baziFull.buildBaziFull({ y, mo, d, h, mi }, {
+    gender,
+    birthYear: y,
+    // ⚠ 「哪一年是今年」**必须显式给**。基准 `core/bazi/current_fortune.py:18` 的默认值是
+    //    写死的 `current_year: int = 2026`，而基准自己的端点（`api/bazi.py:121`）只传了三个
+    //    参数 —— 于是**基准线上的「当前运程」永远停在 2026 年**。那是基准端点的接线缺陷，
+    //    不是算法问题；我们按事实给真实年份（「事实 > shushu」）。对拍不受影响：层 9/15
+    //    都是**显式注入** currentYear 的，走的不是这条默认值。
+    currentYear: thisYear,
+  });
+
+  // 「大运」一览表（六步）—— **端点层**补挂，移植层一个字未动。
+  //   基准 `api/agent.py:1438` 的 ctx 里确有这一项，但基准端点从不往 chart 上挂 `dayun`，
+  //   实测真实链路上它**恒为空**（364 例全空）：AI 因此只剩「当前这一步」，看不到整条脉络。
+  //   补法用的是 `current_fortune.js` 内部**同一个调用**（`calculateDayun(chart, gender,
+  //   birthYear)`，同一个十步默认值），故不可能出现「一览里有一步与当前大运不是同一字」。
+  //   ⚠ 这属于**输入侧**补充：`bazi_prompt.js` 未改，层 16 对拍（442 例）喂的是基准输入
+  //     （没有 `dayun`），故仍逐字全绿。
+  chart.dayun = baziFortuneLib.calculateDayun(chart, gender, y);
+
+  // 「未来流年」一览表（从今年起 10 年）—— 同一条理由、同一层补挂（2026-09-25）。
+  //   新输出规格的模块 7 要「未来 5–10 年流年简析 / 重点机遇年 / 需谨慎年」，而
+  //   `calculateLiunian` 早就算得出来，只是从前没人往提示词里放（ctx 里只有**当前那一年**）。
+  //   ⚠ 挂上去**不影响层 15/16 对拍**：那两层喂的是基准输入（没有 `liunian` 这个键），
+  //     与上面 `chart.dayun` 同一情形 —— 对拍比的仍是「基准输入 → 逐字同一份 prompt」。
+  //   ⚠ `liunian[*].shishen_zhi` 恒为空串（`bazi_fortune.js:500` 拿**五行**当地支查表，
+  //     照搬基准的缺陷第 1 条）—— 故提示词那一块**自己写明「地支十神本系统不提供」**，
+  //     别让模型去补一个根本不存在的字段（见 `bazi_report.js` 的 `liunianText`）。
+  chart.liunian = baziFortuneLib.calculateLiunian(chart, gender, y, thisYear, thisYear + 9);
+
+  return {
+    ok: true,
+    chart,
+    // 「今年」**回传出去**：解读端点要拿它去渲染提示词。原来那边是**又调一次**
+    // `new Date()` —— 年末跨年那一瞬间，`/api/bazi/paipan` 返回的 `text` 与
+    // 真正喂给 AI 的那一段就会差一年，而上面那段注释的立论正是「不可能分叉」。
+    // 缝很小，但没必要留着。
+    thisYear,
+    sizhu: ganzhiLib.sizhu({ y, mo, d, h, mi }),
+    display: baziDisplayMeta(chart),
+    // ⚠ 与解读端点 `/api/bazi/parse` **同一个出口**（`baziReportPrompt`）——
+    //   2026-09-25 换成新输出规格后，这里若还留在 `baziPromptLib.baziPrompt`，
+    //   `/api/bazi/paipan` 返回的 `text` 就与真正喂给 AI 的那一段**不是同一份**了，
+    //   而上面那段注释的立论正是「出自同一个函数，故不可能分叉」。
+    text: baziReportLib.baziReportPrompt(chart, {
+      tab: c.tab || '', question: c.question || '', ragText: '', currentYear: thisYear,
+    }),
+  };
+}
+
+/**
+ * 盘面显示专用的历法项：农历、生肖、节气区间、四柱旬空。
+ *
+ * 与六爻那侧 `displayMeta` 同一条理由 —— 这几项全是历法/术数口径，前端再算一份就是
+ * 又一处漂移源。**刻意不并进 `text`**：那段正文要过对拍基准，「页面想多显示一个字段」
+ * 不该顺带动了 AI 读到的那一段。
+ *
+ * 时刻一律取 `chart.birth_dt`（**排盘自己用的那一份**），不从入参另拼一个 ——
+ * 否则「盘按这个时刻、农历按那个时刻」会在边界上对不上。
+ */
+function baziDisplayMeta(chart) {
+  const dt = chart.birth_dt;
+  const out = { lunar: '', shengxiao: '', jieQi: null, kong: {} };
+
+  // 生肖由**年支**取，不用历法库的 `getYearShengXiao*()` —— 那两个一个按正月初一、
+  // 一个按**立春日**（日粒度），都和我们全项目统一的「立春**时刻**精确换年」不是一个口径。
+  // 从年支倒推，则「年柱写什么、生肖就是什么」永远自洽，也不会多出第三套换年边界。
+  const yZhi = (chart.year_pillar && chart.year_pillar.dizhi) || '';
+  const zhiIdx = paipanConst.DIZHI.indexOf(yZhi);
+  out.shengxiao = zhiIdx >= 0 ? SHENGXIAO[zhiIdx] : '';
+
+  try { out.lunar = ganzhiLib.lunarText(dt); } catch (e) { out.lunar = ''; }
+  try { out.jieQi = ganzhiLib.jieQiRange(dt); } catch (e) { out.jieQi = null; }
+
+  // 四柱旬空：各柱各按自己的干支起旬（与六爻那侧并排展示同一做法，
+  // 免得用户以为只有日柱有旬空）。
+  const pillars = [['year', 'year_pillar'], ['month', 'month_pillar'],
+    ['day', 'day_pillar'], ['hour', 'hour_pillar']];
+  for (const [k, key] of pillars) {
+    const p = chart[key];
+    const gz = p ? String(p.tiangan || '') + String(p.dizhi || '') : '';
+    out.kong[k] = gz.length === 2 ? paipanConst.getKongWang(gz).join('') : '';
+  }
+
+  return out;
+}
+
+// ══════ 八字：解读（游客可解一次、且不许解「综合」）══════
+//
+// 为什么另开一个端点，而不复用 `/api/chat/send`：那条路**匿名一律 401**
+// （`if (!username) return json(res, {error:'请先登录'}, 401)`）。而产品要求是
+// 「游客只能解析一次；还想解析就引导登录」—— 游客必须先**能**解一次，才谈得上
+// 引导。所以这里是一条允许匿名的路，且它自己带额度闸门。
+//
+// 三件事在这里合起来：
+//   ① 身份：登录用户走 token；游客发一个**服务端签名**的 cookie（清掉能再来，
+//      故它只是一道**产品闸门**，不是安全边界 —— 见 `anonCookie`）。
+//   ② 额度：游客同一 cookie 限一次，另有「同一 IP 一天最多 N 次」的总闸，防批量。
+//   ③ 记录：登录用户的解读写进 `bazi_analyses`（每方面一条 + 旧版保留）；
+//      **游客不落库**（2026-09-25 拍板）。
+
+/** 五个解析方面。顺序即界面顺序；「综合」永远是第一个。 */
+const BAZI_ASPECTS = ['综合', '事业', '财运', '婚姻', '健康'];
+const ANON_COOKIE = 'sqw_anon';
+/** 同一 IP 一天内的游客解读总上限。挡的是批量刷，不是正常用户。 */
+const ANON_IP_DAILY_CAP = 20;
+
+/**
+ * 游客身份 cookie：`<随机 id>.<HMAC>`。
+ *
+ * 签名密钥**复用 `JWT_SECRET`**（那份密钥本来就随安装生成、落在密钥文件里、
+ * 从不打日志）—— 不新增环境变量，也就不必动 `.env` 与 compose（少一次部署摩擦）。
+ *
+ * ⚠ 说清楚它的分量：这不是安全边界。用户把 cookie 清掉就又是新访客，
+ * 正如现在六爻/梅花靠 `localStorage` 记的那一笔。它要做的是**如实告知并拦住
+ * 顺手多用**，不是防住有心绕过的人 —— 后者要靠「同 IP 日上限」那道总闸。
+ */
+function anonSign(id) {
+  return crypto.createHmac('sha256', JWT_SECRET).update('anon:' + id).digest('base64url');
+}
+function anonReadCookie(req) {
+  const raw = (req.headers && req.headers.cookie) || '';
+  const m = raw.match(new RegExp('(?:^|;\\s*)' + ANON_COOKIE + '=([^;]+)'));
+  if (!m) return null;
+  const parts = decodeURIComponent(m[1]).split('.');
+  if (parts.length !== 2) return null;
+  const id = parts[0];
+  if (!/^[0-9a-f]{24}$/.test(id)) return null;
+  // 长度不同的两个串直接比会泄露前缀信息，故逐字节比（签名只有 43 字符，代价可忽略）
+  const want = anonSign(id);
+  const got = parts[1];
+  if (want.length !== got.length) return null;
+  return crypto.timingSafeEqual(Buffer.from(want), Buffer.from(got)) ? id : null;
+}
+function anonIssueCookie(res, id) {
+  res.setHeader('Set-Cookie', ANON_COOKIE + '=' + id + '.' + anonSign(id)
+    + '; Path=/; Max-Age=31536000; SameSite=Lax; HttpOnly');
+}
+/** 取客户端 IP。nginx 在前面，故以 `X-Forwarded-For` 的第一段为准。 */
+function clientIp(req) {
+  const xff = (req.headers && req.headers['x-forwarded-for']) || '';
+  const first = String(xff).split(',')[0].trim();
+  return first || (req.socket && req.socket.remoteAddress) || '';
+}
+
+/**
+ * 游客闸门：能解就放行（顺带把 cookie 与 IP 记上），不能解就给出**要登录**的理由。
+ * @returns {Promise<{ok:boolean, anonId?:string, ip?:string, status?:number, error?:string}>}
+ */
+async function guestGate(req, res) {
+  const ip = clientIp(req);
+  const had = anonReadCookie(req);
+  const anonId = had || crypto.randomBytes(12).toString('hex');
+  if (!had) anonIssueCookie(res, anonId);
+
+  try {
+    if (had) {
+      const [[{ cnt }]] = await db.query(
+        "SELECT COUNT(*) as cnt FROM anon_usage WHERE anon_id = ? AND kind = 'bazi'", [anonId]);
+      if (cnt > 0) {
+        return { ok: false, status: 403, error: '游客只能免费解析一次，登录后可以继续解析任意方面' };
+      }
+    }
+    const [[{ cnt: ipCnt }]] = await db.query(
+      "SELECT COUNT(*) as cnt FROM anon_usage WHERE ip = ? AND kind = 'bazi' AND used_at > ?",
+      [ip, Date.now() - 86400000]);
+    if (ipCnt >= ANON_IP_DAILY_CAP) {
+      return { ok: false, status: 429, error: '今天的免费额度已用完，请明天再来或登录使用' };
+    }
+  } catch (e) {
+    // 库查不动时**放行还是拦？** 放行：闸门坏掉不该让所有游客都用不了；
+    // 代价是这期间的游客可能多解几次，记在日志里以便发现。
+    console.error('[bazi] 游客额度查询失败（放行）:', e.message);
+  }
+  return { ok: true, anonId, ip };
+}
+
+/** 记一笔游客用量（**解读真跑完之后**才记，见调用处）。 */
+async function guestRecord(anonId, ip) {
+  try {
+    await db.query('INSERT INTO anon_usage (anon_id, kind, ip, used_at) VALUES (?, ?, ?, ?)',
+      [anonId || '', 'bazi', ip || '', Date.now()]);
+  } catch (e) { console.error('[bazi] 游客用量记账失败:', e.message); }
+}
+
+/**
+ * 取【古籍参考】正文（六爻/梅花那条路的同一形状）。
+ *
+ * ⚠ 这段与 `/api/chat/send` 里的 RAG 段**同源**（那段在 handle() 里内联着）：
+ * 检索参数、去重方式、`【古籍 N】《书名》 - 章节` 的排版都照抄，只在检索词与
+ * 分类上不同（八字用 `bazi`/`yijing`，检索词由 `baziSearchQuery` 拼）。
+ * 两处**重复**是已知的：合并需要先有对拍手段（那条路目前只能在线上跑），
+ * 故先标注来源、留待有手段再合 —— 谁改这里，去看一眼那一处。
+ *
+ * 取不到就返回空串：**古籍是加分项，不该让解读失败**（与那里一致）。
+ */
+async function baziRagContext(chart, aspect, question) {
+  const query = baziSearchQuery(chart, aspect, question);
+  if (!query) return '';
+  try {
+    const r = await fetch(`${RAG_URL}/api/retrieve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, top_k: 10, categories: ['bazi', 'yijing'], similarity_threshold: 0.3 }),
+      signal: AbortSignal.timeout(30000),
+    });
+    const data = await r.json();
+    if (!data.results || !data.results.length) return '';
+    const seen = new Set();
+    const diverse = [];
+    for (const it of data.results) {
+      if (!seen.has(it.book_name)) { seen.add(it.book_name); diverse.push(it); }
+    }
+    return diverse.slice(0, 3)
+      .map((it, i) => `【古籍 ${i + 1}】《${it.book_name}》${it.chapter ? ' - ' + it.chapter : ''}\n${it.text}`)
+      .join('\n\n');
+  } catch (e) {
+    console.error('[bazi] 取古籍失败（不影响解读）:', e.message);
+    return '';
+  }
+}
+
+/**
+ * 检索词：日主 + 月令 + 格局 + 这一方面。
+ *
+ * 不拿整张盘去检索（检索是按相似度的，塞进去的无关词越多，越容易命中最热门的
+ * 那几段通用语料）。八字这条线上真正决定「看什么书」的是**日主与月令**
+ * （《穷通宝鉴》按「某日主生某月」成篇），故这四个词就够。
+ */
+function baziSearchQuery(chart, aspect, question) {
+  const dm = (chart && chart.day_master) || (chart && chart.day_pillar && chart.day_pillar.tiangan) || '';
+  const monthZhi = (chart && chart.month_pillar && chart.month_pillar.dizhi) || '';
+  const geju = (chart && chart.pattern && (chart.pattern.name || chart.pattern.primary)) || '';
+  const q = String(question || '').trim();
+  return [dm, monthZhi ? monthZhi + '月' : '', geju, aspect, q].filter(Boolean).join(' ');
+}
+
+/**
+ * 八字解读的流式段。
+ *
+ * ⚠ **镜像自** `/api/chat/send` 里那段流式（同源的四处约定：`stream_options.include_usage`
+ * 取上游真数、尾部 `pointsTrailer()` 那个**逐字格式**、客户端断开就掐上游、断在无字
+ * 阶段时补一句明说）。前端按 `AI_POINTS_MARKS` 切正文，动格式会连着前端一起坏。
+ *
+ * 与那一处的差异只有两条：prompt 的来源，以及**记账对象**（这里可能是游客）。
+ * 同样已知重复、同样留待有对拍手段再合。
+ *
+ * @param {function} onFinish 解读**真写完**后调用（记账/落库都在里面）。
+ *   客户端中途断开（`clientGone`）或一个字都没出来时不调用 —— 用户没看见的
+ *   解读不算数。
+ */
+async function streamBaziParse(res, opts) {
+  // `noThinking`：这条线**关掉思考**（理由见 `BAZI_REPORT_TEMPERATURE` 那段注）。
+  // 由调用处给：**首次解读给 true、追问给 false** —— 首次是那份结构化长报告，
+  // 思考会抢走正文的预算（会截断）；追问是短问答，思考有助于质量，预算也够。
+  const { systemPrompt, userPrompt, username, onFinish, noThinking } = opts;
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+    // 与 /api/chat/send 一致：不加这条 nginx 会攒够一段才转发，流式变成「等半天来一大坨」
+    'X-Accel-Buffering': 'no',
+  });
+
+  const estInputTokens = estimateTokens(systemPrompt + '\n' + userPrompt);
+  let realUsage = null;
+  const OpenAI = require('openai');
+  const client = new OpenAI({ apiKey: config.deepseek.apiKey, baseURL: config.deepseek.baseURL });
+
+  const controller = new AbortController();
+  let clientGone = false;
+  const onClose = () => {
+    clientGone = true;
+    try { controller.abort(); } catch (e) { /* 已结束 */ }
+  };
+  res.on('close', onClose);
+
+  let fullText = '';
+  let stopped = false;
+  // 诊断用的两个数（与 /api/chat/send 同）：只留一句「什么都没出来」是查不下去的
+  let reasoningChars = 0;
+  let finishReason = null;
+  let wroteFallback = false;
+  try {
+    // `create` 也放进 try 里：它抛错时响应头**已经发出去了**（200 + text/event-stream），
+    // 端点外面那个 catch 只能看到 `headersSent`，什么也补不回来 —— 用户拿到空白。
+    // 放进来至少能补一句白话提示。（原来的写法就是把它放在 try 外面，这是个真缺口。）
+    // ⚠ `thinking` 与 `reasoning_effort` **不并存**：关思考时给前者、否则给后者。
+    //   两个都传是没意义的组合（一个是「别想」、一个是「想多少」），故按条件给，不硬拼。
+    const params = {
+      model: LLM_MODEL,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      stream: true,
+      max_tokens: LLM_MAX_TOKENS,
+      stream_options: { include_usage: true },
+    };
+    if (noThinking) {
+      params.thinking = { type: 'disabled' };
+      params.temperature = BAZI_REPORT_TEMPERATURE;   // 关思考后温度才生效
+    } else {
+      params.temperature = 0.7;
+      params.reasoning_effort = LLM_REASONING_EFFORT;
+    }
+    const stream = await client.chat.completions.create(params, { signal: controller.signal });
+
+    for await (const chunk of stream) {
+      if (chunk.usage) realUsage = chunk.usage;
+      const ch0 = chunk.choices && chunk.choices[0];
+      if (ch0 && ch0.delta && ch0.delta.reasoning_content) {
+        reasoningChars += ch0.delta.reasoning_content.length;
+      }
+      if (ch0 && ch0.finish_reason) finishReason = ch0.finish_reason;
+      if (stopped) continue;
+      const content = (ch0 && ch0.delta && ch0.delta.content) || '';
+      if (content) {
+        fullText += content;
+        try { res.write(content); } catch (e) { stopped = true; }
+      }
+    }
+  } catch (e) {
+    if (!clientGone) console.error('[bazi] 解读流中断:', e && e.message);
+    if (!fullText && !clientGone && !res.writableEnded) {
+      try { res.write('抱歉，生成中断了，请重试一次。'); wroteFallback = true; } catch (e2) { /* 已断开 */ }
+    }
+  } finally {
+    res.removeListener('close', onClose);
+  }
+
+  // 「流正常结束、但一个字正文都没有」不是异常，上面的 catch 抓不到 —— 这正是
+  // 线上那个「HTTP 200 + 0 字节」的成因（见 LLM_MAX_TOKENS 那段注）。
+  if (!fullText && !wroteFallback && !clientGone && !res.writableEnded) {
+    console.error('[bazi] 上游没出正文：finish=' + finishReason + '，思考 ' + reasoningChars
+      + ' 字，输出 token ' + (realUsage ? realUsage.completion_tokens : '（没收到 usage）')
+      + '，上限 ' + LLM_MAX_TOKENS);
+    try { res.write(EMPTY_UPSTREAM_NOTICE); } catch (e) { /* 已断开 */ }
+  }
+
+  const seen = !!fullText && !clientGone;
+  let trailer = '';
+  if (seen) {
+    // 与 /api/chat/send 同一算法、同一格式（游客不记 token，他的额度是「次数」）
+    if (username) {
+      const inputTokens = realUsage ? realUsage.prompt_tokens : estInputTokens;
+      const outputTokens = realUsage ? realUsage.completion_tokens : estimateTokens(fullText);
+      const totalTokens = realUsage ? realUsage.total_tokens : inputTokens + outputTokens;
+      try {
+        await db.query('UPDATE users SET token_used = token_used + ? WHERE username = ?',
+          [totalTokens, username]);
+        const [updated] = await db.query('SELECT token_used, tier FROM users WHERE username = ?', [username]);
+        if (updated.length > 0) {
+          const used = updated[0].token_used;
+          const limit = getTokenLimit(updated[0].tier || 0);
+          const remainText = limit === null ? '无限' : (limit - used).toLocaleString();
+          trailer = pointsTrailer(inputTokens, outputTokens, totalTokens, remainText);
+        }
+      } catch (e) { /* 静默失败 */ }
+    }
+    if (trailer && !res.writableEnded) { try { res.write(trailer); } catch (e) { /* 已断开 */ } }
+  }
+  if (!res.writableEnded) res.end();
+  if (seen && onFinish) {
+    // 用 try 包住：落库失败不该把已经流给用户的解读弄成错误响应（响应已结束）
+    try { await onFinish({ fullText, realUsage, estInputTokens }); }
+    catch (e) { console.error('[bazi] 解读收尾失败:', e.message); }
+  }
+}
+
+/**
+ * 把一条解读写进 `bazi_analyses`（每方面一条 + 旧版保留，故是 INSERT 不是 UPDATE）。
+ * @returns {Promise<string|null>} 新记录 id
+ */
+async function saveBaziAnalysis({ username, chartId, aspect, question, analysis }) {
+  const id = 'bz_' + Date.now() + '_' + crypto.randomBytes(4).toString('hex');
+  await db.query(
+    'INSERT INTO bazi_analyses (id, user_id, chart_id, aspect, question, analysis, created_at)'
+    + ' VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [id, username, chartId || null, aspect, String(question || '').slice(0, 255), analysis, Date.now()]);
+  return id;
+}
+
 function buildDivinationChatPrompt(cardType, cardData, message) {
   const prompts = readPrompts();
   const topic = (cardData && cardData.topic) || message || '';
@@ -2407,21 +3033,25 @@ function buildDivinationChatPrompt(cardType, cardData, message) {
   let userPrompt = '';
 
   if (cardType === 'mhys' && cardData) {
-    systemPrompt = prompts.mhys_system || systemPrompt;
+    systemPrompt = prompts.mhys_system || DEFAULT_PROMPTS.mhys_system;
     if (followUp) {
-      userPrompt = buildFollowUpPrompt(topic || '此卦', followUp, followUpContext, cardData.hexagrams);
+      userPrompt = buildFollowUpPrompt(topic || '此卦', followUp, followUpContext, cardData);
     } else {
-      userPrompt = buildMhysPrompt(topic, cardData.hexagrams, ragContext);
+      userPrompt = buildMhysPrompt(topic, cardData, ragContext);
       if (message && message !== topic && !message.startsWith('帮我解析')) {
         userPrompt += '\n\n用户补充提问：' + message;
       }
     }
   } else if (cardType === 'liuyao' && cardData) {
-    systemPrompt = prompts.liuyao_system || systemPrompt;
+    // ⚠ 这里也是 `prompts.X || systemPrompt`（外层那句通用系统提示词）回落。
+    // 那句通用提示词里有【起卦规则】—— 教 AI 反问用户「请随意想三个数字（1-9）」
+    // 去走**梅花**起卦。盘都排好了还让用户报数重新起卦，就是这么来的：
+    // 六爻的系统提示词缺失 → 落到那句梅花味儿的通用提示词 → AI 以为还没有卦。
+    systemPrompt = prompts.liuyao_system || DEFAULT_PROMPTS.liuyao_system;
     if (followUp) {
-      userPrompt = buildLiuyaoFollowUpPrompt(topic || '此卦', followUp, followUpContext, cardData.hexagrams, cardData.lunarInfo);
+      userPrompt = buildLiuyaoFollowUpPrompt(topic || '此卦', followUp, followUpContext, cardData);
     } else {
-      userPrompt = buildLiuyaoPrompt(topic, cardData.hexagrams, ragContext, cardData.lunarInfo);
+      userPrompt = buildLiuyaoPrompt(topic, cardData, ragContext);
       if (message && message !== topic && !message.startsWith('帮我解析')) {
         userPrompt += '\n\n用户补充提问：' + message;
       }
@@ -2432,83 +3062,58 @@ function buildDivinationChatPrompt(cardType, cardData, message) {
 }
 
 // ===== 梅花易数 AI 解析（流式） =====
+//
+// 排盘数据一律由 `paipan/prompt.js` 从**起卦原始数据**重算（只信前端传的
+// 上下卦号 + 动爻），本处只负责「取模板 → 渲染」。
+// 「后台自定义模板」与「内置默认模板」走同一条渲染路径 —— 两套渲染必然漂移。
 
-function buildMhysPrompt(topic, hexagrams, ragContext) {
+function buildMhysPrompt(topic, cardData, ragContext) {
   var custom = readPrompts();
+  var vars = promptLib.mhysVars(topic, cardData, ragContext);
 
   if (!topic) {
-    var noTopicTpl = custom.mhys_notopic;
-    if (noTopicTpl) return renderPrompt(noTopicTpl, mhysTemplateVars('', hexagrams));
-    return '你是一位梅花易数解卦师。用户还没说问什么事，请用一句话简短询问。';
+    // ⚠ 无事项**不等于无盘面**。改造前这里 return 的是一句不带变量的话，
+    // 于是「事项留空点自动解析」把排好的盘整个丢掉，AI 只能回
+    // 「我还没收到卦象数据」（线上实测）。现在模板带全盘面，只是不下结论、先问事项。
+    return renderPrompt(custom.mhys_notopic || DEFAULT_PROMPTS.mhys_notopic, vars);
   }
 
-  var vars = mhysTemplateVars(topic, hexagrams);
-  vars.ragContext = ragContext || '';
+  return renderPrompt(custom.mhys_prompt || DEFAULT_PROMPTS.mhys_prompt, vars);
+}
 
-  var tpl = custom.mhys_prompt;
-  if (tpl) return renderPrompt(tpl, vars);
+// ===== 六爻 AI 解析 =====
+// 同上：排盘（装卦、断卦、用神）全部由 `paipan/liuyao.js` 重算，
+// 本处只出文本。改造前这一层的**卦名与上下卦名取自前端**，正文却是后端算的，
+// 两边一旦不一致就自相矛盾；现在连卦名也取自 `chart`。
 
-  // ↓↓↓ 默认模板 ↓↓↓
-  const bg = hexagrams.benGua, hg = hexagrams.huGua, bng = hexagrams.bianGua;
-  const cg = hexagrams.cuoGua, zg = hexagrams.zongGua;
-  const ti = hexagrams.ti, yong = hexagrams.yong;
+function buildLiuyaoPrompt(topic, cardData, ragContext) {
+  var custom = readPrompts();
+  var vars = promptLib.liuyaoVars(topic, cardData, ragContext);
 
-  let p = `以下是一组梅花易数排盘数据。
-
-【求测事项】${topic}
-
-【卦象】
-本卦：${bg.upperTri.name}上${bg.lowerTri.name}下 → ${bg.name}
-互卦：${hg.upperTri.name}上${hg.lowerTri.name}下 → ${hg.name}
-变卦：${bng.upperTri.name}上${bng.lowerTri.name}下 → ${bng.name}
-错卦：${cg.upperTri.name}上${cg.lowerTri.name}下 → ${cg.name}
-综卦：${zg.upperTri.name}上${zg.lowerTri.name}下 → ${zg.name}
-
-【体用】体卦：${ti.tri.name}（${ti.tri.element}）｜用卦：${yong.tri.name}（${yong.tri.element}）
-生克：${hexagrams.verdict.text} — ${hexagrams.verdict.desc}
-体用吉凶分级（已按《梅花易数·体用总诀》定妥，请以此为准，勿另立吉凶）：${hexagrams.verdict.level || '（未分级）'}
-`;
-
-  if (bg.movingYao && bg.movingYao.length) {
-    p += `动爻：本卦第${bg.movingYao.join('、')}爻动
-`;
+  if (!topic) {
+    // 同梅花：无事项不是无盘面，模板必须带 `{{paipan}}`。
+    return renderPrompt(custom.liuyao_notopic || DEFAULT_PROMPTS.liuyao_notopic, vars);
   }
 
-  p += `
-你是精通《梅花易数》《皇极经世心易发微》的解卦者。按传统梅花断法分析，重体用，参互卦、变卦，不可机械地只凭生克直接定死吉凶，需结合卦象本义、事项类型与整体趋势综合判断。
+  return renderPrompt(custom.liuyao_prompt || DEFAULT_PROMPTS.liuyao_prompt, vars);
+}
 
-请严格按以下顺序输出，每段以"---"分隔：
+/** 梅花追问：续用同一份排盘（追问也可能引用卦象），不重发完整断卦指令。 */
+function buildFollowUpPrompt(topic, followUp, context, cardData) {
+  var custom = readPrompts();
+  var vars = promptLib.mhysVars(topic, cardData, '');
+  vars.followUp = followUp || '';
+  vars.context = (context || '').slice(-1200);
+  return renderPrompt(custom.mhys_followup || promptLib.DEFAULT_MHYS_FOLLOWUP, vars);
+}
 
-【参考古籍】
-- 若上方确有【参考古籍】内容，请在回答最开头列出本次实际检索到的古籍名称。
-- 若上方没有【参考古籍】内容（本次未检索到），**不要凭印象列书名**，这一段直接写"本次未检索到相关古籍，以下依卦理分析"即可。
-- 古籍段落只放开头，不要放到末尾，也不要重复。
-
-【一、回答答案】
-- 直接回答用户最想知道的结果。
-- 先说结论，不要先铺垫，不要先讲术语。
-- 只说结果、走向、是否有转机，尽量白话。
-
-【二、你的现状】
-- 描述用户当前处境、状态、主要矛盾与隐藏变数。
-- 以白话表达，不要堆术语。
-
-【三、解卦逻辑】
-- 再说明本卦、互卦、变卦、错卦、综卦与体用生克如何影响此事。
-- 重点说明：体为主，用为应；用卦主当前，互卦主过程，变卦主后势。
-- 若有阻力，也要说明是否有救、是暂阻还是终阻。
-
-要求：
-- 前两段以用户最容易看懂为先。
-- 第三段再讲术数依据。
-- 体用生克的吉凶分级（如"用生体 · 大吉"）是《体用总诀》的定则，照实引用即可；但不要把它推成"必然""注定"这类宿命断语，多用"可能""倾向"。
-- 除上述体用分级外，避免其他绝对化断语。
-- 语言简洁、明确，不空泛，不神叨。
-- 用**加粗**标结论重点（会显示金色），###子标题适度。
-
-【四、补充】末尾单独一段，自然引导：「如有更多具体情况可补充，方便做更细致解读。」`;
-
-  return p;
+/** 六爻追问。`paipan` 变量里是完整盘面，追问到应期/空亡时 AI 要能回看。 */
+function buildLiuyaoFollowUpPrompt(topic, followUp, context, cardData) {
+  var custom = readPrompts();
+  var vars = promptLib.liuyaoVars(topic, cardData, '');
+  vars.followUp = followUp || '';
+  vars.context = (context || '').slice(-1200);
+  return renderPrompt(custom.liuyao_followup || promptLib.DEFAULT_LIUYAO_FOLLOWUP, vars);
 }
 
 function getTokenLimit(tier) {
@@ -2546,283 +3151,57 @@ function estimateTokens(text) {
 }
 
 // ══════ Prompt 模板引擎 ══════
-const PROMPTS_FILE = path.join(__dirname, 'data', 'prompts.json');
+// ⚠ 这里原本写的是 `path.join(__dirname, 'data', 'prompts.json')`
+//  = `/app/data/prompts.json` —— 而本文件 127 行的 `DATA_DIR` 是
+//  `path.join(__dirname, '..', 'data')` = **`/data`**（compose 里
+//  `/var/www/sqw.somtfly.com/data:/data:rw` 那个**持久卷**，users.json /
+//  admin.json / .jwt_secret 都在那儿）。
+//  后果（2026-09-25 容器内实测确认，不是推测）：
+//    · `/app/data` **根本不存在** ⇒ `readPrompts()` 每次都 catch 成 `{}`，
+//      后台自定义模板**永远读不到**，全站静默用内置默认；
+//    · `writePrompts()` 抛 ENOENT ⇒ 管理员在后台**保存模板是失败的**。
+//  这是一个「看着能用、其实全程没生效」的静默 fallback：
+//  改了模板没有任何效果，而页面上不会报任何错。
+const PROMPTS_FILE = path.join(DATA_DIR, 'prompts.json');
 
 function readPrompts() {
-  try { return JSON.parse(fs.readFileSync(PROMPTS_FILE, 'utf-8')); }
-  catch { return {}; }
+  try {
+    return JSON.parse(fs.readFileSync(PROMPTS_FILE, 'utf-8'));
+  } catch (e) {
+    // ENOENT = 「还没存过自定义模板」，这是**正常状态**，不是错误：报它只会刷屏。
+    // 但其它错误（权限、坏 JSON、磁盘满）必须出声 —— 原来一句 `catch {}`
+    // 把两者一起吞了，于是「模板文件坏了」和「没存过模板」在日志里长得一样，
+    // 表现为「后台改了模板但站点毫无变化、还没有任何线索」。
+    if (e && e.code !== 'ENOENT') {
+      console.error('[prompts] 读取失败 ' + PROMPTS_FILE + '：' + (e && e.message));
+    }
+    return {};
+  }
 }
+/** 写模板。失败**不抛**，返回 null 表示成功、返回错误串表示失败，由调用方回 500。 */
 function writePrompts(data) {
-  fs.writeFileSync(PROMPTS_FILE, JSON.stringify(data, null, 2), 'utf-8');
+  try {
+    fs.writeFileSync(PROMPTS_FILE, JSON.stringify(data, null, 2), 'utf-8');
+    return null;
+  } catch (e) {
+    console.error('[prompts] 写入失败 ' + PROMPTS_FILE + '：' + (e && e.message));
+    return (e && e.message) || 'unknown error';
+  }
 }
 
-// 模板变量替换
+// 模板变量替换 —— **全站唯一一份实现**，转调 `paipan/bazi_prompt.js` 那一份。
+//
+// 原先这里自己写了一遍「按变量表逐键循环 replace」，与 `bazi_prompt.js` 那份并存。
+// 两份的差别不是风格，是两个**真实缺陷**（此前这里是错的那一份）：
+//   ① 替换值当**字符串**塞进 `replace` → 值里的 `$&`、`$1`、`` $` ``、`$'` 会被 JS 展开。
+//      值里带古籍原文与用户提问，两者都是外部输入。实测：一句「…脱胎要火。$&$1」
+//      渲染后正文里冒出了 `{{classicalText}}`（占位符本身）。
+//   ② 逐键循环 = **多趟扫描**：头一趟塞进去的文本会被后一趟再扫一遍。用户提问里写
+//      `{{vars}}` 就会让正文里凭空多插一整块 JSON（实测某例多出 1568 字）。
+// 修法（`bazi_prompt.js` 那份）：**一趟扫完 + 替换值由函数给出 + 键取实际变量表**。
+// 转调而不是再抄一遍，是因为抄过的两份已经漂移过一次 —— 见 `bazi_prompt.js` 的注释。
 function renderPrompt(template, vars) {
-  if (!template) return null;
-  let result = template;
-  for (const [key, val] of Object.entries(vars)) {
-    result = result.replace(new RegExp('\\{\\{' + key + '\\}\\}', 'g'), String(val ?? ''));
-  }
-  return result;
-}
-
-// 梅花易数模板变量提取
-function mhysTemplateVars(topic, hexagrams) {
-  const bg = hexagrams.benGua || {}, hg = hexagrams.huGua || {}, bng = hexagrams.bianGua || {};
-  const cg = hexagrams.cuoGua || {}, zg = hexagrams.zongGua || {};
-  const ti = hexagrams.ti || {}, yong = hexagrams.yong || {};
-  const v = hexagrams.verdict || {};
-  const movingYao = bg.movingYao && bg.movingYao.length ? '第' + bg.movingYao.join('、') + '爻动' : '无动爻';
-  return {
-    topic: topic || '',
-    benGuaName: bg.name || '', benGuaUpper: (bg.upperTri || {}).name || '', benGuaLower: (bg.lowerTri || {}).name || '',
-    huGuaName: hg.name || '', huGuaUpper: (hg.upperTri || {}).name || '', huGuaLower: (hg.lowerTri || {}).name || '',
-    bianGuaName: bng.name || '', bianGuaUpper: (bng.upperTri || {}).name || '', bianGuaLower: (bng.lowerTri || {}).name || '',
-    cuoGuaName: cg.name || '', cuoGuaUpper: (cg.upperTri || {}).name || '', cuoGuaLower: (cg.lowerTri || {}).name || '',
-    zongGuaName: zg.name || '', zongGuaUpper: (zg.upperTri || {}).name || '', zongGuaLower: (zg.lowerTri || {}).name || '',
-    tiName: (ti.tri || {}).name || '', tiElement: (ti.tri || {}).element || '',
-    yongName: (yong.tri || {}).name || '', yongElement: (yong.tri || {}).element || '',
-    tiyongVerdict: v.text || '', tiyongDesc: v.desc || '', tiyongLevel: v.level || '',
-    movingYao: movingYao,
-    ragContext: '',
-  };
-}
-
-// 六爻装卦：由「本卦/变卦上下卦号 + 四柱」装出完整盘面。
-// 前端只负责起卦（给出卦号与四柱），六亲/六神/世应/旬空/旺衰/伏神一律后端算，
-// 避免前端算错或送错字段。
-function buildLiuyaoChart(hexagrams, lunarInfo, topic) {
-  if (!hexagrams) return null;
-  const bg = hexagrams.benGua || {}, bng = hexagrams.bianGua || {};
-  if (!bg.upper || !bg.lower) return null;
-  const li = lunarInfo || {};
-  const chart = liuyaoPaipan.buildChart({
-    topic: topic || '',
-    gender: hexagrams.gender || '',
-    benUpper: bg.upper, benLower: bg.lower,
-    bianUpper: bng.upper, bianLower: bng.lower,
-    yearGZ: li.yearGZ || '', monthGZ: li.monthGZ || '',
-    dayGZ: li.dayGZ || '', hourGZ: li.hourGZ || '',
-  });
-  if (chart) chart.yongShen = liuyaoPaipan.suggestYongShen(topic, hexagrams.gender || '');
-  return chart;
-}
-
-// 六爻模板变量提取
-function liuyaoTemplateVars(topic, hexagrams, lunarInfo) {
-  const bg = hexagrams.benGua || {}, bng = hexagrams.bianGua || {};
-  var gender = hexagrams.gender;
-  var genderLabel = '未知';
-  if (gender === 'male') genderLabel = '男';
-  else if (gender === 'female') genderLabel = '女';
-  var chart = buildLiuyaoChart(hexagrams, lunarInfo, topic);
-  return {
-    topic: topic || '',
-    gender: genderLabel,
-    benGuaName: bg.name || '', benGuaUpper: (bg.upperTri || {}).name || '', benGuaLower: (bg.lowerTri || {}).name || '',
-    bianGuaName: bng.name || '', bianGuaUpper: (bng.upperTri || {}).name || '', bianGuaLower: (bng.lowerTri || {}).name || '',
-    paipan: chart ? liuyaoPaipan.formatChart(chart) : '',
-    yongshen: (chart && chart.yongShen && chart.yongShen.yong) ? chart.yongShen.yong : '',
-    yongshenWhy: (chart && chart.yongShen) ? (chart.yongShen.why || '') : '',
-    ragContext: '',
-  };
-}
-
-function buildFollowUpPrompt(topic, followUp, context, hexagrams) {
-  var custom = readPrompts();
-  var tpl = custom.mhys_followup;
-  if (tpl) {
-    var vars = mhysTemplateVars(topic, hexagrams);
-    vars.followUp = followUp || '';
-    vars.context = (context || '').slice(-1200);
-    return renderPrompt(tpl, vars);
-  }
-  let p = `针对「${topic}」的追问：
-
-【之前解读】${(context || '').slice(-1000)}
-
-【追问】${followUp}
-
-请直接回答追问，不重复完整分析。结构：
-【一、回答】——结论和建议，不用卦象术语。
-【二、思路】（可选）——一两句推演依据。`;
-  return p;
-}
-
-async function streamDeepSeek(prompt, res, maxOutputChars, req) {
-  const OpenAI = require('openai');
-  const client = new OpenAI({
-    apiKey: config.deepseek.apiKey,
-    baseURL: config.deepseek.baseURL,
-  });
-
-  var custom = readPrompts();
-  var systemPrompt = custom.mhys_system || '你是梅花易数解卦师。回答顺序固定为：参考古籍→回答答案→你的现状→解卦逻辑。先给结果，再讲现状，最后解释依据。回答清晰、理性、简洁。体用生克的吉凶分级是《体用总诀》的定则，照实引用；除此之外避免绝对化断语，多用”可能””倾向”。';
-
-  var controller = new AbortController();
-  if (req) req.on('close', () => { if (!res.writableEnded) controller.abort(); });
-  const stream = await client.chat.completions.create({
-    model: LLM_MODEL,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: prompt },
-    ],
-    stream: true,
-    max_tokens: maxOutputChars ? Math.ceil(maxOutputChars / 0.6) : 3000,
-    temperature: 0.7,
-  }, { signal: controller.signal });
-
-  let fullText = '';
-  let stopped = false;
-  try {
-    for await (const chunk of stream) {
-      if (stopped) continue;
-      const content = chunk.choices[0]?.delta?.content || '';
-      if (content) {
-        fullText += content;
-        if (maxOutputChars && fullText.length >= maxOutputChars) {
-          stopped = true;
-          var loginPrompt = '\n\n---\n\n> ⚠️ 未登录用户仅限预览，完整解析需登录。\n> 🔑 [登录](/login/)即可解锁完整AI解析（最少100次/10万token免费额度）';
-          fullText += loginPrompt;
-          try { res.write(loginPrompt); } catch(e) {}
-          controller.abort();
-        } else {
-          try { res.write(content); } catch(e) {}
-        }
-      }
-    }
-  } catch(e) { /* AbortError expected */ }
-  return fullText;
-}
-
-function buildLiuyaoPrompt(topic, hexagrams, ragContext, lunarInfo) {
-  var custom = readPrompts();
-
-  if (!topic) {
-    var noTopicTpl = custom.liuyao_notopic;
-    if (noTopicTpl) return renderPrompt(noTopicTpl, liuyaoTemplateVars('', hexagrams, lunarInfo));
-    return '你是一位六爻纳甲解卦师。用户还没说问什么事，请先回应排盘数据（本卦变卦名+世应位置），然后用一句话询问求测事项。';
-  }
-
-  var vars = liuyaoTemplateVars(topic, hexagrams, lunarInfo);
-  vars.ragContext = ragContext || '';
-
-  var tpl = custom.liuyao_prompt;
-  if (tpl) return renderPrompt(tpl, vars);
-
-  // ↓↓↓ 默认模板 ↓↓↓
-  var gender = hexagrams.gender;
-  var genderLabel = '未知';
-  if (gender === 'male') genderLabel = '男';
-  else if (gender === 'female') genderLabel = '女';
-
-  var chart = buildLiuyaoChart(hexagrams, lunarInfo, topic);
-
-  let p = '以下是一组六爻排盘数据。请按传统六爻断法分析，不可脱离用神主线泛讲六亲六神。\n\n';
-  p += '【求测事项】' + topic + '\n';
-  p += '【求测者性别】' + genderLabel + '\n\n';
-
-  if (chart) {
-    p += liuyaoPaipan.formatChart(chart) + '\n\n';
-    if (chart.yongShen && chart.yongShen.yong) {
-      p += '【用神参考】' + chart.yongShen.why + '（即' + chart.yongShen.yong + '）。若与卦中实际衰旺、动静冲突，以卦理为准，不必强套。\n\n';
-    }
-  } else {
-    // 装卦失败时的兜底：至少别让 AI 收到空数据
-    const bg = hexagrams.benGua || {}, bng = hexagrams.bianGua || {};
-    p += '【卦象】\n';
-    p += '本卦：' + (bg.name || '未知') + '　变卦：' + (bng.name || '未知') + '\n';
-    p += '（注意：本次排盘数据不完整，六亲六神世应未能装出，请在解读中说明并只作卦名卦意的粗断。）\n\n';
-  }
-
-  p += '断法要求：先定用神，再看月建日辰旺衰，再看世应、动爻、变爻、生克冲合、空破墓绝。月建为提纲，日辰为主宰；世为己，应为人；动为始，变为终。六神只作辅助，不可压过用神主线。\n\n';
-
-  p += '请严格按以下顺序输出，每段以"---"分隔：\n\n';
-  p += '【参考古籍】\n';
-  p += '- 若上方确有【参考古籍】内容，请在回答最开头列出本次实际检索到的古籍名称。\n';
-  p += '- 若上方没有【参考古籍】内容（本次未检索到），**不要凭印象列书名**，开头【参考古籍】一段直接写"本次未检索到相关古籍，以下依卦理分析"即可。\n';
-  p += '- 古籍段落只放开头，不要放到末尾，也不要重复。\n\n';
-  p += '【一、回答答案】\n';
-  p += '- 直接说结果、倾向、成败、快慢。\n';
-  p += '- 不要先讲原理，不要先铺垫。\n';
-  p += '- 先把用户最想知道的答案说明白。\n\n';
-  p += '【二、你的现状】\n';
-  p += '- 只描述当前处境、矛盾、卡点、对方状态或环境态势。\n';
-  p += '- 尽量白话，不堆术语。\n\n';
-  p += '【三、解卦逻辑】\n';
-  p += '- 再说明用神、世应、月建、日辰、动爻、变爻对结果的影响。\n';
-  p += '- 若见空亡、月破、入墓、伏神、合绊、回头生、回头克，只分析与主事相关者。\n';
-  p += '- 若卦象显示可成但迟、能成但反复、表面可成实则落空，必须明确说出。\n\n';
-  p += '要求：\n';
-  p += '- 前两段先给用户想看的内容，第三段再展开术数依据。\n';
-  p += '- 语言简洁，判断明确，不空泛。\n';
-  p += '- 避免绝对化断语，多用“可能”“倾向”。\n';
-  p += '- 用**加粗**标结论重点，###子标题适度。\n\n';
-  p += '【补充引导】末尾单独一段，自然引导："如有更多具体情况可补充，方便做更细致解读。"';
-  return p;
-}
-
-function buildLiuyaoFollowUpPrompt(topic, followUp, context, hexagrams, lunarInfo) {
-  var custom = readPrompts();
-  var tpl = custom.liuyao_followup;
-  if (tpl) {
-    var vars = liuyaoTemplateVars(topic, hexagrams, lunarInfo);
-    vars.followUp = followUp || '';
-    vars.context = (context || '').slice(-1200);
-    return renderPrompt(tpl, vars);
-  }
-  var p = '针对「' + topic + '」的追问：\n\n';
-  var chart = buildLiuyaoChart(hexagrams, lunarInfo, topic);
-  if (chart) p += liuyaoPaipan.formatChart(chart) + '\n\n';
-  p += '【之前解读】' + ((context || '').slice(-1200)) + '\n\n';
-  p += '【追问】' + followUp + '\n\n';
-  p += '直接回答追问，不重复完整七层分析。聚焦追问涉及的层面（如问应期则重点推应期，问空亡则重点辨空亡真假）。结构：\n【回答】——结论和建议，不用卦象术语。\n【依据】——简短推演依据（1-3句，引用原卦爻位）。';
-  return p;
-}
-
-async function streamDeepSeekLiuyao(prompt, res, maxOutputChars, req) {
-  const OpenAI = require('openai');
-  const client = new OpenAI({
-    apiKey: config.deepseek.apiKey,
-    baseURL: config.deepseek.baseURL,
-  });
-
-  var custom = readPrompts();
-  var systemPrompt = custom.liuyao_system || '你是六爻纳甲解卦师。回答顺序固定为：参考古籍→回答答案→你的现状→解卦逻辑。先定用神，再看月建日辰、世应、动变、生克冲合与空破墓绝。先给结果，再讲现状，最后解释依据。六神只作辅助，不可压过用神主线。避免绝对断语，多用可能/倾向。用**加粗**标重点。';
-
-  var controller = new AbortController();
-  if (req) req.on('close', () => { if (!res.writableEnded) controller.abort(); });
-  const stream = await client.chat.completions.create({
-    model: LLM_MODEL,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: prompt },
-    ],
-    stream: true,
-    max_tokens: maxOutputChars ? Math.ceil(maxOutputChars / 0.6) : 3000,
-  }, { signal: controller.signal });
-
-  let fullText = '';
-  let stopped = false;
-  try {
-    for await (const chunk of stream) {
-      if (stopped) continue;
-      const content = chunk.choices[0]?.delta?.content || '';
-      if (content) {
-        fullText += content;
-        if (maxOutputChars && fullText.length >= maxOutputChars) {
-          stopped = true;
-          var loginPrompt = '\n\n---\n\n> ⚠️ 未登录用户仅限预览，完整解析需登录。\n> 🔑 [登录](/login/)即可解锁完整AI解析（最少100次/10万token免费额度）';
-          fullText += loginPrompt;
-          try { res.write(loginPrompt); } catch(e) {}
-          controller.abort();
-        } else {
-          try { res.write(content); } catch(e) {}
-        }
-      }
-    }
-  } catch(e) { /* AbortError expected */ }
-  return fullText;
+  return baziPromptLib.renderPrompt(template, vars);
 }
 
 // 批量入库后台任务
@@ -2871,6 +3250,35 @@ async function initDb() {
       updated_at bigint NOT NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
     console.log('[DB] chat_history table ready');
+
+    // 八字解析记录：**每方面一条、旧版保留**（故是 INSERT 不是 UPDATE），
+    // 界面显示每个方面最新那一条，旧版本可展开。
+    // `chart_id` 可空：用户从「新建命盘」页直接解读时还没有命盘 id。
+    // `question` 存用户那句自由提问（「我今年适合换工作吗」），它会影响解读。
+    await db.query(`CREATE TABLE IF NOT EXISTS bazi_analyses (
+      id varchar(64) PRIMARY KEY,
+      user_id varchar(64) NOT NULL,
+      chart_id varchar(64) DEFAULT NULL,
+      aspect varchar(16) NOT NULL,
+      question varchar(255) NOT NULL DEFAULT '',
+      analysis longtext NOT NULL,
+      created_at bigint NOT NULL,
+      KEY idx_user_chart_aspect (user_id, chart_id, aspect, created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+    console.log('[DB] bazi_analyses table ready');
+
+    // 游客用量：`anon_id` 是签名 cookie 里的那串随机 id（游客限一次），
+    // `ip` 那两列供「同 IP 一天总上限」用。**它是一道产品闸门，不是安全边界** ——
+    // 清 cookie 就能再来一次；挡住批量的是日上限那一半。见 `anonReadCookie`。
+    await db.query(`CREATE TABLE IF NOT EXISTS anon_usage (
+      anon_id varchar(64) NOT NULL DEFAULT '',
+      kind varchar(16) NOT NULL,
+      ip varchar(64) NOT NULL DEFAULT '',
+      used_at bigint NOT NULL,
+      KEY idx_anon (anon_id, kind),
+      KEY idx_ip (ip, kind, used_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+    console.log('[DB] anon_usage table ready');
   } catch (e) {
     console.error('[DB] init error:', e.message);
   }

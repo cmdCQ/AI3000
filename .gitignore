@@ -13,6 +13,13 @@ data/server_config.json
 
 # Backups
 backups/
+# 手工备份残留：*.bak-<时间戳> 曾被真的 commit 进库，这里结构性挡掉
+*.bak
+*.bak-*
+*.bak.*
+*.old
+*.orig
+*.save
 
 # Docker volumes
 docker/volumes/
