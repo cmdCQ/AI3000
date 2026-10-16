@@ -4,6 +4,11 @@
      /css/tokens.css 提供（它必须先于本文件加载）。
      原来这里有一份旧的 :root（--accent: #b8960a 等），
      因为本文件在 tokens.css 之后加载，会把玉青主题色整个覆盖掉。
+   ⚠ 同时订正一处：品牌色改造时把上面那些强调色从 --accent 换成了 --warm-line（金色），
+     于是首页成了全站唯一还是金色的页面，用户报「主页主题色没变」。
+     现已把 6 处**结构性亮金线**换回 --accent（玉青）：.home-rule / .module-card /
+     .nav-item.active::after / .card / .ai-chat-entrance / .markdown-body blockquote。
+     暗金**文字**强调（--warm / --warm-ink：小标题、markdown strong、链接）保持不变。
    ═══════════════════════════════════════════ */
 
 
@@ -39,7 +44,7 @@ html, body {
 
 .home-rule {
   width: 5rem; height: 1.5px;
-  background: linear-gradient(90deg, transparent 0%, var(--warm-line) 30%, var(--warm-line) 70%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, var(--accent) 30%, var(--accent) 70%, transparent 100%);
   margin: 0.65rem auto 0;
 }
 
@@ -70,7 +75,7 @@ html, body {
   text-decoration: none; color: inherit;
   cursor: pointer; position: relative;
   background: var(--bg-card);
-  border: 1px solid var(--border); border-left: 3px solid var(--warm-line);
+  border: 1px solid var(--border); border-left: 3px solid var(--accent);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
   transition: all 0.25s var(--ease);
@@ -184,7 +189,7 @@ html, body {
   content: ''; position: absolute; bottom: -0.2rem; left: 50%;
   transform: translateX(-50%);
   width: 1rem; height: 2px;
-  background: var(--warm-line); height: 3px; border-radius: 1px;
+  background: var(--accent); height: 3px; border-radius: 1px;
 }
 
 .nav-item:not(.active):hover { color: var(--text-dim); }
@@ -283,7 +288,7 @@ html, body {
 
 /* ===== "我的" 卡片样式 ===== */
 .card {
-  background: var(--bg-card); border: 1px solid var(--border); border-left: 3px solid var(--warm-line); box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  background: var(--bg-card); border: 1px solid var(--border); border-left: 3px solid var(--accent); box-shadow: 0 1px 4px rgba(0,0,0,0.04);
   border-radius: var(--radius); padding: 1.2rem 1.4rem;
   margin-bottom: 0.6rem;
 }
@@ -341,7 +346,7 @@ html, body {
   margin:0.4rem 0 0; padding:0.65rem 1rem;
   background:var(--bg-card);
   border:1px solid var(--border);
-  border-left:3px solid var(--warm-line);
+  border-left:3px solid var(--accent);
   border-radius:var(--radius-md);
   box-shadow:var(--shadow-card);
   cursor:pointer;
@@ -558,7 +563,7 @@ html, body {
   margin: 0.9rem 0;
 }
 .markdown-body blockquote {
-  border-left: 3px solid var(--warm-line);
+  border-left: 3px solid var(--accent);
   padding: 0.3rem 0 0.3rem 0.8rem;
   color: var(--text-dim);
   margin: 0.6rem 0;
