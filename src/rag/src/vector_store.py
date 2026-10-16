@@ -118,7 +118,9 @@ class VectorStore:
             categories = self.list_collections()
 
         all_results = []
-        per_category_limit = max(1, min(top_k, 3))
+        # 每个分类按 top_k 取，别在这里封顶：上层要的是「10 条里挑 3 本不同的书」，
+        # 封顶会让这 10 条往往出自同一本书，按书去重后只剩一本。
+        per_category_limit = max(1, top_k)
 
         for cat in categories:
             try:
