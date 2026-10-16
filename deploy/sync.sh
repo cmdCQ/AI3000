@@ -14,7 +14,7 @@
 # 两个容易踩的坑（都是实际发生过事故的）
 #
 #   1) 目录挂载 vs 单文件挂载
-#      nginx 挂的是整个目录 → 普通 rsync 就行。
+#      nginx 挂的是整个目录 → 产物可以整目录重写。
 #      后端挂的是三个**单文件**（auth-server.js / config.js / chat-proxy.js）。
 #      单文件 bind mount 钉在 inode 上：如果用编辑器 / sed -i 替换文件（新 inode），
 #      容器会继续读旧 inode —— 改了代码"不生效"，而且完全静默。
@@ -68,8 +68,37 @@ sync_dir() {
     fi
 }
 
-echo "同步源码到产物目录："
-sync_dir "src/web"    "build/nginx"   ""          "nginx"   "目录挂载，普通 rsync"
+# build_web — 构建前端到 build/nginx。
+#
+# 为什么不是 rsync: src/app/ 那棵新树（React/ESM）必须真的构建，rsync 做不到。
+# 两棵树各有归属，但**只有这一条命令写 build/nginx**：
+#   src/app/  → Vite 构建（哈希资源名、打包 ESM）
+#   src/web/  → vite.config.mjs 的 publicDir **逐字**拷贝（老页面还没搬完）
+# Vite 的 emptyOutDir 干的就是 rsync --delete 的活：产物仍然严格等于源码。
+build_web() {
+    [ -d "src/app" ] || { echo "错误: 找不到 src/app" >&2; exit 1; }
+    [ -x "src/app/node_modules/.bin/vite" ] || {
+        echo "错误: src/app/node_modules 不在 —— 先跑 pnpm --dir src/app install" >&2
+        exit 1
+    }
+
+    if [ ! -d "build/nginx" ]; then
+        RECREATE="$RECREATE nginx"
+    fi
+
+    if [ -n "$DRY" ]; then
+        echo "  [dry-run] src/app/ + src/web/ → build/nginx/   (vite build)"
+        return
+    fi
+
+    ( cd src/app && ./node_modules/.bin/vite build ) || exit 1
+
+    legacy=$(find src/web -type f 2>/dev/null | wc -l)
+    echo "  src/app/ + src/web/（$legacy 个老页面文件） → build/nginx/   共 $(find build/nginx -type f | wc -l) 个文件"
+}
+
+echo "构建前端、同步后端到产物目录："
+build_web
 sync_dir "src/server" "build/backend" "--inplace" "backend" "单文件挂载，--inplace 保住 inode"
 
 # 版本化：给 build/nginx 里每个静态资源引用打上内容哈希（?v=<sha256 前8位>）。

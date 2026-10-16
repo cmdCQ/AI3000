@@ -21,7 +21,8 @@
 ## 1. 目录结构
 
 ```
-src/web/        前端源码（改这里）
+src/web/        老前端源码（还没搬进 src/app/ 的页面）
+src/app/        新前端源码（Vite + React；每个 <页>/index.html 自动成为一个入口）
 src/server/     后端源码（auth-server.js、paipan/）
 src/rag/        RAG 服务
 src/upload/     上传服务
@@ -35,7 +36,8 @@ docker/docker-compose.yml  容器编排
 data/                      运行时数据（users.json 等，已 gitignore）
 ```
 
-`build/nginx/` = `src/web/` 的产物（nginx 目录挂载，普通 rsync）。
+`build/nginx/` = `src/app/` 构建产物 + `src/web/` 的逐字拷贝（nginx 目录挂载）。
+写入者**只有 `vite build` 一个**（§4i）。`src/web/` 搬空之后就只剩 `src/app/`。
 `build/backend/` = `src/server/` 的产物（**单文件挂载，必须 `--inplace`**，见 §4）。
 
 `src/rag/` **没有产物目录**：它的代码烤在 `docker-rag` 镜像里，`sync.sh` 完全不管它（见 §4h）。
@@ -134,6 +136,15 @@ docker compose -f docker/docker-compose.yml up -d --force-recreate rag
 ```
 新镜像要先 `docker run --rm --entrypoint sh <img> -c 'python -c "import chromadb,fastembed"'`
 确认依赖还在，再切 `latest`。
+
+**i) 老页面不能交给 Vite 构建 —— 它会静默丢掉全部 JS**
+`src/web/` 全是传统 `<script src>`（19 个页面无一是 `type="module"`）且靠跨文件全局变量
+互相调用。实测把 `src/web/` 当 Vite root 构建：`<link href="/css/x.css">` 会被改写成
+`/assets/x-<hash>.css`，而 `<script src="/js/x.js">` 原样留着、那些文件**根本不发出去** ——
+产物里连 `js/` 目录都没有，页面照样 200，只是所有交互都没了。
+所以 `src/app/vite.config.mjs` 里老树走 `publicDir` **逐字拷贝**，只有 `src/app/` 真的构建。
+搬迁方式：删掉 `src/web/<页>/`、建起 `src/app/<页>/`（入口表由目录自动生成）；
+`src/web/` 空了就把 `publicDir` 设成 `false`。
 
 ---
 
