@@ -91,6 +91,12 @@ webprobe https://sqw.somtfly.com/<页面>/    # 元素数/样式表数/脚本数
 
 改前端时改动前后各跑一次 `webprobe`，元素数和文本长度一致才算等价替换。
 
+## 贡献者
+
+- [CQ（cmdCQ）](https://github.com/cmdCQ) —— 设计、排盘引擎、AI 解读、部署
+
+早期提交是服务器上的部署机身份署的名，[`.mailmap`](./.mailmap) 已把它们归到本人名下。
+
 ## 许可
 
 [MIT](./LICENSE) © 2026 CQ
