@@ -19,9 +19,12 @@ case "${1:-}" in
     echo "    docker-compose.yml 里所有服务都是 image: docker-*:latest，没有 build: 键，"
     echo "    所以 docker compose build 是空操作（不会报错，也不会重建任何东西）。"
     echo "    真要重建镜像，手动指定 dockerfile 和上下文："
-    echo "      docker build -f src/server/Dockerfile -t docker-backend:latest src/server"
-    echo "      docker build -f src/rag/Dockerfile    -t docker-rag:latest     src/rag"
-    echo "      docker build -f src/upload/Dockerfile -t docker-upload:latest  src/upload"
+    echo "      docker build -f deploy/Dockerfile.nginx -t docker-nginx:latest    deploy"
+    echo "      docker build -f src/server/Dockerfile   -t docker-backend:latest  src/server"
+    echo "      docker build -f src/rag/Dockerfile      -t docker-rag:latest      src/rag"
+    echo "      docker build -f src/upload/Dockerfile   -t docker-upload:latest   src/upload"
+    echo "    （nginx 的 Dockerfile 在 deploy/ 而不是 src/web/：它不再 COPY 任何 webroot，"
+    echo "      只装 nginx+curl，页面与配置全部靠挂载进来。重建后需 force-recreate nginx。）"
     exit 1
     ;;
   *)
