@@ -9,7 +9,7 @@
 <title>排盘结果 · 梅花易数</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all';this.onload=null">
-<link rel="stylesheet" href="/css/mhys_result.css?v=4">
+<link rel="stylesheet" href="/css/mhys_result.css">
 </head>
 <body>
 
@@ -39,9 +39,9 @@
   <div class="analysis-card" id="analysisArea" hidden></div>
 </div>
 
-<script src="/js/auth.js?v=1787305221"></script>
-<script src="/js/ui_common.js?v=1"></script>
-<script src="/js/mhys_render.js?v=4"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/ui_common.js"></script>
+<script src="/js/mhys_render.js"></script>
 <script>
 // ===== 加载数据 =====
 async function load() {
@@ -133,8 +133,8 @@ load();
 <!-- AI 面板引擎与梅花的配置（引擎与六爻页共用一份）。
      overlay 的点击关闭在引擎里绑，本页不再绑一次 —— 绑两处会关两次，
      看着一样，但那是两份 DOM 监听在各自为政。 -->
-<script src="/js/ai_panel.js?v=6"></script>
-<script src="/js/mhys_ai_panel.js?v=2"></script>
+<script src="/js/ai_panel.js"></script>
+<script src="/js/mhys_ai_panel.js"></script>
 
 </body>
 </html>

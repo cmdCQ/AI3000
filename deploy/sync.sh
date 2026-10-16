@@ -72,6 +72,17 @@ echo "同步源码到产物目录："
 sync_dir "src/web"    "build/nginx"   ""          "nginx"   "目录挂载，普通 rsync"
 sync_dir "src/server" "build/backend" "--inplace" "backend" "单文件挂载，--inplace 保住 inode"
 
+# 版本化：给 build/nginx 里每个静态资源引用打上内容哈希（?v=<sha256 前8位>）。
+# 必须跑在 rsync 之后、自检之前 —— 版本号是产物的一部分，自检比的是
+# 「容器读到的 == 产物里的」，晚了就比的是半成品。
+# src/ 里不写任何版本号，人也不需要记得改：URL 永远跟着内容走。
+if [ -n "$DRY" ]; then
+    echo "  [dry-run] deploy/version-assets.py build/nginx   （给静态资源引用打内容哈希）"
+else
+    echo "版本化静态资源引用（src/ 里不写版本号，这里按内容算）："
+    python3 deploy/version-assets.py build/nginx
+fi
+
 if [ -n "$DRY" ]; then
     echo "(dry-run，未改动任何文件)"
     exit 0

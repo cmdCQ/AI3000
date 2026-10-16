@@ -12,8 +12,8 @@
 <!-- 结果页的样式与渲染层跟本页共用一份（原地出结果，不跳 result.html），别在本页再抄一份。
      mhys_result.css 是**梅花与六爻共用的底**（令牌、卡片、AI 面板、卦象画法），
      liuyao_result.css 只补六爻盘面独有的部分，必须引在它后面。 -->
-<link rel="stylesheet" href="/css/mhys_result.css?v=4">
-<link rel="stylesheet" href="/css/liuyao_result.css?v=1">
+<link rel="stylesheet" href="/css/mhys_result.css">
+<link rel="stylesheet" href="/css/liuyao_result.css">
 <style>
 /* ⚠ 本页原自带 :root（--accent: var(--gold) 等），已移除 ——
    令牌统一由 /css/tokens.css 提供，否则旧金值会覆盖新主题。 */
@@ -387,9 +387,9 @@ html,body { background:var(--bg); color:var(--text); font-family:var(--sans); mi
 </div>
 
 <script src="/js/lunar.min.js"></script>
-<script src="/js/auth.js?v=1787305221"></script>
-<script src="/js/ui_common.js?v=1"></script>
-<script src="/js/liuyao_render.js?v=3"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/ui_common.js"></script>
+<script src="/js/liuyao_render.js"></script>
 <script>
 // ===== 取卦算术（只有卦号 ↔ 三爻，**不含装卦**）=====
 //
@@ -1351,8 +1351,8 @@ init();
 </script>
 
 <!-- AI 面板引擎与六爻的配置（引擎与梅花页共用一份） -->
-<script src="/js/ai_panel.js?v=6"></script>
-<script src="/js/liuyao_ai_panel.js?v=2"></script>
+<script src="/js/ai_panel.js"></script>
+<script src="/js/liuyao_ai_panel.js"></script>
 
 </body>
 </html>

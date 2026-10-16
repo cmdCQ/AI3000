@@ -77,7 +77,7 @@ function _ensureAuthModalCSS() {
 
     var link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = '/css/auth-modal.css?v=' + Date.now();
+    link.href = '/css/auth-modal.css';
     link.setAttribute('data-auth-modal-css', '1');
     link.onload = function() {
       link.dataset.loaded = '1';
