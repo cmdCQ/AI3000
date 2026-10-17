@@ -1,0 +1,26 @@
+/* 选盘页的样式壳。
+ *
+ * 一行 CSS 都没重写：`@import` 就是老 `src/web/select-chart/index.html`
+ * 第 7/10/11 行那三条 `<link>` 的等价物，**顺序就是外观**：
+ *
+ *   auth.css              `.auth-wrapper` / `.auth-card` / `.auth-link` / `.auth-back`
+ *                         / `.sub`（整页骨架，跟登录注册页共用）
+ *   page-select-chart.css `.module-label` / `.empty-state` / `.es-icon` / `.es-title`
+ *                         / `.es-desc` / `.add-btn` / `.chart-list` / `.mc-card`
+ *                         / `.card-zodiac` / `.card-body` / `.card-name` / `.card-info`
+ *                         / `.card-arrow`
+ *   tokens.css            CSS 变量（`--gold` / `--gold-rgb` …）
+ *
+ * ★ 老页把 tokens.css 放在最后一条，这里照抄——变量在 CSS 里是最后写入者生效，
+ *   顺序调换会让 `.add-btn` 的 `var(--gold)` 取到不同的值。
+ *
+ * ★ `.add-btn`（page-select-chart.css:52）写全了 `font-family:inherit` /
+ *   `border:none` / `background` / `width:100%` / `text-align:center`，
+ *   所以游客态的「登录」用 `<button>` 而不是老页的 `<a href="javascript:void(0)">`
+ *   也能长得一模一样——视觉基线把这条断言掉了。
+ */
+@import '../../web/css/auth.css';
+@import '../../web/css/page-select-chart.css';
+@import '../../web/css/tokens.css';
+
+#root { display: block; }
