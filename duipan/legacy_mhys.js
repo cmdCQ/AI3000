@@ -22,7 +22,7 @@ const { ESC_TEXT, makeDocument } = require('./dom_stub.js');
 
 const ROOT = path.join(__dirname, '..');
 const LEGACY = path.join(__dirname, 'legacy_ref', 'page-mhys.js');
-const LUNAR = path.join(ROOT, 'src', 'web', 'js', 'lunar.min.js');
+const LUNAR = path.join(ROOT, 'src', 'app', 'shared', 'lunar.min.cjs');
 // `page-mhys.js` 的 `calcGua` 直接用全局 `TRIGRAMS`，而它来自 `hexagrams_data.js`；
 // 渲染层 `mhys_render.js` 同理。两个都还没搬（被结果页共用），所以直接读源码树。
 // **按老页面 `<script>` 的顺序**灌进去，少一个就会 `ReferenceError`（报得很响，不会静默）。

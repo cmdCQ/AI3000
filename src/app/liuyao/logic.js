@@ -1,3 +1,5 @@
+import { Solar, Lunar } from '../shared/lunar.js'
+
 /**
  * 六爻页（/liuyao/，主页面）的命令式逻辑层。
  *
@@ -25,7 +27,7 @@
  * 已逐处加 `⚠ 死代码` 注释，清单见 duipan/diff_liuyao.mjs 的报告段。
  */
 
-/* global Solar, Lunar, renderLiuyaoResult, refreshAIPanel, AUTH */
+/* global renderLiuyaoResult, refreshAIPanel, AUTH */
 
 /**
  * 老实现的模块级可变状态，收在一个盒子里（mhys 同款，见 src/app/mhys/logic.js:37）。

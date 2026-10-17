@@ -59,6 +59,9 @@ try {
   // 这份代码会被 sync.sh 复制到 build/backend/paipan/，而「上一级」在两个位置不是同一个
   // 目录（src/server -> src/web；build/backend -> build/nginx）。两个候选都试，别写死一个。
   for (const c of [
+    // 阶段 4：前端那份 vendored UMD 从 `src/web/js/lunar.min.js` 搬到了
+    // `src/app/shared/lunar.min.cjs`（内容逐字节相同，改名只为让 Node/Vite 按 CJS 解析）。
+    path.join(__dirname, '..', '..', 'app', 'shared', 'lunar.min.cjs'),
     path.join(__dirname, '..', '..', 'web', 'js', 'lunar.min.js'),
     path.join(__dirname, '..', '..', 'nginx', 'js', 'lunar.min.js'),
   ]) {

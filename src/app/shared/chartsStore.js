@@ -1,13 +1,15 @@
-/**
- * 命盘存储 — MySQL API
- * 所有数据通过后端 API 存取
- */
+// 命盘存储（MySQL API）—— 阶段 4 cut-over 从 `src/web/js/charts-store.js` 搬来。
+// 函数体与老文件**逐字相同**，只做了两件搬家必须做的事：
+//   1. 老文件靠全局 `AUTH.getToken()` 取 token → 改成 import `src/app/lib/auth.js` 的 `getToken()`
+//      （同一个 cookie、同一套读法，`lib/auth.js` 头注释写明「读法逐字对齐」）
+//   2. 老文件末尾 `window.ChartsStore = ChartsStore` → 改成 `export const ChartsStore`
+import { getToken } from '../lib/auth.js'
 
-const ChartsStore = (() => {
+export const ChartsStore = (() => {
   'use strict';
 
   function token() {
-    return AUTH.getToken();
+    return getToken();
   }
 
   function headers() {
@@ -69,5 +71,3 @@ const ChartsStore = (() => {
 
   return { getAll, get, add, update, remove };
 })();
-
-window.ChartsStore = ChartsStore;

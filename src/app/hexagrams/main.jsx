@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import './style.css'
 import { filterHexagrams, relatedKey } from './hexagrams.logic.js'
+import { HEXAGRAM_DATA } from '../shared/hexagramsData.js'
 
 /**
  * 六十四卦查询页。
@@ -14,10 +15,11 @@ import { filterHexagrams, relatedKey } from './hexagrams.logic.js'
  *   「Playwright 视觉基线 + 行为对齐」，而视觉基线是拿老页拍的，
  *   所以真组件写坏了会直接变成一条红测试。
  *
- * 数据仍来自传统 script 的全局 `window.HEXAGRAM_DATA`（阶段 4 才搬，见
- * index.html 里那段注释）。module 自带 defer，所以执行到这里时它一定已经在。
+ * 数据来自 `src/app/shared/hexagramsData.js`（阶段 4 cut-over：从
+ * `src/web/js/hexagrams_data.js` 搬过来，逐字相同、只加了 `export`）。
+ * 阶段 3 时这里读的是 `window.HEXAGRAM_DATA`（传统 script 的全局），现在没有那条 script 了。
  */
-const DATA = window.HEXAGRAM_DATA
+const DATA = HEXAGRAM_DATA
 
 /** 老页 `:14-17` 的头部。 */
 function Header() {

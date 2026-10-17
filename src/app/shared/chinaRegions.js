@@ -1,3 +1,6 @@
+// 中国省市区数据（含经纬度）—— 阶段 4 cut-over 从 `src/web/js/china-regions.js` 搬来。
+// 与老文件**逐字相同**，只把 `const CHINA_REGIONS` 改成 `export const CHINA_REGIONS`。
+// 唯一消费者：`src/app/charts/logic.js`（省/市/区三级联动 + 地名搜索）。
 /**
  * 中国省市区数据（含经纬度）
  * 用于真太阳时出生地选择器
@@ -5,7 +8,7 @@
  * 结构: [{ n:"省名", c:[{ n:"市名", lat, lng, d:[{ n:"区名", lat, lng }] }] }]
  */
 
-const CHINA_REGIONS = [
+export const CHINA_REGIONS = [
   {
     "n": "北京市",
     "c": [

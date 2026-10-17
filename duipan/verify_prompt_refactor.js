@@ -234,7 +234,7 @@ const DT = '2026-05-10T14:30:00';
 const S = sizhuOf(DT);
 const LI_EXACT = { yearGZ: S.year_gz, monthGZ: S.month_gz, dayGZ: S.day_gz, hourGZ: S.hour_gz };
 // 日粒度年/月柱：lunar-javascript 的 ByLiChun / 非 Exact 版本（前端用的就是这一档）
-const SOLAR = require(path.join(ROOT, 'src', 'web', 'js', 'lunar.min.js')).Solar;
+const SOLAR = require(path.join(ROOT, 'src', 'app', 'shared', 'lunar.min.cjs')).Solar;
 const LUN = SOLAR.fromYmdHms(2026, 5, 10, 14, 30, 0).getLunar();
 const LI_DAYGRAIN = {
   yearGZ: LUN.getYearInGanZhiByLiChun(), monthGZ: LUN.getMonthInGanZhi(),

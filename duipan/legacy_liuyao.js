@@ -20,7 +20,7 @@ const { ESC_TEXT, makeDocument } = require('./dom_stub.js');
 
 const ROOT = path.join(__dirname, '..');
 const LEGACY = path.join(__dirname, 'legacy_ref', 'page-liuyao.js');
-const LUNAR = path.join(ROOT, 'src', 'web', 'js', 'lunar.min.js');
+const LUNAR = path.join(ROOT, 'src', 'app', 'shared', 'lunar.min.cjs');
 // `page-liuyao.js` 引 `liuyao_render.js`（渲染层，定义 `renderLiuyaoResult` 等）。
 // 它还没搬（被 `/liuyao/result.html`、`/liuyao/history.html` 共用），直接读源码树。
 // **`hexagrams_data.js` 与 `mhys_render.js` 不需要**：`page-liuyao.js` 里 `TRIGRAMS` /

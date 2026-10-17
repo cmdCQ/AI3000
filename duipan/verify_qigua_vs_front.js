@@ -49,7 +49,7 @@ const FRONT = path.join(ROOT, 'src', 'app', 'mhys', 'logic.js');
 // 拿活页比等于自己跟自己比。冻结件是迁移前那份**独立实现**的原文，见其头注。
 const FROZEN = path.join(__dirname, 'frozen_mhys_frontend.js');
 const M = require(path.join(ROOT, 'src', 'server', 'paipan', 'meihua.js'));
-const lunarLib = require(path.join(ROOT, 'src', 'web', 'js', 'lunar.min.js'));
+const lunarLib = require(path.join(ROOT, 'src', 'app', 'shared', 'lunar.min.cjs'));
 
 /** 读冻结件（整份就是那段切片，含 calcGua 与全部起卦函数）。 */
 function loadFrontend() {

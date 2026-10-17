@@ -1,3 +1,5 @@
+import { Solar, Lunar } from '../shared/lunar.js'
+
 // 梅花易数起卦页 —— 「取数与渲染之外」的那一半：纯函数 + 时间选择器状态。
 // 逐字搬运自 `src/web/js/page-mhys.js`（判据快照 `duipan/legacy_ref/page-mhys.js`，
 // payload sha256 aad85d443209eaaa4e2080397480b5f163a76fc3049047b3adb762ca32b37f81）。
@@ -177,7 +179,7 @@ export function getShichen(hour) {
   return {name:names[idx], num:idx+1};
 }
 
-/* global Solar, Lunar */
+/* Solar / Lunar 已改成 ESM import（文件头） */
 export function enrichTimeInfo() {
   if (!state.selectedTime) initTime();
   var info = {};

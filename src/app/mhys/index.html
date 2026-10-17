@@ -13,19 +13,14 @@
 <body>
 <div id="root"></div>
 
-<!-- 下面这七个是**传统 script**，本次阶段 3 一个都不搬，照旧排在 module 之前
+<!-- 下面这五个是**传统 script**（阶段 4 进行中：`lunar.min.js` 已 cut-over 成
+     `src/app/shared/lunar.js`，`hexagrams_data.js` 本页根本没用到，两个标签都已删）。
+     其余五个照旧排在 module 之前
      （老页 `src/web/mhys/index.html` 第 132-141 行就是这个顺序，一个都不许调）：
 
-     · lunar.min.js       全局 `Solar` / `Lunar`。`enrichTimeInfo()`、`selectedTimeToIso()`、
-                          `getMaxDay()`、`switchCalendar()` 真的会调它，不是可选装饰。
      · auth.js            `window.AUTH`（记录入库时读 isLoggedIn/getToken）+
                           `window.openAuthModal`。
      · ui_common.js       共用渲染小工具。
-     · hexagrams_data.js  ★ 全局 `TRIGRAMS`（1..8 卦 → {name,symbol,full,element,nature}）。
-                          `logic.js` 的 `calcGua()` 按**裸名**读它，缺了就是
-                          `ReferenceError: TRIGRAMS is not defined`（报得很响，不会静默）。
-                          老页注释提醒过：这个表原来两边各抄一份，改一处漏一处就会
-                          悄悄对不上，所以只能有一份。
      · mhys_render.js     结果区与解卦区的渲染（`renderResult` / `renderAnalysis` /
                           `selectGua` / `showRelatedGua` …）。它**写 #resultArea 与
                           #analysisArea 的 innerHTML**，所以这两块必须留给它、
@@ -52,10 +47,9 @@
        script 之前跑 —— 那样 `renderResult` / `TRIGRAMS` / `AI_PANEL_CONF` 全都
        还不存在。defer 是这个顺序唯一的保障。
      阶段 4 收口时它们整体搬进 src/app/，这几个 script 标签一起去掉。 -->
-<script src="/js/lunar.min.js"></script>
 <script src="/js/auth.js"></script>
-<script src="/js/ui_common.js"></script>
 <script src="/js/hexagrams_data.js"></script>
+<script src="/js/ui_common.js"></script>
 <script src="/js/mhys_render.js"></script>
 <script src="/js/ai_panel.js"></script>
 <script src="/js/mhys_ai_panel.js"></script>

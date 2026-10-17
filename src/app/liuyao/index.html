@@ -18,12 +18,10 @@
      → page-liuyao.css → tokens.css）。这里**不再有 <link>**，CSS 由本页的 ESM
      入口 `./main.jsx` import 进来。 -->
 
-<!-- 下面这六条是**传统 script**，本次阶段 3 一个都不搬，照旧排在 module 之前
+<!-- 下面这五条是**传统 script**（阶段 4 进行中：`lunar.min.js` 已 cut-over 成
+     `src/app/shared/lunar.js` 的 ESM import，标签已删）。其余五条照旧排在 module 之前
      （老页 `src/web/liuyao/index.html` 第 122-130 行就是这个顺序，一条都不许调）：
 
-     · lunar.min.js       全局 `Solar` / `Lunar`（真库，不是桩）。`initTime()`、
-                           `enrichTimeInfo()`、`getLunarInfo()`、`getMaxDay()`、
-                           `switchCalendar()`、`updateTopDisplay()` 真的会调它。
      · auth.js            `window.AUTH`（记录入库时读 isLoggedIn/getToken）+
                            `window.openAuthModal`。
      · ui_common.js       共用渲染小工具。
@@ -64,7 +62,6 @@
        script 之前跑 —— 那样 `renderLiuyaoResult` / `Solar` / `AI_PANEL_CONF` 全都
        还不存在。defer 是这个顺序唯一的保障。
      阶段 4 收口时它们整体搬进 src/app/，这几个 script 标签一起去掉。 -->
-<script src="/js/lunar.min.js"></script>
 <script src="/js/auth.js"></script>
 <script src="/js/ui_common.js"></script>
 <script src="/js/liuyao_render.js"></script>

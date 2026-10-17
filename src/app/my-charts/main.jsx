@@ -28,6 +28,7 @@ import {
   detailMetaOf,
 } from '../lib/myChartsView.js'
 import './style.css'
+import { ChartsStore } from '../shared/chartsStore.js'
 
 // ===== 入口分派（老 :8-10）=====
 var params = new URLSearchParams(window.location.search);
@@ -47,7 +48,7 @@ function renderEmpty(icon, title, desc, link, btnText) {
 // ============================================================
 async function loadList() {
   var charts;
-  try { charts = await window.ChartsStore.getAll(); }
+  try { charts = await ChartsStore.getAll(); }
   catch(e) {
     renderEmpty(e&&e.status===401?'🔒':'⚠️', e&&e.status===401?'登录已过期':'加载失败', e&&e.status===401?'请重新登录后再查看':'请稍后重试或返回首页', e&&e.status===401?'/login/':'/', e&&e.status===401?'重新登录':'返回首页');
     return;
@@ -73,7 +74,7 @@ async function loadDetail(id) {
       if (resp.ok) chart = await resp.json();
     } catch(e) {}
   } else {
-    try { chart = await window.ChartsStore.get(id); } catch(e) {}
+    try { chart = await ChartsStore.get(id); } catch(e) {}
   }
   if (!chart) {
     setContent('<div class="mc-loading">命盘不存在或已删除</div><div style="text-align:center;margin-top:-4rem"><a href="/my-charts/" class="mc-empty empty-btn" style="display:inline-block;background:transparent;color:var(--accent);border:1px solid var(--accent)">← 返回列表</a></div>');
@@ -201,7 +202,7 @@ window.closeMenu = function() {
 // ============================================================
 window.doDelete = async function(id) {
   if (!confirm('确定删除这个命盘吗？删除后不可恢复 (｡•́︿•̀｡)')) return;
-  try { await window.ChartsStore.remove(id); window.location.href='/my-charts/'; }
+  try { await ChartsStore.remove(id); window.location.href='/my-charts/'; }
   catch(e) { alert('删除失败: '+(e.message||'请稍后重试')); }
 };
 

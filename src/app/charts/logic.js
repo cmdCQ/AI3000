@@ -1,3 +1,7 @@
+import { CHINA_REGIONS } from '../shared/chinaRegions.js'
+import { Solar } from '../shared/lunar.js'
+import { ChartsStore } from '../shared/chartsStore.js'
+
 // `/charts/`（新建 / 编辑命盘）的命令式逻辑 —— 阶段 3 第 12 页。
 // 逐字搬运自 `src/web/js/page-charts.js`（955 行，判据快照见 git 历史：
 // `git show 7ec4fda^:src/web/js/page-charts.js`）。
@@ -33,10 +37,10 @@
 // ─────────────────────────────────────────────────────────────
 //   · `AUTH`            `/js/auth.js`          —— `isLoggedIn()`
 //   · `openAuthModal`   `/js/auth.js`          —— 未登录时弹登录框
-//   · `ChartsStore`     `/js/charts-store.js`  —— `add` / `update` / `getAll`
-//   · `CHINA_REGIONS`   `/js/china-regions.js` —— 省/市/区三级数据（10 处引用）
-//   · `Solar`           `/js/lunar.min.js`     —— `Solar.fromYmd()` 取农历/节气
-/* global AUTH, openAuthModal, ChartsStore, CHINA_REGIONS, Solar */
+//   · `ChartsStore`     ✂ 阶段 4 已改成 ESM import
+//   · `CHINA_REGIONS`   ✂ 阶段 4 已改成 ESM import（见文件头 import 区）
+//   · `Solar`           ✂ 同上
+/* global AUTH, openAuthModal */
 
 export function init() {
   'use strict';
