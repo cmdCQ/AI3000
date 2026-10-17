@@ -1,0 +1,27 @@
+/* 六爻结果页的样式壳。
+ *
+ * 样式一行都没重写：`@import` 就是老 `src/web/liuyao/result.html` 第 13-15 行那三条
+ * `<link>` 的等价物。**顺序就是外观**：
+ *
+ *   mhys_result.css    设计系统与梅花结果页同一份（令牌/卡片/块标题栏/`.load-state`/
+ *                      `.spinner`）。结果页的骨架（`.mh-wrapper` / `.mh-header` /
+ *                      `.mh-back` / `.mh-title`）也全在这一份里。
+ *   liuyao_result.css  六爻盘面（`.ly-pan` 九列网格 / `.card` 边框 / 爻符）。它里面
+ *                      **有覆盖 mhys_result.css 的规则**，所以必须引在后面。
+ *   tokens.css         CSS 变量（`--accent` / `--text-dim` / `--gold-rgb` …）。
+ *                      老页也把它放在最后一条，这里照抄；它只定义变量，放最后不会
+ *                      盖掉上面两份的规则。
+ *
+ * 之所以走 `@import` 而不是在 index.html 留 `<link>`：`src/app` 的页面由 Vite 打包，
+ * CSS link 写在 HTML 里就绕过了打包（线上路径还是 `/css/*.css` 的裸文件），搬过来的
+ * 意义就只剩一半。`@import` 让这三份进同一个 CSS 产物，顺序仍由这里的书写顺序决定。
+ * 排盘页的 `style.css` 同一套写法（那边是四条，多一份 page-liuyao.css）。
+ *
+ * `#root` 自己补一条 `display:block`：Vite 的 React 模板给 `#root` 的样式不在这三份
+ * 老 CSS 里，而 `.mh-wrapper` 的 `min-height:100vh` 要有个撑得开的父级。
+ */
+@import '../../web/css/mhys_result.css';
+@import '../../web/css/liuyao_result.css';
+@import '../../web/css/tokens.css';
+
+#root { display: block; }

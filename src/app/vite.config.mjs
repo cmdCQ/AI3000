@@ -1,7 +1,9 @@
 // 前端构建：Vite 是 build/nginx 的**唯一**写入者（deploy/sync.sh 里那条
 // `src/web → build/nginx` 的 rsync 已被本构建取代）。
 //
-//   src/app/  新前端（React / ESM）。每个 src/app/<页>/index.html 自动成为一个入口。
+//   src/app/  新前端（React / ESM）。每个 src/app/<页>/index.html 自动成为一个入口；
+//             同目录下的其它 <名字>.html 也各成一个入口（保住老的 `.html` 地址，
+//             见下面「加一个页面」那段）。
 //   src/web/  还没搬过来的老页面，交给 publicDir **逐字**拷过去，Vite 不解析它们。
 //
 // 为什么老页面不能交给 Vite 处理（实测，不是推测）：
@@ -22,12 +24,28 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = resolve(HERE, '..', '..')
 const LEGACY = join(REPO, 'src', 'web')
 
-// 加一个页面 = 加一个目录，不用回来改这张表
+// 加一个页面 = 加一个 `<页>/index.html`，或者 `<页>/<名字>.html`，不用回来改这张表。
+//
+// 为什么也认 `<页>/<名字>.html`：老的六爻结果页 / 记录页线上地址是
+// `/liuyao/result.html` 与 `/liuyao/history.html`（**带 .html**，不是目录），
+// 而记录页 `viewRecord()` 与后台 `admin.js` 都还写着这两个 URL。
+// 如果按「一页一目录」把它做成 `liuyao/result/index.html`，产物就是 `/liuyao/result/`
+// —— 老地址直接 404。所以这两页的 HTML 就放在 `liuyao/result.html` / `liuyao/history.html`，
+// 入口名的取法随之变成：
+//   index.html     → `<页>`            （产物 `<页>/index.html`，即 `/liuyao/`）
+//   其它 <名字>.html → `<页>/<名字>`    （产物 `<页>/<名字>.html`，即 `/liuyao/result.html`）
+// 输出路径本来就是「源文件相对 root 的路径」，所以两种取法产出的文件名都正确；
+// 这里给 input 起名只是为了让 rollup 的 chunk 名与产物一一对应
+// （`assets/liuyao/result-<hash>.js`），不参与 URL 生成。
 const input = {}
 for (const d of readdirSync(HERE, { withFileTypes: true })) {
   if (!d.isDirectory() || d.name === 'node_modules' || d.name === 'lib') continue
-  const entry = join(HERE, d.name, 'index.html')
-  if (existsSync(entry)) input[d.name] = entry
+  const dir = join(HERE, d.name)
+  for (const f of readdirSync(dir)) {
+    if (!f.endsWith('.html')) continue
+    const entry = join(dir, f)
+    input[f === 'index.html' ? d.name : d.name + '/' + f.replace(/\.html$/, '')] = entry
+  }
 }
 
 export default defineConfig({

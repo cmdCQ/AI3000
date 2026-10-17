@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>排盘记录 · 六爻</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all';this.onload=null">
+</head>
+<body>
+<div id="root"></div>
+
+<!-- 老页 `src/web/liuyao/history.html` 第 12-13 行那两条 CSS <link> 搬进了
+     `./history.css` 的 `@import`（顺序就是外观：shared-history.css → tokens.css）。
+     这里**不再有 <link>**，CSS 由本页的 ESM 入口 `./history.jsx` import 进来。 -->
+
+<!-- 老页只有两条 script（第 48-49 行），一条都不许调顺序：
+
+     · auth.js           `window.AUTH`（取列表时 isLoggedIn/getToken、删记录时 getToken）
+                         + `window.openAuthModal`（未登录那张引导卡里的
+                         `<a onclick="openAuthModal('login')">` 直接点它）。
+                         ★ 这页**没有** ui_common.js（老页也没有）—— 它的 `escHtml()`
+                           是 `page-liuyao-history.js` 自己定义的那一份，已随逻辑搬到
+                           `src/app/lib/recordsHistory.js`，所以这里不需要 ui_common.js。
+     · page-liuyao-history.js
+                         本次搬进 `src/app/liuyao/`，所以这一行换成了下面的 module。
+                         它是本页唯一的 ESM 入口。
+
+     ★ 执行顺序为什么仍然对（**这是 Vite 的实际行为，别按源码里的位置想**）：
+       `vite build` 会把 `<script type="module">` 连同 CSS link **搬进 `<head>`**，
+       所以产物里 module 标签在文档顺序上排在 auth.js **之前**。但 `type="module"`
+       自带 defer 语义：它要等 HTML 解析完（也就是 auth.js 跑完）才执行。于是真实
+       顺序是
+            auth.js（AUTH / openAuthModal） → history.jsx（使用者） → DOMContentLoaded
+       而 history.jsx 里用 `flushSync` 同步提交骨架，之后才跑 `loadRecords()`
+       （第一句就 `getElementById('contentArea')`，见那边注释）。
+       ⚠ 反过来说：**不能**因为「module 被搬到前面了」就以为页面会在 auth.js 之前
+       跑 —— 那样 `AUTH` / `openAuthModal` 都不存在，未登录分支会直接抛。
+       defer 是这个顺序唯一的保障。
+     阶段 4 收口时它们整体搬进 src/app/，script 标签一起去掉。 -->
+<script src="/js/auth.js"></script>
+<script type="module" src="./history.jsx"></script>
+</body>
+</html>

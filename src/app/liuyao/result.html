@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>排盘结果 · 六爻</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all';this.onload=null">
+</head>
+<body>
+<div id="root"></div>
+
+<!-- 老页 `src/web/liuyao/result.html` 第 13-15 行那三条 CSS <link> 搬进了
+     `./result.css` 的 `@import`（顺序就是外观：mhys_result.css → liuyao_result.css
+     → tokens.css；六爻盘面那份必须排在 mhys_result 之后）。这里**不再有 <link>**，
+     CSS 由本页的 ESM 入口 `./result.jsx` import 进来。 -->
+
+<!-- 下面这五条是**传统 script**，一个都不搬，照旧排在 module 之前（老页第 35-42 行
+     就是这个顺序，一条都不许调）：
+
+     · auth.js            全局 `AUTH`（取记录时 getToken）+ `window.openAuthModal`
+                          （未登录时 AI 块里的那颗「登录」用得到）。
+     · ui_common.js       共用渲染小工具。`result.logic.js` 按**裸名**调 `escHtml()`。
+     · liuyao_render.js   ★ 结果区渲染层 `renderLiuyaoResult(chart, display, meta)`，
+                          与排盘页共用一份 —— 两页的盘因此不会长歪。它自己还有一批
+                          裸全局（`currentChart` / `currentRecordId` / `savedAnalysis` …），
+                          `liuyao_ai_panel.js` 读的就是这些。
+     · ai_panel.js        共用 AI 面板引擎（与梅花页同一份）。装载时自己往 body 挂面板；
+                          它的 `mountAIPanel()` 在 DOMContentLoaded 里要找 `#contentArea`
+                          （AI 宿主插在「结果容器 nextSibling」上）才插得进 `#aiInlineHost`
+                          —— 找不到就**静默 return**。result.jsx 因此用 flushSync 做同步
+                          首提交（见那边注释）。
+     · liuyao_ai_panel.js 本页的 AI 配置（`window.AI_PANEL_CONF`）与 `refreshAIPanel()`。
+                          `load()` 把盘写进 `#contentArea` 之后调它摆块；`recordId` 也由
+                          `renderLiuyaoResult` 的 meta 转成 `AI_PANEL_CONF.recordId`，
+                          老记录的解读因此存回它自己的 id。
+
+     ⚠ `page-liuyao-result.js`（老页第 38 行那个）本次搬进 `src/app/liuyao/`，所以这一行
+       换成了下面的 module。它是本页唯一的 ESM 入口。
+
+     ★ 执行顺序为什么仍然对（**这是 Vite 的实际行为，别按源码里的位置想**）：
+       `vite build` 会把 `<script type="module">` 连同 CSS link **搬进 `<head>`**，
+       所以产物里 module 标签在文档顺序上**排在这五条之前**。但 `type="module"`
+       自带 defer 语义：它要等 HTML 解析完（也就是五条 classic script 全跑完）才执行。
+       于是真实顺序是
+            五条传统 script（依赖） → result.jsx（使用者） → DOMContentLoaded
+       而 result.jsx 里用 `flushSync` 同步提交 React 外壳 —— 这样 `load()` 第一句
+       `getElementById('contentArea')` 拿得到节点，AI 面板引擎在 DOMContentLoaded
+       分支里也拿得到 `#contentArea`。
+       ⚠ 反过来说：**不能**因为「module 被搬到前面了」就以为页面会在 classic
+       script 之前跑 —— 那样 `renderLiuyaoResult` / `refreshAIPanel` / `AUTH` 全都
+       还不存在。defer 是这个顺序唯一的保障。
+     阶段 4 收口时它们整体搬进 src/app/，这几个 script 标签一起去掉。 -->
+<script src="/js/auth.js"></script>
+<script src="/js/ui_common.js"></script>
+<script src="/js/liuyao_render.js"></script>
+<script src="/js/ai_panel.js"></script>
+<script src="/js/liuyao_ai_panel.js"></script>
+<script type="module" src="./result.jsx"></script>
+</body>
+</html>
