@@ -136,6 +136,29 @@ async function api(req, res, pathname) {
 }
 
 // ── 操作原语 ──────────────────────────────────────────────────────
+/**
+ * 等页面脚本真的装好（`window.__mhysTestApi` 或老页的 `selectedTime` 已经存在）。
+ *
+ * ⚠ 这是「读太早」那一类坑的第 N 次复现，2026-10-17 在这份驱动上踩到：
+ * `goto` 回来立刻跑 `setTime()`，包里那条 ESM 入口还没执行完（页面侧现在是
+ * React + 动态 import，比当年 classic `<script>` 慢一截），于是
+ * `W.selectedTime.year = …` 抛
+ * `TypeError: can't access property "year", W.selectedTime is undefined`
+ * —— 报出来像是产品坏了，其实只是判据抢跑。所以**每个操作原语自己等**，
+ * 不指望调用方记得先等。
+ */
+async function mainPageReady(m, timeoutMs) {
+  const t0 = Date.now();
+  for (;;) {
+    let ok = false;
+    try {
+      ok = await js(m, `${W} return !!(W.__mhysTestApi || W.selectedTime);`);
+    } catch (e) { ok = false; }
+    if (ok === true) return true;
+    if (Date.now() - t0 > (timeoutMs || 10000)) return false;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+}
 async function setStub(m, qigua) {
   await js(m, `${W} return fetch('/__stub', { method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ qigua: arguments[0] }) }).then(function(){ return true; });`, [qigua]);
@@ -148,6 +171,9 @@ async function setStub(m, qigua) {
 //     不再直接调全局 —— 这样顺带验了「内联 onclick 到了 ESM 还点不点得动」。
 //   老页与新页两条路都成立，所以驱动对两侧都能跑。
 async function setTime(m, y, mo, d, h, mi) {
+  // 见 mainPageReady 的注释：这里不等就是 `selectedTime is undefined`。
+  const ready = await mainPageReady(m, 10000);
+  if (!ready) throw new Error('梅花首页 10s 内没装好测试桥（`__mhysTestApi` / `selectedTime` 都不在）');
   await js(m, `${W}
     if (W.__mhysTestApi) { W.__mhysTestApi.setTime(
       arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]); return true; }
