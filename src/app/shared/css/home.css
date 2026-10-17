@@ -23,140 +23,201 @@ html, body {
 }
 
 /* ===== Layout ===== */
+/* 页面骨架改成一列 flex：内容垂直居中不了，但可以把页脚钉在底栏上沿。
+   改前页脚是「跟在内容后面」，于是 500×900 下「已稳定运行」正好落进固定底栏
+   底下（uptime top 863 vs nav top 849.6），必须滚 57px 才看得见。
+   `100dvh` 是为了手机地址栏收起时不跳动；老 iOS 不认 dvh，所以先用 vh 兜底。 */
 .home-wrapper {
-  max-width: 680px; margin: 0 auto; padding: 1.5rem 1.2rem 5rem;
+  max-width: 680px; margin: 0 auto; padding: 16px 16px calc(4rem + 8px);
+  box-sizing: border-box;
+  min-height: 100vh; min-height: 100dvh;
+  display: flex; flex-direction: column;
 }
 
+/* 只有「命理与术数」这一屏需要撑满并钉页脚；「我的」tab 不参与。 */
+#tab-modules { flex: 1 1 auto; display: flex; flex-direction: column; }
+#tab-modules > .home-footer { margin-top: auto; }
+
 /* ===== Header ===== */
-.home-header { text-align: center; padding: 2rem 0 1.5rem; }
+/* 🏮 删了。它在 Chromium 里是一块高饱和红，是整页唯一的第三种彩色，
+   而且把页头撑到 135.8px（首屏 15%）。品牌力交给字号、字距和那道 20×2 的短线。 */
+.home-header { text-align: center; padding: 8px 0 20px; }
 
 .home-title {
   font-family: "Noto Serif SC", "Source Han Serif SC", serif;
-  font-size: 1.8rem; font-weight: 600;
-  letter-spacing: 0.15em;
+  font-size: 1.625rem; font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0.16em;
   color: var(--text);
-  margin-bottom: 0.2rem;
+  margin-bottom: 6px;
 }
 
 .home-sub {
-  font-size: 0.78rem; color: var(--text-muted); letter-spacing: 0.12em;
+  font-size: 0.75rem; color: var(--text-muted); letter-spacing: 0.18em;
 }
 
 .home-rule {
-  width: 5rem; height: 1.5px;
-  background: linear-gradient(90deg, transparent 0%, var(--accent) 30%, var(--accent) 70%, transparent 100%);
-  margin: 0.65rem auto 0;
+  width: 20px; height: 2px;
+  background: var(--accent);
+  border-radius: 1px;
+  margin: 14px auto 0;
 }
 
 /* ===== Sections ===== */
-.home-section { margin: 2rem 0; }
+/* 节间距由 32px 承担；head 到列表只留 4px —— 让「线」而不是字号去分节。 */
+.home-section { margin: 32px 0 0; }
 
 .section-head {
-  display: flex; align-items: baseline; gap: 0.8rem;
-  margin-bottom: 0.5rem;
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 4px;
 }
 
 .section-head .cat {
   font-family: "Noto Serif SC", serif;
-  font-size: 0.95rem; color: var(--text); font-weight: 500;
-  letter-spacing: 0.08em;
+  font-size: 1rem; color: var(--text); font-weight: 500;
+  letter-spacing: 0.14em;
+  flex-shrink: 0;
 }
 
+/* 副标题保留，但从第二行挪到标题右侧当后缀（11.5px 灰字）。 */
 .section-head span:last-child {
   font-size: 0.72rem; color: var(--text-muted);
+  letter-spacing: 0.02em; flex-shrink: 0;
 }
 
-/* ===== Module Cards ===== */
-.module-list { display: flex; flex-direction: column; gap: 0.6rem; }
+/* 通栏 hairline：标题右侧一路到右边缘，节与节靠它而不是靠字号分。 */
+.section-head::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+
+/* ===== Module Rows ===== */
+/* 从「白卡」改成「通栏行」：去白底、去阴影、去圆角、去 3px 玉青左竖线，
+   只留一条 1px 分隔线。改前一页里有 5 个元素带同一条 3px 竖线（4 卡 + AI 入口），
+   那条竖线因此不再表示强调，只表示「这里有个盒子」。 */
+.module-list { display: flex; flex-direction: column; gap: 0; }
 
 .module-card {
-  display: flex; align-items: center; gap: 0.8rem;
-  padding: 1rem 1.05rem;
+  display: grid; grid-template-columns: 36px 1fr 16px;
+  align-items: center; gap: 12px;
+  padding: 12px 0; min-height: 64px;
   text-decoration: none; color: inherit;
   cursor: pointer; position: relative;
-  background: var(--bg-card);
-  border: 1px solid var(--border); border-left: 3px solid var(--accent);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
-  transition: all 0.25s var(--ease);
+  background: transparent;
+  border: 0; border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  box-shadow: none;
+  transition: background 0.2s var(--ease);
 }
 
+.module-card:last-of-type { border-bottom: 0; }
+
 .module-card.active:hover {
-  border-color: var(--border-active);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  background: var(--bg-hover);
 }
 
 .module-card.active:active {
-  transform: scale(0.98);
+  background: var(--bg-sunken);
 }
 
 .module-card.locked {
   opacity: 0.4; cursor: default;
-  box-shadow: none;
-  border-style: dashed;
+  border-bottom-style: dashed;
 }
-.module-card.locked:hover { opacity: 0.5; border-color: var(--border); }
+.module-card.locked:hover { opacity: 0.5; }
 
-.module-card .icon {
-  font-size: 1rem; width: 1.6rem; text-align: center; flex-shrink: 0;
-  opacity: 0.5;
+/* emoji 换成「字符块」：36×36 淡玉青底 + 宋体单字，单色、不随平台字形漂移。
+   八 / 卦 / 梅 / 爻 / 问 —— 见 main.jsx 的 ModuleCard。 */
+.module-card .icon,
+.ai-chat-entrance .ai-ent-icon {
+  width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--gold-wash);
+  border-radius: 9px;
+  color: var(--accent);
+  font-family: "Noto Serif SC", serif;
+  font-size: 16px; font-weight: 500; line-height: 1;
+  flex-shrink: 0;
+  opacity: 1;
 }
 
-.module-card .body { flex: 1; min-width: 0; }
+.module-card .body { min-width: 0; }
 
 .module-card .name {
-  display: block; font-size: 0.88rem; font-weight: 500;
-  letter-spacing: 0.03em; margin-bottom: 0.04rem;
+  display: block; font-size: 15px; font-weight: 500;
+  line-height: 1.4; letter-spacing: 0.02em; margin: 0 0 2px;
   color: var(--text);
 }
 
 .module-card .desc {
-  display: block; font-size: 0.72rem; color: var(--text-dim);
+  display: block; font-size: 12px; line-height: 1.5;
+  letter-spacing: 0.01em; color: var(--text-muted);
 }
 
-.module-card .badge {
-  font-family: "Noto Sans SC", sans-serif;
-  font-size: 0.6rem; padding: 0.12rem 0.45rem; border-radius: 8px; flex-shrink: 0;
-  color: var(--warm);
-  border: 1px solid var(--border);
+/* 行尾 chevron：7×7 的双边框方块转 45°，比 › 字符在不同字体下稳。 */
+.module-card::after {
+  content: ''; width: 7px; height: 7px; justify-self: center;
+  border-right: 1.5px solid var(--text-muted);
+  border-top: 1.5px solid var(--text-muted);
+  transform: rotate(45deg);
+  opacity: 0.45;
 }
 
 /* ===== Footer ===== */
 .home-footer {
-  text-align: center; padding: 3rem 0 1rem;
-  font-size: 0.72rem; color: var(--text-muted);
+  text-align: center; padding: 24px 0 0;
+  font-size: 12px; color: var(--text-muted);
 }
+
+.home-footer > div:first-child { color: var(--text-dim); letter-spacing: 0.08em; }
 
 .home-footer-credit {
-  margin-top: 0.3rem;
-  font-size: 0.68rem;
+  margin-top: 4px;
+  font-size: 11.5px;
 }
+/* 链接改中性色 + 下划线（原来用暖金，成了首屏唯一的暖色）。
+   14px 的上下 padding 用负 margin 抵掉，命中区 16 → 44px，行高不变。 */
 .home-footer-credit a {
-  color: var(--warm);
-  text-decoration: none;
-  transition: opacity 0.2s;
+  color: var(--text-dim);
+  text-decoration: underline;
+  text-decoration-color: var(--border-strong);
+  text-underline-offset: 3px;
+  padding: 14px 6px; margin: -14px -6px;
+  transition: color 0.2s;
 }
-.home-footer-credit a:hover {
-  opacity: 0.7;
+.home-footer-credit a:hover { color: var(--text); }
+
+/* 建议入口：原来在页面顶部，是一颗 185×37 的虚线胶囊（全页唯一虚线、点击目标 <44、
+   两侧吃掉 93px 竖向）。现在挪到页脚，仍是同一个 <a>、文案一字不改。 */
+.home-suggest {
+  display: inline-flex; align-items: center; gap: 2px;
+  min-height: 44px; padding: 0 8px; margin-top: 4px;
+  font-size: 12px; letter-spacing: 0.02em;
+  color: var(--accent); text-decoration: none;
 }
+.home-suggest::after { content: '\203A'; font-size: 14px; line-height: 1; opacity: 0.6; }
+.home-suggest:hover { color: var(--gold-ink); }
 
 .uptime-line {
-  margin-top: 0.6rem;
-  font-size: 0.68rem;
-  color: var(--text-dim);
+  margin-top: 14px;
+  font-size: 11px;
+  color: var(--text-muted);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.3rem;
+  gap: 6px;
   letter-spacing: 0.03em;
 }
-.uptime-indicator {
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: #22c55e;
-  display: inline-block;
+/* 那颗绿点（.uptime-indicator）是死代码：JSX 从来没渲染过它。
+   点改由 ::before 画，颜色回到玉青。 */
+.uptime-line::before {
+  content: ''; width: 5px; height: 5px; border-radius: 50%;
+  background: var(--accent); opacity: 0.55; flex-shrink: 0;
 }
-.uptime-timer { font-variant-numeric: tabular-nums; font-weight: 500; }
+.uptime-timer {
+  font-variant-numeric: tabular-nums; font-weight: 500;
+  padding: 2px 8px; border: 1px solid var(--border);
+  border-radius: 999px; color: var(--text-dim);
+}
 
 /* ===== 底部导航 ===== */
 .bottom-nav {
@@ -173,31 +234,41 @@ html, body {
 .nav-item {
   flex: 1; display: flex; align-items: center; justify-content: center;
   background: none; border: none; cursor: pointer;
+  min-height: 44px;
   padding: 0.5rem 0.5rem;
   font-family: inherit;
-  font-size: 0.82rem; letter-spacing: 0.06em; font-weight: 400;
+  font-size: 13px; letter-spacing: 0.06em; font-weight: 400;
   color: var(--text-muted);
-  transition: all 0.2s;
+  transition: color 0.2s;
   position: relative;
 }
 
 .nav-item.active {
-  color: var(--text);
+  color: var(--accent); font-weight: 500;
 }
 
 .nav-item.active::after {
-  content: ''; position: absolute; bottom: -0.2rem; left: 50%;
+  content: ''; position: absolute; bottom: 2px; left: 50%;
   transform: translateX(-50%);
-  width: 1rem; height: 2px;
-  background: var(--accent); height: 3px; border-radius: 1px;
+  width: 20px; height: 2px;
+  background: var(--accent); border-radius: 2px;
 }
 
 .nav-item:not(.active):hover { color: var(--text-dim); }
 
+/* 桌面：底栏不再铺满 1280（三项各 426.7px 宽），收成和内容同宽的一条。
+   position:fixed 下 left/right 0 + margin auto 仍然能居中。 */
+@media (min-width: 768px) {
+  .bottom-nav {
+    max-width: 680px; left: 0; right: 0; margin: 0 auto;
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    border-radius: 12px 12px 0 0;
+  }
+}
+
 /* ===== Tab 容器 ===== */
 .tab-content { min-height: 60vh; }
-
-.home-wrapper { padding-bottom: 5rem; }
 
 /* ===== 空/未登录状态 ===== */
 .charts-guest {
@@ -320,46 +391,57 @@ html, body {
 
 /* ===== Responsive ===== */
 @media (max-width: 640px) {
-  .home-wrapper { padding: 1.2rem 0.8rem 4rem; }
-  .home-header { padding: 1.2rem 0 1rem; }
-  .home-title { font-size: 1.5rem; letter-spacing: 0.1em; }
-  .home-sub { font-size: 0.74rem; }
-  .section-head .cat { font-size: 0.92rem; }
-  .module-card { padding: 0.85rem 0.9rem; gap: 0.6rem; }
-  .module-card .icon { font-size: 1rem; width: 1.8rem; }
-  .module-card .name { font-size: 0.82rem; }
-  .module-card .desc { font-size: 0.68rem; }
-  .home-footer { padding: 2rem 0 0.8rem; font-size: 0.68rem; }
-  .uptime-line { font-size: 0.64rem; }
+  .home-wrapper { padding: 12px 16px calc(4rem + 8px); }
+  .home-header { padding: 4px 0 16px; }
+  .home-title { font-size: 1.5rem; letter-spacing: 0.16em; }
+  .home-sub { font-size: 0.75rem; }
+  .home-section { margin-top: 28px; }
+  .section-head .cat { font-size: 1rem; }
+  .module-card { padding: 11px 0; min-height: 60px; }
+  .home-footer { padding-top: 20px; }
   .charts-guest { padding: 2rem 1rem; }
   .mini-chart-card { padding: 0.65rem 0.85rem; }
   .cg-btn { padding: 0.35rem 1rem; font-size: 0.78rem; }
 }
 
 @media (max-width: 380px) {
-  .home-title { font-size: 1.25rem; }
+  .home-title { font-size: 1.375rem; }
 }
 
 /* ===== AI 对话入口 ===== */
+/* 全页唯一保留阴影的元素（主 CTA 值得一层淡淡的浮起）。
+   去掉了 3px 玉青左竖线：那正是「5 个盒子同一个装饰」里的一条。 */
 .ai-chat-entrance {
-  display:flex; align-items:center; gap:0.5rem;
-  margin:0.4rem 0 0; padding:0.65rem 1rem;
+  display:flex; align-items:center; gap:12px;
+  margin:0; padding:12px 14px;
+  min-height:64px;
   background:var(--bg-card);
   border:1px solid var(--border);
-  border-left:3px solid var(--accent);
-  border-radius:var(--radius-md);
+  border-radius:12px;
   box-shadow:var(--shadow-card);
   cursor:pointer;
-  transition:all 0.25s var(--ease);
+  transition:border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
 }
 .ai-chat-entrance:hover {
-  border-color:var(--border-active);
-  box-shadow:0 2px 8px rgba(0,0,0,0.06);
+  border-color:var(--border-strong);
+  box-shadow:var(--shadow-pop);
 }
-.ai-chat-entrance:active { transform:scale(0.98); }
-.ai-chat-entrance .ai-ent-icon { font-size:1.1rem; flex-shrink:0; }
-.ai-chat-entrance .ai-ent-text { flex:1; font-size:0.88rem; font-weight:500; letter-spacing:0.03em; color:var(--text); }
-.ai-chat-entrance .ai-ent-arrow { font-size:1.2rem; color:var(--text-muted); transition:transform 0.2s; }
+.ai-chat-entrance:active { background:var(--bg-hover); }
+.ai-chat-entrance .ai-ent-text {
+  flex:1; display:flex; flex-direction:column; gap:2px;
+}
+.ai-ent-name {
+  font-size:15px; font-weight:600; line-height:1.35;
+  letter-spacing:0.04em; color:var(--text);
+}
+.ai-ent-sub {
+  font-size:11.5px; line-height:1.4;
+  letter-spacing:0.02em; color:var(--text-muted);
+}
+.ai-chat-entrance .ai-ent-arrow {
+  font-size:1.2rem; color:var(--text-muted); opacity:0.6;
+  line-height:1; transition:transform 0.2s;
+}
 .ai-chat-entrance:hover .ai-ent-arrow { transform:translateX(2px); }
 
 /* ===== 全屏 AI 对话弹窗 ===== */
