@@ -1,0 +1,7 @@
+# Playwright 的生成物。基线 PNG（`tests/*-snapshots/*.png`）**要进库** ——
+# 它们就是「这一页长什么样」的唯一记录，所以不能整体忽略 tests/。
+test-results/
+tests/.report/
+
+# vitest
+coverage/
