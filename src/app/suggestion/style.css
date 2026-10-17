@@ -1,0 +1,22 @@
+/* 提交建议页的样式壳。
+ *
+ * 样式一行都没重写：`@import` 就是老 `src/web/suggestion/index.html` 第 9-10 行
+ * 那两条 `<link>` 的等价物。**顺序就是外观**：
+ *
+ *   page-suggestion.css  本页整套（`.sg-wrap` / `.sg-header` / `.sg-ratings-card` /
+ *                        `.sg-rating-row` / `.sg-star` / `.sg-star.active` /
+ *                        `.sg-textarea` / `.sg-submit` / `.sg-login-required` /
+ *                        `.sg-success`）。
+ *   tokens.css           CSS 变量（`--star` / `--star-active` / `--accent` /
+ *                        `--text-dim` / `--text-muted` / `--gold-rgb` …）。
+ *                        老页也把它放在最后一条，这里照抄。
+ *
+ * ★ `.sg-login-required` 与 `.sg-success` 在 CSS 里默认是 `display:none`
+ *   （`page-suggestion.css:115` 与 `:131`），老脚本靠**内联 style 改成 block** 来显示。
+ *   新实现在 `main.jsx` 里用同一套机制（`style={{display:'block'}}`），
+ *   所以这两条 CSS 一行都不用动。
+ */
+@import '../../web/css/page-suggestion.css';
+@import '../../web/css/tokens.css';
+
+#root { display: block; }
