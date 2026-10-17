@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>梅花易数 · 易三千</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all';this.onload=null">
+</head>
+<body>
+<div id="root"></div>
+
+<!-- 下面这七个是**传统 script**，本次阶段 3 一个都不搬，照旧排在 module 之前
+     （老页 `src/web/mhys/index.html` 第 132-141 行就是这个顺序，一个都不许调）：
+
+     · lunar.min.js       全局 `Solar` / `Lunar`。`enrichTimeInfo()`、`selectedTimeToIso()`、
+                          `getMaxDay()`、`switchCalendar()` 真的会调它，不是可选装饰。
+     · auth.js            `window.AUTH`（记录入库时读 isLoggedIn/getToken）+
+                          `window.openAuthModal`。
+     · ui_common.js       共用渲染小工具。
+     · hexagrams_data.js  ★ 全局 `TRIGRAMS`（1..8 卦 → {name,symbol,full,element,nature}）。
+                          `logic.js` 的 `calcGua()` 按**裸名**读它，缺了就是
+                          `ReferenceError: TRIGRAMS is not defined`（报得很响，不会静默）。
+                          老页注释提醒过：这个表原来两边各抄一份，改一处漏一处就会
+                          悄悄对不上，所以只能有一份。
+     · mhys_render.js     结果区与解卦区的渲染（`renderResult` / `renderAnalysis` /
+                          `selectGua` / `showRelatedGua` …）。它**写 #resultArea 与
+                          #analysisArea 的 innerHTML**，所以这两块必须留给它、
+                          别让 React 去管（见 main.jsx 顶部）。
+     · ai_panel.js        共用 AI 面板引擎（与六爻页一份）。装载时自己往 body 挂面板；
+                          它的 `mountAIPanel()` 在 DOMContentLoaded 里要找 `#resultArea`
+                          才插得进 `#aiInlineHost` —— main.jsx 因此用 flushSync 做同步首提交。
+     · mhys_ai_panel.js   本页的 AI 面板配置（`window.AI_PANEL_CONF`：cardType/recordsPath/
+                          hasChart/topic/recordId/payload/saved/setSaved）。它读的
+                          `g` / `currentTopic` / `currentRecordId` 来自 mhys_render.js。
+
+     ⚠ `page-mhys.js`（老页第 141 行那个）本次搬进 `src/app/mhys/`，所以这一行
+       换成了下面的 module。它是本页唯一的 ESM 入口。
+
+     ★ 执行顺序为什么仍然对（**这是 Vite 的实际行为，别按源码里的位置想**）：
+       `vite build` 会把 `<script type="module">` 连同 CSS link **搬进 `<head>`**，
+       所以产物里 module 标签在文档顺序上**排在这七条之前**。但 `type="module"`
+       自带 defer 语义：它要等 HTML 解析完（也就是七条 classic script 全跑完）
+       才执行。于是真实顺序是
+           七条传统 script（依赖） → main.jsx（使用者） → DOMContentLoaded
+       而 main.jsx 里用 `flushSync` 同步提交 React 外壳，所以 AI 面板引擎在
+       DOMContentLoaded 分支里已经能拿到 `#resultArea`。
+       ⚠ 反过来说：**不能**因为「module 被搬到前面了」就以为页面会在 classic
+       script 之前跑 —— 那样 `renderResult` / `TRIGRAMS` / `AI_PANEL_CONF` 全都
+       还不存在。defer 是这个顺序唯一的保障。
+     阶段 4 收口时它们整体搬进 src/app/，这几个 script 标签一起去掉。 -->
+<script src="/js/lunar.min.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/ui_common.js"></script>
+<script src="/js/hexagrams_data.js"></script>
+<script src="/js/mhys_render.js"></script>
+<script src="/js/ai_panel.js"></script>
+<script src="/js/mhys_ai_panel.js"></script>
+<script type="module" src="./main.jsx"></script>
+</body>
+</html>

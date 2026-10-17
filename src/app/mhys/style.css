@@ -1,0 +1,26 @@
+/* @import 的顺序刻意与老页面 `src/web/mhys/index.html` **实际生效**的顺序一致：
+       :13  /css/mhys_result.css
+       :14  /css/page-mhys.css
+       :15  /css/tokens.css
+   三份都在 <head> 里，所以文档顺序就是生效顺序；`@import` 按同一顺序展开，
+   生效顺序与老页一致。**这一页不复制任何 CSS 规则** —— 复制粘贴等于立刻多出
+   一份真相，改一处漏一处就会悄悄对不上（老 HTML 第 135-136 行的注释记的是同一
+   类事故：TRIGRAMS 曾经两边各抄一份）。
+
+   为什么 tokens.css 排在最后（照抄 my-charts/style.css 的考证）：
+   老 HTML 上写着「本页自带的 :root 会覆盖新主题」这类注释，品牌色那轮改造把
+   `mhys_result.css` / `page-mhys.css` 里的 `:root` 块都删了，令牌现在只来自
+   tokens.css。顺序照旧保留，是因为改成别的顺序没有任何收益，而万一将来哪个文件
+   又把 `:root` 加回来，老顺序是唯一被线上验证过的那个。 */
+@import '../../web/css/mhys_result.css';
+@import '../../web/css/page-mhys.css';
+@import '../../web/css/tokens.css';
+
+/* 老页面的 `.mh-wrapper` 是 `<body>` 的**直接子节点**（diff 里那棵树的根），
+   新页面它外面多了一层 `#root`。这一页的 CSS 没有一条依赖父子关系
+   （`.mh-wrapper` 自己 max-width:420px + margin:0 auto；`html,body{min-height:100vh}`
+   只加在 body 上，多一层普通 div 不影响），所以视觉上不需要补任何规则。
+   这一行纯粹是让 `#root` 不要成为未知元素：显式声明它没有背景/边框，
+   避免以后有人给 #root 加样式时误以为它「本来就有」。与 ai-chat/style.css
+   里那条 `#root { height: 100% }` 同源（那边是真的需要高度，这边不需要）。 */
+#root { display: block; }

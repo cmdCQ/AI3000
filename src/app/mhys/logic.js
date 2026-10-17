@@ -1,4 +1,54 @@
-var HEX64 = {};
+// 梅花易数起卦页 —— 「取数与渲染之外」的那一半：纯函数 + 时间选择器状态。
+// 逐字搬运自 `src/web/js/page-mhys.js`（判据快照 `duipan/legacy_ref/page-mhys.js`，
+// payload sha256 aad85d443209eaaa4e2080397480b5f163a76fc3049047b3adb762ca32b37f81）。
+// ==========================================================================
+//
+// ⚠ **这个文件不许 import 任何东西**（React / CSS / 其它模块都不行）。
+//   理由是判据：`duipan/diff_mhys.mjs` 要用 `node:vm` + 最小 DOM 桩把这个模块
+//   直接 import 进 Node，逐函数与快照对拍。老 `page-mhys.js` 的形态本来就是
+//   「纯函数 + 一坨 DOM 操作」混在一个 classic script 里，这里**一层不拆**：
+//   拆成 pure.js / dom.js 反而会让「同一个文件 vs 快照」的对拍变成两份文件互拍。
+//
+// ─────────────────────────────────────────────────────────────
+// 与老实现唯一的形态差异（机械改写，逐处标注）
+// ─────────────────────────────────────────────────────────────
+// 老实现有三个 **模块级变量** 被别处的函数读写：
+//     var selectedTime = null;    // :562
+//     var currentCalendar = 'gregorian';  // :563
+//     var currentMethod = 'number';       // :322
+// ESM 的 export 绑定是只读的，`import { selectedTime }` 后**不能**重新赋值
+// （`selectedTime = x` 在 import 侧是 TypeError），而老代码里这三个都被重新赋值过。
+// 所以把这三个收进一个可变的 `state` 对象，读写都写成 `state.xxx` ——
+// 语义与老实现完全一致（同一份模块级可变状态），只是换了个装它的盒子。
+// 差分脚本用 `setState()` 同时改两边的值，所以这条改写**不影响对拍结论**。
+//
+// 其余一切（字符串常量、分支顺序、变量名、注释里的老行号）都与快照逐字一致。
+// 老行号用 `老 :NNN` 标注，方便随时回快照对照。
+
+/* global TRIGRAMS */
+// ↑ `TRIGRAMS` 是 classic script `/js/hexagrams_data.js` 的**全局**，本次不搬
+//   （结果页 /mhys/result.html 还在用它）。`calcGua` / `fillManualSelects` 直接
+//   按裸名读全局 —— 与老实现一模一样。ESM 里裸名会解析到 `globalThis.TRIGRAMS`，
+//   而 index.html 里 `hexagrams_data.js` 排在 module 之前，装载时就已经挂好。
+//   **不要**为了「干净」在模块级 `const { TRIGRAMS } = globalThis`：那会在
+//   module 求值时快照一次，把装载顺序变成硬依赖；裸名是每次调用时才读。
+
+/** 老实现的模块级可变状态，收在一个盒子里（原因见文件头）。 */
+export const state = {
+  /** 老 :562  `var selectedTime = null;`  {year,month,day,hour,minute,calendar} */
+  selectedTime: null,
+  /** 老 :563  `var currentCalendar = 'gregorian';` */
+  currentCalendar: 'gregorian',
+  /** 老 :322  `var currentMethod = 'number';` 取值即后端起卦法名 */
+  currentMethod: 'number',
+  /** 老 :564  `var tpInitialized = false;`  —— 老实现里**只写不读**，照搬保留。 */
+  tpInitialized: false,
+};
+
+// ==========================================================================
+// 64 卦名表（老 :5-18）
+// ==========================================================================
+export var HEX64 = {};
 (function(){
   var names = [
     ['乾为天','泽天夬','火天大有','雷天大壮','风天小畜','水天需','山天大畜','地天泰'],
@@ -13,8 +63,11 @@ var HEX64 = {};
   for (var u=1; u<=8; u++) for (var l=1; l<=8; l++) HEX64[u+'_'+l] = names[l-1][u-1];
 })();
 
-var WUXING = { '金':0, '水':1, '木':2, '火':3, '土':4 };
-function wuxingShengKe(from, to) {
+// ==========================================================================
+// 五行生克 / 爻与卦的互转（老 :20-47）
+// ==========================================================================
+export var WUXING = { '金':0, '水':1, '木':2, '火':3, '土':4 };
+export function wuxingShengKe(from, to) {
   var f=WUXING[from], t=WUXING[to];
   if(f===t) return '比和';
   if((f+1)%5===t) return '生';
@@ -23,26 +76,29 @@ function wuxingShengKe(from, to) {
   return '被克';
 }
 
-function triToLines(num) {
+export function triToLines(num) {
   var m={1:[1,1,1],2:[1,1,0],3:[1,0,1],4:[1,0,0],5:[0,1,1],6:[0,1,0],7:[0,0,1],8:[0,0,0]};
   return m[num]||[0,0,0];
 }
-function linesToTri(lines) {
+export function linesToTri(lines) {
   var k=lines.join(''), m={'111':1,'110':2,'101':3,'100':4,'011':5,'010':6,'001':7,'000':8};
   return m[k]||8;
 }
-function guaToLines(upper,lower) {
+export function guaToLines(upper,lower) {
   var up=triToLines(upper), lo=triToLines(lower);
   // 上卦在上 下卦在下: [上爻,五爻,四爻,三爻,二爻,初爻]
   return [up[2],up[1],up[0],lo[2],lo[1],lo[0]];
 }
-function buildLines(upper,lower,movingPos) {
+export function buildLines(upper,lower,movingPos) {
   var lines=guaToLines(upper,lower), r=[];
   for(var i=0;i<6;i++) r.push({yang:lines[i]===1,moving:(6-i)===movingPos,pos:6-i});
   return r;
 }
 
-function calcGua(upperNum, lowerNum, moveNum) {
+// ==========================================================================
+// 核心：爻象拼装（老 :49-115）
+// ==========================================================================
+export function calcGua(upperNum, lowerNum, moveNum) {
   var uTri=TRIGRAMS[upperNum], lTri=TRIGRAMS[lowerNum];
   var hexName=HEX64[upperNum+'_'+lowerNum];
   var benLinesData=buildLines(upperNum,lowerNum,moveNum);
@@ -111,7 +167,7 @@ function calcGua(upperNum, lowerNum, moveNum) {
 }
 
 // ===== 时间计算（农历） =====
-function getShichen(hour) {
+export function getShichen(hour) {
   var names=['子时','丑时','寅时','卯时','辰时','巳时','午时','未时','申时','酉时','戌时','亥时'];
   var idx;
   if(hour>=23||hour<1) idx=0; else if(hour<3) idx=1; else if(hour<5) idx=2;
@@ -121,15 +177,16 @@ function getShichen(hour) {
   return {name:names[idx], num:idx+1};
 }
 
-function enrichTimeInfo() {
-  if (!selectedTime) initTime();
+/* global Solar, Lunar */
+export function enrichTimeInfo() {
+  if (!state.selectedTime) initTime();
   var info = {};
   try {
     if (typeof Solar !== 'undefined') {
-      var y = selectedTime.year, m = selectedTime.month, d = selectedTime.day;
-      var h = selectedTime.hour, min = selectedTime.minute;
-      var isLunar = selectedTime.calendar === 'lunar';
-      
+      var y = state.selectedTime.year, m = state.selectedTime.month, d = state.selectedTime.day;
+      var h = state.selectedTime.hour, min = state.selectedTime.minute;
+      var isLunar = state.selectedTime.calendar === 'lunar';
+
       var solar, lunar;
       if (isLunar && typeof Lunar !== 'undefined') {
         // 农历输入也要带时辰，否则时柱恒为子时
@@ -170,7 +227,7 @@ function enrichTimeInfo() {
 }
 
 // 干支 → 空亡（旬空）：先定旬，再取末尾二支
-function xunKongFromDayGZ(dayGZ) {
+export function xunKongFromDayGZ(dayGZ) {
   if (!dayGZ || dayGZ.length < 2) return '';
   var stems  = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
   var branchs = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
@@ -201,9 +258,9 @@ function xunKongFromDayGZ(dayGZ) {
 // selectedTime → 后端认的时刻串（`YYYY-MM-DDTHH:MM:00`）。
 // 农历选择必须先换成公历：起卦公式取的是农历月/日/年支，但**时刻本身**得是
 // 一个真实的时间点，后端才推得出四柱与月建。
-function selectedTimeToIso() {
-  if (!selectedTime) initTime();
-  var t = selectedTime, y = t.year, m = t.month, d = t.day;
+export function selectedTimeToIso() {
+  if (!state.selectedTime) initTime();
+  var t = state.selectedTime, y = t.year, m = t.month, d = t.day;
   if (t.calendar === 'lunar') {
     // 没农历库时**不能**拿农历数字当公历顶上 —— 那会排出一个「看着正常的错卦」，
     // 用户分辨不出来，比直接报错危险。
@@ -220,7 +277,7 @@ function selectedTimeToIso() {
 // 报数（三个数）。判据是「有没有分隔符」：
 //   「10 8 6」「10,8,6」→ 按三个**数**读（报 10 是常事，输入框原来却限死 3 位）
 //   「386」            → 按三个**数字**逐位读（本页原来的读法，不改）
-function parseReportNumbers(raw) {
+export function parseReportNumbers(raw) {
   var s = String(raw == null ? '' : raw).trim();
   if (!s) return { ok: false, msg: '请输入数字' };
   if (/[^0-9\s,，、]/.test(s)) return { ok: false, msg: '只能填数字，三个数之间可以用空格分开' };
@@ -237,7 +294,7 @@ function parseReportNumbers(raw) {
 }
 
 // 拆半求和：逐位数字。0 在这里**允许** —— 它只参与求和，不像报数那样直接当卦数。
-function parseSplitDigits(raw) {
+export function parseSplitDigits(raw) {
   var s = String(raw == null ? '' : raw).trim();
   if (!s) return { ok: false, msg: '请输入数字' };
   if (/[^0-9]/.test(s)) return { ok: false, msg: '只能填数字（逐位输入，不用分隔符）' };
@@ -246,7 +303,7 @@ function parseSplitDigits(raw) {
 
 // 自动起卦 = 抽签。**抽签在页面发生**（用户没有数可报时的一条路），抽出卦号后按
 // 「手动指定」入后端 —— 后端没有、也不该有「随机」这个起卦法。
-function drawRandom() {
+export function drawRandom() {
   return {
     upper: Math.floor(Math.random() * 8) + 1,
     lower: Math.floor(Math.random() * 8) + 1,
@@ -256,18 +313,18 @@ function drawRandom() {
 
 // 收集当前选择 → 端点入参。返回 {ok:true, body, method, numbers, datetime}
 // 或 {ok:false, msg}（msg 直接给人看）。
-function buildQiguaRequest() {
+export function buildQiguaRequest() {
   var dt = selectedTimeToIso();
   if (!dt) {
     return { ok: false, msg: '起卦时间换算失败（农历数据未加载，或该日期不存在）。请刷新页面重试，或把时间改成公历。' };
   }
   var topic = document.getElementById('topicInput').value.trim();
-  var body = { method: currentMethod, datetime: dt, topic: topic };
-  var out = { ok: true, body: body, method: currentMethod, numbers: '', datetime: dt };
+  var body = { method: state.currentMethod, datetime: dt, topic: topic };
+  var out = { ok: true, body: body, method: state.currentMethod, numbers: '', datetime: dt };
 
-  if (currentMethod === 'time') {
+  if (state.currentMethod === 'time') {
     // 时间起卦：取数全在后端，用哪个时刻就是上面那一个
-  } else if (currentMethod === 'manual') {
+  } else if (state.currentMethod === 'manual') {
     var u = parseInt(document.getElementById('manualUpper').value, 10);
     var l = parseInt(document.getElementById('manualLower').value, 10);
     var m = parseInt(document.getElementById('manualMove').value, 10);
@@ -276,19 +333,19 @@ function buildQiguaRequest() {
       return { ok: false, msg: '请填写：上卦 1-8、下卦 1-8、动爻 1-6' };
     }
     body.upper = u; body.lower = l; body.moving = m;
-  } else if (currentMethod === 'number') {
+  } else if (state.currentMethod === 'number') {
     var r1 = parseReportNumbers(document.getElementById('numberInput').value);
     if (!r1.ok) return r1;
     body.num1 = r1.nums[0]; body.num2 = r1.nums[1]; body.num3 = r1.nums[2];
     body.addShichen = document.getElementById('numberAddShichen').checked;
     out.numbers = r1.nums.join(' ');
-  } else if (currentMethod === 'split') {
+  } else if (state.currentMethod === 'split') {
     var r2 = parseSplitDigits(document.getElementById('splitInput').value);
     if (!r2.ok) return r2;
     body.digits = r2.digits;
     body.addShichen = document.getElementById('splitAddShichen').checked;
     out.numbers = r2.digits.join(' ');
-  } else if (currentMethod === 'character') {
+  } else if (state.currentMethod === 'character') {
     var txt = document.getElementById('charInput').value.trim();
     if (!txt) return { ok: false, msg: '请输入想占的字或一句话' };
     // 一字占：古法要按楷书拆左右笔画（《梅花易数·字占》「以左为阳画，以右为阴画」），
@@ -299,7 +356,7 @@ function buildQiguaRequest() {
       return { ok: false, msg: '古法一字占要按楷书分左右笔画取卦，本版还没做，请输入两个字以上（也可以改用数字或时间起卦）' };
     }
     body.text = txt;
-  } else if (currentMethod === 'auto') {
+  } else if (state.currentMethod === 'auto') {
     var drawn = drawRandom();
     body.method = 'manual';        // 后端无「随机」一法，抽完按指定卦号入
     body.upper = drawn.upper; body.lower = drawn.lower; body.moving = drawn.moving;
@@ -310,14 +367,12 @@ function buildQiguaRequest() {
   return out;
 }
 
-
-
 // ===== 当前选中的方法 =====
 // 取值即后端起卦法名（见下拉里的 data-method）。默认 `number` = 原来的「数字起卦2」
 // （报三个数），页面上默认选中的那项与它一致。
-var currentMethod = 'number';
+// 老 :322 的 `var currentMethod` 现在住在 `state.currentMethod`（见文件头）。
 
-function toggleDropdown() {
+export function toggleDropdown() {
   var dd=document.getElementById('methodDropdown');
   var ar=document.getElementById('methodArrow');
   if(dd.classList.contains('open')){
@@ -329,8 +384,8 @@ function toggleDropdown() {
   }
 }
 
-function selectMethod(method, el) {
-  currentMethod = method;
+export function selectMethod(method, el) {
+  state.currentMethod = method;
   document.getElementById('methodLabel').textContent = el.textContent.replace('✓','');
   document.querySelectorAll('.method-option').forEach(function(o){ o.classList.remove('selected'); });
   el.classList.add('selected');
@@ -339,19 +394,28 @@ function selectMethod(method, el) {
   renderMethodParams();
 }
 
-// 点击空白关闭下拉
-document.addEventListener('click', function(e) {
-  var sel=document.getElementById('methodSelector');
-  if(!sel.contains(e.target)){
-    document.getElementById('methodDropdown').classList.remove('open');
-    document.getElementById('methodArrow').textContent='▾';
-  }
-});
+// 点击空白关闭下拉。
+// ⚠ 老实现（快照 :347-353）是在 classic script **顶层**注册的；这里改成导出的
+//   `bindDocumentClick()`，由 main.jsx 显式调用一次。原因是 ESM 模块求值时
+//   `document` 一定在、但 `#methodSelector`（React 还没提交）不一定在 ——
+//   顶层直接注册的话，用户在 React 提交前点到页面会走进 `sel.contains` 抛错。
+//   调用点与 React 的 flushSync 提交绑在一起，等价于老实现的「DOM 就绪后可用」。
+//   注册时机差异只影响「首屏提交前能否点到」，差分脚本对拍不到这一段。
+export function bindDocumentClick() {
+  document.addEventListener('click', function(e) {
+    var sel=document.getElementById('methodSelector');
+    if(!sel.contains(e.target)){
+      document.getElementById('methodDropdown').classList.remove('open');
+      document.getElementById('methodArrow').textContent='▾';
+    }
+  });
+}
 
-function renderMethodParams() {
+/* global TRIGRAMS */
+export function renderMethodParams() {
   var container = document.getElementById('methodParams');
   var h = '';
-  switch(currentMethod) {
+  switch(state.currentMethod) {
     case 'time':
       h = '<div class="algo-text">起卦方法（月日数为农历）：\n上卦：(年支数 + 月数 + 日数) ÷ 8 所得余数为上卦\n下卦：(年支数 + 月数 + 日数 + 时支数) ÷ 8 所得余数为下卦\n动爻：(年支数 + 月数 + 日数 + 时支数) ÷ 6 所得余数</div>';
       break;
@@ -398,7 +462,7 @@ function renderMethodParams() {
   container.innerHTML = h;
 }
 
-function fillManualSelects() {
+export function fillManualSelects() {
   var selU=document.getElementById('manualUpper');
   var selL=document.getElementById('manualLower');
   var selM=document.getElementById('manualMove');
@@ -412,7 +476,7 @@ function fillManualSelects() {
 }
 
 // ===== 开始排盘 =====
-async function startDivination(e) {
+export async function startDivination(e) {
   if(e){ e.preventDefault(); e.stopPropagation(); }
   var btn = document.getElementById('startBtn');
 
@@ -497,7 +561,7 @@ async function startDivination(e) {
 
 // 结果就渲染在本页下面（原先这里是跳 /mhys/result.html）。
 // 结果页 result.html 没废：历史记录点进去看的还是它，两页共用 mhys_render.js。
-function showResultHere(result) {
+export function showResultHere(result) {
   // 这两项 result.html 的 load() 会填，本页也得填 —— AI 面板（下一步）要用
   currentResultMeta = {
     divinationTime: result.divinationTime || '',
@@ -527,7 +591,12 @@ function showResultHere(result) {
 }
 
 // ===== 初始化 =====
-function init() {
+// 老实现的 `init()` 在快照最后一行**裸调**（`init();`）。搬过来之后由 main.jsx
+// 在 React 外壳 flushSync 提交之后调用一次 —— 时序与老页面等价（都在页面可交互
+// 之前、DOM 已在），唯一差别是老页面此时 #startBtn 还没被 React 建出来、老实现
+// 靠 `disabled = false` 那一行；新实现调用时它一定在。**装载顺序是判据**：
+// 见 main.jsx 顶部关于 ai_panel.js `mountAIPanel()` 的说明。
+export function init() {
   initTime();
   updateTimeDisplay();
   setInterval(updateTimeDisplay, 30000);
@@ -536,17 +605,19 @@ function init() {
 }
 
 // 页面离开前重置按钮，确保 bfcache 恢复时按钮状态正常
-window.addEventListener('pagehide', function() {
-  resetBtn();
-});
+export function bindPageLifecycle() {
+  window.addEventListener('pagehide', function() {
+    resetBtn();
+  });
 
-// 双保险：pageshow 在从 bfcache 恢复时也触发
-window.addEventListener('pageshow', function() {
-  // requestAnimationFrame 确保 DOM 已渲染后再重置
-  requestAnimationFrame(function() { resetBtn(); });
-});
+  // 双保险：pageshow 在从 bfcache 恢复时也触发
+  window.addEventListener('pageshow', function() {
+    // requestAnimationFrame 确保 DOM 已渲染后再重置
+    requestAnimationFrame(function() { resetBtn(); });
+  });
+}
 
-function resetBtn() {
+export function resetBtn() {
   var btn = document.getElementById('startBtn');
   if (btn) {
     btn.textContent = '开始排盘';
@@ -555,116 +626,118 @@ function resetBtn() {
   }
 }
 // ===== 时间选择器 =====
-var selectedTime = null; // { year, month, day, hour, minute, calendar:'gregorian'|'lunar' }
-var currentCalendar = 'gregorian';
-var tpInitialized = false;
-
+// 老 :562-564 的三个 `var` 现在住在 `state`（见文件头）。老 :564 的 `tpInitialized`
+// 在快照里**只被写、从不被读**（renderPicker 里那个 if 是个空壳），照搬保留，
+// 不修 —— 它是死代码，但「不顺手改进」是这次搬运的硬约束。
 var LUNAR_MONTHS = ['正月','二月','三月','四月','五月','六月','七月','八月','九月','十月','冬月','腊月'];
 var LUNAR_DAYS30 = ['初一','初二','初三','初四','初五','初六','初七','初八','初九','初十','十一','十二','十三','十四','十五','十六','十七','十八','十九','二十','廿一','廿二','廿三','廿四','廿五','廿六','廿七','廿八','廿九','三十'];
 var LUNAR_DAYS29 = ['初一','初二','初三','初四','初五','初六','初七','初八','初九','初十','十一','十二','十三','十四','十五','十六','十七','十八','十九','二十','廿一','廿二','廿三','廿四','廿五','廿六','廿七','廿八','廿九'];
 var SHICHEN_NAMES = ['子时','丑时','寅时','卯时','辰时','巳时','午时','未时','申时','酉时','戌时','亥时'];
 
+// ⚠ 老实现里 `LUNAR_DAYS29` 与 `SHICHEN_NAMES` 这两个数组**从来没有被读过**
+//   （`LUNAR_DAYS30` 与 `getShichen()` 内联的 names 才是真在用的）。
+//   照搬保留：删掉它们等于顺手改进，而且以后有人加回「农历小月 29 天」时会没有参照。
 
-function initTime() {
+export function initTime() {
   var now = new Date();
-  selectedTime = {
+  state.selectedTime = {
     year: now.getFullYear(), month: now.getMonth()+1, day: now.getDate(),
     hour: now.getHours(), minute: now.getMinutes(),
     calendar: 'gregorian'
   };
-  currentCalendar = 'gregorian';
+  state.currentCalendar = 'gregorian';
   updateTimeDisplay();
 }
 
-function updateTimeDisplay() {
-  if (!selectedTime) return;
+export function updateTimeDisplay() {
+  if (!state.selectedTime) return;
   var el = document.getElementById('timeDisplay');
   if (!el) return;
-  if (selectedTime.calendar === 'lunar') {
-    var m = selectedTime.month, d = selectedTime.day;
+  if (state.selectedTime.calendar === 'lunar') {
+    var m = state.selectedTime.month, d = state.selectedTime.day;
     var monName = (m>=1&&m<=12) ? LUNAR_MONTHS[m-1] : String(m);
     var dayName = (d>=1&&d<=30) ? LUNAR_DAYS30[d-1] : String(d);
-    var sc = getShichen(selectedTime.hour);
-    el.textContent = '农历'+selectedTime.year+'年'+monName+dayName+' '+selectedTime.hour+sc.name+String(selectedTime.minute).padStart(2,'0')+'分';
+    var sc = getShichen(state.selectedTime.hour);
+    el.textContent = '农历'+state.selectedTime.year+'年'+monName+dayName+' '+state.selectedTime.hour+sc.name+String(state.selectedTime.minute).padStart(2,'0')+'分';
   } else {
-    el.textContent = selectedTime.year+'-'+String(selectedTime.month).padStart(2,'0')+'-'+String(selectedTime.day).padStart(2,'0')+' '+
-      String(selectedTime.hour).padStart(2,'0')+':'+String(selectedTime.minute).padStart(2,'0');
+    el.textContent = state.selectedTime.year+'-'+String(state.selectedTime.month).padStart(2,'0')+'-'+String(state.selectedTime.day).padStart(2,'0')+' '+
+      String(state.selectedTime.hour).padStart(2,'0')+':'+String(state.selectedTime.minute).padStart(2,'0');
   }
 }
 
-function openTimePicker() {
-  if (!selectedTime) initTime();
+export function openTimePicker() {
+  if (!state.selectedTime) initTime();
   var overlay = document.getElementById('tpOverlay');
   overlay.style.display = 'flex';
-  currentCalendar = selectedTime.calendar;
-  
+  state.currentCalendar = state.selectedTime.calendar;
+
   // 更新切换按钮
   var btns = document.querySelectorAll('.tp-toggle-btn');
-  btns.forEach(function(b){ b.classList.toggle('active', b.dataset.cal===currentCalendar); });
-  
+  btns.forEach(function(b){ b.classList.toggle('active', b.dataset.cal===state.currentCalendar); });
+
   renderPicker();
-  
+
   // 滚动到当前值
   scrollToCurrent();
 }
 
-function closeTimePicker(e) {
+export function closeTimePicker(e) {
   if (e && e.target !== document.getElementById('tpOverlay')) return;
   document.getElementById('tpOverlay').style.display = 'none';
 }
 
-function switchCalendar(cal) {
-  if (cal === currentCalendar) return;
-  currentCalendar = cal;
+export function switchCalendar(cal) {
+  if (cal === state.currentCalendar) return;
+  state.currentCalendar = cal;
   var btns = document.querySelectorAll('.tp-toggle-btn');
   btns.forEach(function(b){ b.classList.toggle('active', b.dataset.cal===cal); });
-  
+
   // 转换当前选中时间
   try {
     if (cal === 'lunar') {
       // 公历→农历
       if (typeof Solar !== 'undefined') {
-        var s = Solar.fromYmd(selectedTime.year, selectedTime.month, selectedTime.day);
+        var s = Solar.fromYmd(state.selectedTime.year, state.selectedTime.month, state.selectedTime.day);
         var l = s.getLunar();
-        selectedTime.year = l.getYear();
-        selectedTime.month = l.getMonth();
-        selectedTime.day = l.getDay();
+        state.selectedTime.year = l.getYear();
+        state.selectedTime.month = l.getMonth();
+        state.selectedTime.day = l.getDay();
       }
     } else {
       // 农历→公历
       if (typeof Lunar !== 'undefined') {
-        var l2 = Lunar.fromYmd(selectedTime.year, selectedTime.month, selectedTime.day);
+        var l2 = Lunar.fromYmd(state.selectedTime.year, state.selectedTime.month, state.selectedTime.day);
         var s2 = l2.getSolar();
-        selectedTime.year = s2.getYear();
-        selectedTime.month = s2.getMonth();
-        selectedTime.day = s2.getDay();
+        state.selectedTime.year = s2.getYear();
+        state.selectedTime.month = s2.getMonth();
+        state.selectedTime.day = s2.getDay();
       }
     }
-    selectedTime.calendar = cal;
-  } catch(e) { selectedTime.calendar = cal; }
-  
+    state.selectedTime.calendar = cal;
+  } catch(e) { state.selectedTime.calendar = cal; }
+
   renderPicker();
   updateTopDisplay();
 }
 
-function updateTopDisplay() {
+export function updateTopDisplay() {
   var el = document.getElementById('tpDisplay');
   if (!el) return;
-  if (currentCalendar === 'lunar') {
-    var m = selectedTime.month, d = selectedTime.day;
+  if (state.currentCalendar === 'lunar') {
+    var m = state.selectedTime.month, d = state.selectedTime.day;
     var monName = (m>=1&&m<=12) ? LUNAR_MONTHS[m-1] : String(m);
     var dayName = (d>=1&&d<=30) ? LUNAR_DAYS30[d-1] : String(d);
-    var sc = getShichen(selectedTime.hour);
-    el.textContent = selectedTime.year+'年'+monName+dayName+' '+selectedTime.hour+sc.name+String(selectedTime.minute).padStart(2,'0')+'分';
+    var sc = getShichen(state.selectedTime.hour);
+    el.textContent = state.selectedTime.year+'年'+monName+dayName+' '+state.selectedTime.hour+sc.name+String(state.selectedTime.minute).padStart(2,'0')+'分';
   } else {
-    el.textContent = selectedTime.year+'-'+String(selectedTime.month).padStart(2,'0')+'-'+String(selectedTime.day).padStart(2,'0')+' '+
-      String(selectedTime.hour).padStart(2,'0')+':'+String(selectedTime.minute).padStart(2,'0');
+    el.textContent = state.selectedTime.year+'-'+String(state.selectedTime.month).padStart(2,'0')+'-'+String(state.selectedTime.day).padStart(2,'0')+' '+
+      String(state.selectedTime.hour).padStart(2,'0')+':'+String(state.selectedTime.minute).padStart(2,'0');
   }
 }
 
-function renderPicker() {
+export function renderPicker() {
   var maxDay = getMaxDay();
-  
+
   // 年份（不超过当前年份）
   var nowY = new Date().getFullYear();
   var yHtml = '';
@@ -673,24 +746,24 @@ function renderPicker() {
     yHtml += '<div class="tp-item" data-val="'+y+'">'+y+'</div>';
   }
   document.getElementById('tpColYear').innerHTML = yHtml;
-  
+
   // 月份
   var mHtml = renderMonthColumn();
   document.getElementById('tpColMonth').innerHTML = mHtml;
-  
+
   // 日期（不允许未来日）
   var nowY = new Date().getFullYear();
   var nowM = new Date().getMonth() + 1;
   var nowD = new Date().getDate();
-  var isFutureYM = selectedTime && (selectedTime.year > nowY || (selectedTime.year === nowY && selectedTime.month > nowM));
-  var maxD = isFutureYM ? 1 : (selectedTime && selectedTime.year === nowY && selectedTime.month === nowM) ? Math.min(maxDay, nowD) : maxDay;
+  var isFutureYM = state.selectedTime && (state.selectedTime.year > nowY || (state.selectedTime.year === nowY && state.selectedTime.month > nowM));
+  var maxD = isFutureYM ? 1 : (state.selectedTime && state.selectedTime.year === nowY && state.selectedTime.month === nowM) ? Math.min(maxDay, nowD) : maxDay;
   var dHtml = '';
   for (var d=1; d<=maxD; d++) {
-    var dLabel = currentCalendar==='lunar' ? (LUNAR_DAYS30[d-1]||String(d)) : String(d)+'日';
+    var dLabel = state.currentCalendar==='lunar' ? (LUNAR_DAYS30[d-1]||String(d)) : String(d)+'日';
     dHtml += '<div class="tp-item" data-val="'+d+'">'+dLabel+'</div>';
   }
   document.getElementById('tpColDay').innerHTML = dHtml;
-  
+
   // 时辰
   var hHtml = '';
   for (var h=0; h<24; h++) {
@@ -698,29 +771,29 @@ function renderPicker() {
     hHtml += '<div class="tp-item" data-val="'+h+'">'+h+' '+sc.name+'</div>';
   }
   document.getElementById('tpColHour').innerHTML = hHtml;
-  
+
   // 分钟
   var minHtml = '';
   for (var min=0; min<60; min++) {
     minHtml += '<div class="tp-item" data-val="'+min+'">'+String(min).padStart(2,'0')+'分</div>';
   }
   document.getElementById('tpColMinute').innerHTML = minHtml;
-  
+
   // 绑定滚动事件
   ['Year','Month','Day','Hour','Minute'].forEach(function(col){
     var el = document.getElementById('tpCol'+col);
     el.onscroll = function(){ onColScroll(col); };
   });
-  
-  if (!tpInitialized) {
-    tpInitialized = true;
+
+  if (!state.tpInitialized) {
+    state.tpInitialized = true;
   }
 }
 
-function scrollToCurrent() {
+export function scrollToCurrent() {
   ['Year','Month','Day','Hour','Minute'].forEach(function(col){
     var el = document.getElementById('tpCol'+col);
-    var val = selectedTime[col.toLowerCase()];
+    var val = state.selectedTime[col.toLowerCase()];
     // Map for year: year
     if (col === 'Year') {
       var idx = val - 1900;
@@ -739,17 +812,17 @@ function scrollToCurrent() {
   setTimeout(highlightActive, 100);
 }
 
-function onColScroll(col) {
+export function onColScroll(col) {
   var el = document.getElementById('tpCol'+col);
   var items = el.querySelectorAll('.tp-item');
   var center = el.scrollTop + el.clientHeight/2;
-  
+
   items.forEach(function(item){
     var itemCenter = item.offsetTop + 19; // half of 38px
     var dist = Math.abs(center - itemCenter);
     item.classList.toggle('active', dist < 19);
   });
-  
+
   // 找到最近的 item
   var best = null, bestDist = Infinity;
   items.forEach(function(item){
@@ -757,14 +830,14 @@ function onColScroll(col) {
     var dist = Math.abs(center - itemCenter);
     if (dist < bestDist) { bestDist = dist; best = item; }
   });
-  
+
   if (best) {
     var val = parseInt(best.dataset.val);
     var key = col.toLowerCase();
-    if (selectedTime[key] !== val) {
-      selectedTime[key] = val;
+    if (state.selectedTime[key] !== val) {
+      state.selectedTime[key] = val;
       updateTopDisplay();
-      
+
       // 年变了 → 更新月和日
       if (col === 'Year') {
         updateMonthColumn();
@@ -778,16 +851,16 @@ function onColScroll(col) {
   }
 }
 
-function highlightActive() {
+export function highlightActive() {
   ['Year','Month','Day','Hour','Minute'].forEach(function(col){
     onColScroll(col);
   });
   updateTopDisplay();
 }
 
-function getMaxDay() {
-  var y = selectedTime.year, m = selectedTime.month;
-  if (currentCalendar === 'lunar') {
+export function getMaxDay() {
+  var y = state.selectedTime.year, m = state.selectedTime.month;
+  if (state.currentCalendar === 'lunar') {
     // 农历大月30天，小月29天；简化处理，默认30天
     try {
       if (typeof Lunar !== 'undefined') {
@@ -801,71 +874,73 @@ function getMaxDay() {
   return new Date(y, m, 0).getDate();
 }
 
-function updateDayColumn() {
+export function updateDayColumn() {
   var maxDay = getMaxDay();
   var nowY = new Date().getFullYear();
   var nowM = new Date().getMonth() + 1;
   var nowD = new Date().getDate();
-  var isFutureYM = selectedTime && (selectedTime.year > nowY || (selectedTime.year === nowY && selectedTime.month > nowM));
-  var maxD = isFutureYM ? 1 : (selectedTime && selectedTime.year === nowY && selectedTime.month === nowM) ? Math.min(maxDay, nowD) : maxDay;
-  var currentDay = selectedTime.day;
+  var isFutureYM = state.selectedTime && (state.selectedTime.year > nowY || (state.selectedTime.year === nowY && state.selectedTime.month > nowM));
+  var maxD = isFutureYM ? 1 : (state.selectedTime && state.selectedTime.year === nowY && state.selectedTime.month === nowM) ? Math.min(maxDay, nowD) : maxDay;
+  var currentDay = state.selectedTime.day;
   if (currentDay > maxD) {
-    selectedTime.day = maxD;
+    state.selectedTime.day = maxD;
     updateTopDisplay();
   }
-  
+
   var dHtml = '';
   for (var d=1; d<=maxD; d++) {
-    var dLabel = currentCalendar==='lunar' ? (LUNAR_DAYS30[d-1]||String(d)) : String(d)+'日';
+    var dLabel = state.currentCalendar==='lunar' ? (LUNAR_DAYS30[d-1]||String(d)) : String(d)+'日';
     dHtml += '<div class="tp-item" data-val="'+d+'">'+dLabel+'</div>';
   }
   var dayCol = document.getElementById('tpColDay');
   dayCol.innerHTML = dHtml;
   dayCol.onscroll = function(){ onColScroll('Day'); };
-  
+
   // 滚动到正确位置
-  dayCol.scrollTop = (selectedTime.day-1) * 38;
+  dayCol.scrollTop = (state.selectedTime.day-1) * 38;
   setTimeout(function(){ onColScroll('Day'); }, 150);
 }
 
-function renderMonthColumn() {
+export function renderMonthColumn() {
   var nowY = new Date().getFullYear();
   var nowM = new Date().getMonth() + 1;
-  var maxM = (selectedTime && selectedTime.year >= nowY) ? nowM : 12;
+  var maxM = (state.selectedTime && state.selectedTime.year >= nowY) ? nowM : 12;
   var h = '';
   for (var m=1; m<=maxM; m++) {
-    var mL = currentCalendar==='lunar' ? LUNAR_MONTHS[m-1] : String(m)+'月';
+    var mL = state.currentCalendar==='lunar' ? LUNAR_MONTHS[m-1] : String(m)+'月';
     h += '<div class="tp-item" data-val="'+m+'">'+mL+'</div>';
   }
   return h;
 }
 
-function updateMonthColumn() {
+export function updateMonthColumn() {
   var el = document.getElementById('tpColMonth');
   var nowY = new Date().getFullYear();
   var nowM = new Date().getMonth() + 1;
-  var maxM = (selectedTime && selectedTime.year >= nowY) ? nowM : 12;
+  var maxM = (state.selectedTime && state.selectedTime.year >= nowY) ? nowM : 12;
   var h = '';
   for (var m=1; m<=maxM; m++) {
-    var mL = currentCalendar==='lunar' ? LUNAR_MONTHS[m-1] : String(m)+'月';
+    var mL = state.currentCalendar==='lunar' ? LUNAR_MONTHS[m-1] : String(m)+'月';
     h += '<div class="tp-item" data-val="'+m+'">'+mL+'</div>';
   }
   el.innerHTML = h;
   el.onscroll = function(){ onColScroll('Month'); };
   // 如果当前选中的月份超出范围，回退
-  if (selectedTime.month > maxM) {
-    selectedTime.month = maxM;
+  if (state.selectedTime.month > maxM) {
+    state.selectedTime.month = maxM;
     updateTopDisplay();
   }
-  var scrollMonth = Math.min(selectedTime.month, maxM);
+  var scrollMonth = Math.min(state.selectedTime.month, maxM);
   el.scrollTop = (scrollMonth-1) * 38;
   setTimeout(function(){ onColScroll('Month'); }, 100);
 }
 
-function confirmTimePicker() {
-  selectedTime.calendar = currentCalendar;
+export function confirmTimePicker() {
+  state.selectedTime.calendar = state.currentCalendar;
   updateTimeDisplay();
   document.getElementById('tpOverlay').style.display = 'none';
 }
 
-init();
+// 老实现快照最后一行是裸调 `init();`。这里**不调** —— 由 main.jsx 在 React
+// flushSync 提交之后调用（原因见 `init()` 上方的注释与 main.jsx 顶部）。
+// 差分脚本也不依赖它：纯函数逐个喂输入，不需要页面自启。
