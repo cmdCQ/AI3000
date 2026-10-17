@@ -204,29 +204,24 @@ async function setAnonUsed(m, v) {
     else window.localStorage.removeItem('mhys_anon_used'); return true;`, [!!v]);
 }
 /**
- * 把块里的首页视图按**当前**这一卦重画一遍。
+ * 把块里的首页视图按**当前**这一卦重画一遍（不改卦、不收起）。
  *
- * 走的是引擎自己的 `showAIHome()` —— 就是 `refreshAIPanel()` 内部调的那一个。
- * 页头那颗按钮删掉之后，测试里想「不换卦、不收起，只让首页视图重画」没有别的入口了；
- * 这不是在替用户操作，是在替页面调它自己那套（⑧ 里再补一条「页头真的没有按钮」）。
- *
- * ⚠ 必须写成 `W.showAIHome()`：`ExecuteScript` 跑在**沙箱**里，看页面是 Xray 视角，
- * 页面用 `function f(){}` 定义的全局在那里**看不见** —— `typeof showAIHome === 'function'`
- * 恒为 false，于是这个「重画」是空操作，而脚本自己毫不知情（第一版就是这样：收起没生效、
- * 面板一直开着，后面每一步都建在这个假前提上）。
+ * 老实现直接调引擎的 `showAIHome()` —— 那是 classic script 的全局。阶段 4 之后它是
+ * ESM 导出，页面只把**测试要用的原语**收在 `window.__mhysTestApi` 一个名字下
+ * （见 `src/app/mhys/main.jsx` 的注释），这里就走那个入口。
+ * 不改成「同参数再排一次盘」：那会换掉当前这一卦的解析状态（⑤ 之后 ⑦ 要的是
+ * ⑥ 那一卦存进记录的解读），判据会跟着错位。
  */
 async function redrawHome(m) {
-  await js(m, `${W} W.showAIHome(); return true;`);
+  await js(m, `${W}
+    if (!W.__mhysTestApi || typeof W.__mhysTestApi.showAIHome !== 'function') {
+      return 'NO_TEST_API';
+    }
+    W.__mhysTestApi.showAIHome();
+    return 'OK';`);
   await L.sleep(150);
 }
 
-/**
- * 等 `#aiResponse` 的正文出现某段 —— **用 textContent，不是 innerText**。
- *
- * ⚠ 折叠时正文 `display:none`，`innerText` 返回**空串**（`L.panelTextUntil` 读的就是它），
- * 于是「流没动」与「块折着」在判据上长得一模一样。⑥ 要测的恰恰是「折着的时候流还在跑」，
- * 所以这里必须用 textContent —— 它不管可见性，照读。
- */
 async function waitPanelRaw(m, re, timeoutMs) {
   return L.until(m, `var r = document.getElementById('aiResponse');
     return r ? (r.textContent || '') : '';`, (t) => re.test(t || ''), timeoutMs);
@@ -444,8 +439,16 @@ async function main() {
     check('⑦ 记账行被切出来做小字（不是当正文渲染）',
       has(rec.panelText, '消耗积分：输入 100 + 输出 200 = 300'),
       JSON.stringify(rec.panelText.slice(-60)));
-    const recNorm = await js(m, `${W} return { recId: W.currentRecordId, saved: !!W.savedAnalysis,
-      topic: W.currentTopic };`);
+    // 这四个名字（`currentRecordId` / `savedAnalysis` / `currentTopic`）在阶段 4 之前是
+    // classic script 的顶层 var，判据可以直接 `W.currentRecordId` 读；ESM 之后它们住在
+    // `src/app/shared/mhysRender.js` 的模块作用域里。页面为判据开了一个只读出口
+    // （`src/app/mhys/result.jsx` 的 `__mhysTestApi.engineState()`），这里走它 ——
+    // 测的东西没变（渲染之后才挂上），只是不再依赖「模块变量恰好是全局」。
+    const recNorm = await js(m, `${W}
+      if (!W.__mhysTestApi || typeof W.__mhysTestApi.engineState !== 'function') {
+        return { recId: 'NO_TEST_API', saved: false, topic: null };
+      }
+      return W.__mhysTestApi.engineState();`);
     check('⑦ 记录页的 currentRecordId / savedAnalysis 在渲染之后都挂上了（顺序没错）',
       String(recNorm.recId) === String(recId) && recNorm.saved === true,
       JSON.stringify(recNorm));

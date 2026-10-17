@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // ============================================================================
-// 对拍：`src/app/lib/auth.js`（新树，ESM）与 `src/web/js/auth.js`（老树，全局脚本）
+// 对拍：`src/app/lib/auth.js`（新树，ESM）与 `src/web/js/auth.js`（老树，全局脚本）。
+// 老侧读的是**冻结快照** `duipan/legacy_ref/auth.js`（源 `c617799^:src/web/js/auth.js`，
+// 362 行，sha256 4f8e6f49c556ada1…）—— 老树已删，而且判据读活文件 = 判据跟着实现漂。
 //       **同一套 cookie 读法**。
 //
 // 为什么要有这个对拍文件
@@ -36,7 +38,7 @@ import vm from 'node:vm';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, '..');
-const OLD = join(REPO, 'src', 'web', 'js', 'auth.js');
+const OLD = join(REPO, 'duipan', 'legacy_ref', 'auth.js');
 const NEW = join(REPO, 'src', 'app', 'lib', 'auth.js');
 
 function die(msg) {

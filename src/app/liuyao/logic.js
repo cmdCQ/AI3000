@@ -1,8 +1,12 @@
 import { AUTH } from '../shared/auth.js';
 import { refreshAIPanel } from '../shared/aiPanel.js';
 import { currentChart, currentTopic, currentGender, currentRecordId, renderLiuyaoResult } from '../shared/liuyaoRender.js';
-import { setCurrentGender } from '../shared/liuyaoRender.js';
-import { setCurrentRecordId } from '../shared/mhysRender.js';
+// ⚠ 两个 setter 都从**本页的**渲染层拿（`liuyaoRender.js`）。阶段 4 接线时
+// `setCurrentRecordId` 被写成了从 `mhysRender.js` 取 —— 那是梅花页的 state，
+// 于是六爻页的 `currentRecordId` 永远是 null：记录存下了、结果也渲染了，
+// 但 AI 解读**存不回这条记录**（引擎见 `recordId()` 为 null 就不发 PATCH），
+// 用户白花一次解读。判据：`duipan/drive_liuyao_page.js` ⑧ 的「解读存回了这条记录」。
+import { setCurrentGender, setCurrentRecordId } from '../shared/liuyaoRender.js';
 import { Solar, Lunar } from '../shared/lunar.js'
 
 /**

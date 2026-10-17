@@ -97,8 +97,10 @@ const SRC = {
   result: SR('duipan/legacy_ref/page-liuyao-result.js'),
   liuyaoHist: SR('duipan/legacy_ref/page-liuyao-history.js'),
   mhysHist: SR('duipan/legacy_ref/page-mhys-history.js'),
-  uiCommon: SR('src/web/js/ui_common.js'),
-  render: SR('src/web/js/liuyao_render.js'),
+  // 这两份是**前置渲染层**，已搬成 ESM（`src/app/shared/`）；`loadLegacyScript` 会用
+  // `toClassic()` 剥掉 import/export，装进沙箱后与当年 classic script 同一份函数体。
+  uiCommon: SR('src/app/shared/uiCommon.js'),
+  render: SR('src/app/shared/liuyaoRender.js'),
 };
 
 let sbResult, sbHist, sbMhys;
@@ -113,7 +115,20 @@ try {
   console.error('装载失败：老脚本装不进 DOM 桩 —— ' + ((e && e.stack) || e));
   process.exit(2);
 }
-const SANDBOXES = [sbResult, sbHist, sbMhys];
+// 新侧的结果页也在**同形状沙箱**里跑（不是直接 import ESM）：
+// `result.logic.js` 的函数体与老文件逐字节相同（8.3 逐字比），差别只有顶层 import；
+// 而本文件要观察的正是 load() **往模块级变量写了什么** —— 直接 import 的话那些变量
+// 住在新模块自己的作用域里，`side.meta()` 读到的全是空值，红的是「观察不到」而不是
+// 「实现不同」。把源文剥掉 import/export 后灌进沙箱，两侧就能对称观察。
+let sbNew;
+try {
+  sbNew = L.loadLegacyScript(SR('src/app/liuyao/result.logic.js'),
+    { prereqs: [SRC.uiCommon, SRC.render] });
+} catch (e) {
+  console.error('装载失败：新侧结果页装不进 DOM 桩 —— ' + ((e && e.stack) || e));
+  process.exit(2);
+}
+const SANDBOXES = [sbResult, sbHist, sbMhys, sbNew];
 
 // 新侧要 `globalThis.window`（`load()` 里 `window.location.search`；`viewRecord` 里
 // `window.location.href = …`）。`installGlobals()` 顺手把 setInterval 也换成假的，
@@ -258,28 +273,34 @@ function mkSide(kind) {
 
   // 结果页的渲染层把状态写进**沙箱**的模块级变量（它是 vm 里的函数，
   // 写不到 Node globalThis 的副本上）。所以观察值一律从 `sbResult` 读。
-  sbResult.currentRecordId = null;
-  sbResult.currentTopic = null;
-  sbResult.currentGender = null;
-  sbResult.currentResultMeta = null;
-  sbResult.savedAnalysis = '';
+  // 两侧各有一份结果页沙箱：老侧 `sbResult`，新侧 `sbNew`。
+  const obs = () => (kind === 'old' ? sbResult : sbNew);
+  for (const sb of [sbResult, sbNew]) {
+    sb.currentRecordId = null;
+    sb.currentTopic = null;
+    sb.currentGender = null;
+    sb.currentResultMeta = null;
+    sb.savedAnalysis = '';
+  }
 
   const side = {
     kind, doc, g, calls, flags, responder, wrapper,
     resetMeta() {
-      sbResult.currentRecordId = null;
-      sbResult.currentTopic = null;
-      sbResult.currentGender = null;
-      sbResult.currentResultMeta = null;
-      sbResult.savedAnalysis = '';
+      const sb = obs();
+      sb.currentRecordId = null;
+      sb.currentTopic = null;
+      sb.currentGender = null;
+      sb.currentResultMeta = null;
+      sb.savedAnalysis = '';
     },
     meta() {
+      const sb = obs();
       return {
-        recordId: sbResult.currentRecordId,
-        savedAnalysis: sbResult.savedAnalysis,
-        meta: sbResult.currentResultMeta,
-        topic: sbResult.currentTopic,
-        gender: sbResult.currentGender,
+        recordId: sb.currentRecordId,
+        savedAnalysis: sb.savedAnalysis,
+        meta: sb.currentResultMeta,
+        topic: sb.currentTopic,
+        gender: sb.currentGender,
       };
     },
     /** ★ 坑②：在各自的 realm 里造 Date。 */
@@ -300,7 +321,10 @@ function mkSide(kind) {
     side.hist = legacyHistApi(sbHist);
     side.mhys = legacyHistApi(sbMhys);
   } else {
-    side.result = { cardFromResult: resultLogic.cardFromResult, load: resultLogic.load };
+    side.result = {
+      cardFromResult: (r) => sbNew.cardFromResult(r),
+      load: () => sbNew.load(),
+    };
     side.hist = newHistApi(lib.createRecordsHistory(CONFIG.liuyao));
     side.mhys = newHistApi(lib.createRecordsHistory(CONFIG.mhys));
   }

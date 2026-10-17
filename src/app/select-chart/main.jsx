@@ -9,6 +9,7 @@
 //   之前就同步写了登录提示（:16-24 直接 return），所以游客永远看不到 loading。
 //   这里用 `useState` 的惰性初值把 `isLoggedIn()` 在首帧就定下来，效果相同。
 
+import '../shared/authModalStyles.js';
 import { useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 

@@ -45,7 +45,10 @@ const path = require('path');
 // 前端哪天改了实现，这个核对就跟着改口径，等于自己跟自己比。
 // 快照来源：`8210608^:src/web/js/page-mhys.js`（payload sha256 aad85d44…）。
 const FRONT = path.join(__dirname, 'legacy_ref', 'page-mhys.js');
-const RENDER = path.join(__dirname, '..', 'src', 'web', 'js', 'mhys_render.js');
+// 渲染层已搬成 ESM `src/app/shared/mhysRender.js`（老 `src/web/js/mhys_render.js` 已删）。
+// 切片只取「八卦数据」段到文件末，那一段里没有 import 行，但每个顶层声明前面都多了
+// `export `；`toClassic()` 剥掉它，切出来的就是当年那份代码。
+const RENDER = path.join(__dirname, '..', 'src', 'app', 'shared', 'mhysRender.js');
 const M = require(path.join(__dirname, '..', 'src', 'server', 'paipan', 'meihua.js'));
 
 // ── 取前端代码（**跨两个文件**，2026-09-25 起）────────────────────────────
@@ -64,8 +67,10 @@ const A = '// ===== 八卦数据 =====';          // js/mhys_render.js
 const C = 'var HEX64 = {};';                   // js/page-mhys.js（2026-10 从 mhys/index.html 内联 <script> 抽出来的）
 const B = '// ===== 时间计算（农历） =====';    // mhys/index.html
 
+const toClassic = (src) => src.replace(/^import [^\n]*\n/gm, '').replace(/^export /gm, '');
+
 function cut(file, from, to) {
-  const src = fs.readFileSync(file, 'utf8');
+  const src = toClassic(fs.readFileSync(file, 'utf8'));
   const i = src.indexOf(from);
   const j = to === null ? src.length : src.indexOf(to, i < 0 ? 0 : i + from.length);
   if (i < 0 || j <= i) {

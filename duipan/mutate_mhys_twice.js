@@ -43,8 +43,15 @@ const WEB = process.env.DRIVE_ROOT || path.join(ROOT, "build", "nginx");
 //   `js/page-mhys.js` / `js/page-mhys-result.js`，M3/M9 的变异点跟着搬过去了。
 //   别再往那两个 .html 上找 —— 它们现在只剩标签。
 const F = {
-  panel: path.join(WEB, 'js', 'ai_panel.js'),
-  render: path.join(WEB, 'js', 'mhys_render.js'),
+  // AI 面板与梅花渲染层也已搬成 ESM（`src/app/shared/`）：默认路径指源码，
+  // 改完源码由 `rebuild()` 重建再跑驱动（`isSource()` 正是按 `src/app` 前缀判断）。
+  // `DRIVE_ROOT` 指到别处时仍按老办法改产物。
+  panel: process.env.DRIVE_ROOT
+    ? path.join(WEB, 'js', 'ai_panel.js')
+    : path.join(ROOT, 'src', 'app', 'shared', 'aiPanel.js'),
+  render: process.env.DRIVE_ROOT
+    ? path.join(WEB, 'js', 'mhys_render.js')
+    : path.join(ROOT, 'src', 'app', 'shared', 'mhysRender.js'),
   // ⚠ 2026-10-17 `/mhys/` 搬进 `src/app/` 之后，这一条**不再是产物里的文件**：
   //   `page-mhys.js` 已经被删掉，逻辑现在在 `src/app/mhys/logic.js`，经 `vite build`
   //   打成 `build/nginx/assets/mhys-<hash>.js`。所以它改成**改源码 → 重建 → 跑驱动**。
@@ -144,12 +151,15 @@ const MUT = [
   {
     name: 'M9 记录页把 currentRecordId/savedAnalysis 挪回渲染之前',
     file: 'pageMhysResult', expect: '⑦ 显示的是记录里存着的那份解读',
+    // ⚠ 阶段 4 之后这两行是**调模块的 setter**（`setCurrentRecordId` / `setSavedAnalysis`），
+    //   不再是对顶层 var 赋值 —— 变异里的 from/to 跟着改成同一个形状，否则「第二个变异点
+    //   找不到」。判据验的东西没变：顺序反了记录页就既看不到已存解读、也回写不了。
     from: '      area.innerHTML = renderResult(result);\n      renderAnalysis();\n',
-    to: "      currentRecordId = id;\n      savedAnalysis = data.ai_analysis || '';\n"
+    to: "      setCurrentRecordId( id);\n      setSavedAnalysis( data.ai_analysis || \'\');\n"
       + '      area.innerHTML = renderResult(result);\n      renderAnalysis();\n',
     // 再把「渲染之后」那两行删掉（否则等于没挪）
     andAlso: {
-      from: "      currentRecordId = id;\n      savedAnalysis = data.ai_analysis || '';\n",
+      from: "      setCurrentRecordId( id);\n      setSavedAnalysis( data.ai_analysis || '');\n",
     },
   },
 ];

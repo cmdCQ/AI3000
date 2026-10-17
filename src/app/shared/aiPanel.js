@@ -390,6 +390,13 @@ export function aiInlineHost() {
 }
 
 export function openAIPanel() {
+  // **先确保面板已经建出来**：面板改成惰性挂载（见 ensureAIPanelMounted 的注释）之后，
+  // 「刚进页面就打开」这条路（八字页 mount() 的默认分支）会在面板还没建时调到这里 ——
+  // 老版面板是 classic script 在顶层注入的，`getElementById` 必然拿得到，所以老版不需要这句。
+  // 少了它：`p` 为 null → 直接 return → 面板停在 `display:none`，
+  // 用户看到的是「方面栏与『解读这一方面』按钮都在，但解读区一片空白」
+  // （八字详情页冷打开必现；点一下方面才会被 `select()` 顺带打开）。
+  ensureAIPanelMounted();
   var p = document.getElementById('aiPanel');
   var o = document.getElementById('aiPanelOverlay');
   if (!p || !o) return;
@@ -532,6 +539,7 @@ async function sendFollowUp() {
 }
 
 export function showAIHome() {
+  ensureAIPanelMounted();     // 惰性挂载：进到这里之前面板 DOM 可能还没插进页面
   var resp = document.getElementById('aiResponse');
   var hdr = document.getElementById('aiPanelTitle');
   if (hdr) hdr.textContent = aiTxt('title', '☯ 自动解析');
@@ -605,6 +613,7 @@ export function startButtonClicked() {
 }
 
 export function showSavedAnalysis() {
+  ensureAIPanelMounted();
   var resp = document.getElementById('aiResponse');
   resp.className = 'ai-response show';
   // 存的正文里带着记账行，切出来显示成小字（老记录没有记账行 → 什么都不显示）
@@ -618,6 +627,7 @@ export function showSavedAnalysis() {
 
 async function startAIStream() {
   abortAIStream();   // 不并发两条流：上面那次还在跑就先掐掉（否则两条流抢同一块屏）
+  ensureAIPanelMounted();   // 惰性挂载：直接调 startAIStream 时（没走 aiInlineHost）面板可能还没插
 
   var resp = document.getElementById('aiResponse');
   resp.className = 'ai-response show';

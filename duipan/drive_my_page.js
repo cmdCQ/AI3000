@@ -257,9 +257,11 @@ async function main() {
       !!loginModal && loginModal.sub === '登录以使用 AI 命理解读', JSON.stringify(loginModal && loginModal.sub));
 
     // ★ 「节点在、hidden=false、带 .open」**不等于「用户看得见」**。
-    //   弹窗样式是 auth.js 运行时插 `<link href="/css/auth-modal.css">` 进来的
-    //   （`auth.js:78`），CSS 没到位时上面那几条全绿、屏幕上却什么都没有。
-    //   所以再断一次「它真的被画出来了」：铺满视口、有遮罩底色、命中点是它自己。
+    //   阶段 4 之前弹窗样式是 auth.js 运行时插 `<link href="/css/auth-modal.css">` 进来的，
+    //   CSS 没到位时上面那几条全绿、屏幕上却什么都没有；现在样式是**静态 import 进 bundle**
+    //   的（`src/app/shared/authModalStyles.js`），所以下面两条一起断：
+    //   ① 「它真的被画出来了」（铺满视口、有遮罩底色、命中点是它自己）；
+    //   ② 样式来源对了（页面上没有那条运行时 link，且加载的样式表里真有 auth-modal 规则）。
     // ⚠ overlay 有淡入 transition（实测刚打开那一刻 opacity≈0.88），所以先等它走完
     //   再读 —— 直接读会拿到中间值，然后断言 opacity==='1' 假红（本脚本踩过一次）。
     await L.until(m,
@@ -271,13 +273,24 @@ async function main() {
       var cs = getComputedStyle(o), r = o.getBoundingClientRect();
       var el = document.elementFromPoint(Math.round(window.innerWidth / 2), Math.round(window.innerHeight / 2));
       var link = document.querySelector('link[data-auth-modal-css]');
+      // 样式表里有没有 auth-modal 那条规则 —— 有，说明 CSS 真的随包加载了；
+      // 只看 link 标签会漏掉「样式进了 bundle 但没被引用」这种半死状态。
+      var sheetHit = false;
+      for (var i = 0; i < document.styleSheets.length && !sheetHit; i++) {
+        var rules; try { rules = document.styleSheets[i].cssRules; } catch (e) { continue; }
+        for (var j = 0; j < rules.length; j++) {
+          if (rules[j].selectorText && rules[j].selectorText.indexOf('auth-modal') >= 0) {
+            sheetHit = true; break;
+          }
+        }
+      }
       return {
         display: cs.display, opacity: cs.opacity, visibility: cs.visibility, position: cs.position,
         zIndex: cs.zIndex, bg: cs.backgroundColor,
         coversViewport: r.width >= window.innerWidth - 1 && r.height >= window.innerHeight - 1,
         hitInside: !!(el && o.contains(el)),
-        cssHref: link ? link.getAttribute('href') : null,
-        cssLoaded: link ? link.dataset.loaded === '1' && !!link.sheet : false,
+        noRuntimeLink: !link,
+        sheetHasAuthModal: sheetHit,
       };`);
     ok('  ★ 弹窗真的画出来了：铺满视口 + 有遮罩底色 + 视口中心的命中点在它里面',
       !!painted && painted.coversViewport === true && painted.hitInside === true &&
@@ -285,8 +298,10 @@ async function main() {
         painted.opacity === '1' && painted.visibility === 'visible' &&
         /^rgba\(0, 0, 0, 0\./.test(painted.bg || ''),
       JSON.stringify(painted));
-    ok('  弹窗 CSS 是运行时插进来的 /css/auth-modal.css，且 sheet 真的加载成功',
-      !!painted && painted.cssHref === '/css/auth-modal.css' && painted.cssLoaded === true,
+    // 阶段 4 之后只剩一套机制：样式随 bundle 来，运行时插 `<link>` 那段已删。
+    // 判据跟着改成「机制唯一 + 样式确实在」；「画出来了」由上一条独立负责。
+    ok('  弹窗样式来自打包的 CSS：页面上没有运行时插的 link，且样式表里确有 auth-modal 规则',
+      !!painted && painted.noRuntimeLink === true && painted.sheetHasAuthModal === true,
       JSON.stringify(painted));
     await L.shot(m, path.join(SHOT_DIR, '02-登录弹窗.png'));
 
@@ -491,15 +506,16 @@ async function main() {
     await L.shot(m, path.join(SHOT_DIR, '07-骨架.png'));
 
     // ── H. 产物里只剩余一条传统 script ────────────────────
-    console.log('\n【H】产物：/my/index.html 该只剩 auth.js 一条传统 script');
+    console.log('\n【H】产物：/my/index.html 不该再有任何 /js/ 传统 script');
     const idxHtml = fs.readFileSync(path.join(WEB, 'my', 'index.html'), 'utf8');
     // ⚠ 先剥掉 HTML 注释再 grep。本页的注释里**逐字引用**了老那行
     //   `<script src="/js/page-my.js">`（写给后来人看的），不剥就会把它当成真标签
     //   ——本脚本初版正是这么假红的：正则从注释里捞出一条「page-my.js 又回来了」。
     const noComments = idxHtml.replace(/<!--[\s\S]*?-->/g, '');
     const legacyScripts = [...noComments.matchAll(/<script\s+src="(\/js\/[^"]+)"/g)].map((x) => x[1]);
-    ok('/my/index.html 的传统 script 只有 /js/auth.js',
-      JSON.stringify(legacyScripts) === JSON.stringify(['/js/auth.js']), JSON.stringify(legacyScripts));
+    // 阶段 4 收口把 `src/web/js/*` 全删了（14 个 classic script）→ 一条都不该剩。
+    ok('/my/index.html 的传统 script 是 0 条（/js/* 已全部退休）',
+      legacyScripts.length === 0, JSON.stringify(legacyScripts));
     ok('  没有把 page-my.js 再引回来', noComments.indexOf('/js/page-my.js') < 0,
       JSON.stringify(noComments.match(/.{0,60}page-my\.js.{0,40}/g)));
     ok('  没有顺手引上 lunar / hexagrams_data / ai_panel（本页不需要）',

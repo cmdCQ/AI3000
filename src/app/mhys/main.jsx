@@ -1,6 +1,17 @@
-import { refreshAIPanel, aiInlineHost } from '../shared/aiPanel.js';
+import '../shared/authModalStyles.js';
+import { refreshAIPanel, aiInlineHost, showAIHome } from '../shared/aiPanel.js';
 import { AUTH } from '../shared/auth.js';
 import { AI_PANEL_CONF } from '../shared/mhysAiPanel.js';
+// ★ 把解卦面板的配置挂回 `window`：引擎只认这个全局 —— `src/app/shared/aiPanel.js` 的
+//   `AIC()` 读的是 `window.AI_PANEL_CONF || {}`。老 `js/liuyao_ai_panel.js` / `js/mhys_ai_panel.js`
+//   是 classic script，文件顶层的 `window.AI_PANEL_CONF = {…}` 一加载就生效；搬成 ESM 后
+//   只剩 `export const AI_PANEL_CONF`，如果没人挂回去，引擎就全程用默认配置
+//   （`cardType` 空、`payload()` 空，请求体 `{message:'', cardType:'', cardData:null}`），
+//   六爻/梅花 ⑧ 的 cardData 判据会红，用户那边是「解读里没有这一卦的内容」。
+//   放在这一层而不是 conf 模块内部的原因：谁是「用到面板的页面」由页面自己声明，
+//   不搞「import 就有副作用」的隐式约定（那等于两套机制）。
+window.AI_PANEL_CONF = AI_PANEL_CONF;
+
 import { TRIGRAMS, currentGua, currentTopic, currentRecordId, currentResultMeta, currentAiPayload, renderAnalysis, renderResult } from '../shared/mhysRender.js';
 // 梅花易数起卦页 —— 阶段 3 第 4 页（`/mhys/`）。
 // 逐字搬运自 `src/web/js/page-mhys.js`（判据快照 `duipan/legacy_ref/page-mhys.js`，
@@ -245,6 +256,11 @@ function installGlobals() {
   // 移除时机：阶段 4 收口时把驱动的 `setTime()` 改成真点时间选择器
   //   （开 `#tpPicker`、滚列、点确定），这个对象连同这一段一起删。
   window.__mhysTestApi = {
+    // 把块里的首页视图按当前这一卦重画一遍。`duipan/drive_mhys_twice.js` 的 ⑤/⑥ 用它
+    // 验「游客标记在 / 不在时，首页给的是登录墙还是『开始解卦』」—— 这一步用户点不出来
+    // （页头那颗按钮已按用户要求删掉），而它验的正是引擎自己那道门，所以作为测试原语摆在这里。
+    // ESM 之后 `showAIHome` 不是页面全局了，判据没法再 `W.showAIHome()`。
+    showAIHome: function () { showAIHome(); },
     setTime: function (y, mo, d, h, mi) {
       state.selectedTime.year = y;
       state.selectedTime.month = mo;

@@ -348,6 +348,17 @@ function check(label, cond, detail) {
 async function reset(m) {
   await fetch(`${ORIGIN}/__reset`, { method: 'POST' });
   await goto(m, INDEX);
+  // 等页面**装完**再动手。`goto` 只等到 load 事件，而这一页现在是 ESM + React：
+  // 模块要异步取、React 要再提交一次，`load` 那一刻 `#methodDropdown` 里可能还没有
+  // 那三个 `.method-option` —— 于是下面的 `selectMethod()` 拿到 `NO_OPTION`、
+  // `setManual()` 接着读 `#manualLines` 抛 null（2026-10-17 阶段 4 收口时踩的）。
+  // 等的是「骨架已经提交」这件客观事实：三个方式项 + 起卦时间有字。
+  const n = await L.until(m,
+    `return document.querySelectorAll('#methodDropdown .method-option').length;`,
+    (k) => k === 3, 8000);
+  if (n !== 3) throw new Error(`页面没装完：.method-option 只数到 ${n} 个`);
+  await L.until(m, `var e = document.getElementById('timeDisplay'); return e ? e.textContent.length : 0;`,
+    (k) => k > 0, 8000);
   await js(m, `window.localStorage.clear(); return true;`);
 }
 
@@ -653,6 +664,7 @@ async function main() {
           function (e) { return e.textContent.indexOf('【一、结论】') >= 0; });`),
       '没找到区块标题');
     const ch = await chat();
+    console.log('   · DEBUG chat：' + JSON.stringify(ch).slice(0, 600));
     check('cardData 是**起卦结果**形态（卦号 + 四柱），不再送前端装的六亲六神世应',
       ch.length === 1 && ch[0].cardType === 'liuyao' && !!ch[0].cardData
       && ch[0].cardData.hexagrams.benGua.upper === A_GUA.upper

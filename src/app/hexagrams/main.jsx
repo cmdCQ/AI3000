@@ -1,3 +1,4 @@
+import '../shared/authModalStyles.js';
 import { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import './style.css'

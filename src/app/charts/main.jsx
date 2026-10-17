@@ -1,3 +1,4 @@
+import '../shared/authModalStyles.js';
 import { AUTH, openAuthModal } from '../shared/auth.js';
 // `/charts/`（新建 / 编辑命盘）—— 阶段 3 第 12 页。
 // 骨架逐字搬运自 `src/web/charts/index.html`（163 行）第 18-155 行，逻辑在 `./logic.js`。

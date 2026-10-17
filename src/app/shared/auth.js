@@ -1,6 +1,5 @@
-// 阶段 4 cut-over：`auth-modal.css` 从「运行时插 <link>」改成静态 import。
-// 原来那条 `link.href = '/css/auth-modal.css'` 依赖 publicDir，删掉 src/web 后必然 404。
-import './authModal.css';
+// 阶段 4 cut-over：`auth-modal.css` 由页面入口经 `authModalStyles.js` 引入（不在这里引，
+// 原因见那个文件头：本模块要被 duipan 的 Node 判据直接 import，CSS 会让它装不起来）。
 
 // 阶段 4 cut-over：由 `src/web/js/auth.js` 逐字搬来，只给顶层声明加了 `export `。
 /* 易三千 — Auth (cookie版) */

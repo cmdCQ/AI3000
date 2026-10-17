@@ -1,3 +1,4 @@
+import '../shared/authModalStyles.js';
 import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
 import * as adminLogic from './logic.js'

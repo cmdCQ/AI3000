@@ -1,4 +1,5 @@
-import { getCookie, AUTH } from '../shared/auth.js';
+import '../shared/authModalStyles.js';
+import { getCookie, AUTH, openAuthModal } from '../shared/auth.js';
 // 首页 —— 阶段 3 的第一页用**真 React 组件**写成，不是 `dangerouslySetInnerHTML` 套壳。
 //
 // 为什么这一页不照前五页的套壳写法：那五页（`/my/` `/mhys/` `/liuyao/` …）套壳是为了
@@ -22,25 +23,12 @@ import {
 } from './home.logic.js'
 
 // ── 与共享层的接缝 ────────────────────────────────────────────────
-// `auth.js` 仍是传统 script（`index.html` 里引着），本轮不搬：登录弹窗有三百多行、
-// 被 14 个页面共用，属于「阶段 4 一次性 cut-over」（计划文档 §4.18）。
-// 这里只按名字借它挂在 window 上的两样东西，**不新造第二套登录机制**。
-// 死期：阶段 4 把 `src/web/js/auth.js` 搬成 ESM 之后，这两行换成 import。
+// `auth.js` 已在阶段 4 搬成 ESM（`src/app/shared/auth.js`），这里直接调模块导出。
 function isLoggedIn() {
   try {
-    return !!(window.AUTH && window.AUTH.isLoggedIn())
+    return !!AUTH.isLoggedIn()
   } catch (e) {
     return false
-  }
-}
-
-function openAuthModal(mode) {
-  if (typeof window.openAuthModal === 'function') {
-    window.openAuthModal(mode || 'login')
-  } else {
-    // auth.js 没加载成功时的兜底：老实现是直接抛 `openAuthModal is not defined`，
-    // 点了没反应；这里至少让用户知道要刷新，而不是对着死按钮点。
-    window.alert('登录组件未加载，请刷新页面重试')
   }
 }
 

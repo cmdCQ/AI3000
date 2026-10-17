@@ -20,6 +20,7 @@
  * `tests/suggestion.spec.mjs` 里有一条判据专门锁住它：谁修好了，那条会红。
  */
 
+import '../shared/authModalStyles.js';
 import { useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import './style.css'

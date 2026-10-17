@@ -24,10 +24,16 @@ const ROOT = path.join(__dirname, '..');
 const LEGACY = path.join(__dirname, 'legacy_ref', 'page-mhys.js');
 const LUNAR = path.join(ROOT, 'src', 'app', 'shared', 'lunar.min.cjs');
 // `page-mhys.js` 的 `calcGua` 直接用全局 `TRIGRAMS`，而它来自 `hexagrams_data.js`；
-// 渲染层 `mhys_render.js` 同理。两个都还没搬（被结果页共用），所以直接读源码树。
-// **按老页面 `<script>` 的顺序**灌进去，少一个就会 `ReferenceError`（报得很响，不会静默）。
-const PREREQS = ['hexagrams_data.js', 'mhys_render.js']
-  .map((f) => path.join(ROOT, 'src', 'web', 'js', f));
+// 渲染层 `mhys_render.js` 同理（还用到 `uiCommon` 的 `escHtml`/`formatTime`）。
+// 三者都已搬成 ESM 模块，**按老页面 `<script>` 的顺序**灌进去（ui_common → hexagrams_data
+// → mhys_render），少一个就会 `ReferenceError`（报得很响，不会静默）。
+const SHARED = (f) => path.join(ROOT, 'src', 'app', 'shared', f);
+const PREREQS = [SHARED('uiCommon.js'), SHARED('hexagramsData.js'), SHARED('mhysRender.js')];
+
+/** ESM → classic，理由与 `legacy_liuyao.js::toClassic` 相同（同一份函数体，只多前缀）。 */
+function toClassic(src) {
+  return src.replace(/^import [^\n]*\n/gm, '').replace(/^export /gm, '');
+}
 
 /** 与 legacy_ai_chat.js 同一条契约：`textContent → innerHTML` 要真的转义，
  *  且**不转义引号**（真浏览器这条路径就不转义引号，补上反而与线上不一致）。
@@ -94,9 +100,9 @@ function loadLegacy(opts) {
   }
   try {
     if (!(opts && opts.noPrereqs)) {
-      for (const f of PREREQS) vm.runInContext(fs.readFileSync(f, 'utf8'), sb, { filename: f });
+      for (const f of PREREQS) vm.runInContext(toClassic(fs.readFileSync(f, 'utf8')), sb, { filename: f });
     }
-    vm.runInContext(fs.readFileSync(LEGACY, 'utf8'), sb, { filename: LEGACY });
+    vm.runInContext(toClassic(fs.readFileSync(LEGACY, 'utf8')), sb, { filename: LEGACY });
   } catch (e) {
     const err = new Error(`老脚本在 DOM 桩里没跑起来：${e.message} —— 补 legacy_mhys.js 的 makeSandbox()`);
     err.cause = e;

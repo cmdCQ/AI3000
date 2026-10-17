@@ -40,7 +40,10 @@ function check(label, cond, detail) {
  * 的检查比没有检查更坏。
  */
 function loadRenderMarkdown() {
-  const rel = 'src/web/js/ui_common.js';
+  // `src/app/shared/uiCommon.js`：渲染函数住在这里（老 `src/web/js/ui_common.js` 已删）。
+  // renderMarkdown 在文件里是**最后一个**顶层声明，所以「切到文件末」仍然成立；
+  // 它不引用同模块的 escHtml（内部自带 inline/转义），切出来能独立跑。
+  const rel = 'src/app/shared/uiCommon.js';
   const src = fs.readFileSync(N(rel), 'utf8');
   const a = src.indexOf('function renderMarkdown(text) {');
   if (a < 0) { console.error(`❌ ${rel} 里找不到 renderMarkdown：源文件重构了，本脚本要跟着改`); process.exit(2); }

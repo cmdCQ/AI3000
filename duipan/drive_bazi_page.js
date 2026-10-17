@@ -659,7 +659,13 @@ async function main() {
     await chartReady(m, 10000);
     await panelReady(m);
     await logout(m);
-    await js(m, `${W} W.BaziAI.select('事业'); W.BaziAI.select('综合'); return true;`);
+    // 阶段 4 cut-over 之后没有 `window.BaziAI`（模块导出不再挂全局），
+    // 改成点界面上那两颗切方面的按钮 —— 与用户点的是同一条路。
+    await js(m, `['事业','综合'].forEach(function (a) {
+      var b = document.querySelector('.bz-aspect[data-aspect="' + a + '"]');
+      if (b) b.click();
+    });
+    return true;`);
     const lock = await js(m, `var b = document.querySelector('.bz-aspect[data-aspect="综合"]');
       return { lock: /🔒/.test(b.innerText || ''), cur: b.classList.contains('on') };`);
     check('没登录时「综合」上挂着锁并默认选中', lock.lock === true && lock.cur === true,
@@ -774,8 +780,13 @@ async function main() {
       header: (document.querySelector('.ai-panel-header') || {}).innerText || '' };`);
     check('表头那颗 ✕ 已经删除（用户点名；变红 = 有人加回来了）',
       noX.x === false, JSON.stringify(noX));
-    // 走引擎真实的收起路径（就是那颗 ✕ 原先调的那个函数），把面板弄成「关着」的状态
-    await js(m, `${W} W.closeAIPanel(); return true;`);
+    // 造出「面板关着」的状态。页内形态已经没有 UI 关闭入口（✕ 按用户要求删了，
+    // 遮罩在 inline 下是隐藏的），所以只能直接摘掉 `.open` —— 这与引擎
+    // `closeAIPanel()` 对 DOM 的效果一致（去掉 .open 即 display:none）。
+    // 这条用例要验的是**下一步**：此时点方面，面板会不会被带出来。
+    await js(m, `var p = document.getElementById('aiPanel');
+      if (p) p.classList.remove('open');
+      return true;`);
     const shut = await js(m, `var p = document.getElementById('aiPanel');
       return { open: !!p && p.classList.contains('open'),
                display: p ? getComputedStyle(p).display : 'NO_PANEL' };`);
@@ -877,20 +888,14 @@ async function main() {
     check('前提成立：首段已经流进来（好让「收起会不会掐断」这条断言真能验到东西）',
       /【一、结论】/.test(seg1 || ''), JSON.stringify((seg1 || '').slice(0, 40)));
     // 用户的下一个动作：把对话收起来（标题那行就是开关）
-    // ⚠ **真正钉住「折叠不停流」的是 `abortCalls`**：收起那一下把 `window.abortAIStream`
-    //   包了一层数调用次数 —— 折叠若接成 `closeAIPanel()`（它内部会 abort），这里就是 1。
-    //   （只断言「次段后来到了」不够：桩是 120ms 后写，abort 之后正文有时也能落地，
-    //     那样这条会**在错实现上照样绿** —— 变异验过，见下。）
-    // ⚠ 数的是**页面真全局**上的 `abortAIStream`（`W` = `window.wrappedJSObject`）：
-    //   沙箱里的裸 `window` 读不到页面的函数（读出来是 undefined），那样这条会**假绿**。
+    // ⚠ 这里**不能**用「给 `window.abortAIStream` 打桩数调用次数」那招了：阶段 4 之后
+    //   `abortAIStream` 是 ESM 导出，不是页面全局 —— 模块里调的是它自己的绑定，桩打不着，
+    //   那样 `abortCalls` 恒为 0，等于这条永远绿（假绿）。
+    //   真正钉住「折叠不停流」的是下面那条 `panelOpen`：折叠若接成 `closeAIPanel()`，
+    //   它会摘掉 `.open` **并 abort**，于是「面板仍带 .open」当场红。
+    //   （只断言「次段后来到了」不够：桩是 120ms 后写，abort 之后正文有时也能落地。）
     const folded = await js(m, `${W}
-      var abortCalls = 0;
-      var origAbort = W.abortAIStream;
-      if (typeof origAbort === 'function') {
-        W.abortAIStream = function () { abortCalls++; return origAbort.apply(this, arguments); };
-      }
       document.getElementById('baziAiToggle').click();
-      if (typeof origAbort === 'function') W.abortAIStream = origAbort;
       var b = document.getElementById('baziAiBody');
       var p = document.getElementById('aiPanel');
       var s = document.getElementById('baziAiSec');
@@ -899,13 +904,13 @@ async function main() {
                panelOpen: !!p && p.classList.contains('open'),
                panelH: p ? Math.round(p.getBoundingClientRect().height) : -1,
                caret: (document.querySelector('#baziAiToggle .bz-caret') || {}).textContent || '',
-               aria: (document.getElementById('baziAiToggle') || {}).getAttribute('aria-expanded'),
-               abortCalls: abortCalls, hasAbortFn: typeof origAbort === 'function' };`);
+               aria: (document.getElementById('baziAiToggle') || {}).getAttribute('aria-expanded') };`);
     check('点标题行就收起来了（内容藏掉、开关字样翻成「展开」）',
       folded.disp === 'none' && folded.cls === true && /展开/.test(folded.caret)
       && folded.aria === 'false' && folded.panelH === 0, JSON.stringify(folded));
-    check('收起**没有掐这次解读**（没调 abortAIStream；收起=腾地方，不是不看了）',
-      folded.abortCalls === 0 && folded.hasAbortFn === true, JSON.stringify(folded));
+    check('收起**没有掐这次解读**（收起=腾地方，不是不看了）',
+      folded.panelOpen === true && /解读/.test(folded.caret) === false
+      && folded.disp === 'none' && folded.aria === 'false', JSON.stringify(folded));
     check('收起**不是**把面板关掉（面板自身仍带 .open；关了就等于把这次解读掐了）',
       folded.panelOpen === true, JSON.stringify(folded.panelOpen));
     // 用户看得见的结果：答案照样流完，不是半截

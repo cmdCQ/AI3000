@@ -255,12 +255,23 @@ async function reset(m) {
   //   在那之前点 `#methodDisplay` 只是点在没绑事件的 div 上，下拉不展开，
   //   `selectMethod()` 返回 'NO_OPTION'，随后读 `#manualUpper.value` 就抛 null。
   //   等不到就让后面的断言去红 —— 这里不替它判绿。
+  await pageReady(m);
+}
+
+/**
+ * 等「页面装完」：`#timeDisplay` 有字（`init()` → `updateTimeDisplay()` 填的）。
+ * 判据与理由见上面 reset 里那段注释；**每条从 `goto` 起步的用例都要过这一关**，
+ * 否则后面点下拉/读 `#analysisArea` 就是在页面还没提交时动手（2026-10-17 连踩两次）。
+ * 等不到就让后面的断言去红 —— 这里不替它判绿。
+ */
+async function pageReady(m) {
   for (let i = 0; i < 60; i++) {
     const t = await js(m, `var el = document.getElementById('timeDisplay');
       return el ? (el.textContent || '').trim() : '';`);
-    if (t) break;
+    if (t) return true;
     await new Promise((r) => setTimeout(r, 100));
   }
+  return false;
 }
 async function captured() {
   return (await (await fetch(`${ORIGIN}/__captured`)).json()).captured;
@@ -596,10 +607,12 @@ async function main() {
     console.log('\n⑩ 原地出结果后 AI 块自己出现；点「开始解卦」才发请求');
     await stub(m, STUB_GUA);
     await reset(m);
-    check('排盘页也挂了 AI 面板（共享件自己 mount，页面里已无那段标注）',
-      await js(m, `return !!(document.getElementById('aiPanel')
-        && document.getElementById('aiPanelOverlay')
-        && document.getElementById('aiFollowBar'));`), '页面上找不到 aiPanel');
+    // 阶段 4 之后面板是**惰性挂载**的（`aiPanel.js` 的 `ensureAIPanelMounted()`）：
+    // 没起卦时页面上根本没有那块 DOM —— 老版是 classic script 在加载时就注入一份隐藏的槽。
+    // 这不是弱化断言：「起卦后面板自己出现 + 自己打开 + 点了才发请求」这几条在下一屏
+    // 全都在（⑩ 后半段、⑪ 记录页），这一条只管「起卦前别多出一块空槽占版面」。
+    check('起卦前不该有 AI 块（惰性挂载：没卦就没槽，不占版面）',
+      await js(m, `return !document.getElementById('aiPanel');`), '起卦前页面上就挂着 aiPanel');
     check('起卦前面板是关着的', !(await panelOpen(m)), '面板一开始就开着');
 
     check('页头那颗「☯ 看不懂？试试自动解析」不在了（2026-09-25 用户点名删掉）',
@@ -736,6 +749,7 @@ async function main() {
     await stub(m, STUB_GUA);
     await js(m, `window.localStorage.clear(); return true;`);
     await goto(m, `${ORIGIN}/mhys/`);
+    await pageReady(m);
     const blank = await js(m, `var s = document.getElementById('analysisArea');
       return { exists: !!s, hidden: s ? (s.hidden === true
         || getComputedStyle(s).display === 'none') : null };`);

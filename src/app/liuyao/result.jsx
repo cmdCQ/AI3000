@@ -1,6 +1,16 @@
 import { refreshAIPanel, aiInlineHost } from '../shared/aiPanel.js';
 import { AUTH } from '../shared/auth.js';
 import { AI_PANEL_CONF } from '../shared/liuyaoAiPanel.js';
+// ★ 把解卦面板的配置挂回 `window`：引擎只认这个全局 —— `src/app/shared/aiPanel.js` 的
+//   `AIC()` 读的是 `window.AI_PANEL_CONF || {}`。老 `js/liuyao_ai_panel.js` / `js/mhys_ai_panel.js`
+//   是 classic script，文件顶层的 `window.AI_PANEL_CONF = {…}` 一加载就生效；搬成 ESM 后
+//   只剩 `export const AI_PANEL_CONF`，如果没人挂回去，引擎就全程用默认配置
+//   （`cardType` 空、`payload()` 空，请求体 `{message:'', cardType:'', cardData:null}`），
+//   六爻/梅花 ⑧ 的 cardData 判据会红，用户那边是「解读里没有这一卦的内容」。
+//   放在这一层而不是 conf 模块内部的原因：谁是「用到面板的页面」由页面自己声明，
+//   不搞「import 就有副作用」的隐式约定（那等于两套机制）。
+window.AI_PANEL_CONF = AI_PANEL_CONF;
+
 import { savedAnalysis, renderLiuyaoResult } from '../shared/liuyaoRender.js';
 import { escHtml } from '../shared/uiCommon.js';
 // 六爻结果页（`/liuyao/result.html?id=<记录id>`）—— 阶段 3 第 6 页。

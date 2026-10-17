@@ -22,12 +22,19 @@ const ROOT = path.join(__dirname, '..');
 const LEGACY = path.join(__dirname, 'legacy_ref', 'page-liuyao.js');
 const LUNAR = path.join(ROOT, 'src', 'app', 'shared', 'lunar.min.cjs');
 // `page-liuyao.js` 引 `liuyao_render.js`（渲染层，定义 `renderLiuyaoResult` 等）。
-// 它还没搬（被 `/liuyao/result.html`、`/liuyao/history.html` 共用），直接读源码树。
+// 它已搬成 ESM 模块 `src/app/shared/liuyaoRender.js`，读源码树后用 `toClassic()`
+// 剥掉 `import`/`export` 再灌进沙箱，行为与当年的 classic script 同一份代码。
 // **`hexagrams_data.js` 与 `mhys_render.js` 不需要**：`page-liuyao.js` 里 `TRIGRAMS` /
 // `HEX64` 只出现在一句注释里（「从前这里有一整份…」）—— 起卦早已交给后端。
 // 少灌一个就会 `ReferenceError`（报得很响，不会静默）。
-const PREREQS = ['liuyao_render.js']
-  .map((f) => path.join(ROOT, 'src', 'web', 'js', f));
+const PREREQS = [path.join(ROOT, 'src', 'app', 'shared', 'liuyaoRender.js')];
+
+/** ESM → classic：剥掉顶层 `import` 行与行首 `export ` 前缀。
+ *  老脚本能以 classic 形式跑，新模块只是多了这两样；剥掉后同一份函数体，
+ *  沙箱里照样挂成全局 —— 判据不必为了搬家用新机制重写一遍。 */
+function toClassic(src) {
+  return src.replace(/^import [^\n]*\n/gm, '').replace(/^export /gm, '');
+}
 
 /**
  * 最小 DOM 桩（形状定义在 `duipan/dom_stub.js`）。
@@ -120,9 +127,9 @@ function loadLegacyScript(file, opts) {
   }
   try {
     if (!opts.noPrereqs) {
-      for (const f of opts.prereqs || []) vm.runInContext(fs.readFileSync(f, 'utf8'), sb, { filename: f });
+      for (const f of opts.prereqs || []) vm.runInContext(toClassic(fs.readFileSync(f, 'utf8')), sb, { filename: f });
     }
-    vm.runInContext(fs.readFileSync(file, 'utf8'), sb, { filename: file });
+    vm.runInContext(toClassic(fs.readFileSync(file, 'utf8')), sb, { filename: file });
   } catch (e) {
     const err = new Error(
       `老脚本在 DOM 桩里没跑起来（${path.basename(file)}）：${e.message} —— 补 legacy_liuyao.js 的 makeSandbox()`

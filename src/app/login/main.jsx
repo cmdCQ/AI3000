@@ -1,3 +1,4 @@
+import '../shared/authModalStyles.js';
 import React, { useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { isLoggedIn, sessionCookies } from '../lib/auth.js'

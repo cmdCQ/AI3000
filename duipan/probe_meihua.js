@@ -26,10 +26,11 @@ const M = require(path.join(PAIPAN, 'meihua.js'));
 const S = require(path.join(PAIPAN, 'strokes.js'));
 
 // ── 前端语料：另一条独立来源 ──────────────────────────────────
-// 该文件是给浏览器用的 `var` 声明，无 DOM 依赖，故 node 里 eval 得动。
-// 不 require：它没有 module.exports。
-const FRONT = path.join(__dirname, '..', 'src', 'web', 'js', 'hexagrams_data.js');
-const frontSrc = fs.readFileSync(FRONT, 'utf8');
+// 该文件现在是 ESM（`src/app/shared/hexagramsData.js`），除了 4 个 `export` 前缀之外
+// 与老 `src/web/js/hexagrams_data.js` 逐字相同。这里读源文件、剥掉 `export ` 后照样能 eval：
+// 用 `import()` 会把整个渲染层一起拖进来，而本脚本只要两张数据表。
+const FRONT = path.join(__dirname, '..', 'src', 'app', 'shared', 'hexagramsData.js');
+const frontSrc = fs.readFileSync(FRONT, 'utf8').replace(/^export /gm, '');
 // 用 `new Function` 而不是 `eval`：`eval` 会把文件里的 `var` 泄进本模块作用域，
 // 与上面已 `require` 进来的对象撞车。
 const { HEXAGRAM_MAP, HEXAGRAM_DATA } = new Function(

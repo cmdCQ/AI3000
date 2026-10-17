@@ -1,3 +1,4 @@
+import '../shared/authModalStyles.js';
 import { BaziAI } from '../shared/baziAiPanel.js';
 import { BaziRender } from '../shared/baziRender.js';
 // 「我的命盘」页 —— 阶段 3 第 1 页。逐字搬运自
@@ -130,11 +131,11 @@ function renderDetail(chart) {
       var zi = ZODIAC_NAMES.indexOf(zx);
       if (zi >= 0) document.getElementById('baziZodiac').textContent = ZODIAC_EMOJI[zi];
     }
-    // ⚠ 借老全局，**死期：阶段 4**（随 bazi_render.js / bazi_ai_panel.js 搬进 src/app/）
-    window.BaziRender.render(document.getElementById('baziChart'), resp, meta,
+    // bazi_render.js / bazi_ai_panel.js 已搬进 `src/app/shared/`（阶段 4），直接调模块导出。
+    BaziRender.render(document.getElementById('baziChart'), resp, meta,
       document.getElementById('baziRest'));
     if (!isAdminView) {
-      window.BaziAI.mount(document.getElementById('baziAi'), { chartId: chart.id, birth: birthReq });
+      BaziAI.mount(document.getElementById('baziAi'), { chartId: chart.id, birth: birthReq });
     }
   }).catch(function (e) {
     renderDetailFallback(chart, meta, e);

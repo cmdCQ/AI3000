@@ -439,3 +439,12 @@ export var BaziAI = (function () {
 })();
 
 // 阶段 4：模块 A 的 state 由模块 B 写入，ESM 的 import 绑定不可赋值，所以给写方一对 setter。
+
+// ── 阶段 4 桥：本模块生成的 HTML 里还有内联 `onclick="BaziAI.beforeLogin()"` ──
+// （登录引导那两颗按钮：先记下想解的方面，再开登录弹窗）。classic script 时代顶层对象
+// 自动挂 window；ESM 不挂，内联处理器会抛 `BaziAI is not defined` —— 表现为
+// 「点『登录』没反应，登录回来后也不会接着解」。
+// 死期：阶段 5 把这两颗按钮换成真实事件监听，与其它模块的桥一起删。
+if (typeof window !== 'undefined') {
+  window.BaziAI = BaziAI;
+}

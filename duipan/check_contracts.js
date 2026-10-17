@@ -50,9 +50,11 @@ function slice(rel, fromMarker, toMarker) {
   const src = read(rel);
   const a = src.indexOf(fromMarker);
   if (a < 0) { console.error(`❌ ${rel} 里找不到起点标记：${JSON.stringify(fromMarker)}`); process.exit(2); }
-  const b = src.indexOf(toMarker, a);
+  const b = toMarker === null ? src.length : src.indexOf(toMarker, a);
   if (b < 0) { console.error(`❌ ${rel} 里找不到终点标记：${JSON.stringify(toMarker)}`); process.exit(2); }
-  return src.slice(a, b);
+  // 切片可能跨过几个顶层声明，而搬成 ESM 之后它们前面多了 `export `。沙箱里跑 classic
+  // 语法，剥掉前缀即可（同一个函数体，不是换实现）。
+  return src.slice(a, b).replace(/^export /gm, '');
 }
 
 /** 装一个只够跑记账行那几个函数的沙箱（不引 DOM）。 */
@@ -76,14 +78,17 @@ const be = sandbox(beCode + '\n}\n'
 // ══════════════════════════════════════════════════════════════════
 // ② 两个前端各自的实现（取真函数跑）
 // ══════════════════════════════════════════════════════════════════
-const PANEL_FILE = 'src/web/js/ai_panel.js';
+// 面板已搬成 ESM `src/app/shared/aiPanel.js`；本脚本按锚点切片取函数，切片内没有 ESM 语句。
+const PANEL_FILE = 'src/app/shared/aiPanel.js';
 const panelCode = slice(PANEL_FILE, 'var AI_POINTS_MARKS =', '\n/**\n * 存进记录里的形态');
 const panel = sandbox(panelCode + `
   var __out = { AI_POINTS_MARKS: AI_POINTS_MARKS, pointsIdx: pointsIdx,
       stripTokenTrailer: stripTokenTrailer, pointsText: pointsText, pointsHtml: pointsHtml };`);
 
-const CHAT_FILE = 'src/web/ai-chat/index.html';
-const chatCode = slice(CHAT_FILE, 'var AI_POINTS_MARKS =', '// ===== 状态 =====');
+// ai-chat 的记账行解析已搬成 ESM 模块 `src/app/lib/points.js`（老页内联 <script> 已删）：
+// 这一段现在就是整个文件，切到文件末。
+const CHAT_FILE = 'src/app/lib/points.js';
+const chatCode = slice(CHAT_FILE, 'var AI_POINTS_MARKS =', null);
 const chat = sandbox(chatCode + `
   var __out = { AI_POINTS_MARKS: AI_POINTS_MARKS, pointsIdx: pointsIdx,
       splitPoints: splitPoints, pointsLabel: pointsLabel };`);
@@ -155,7 +160,8 @@ check('没尾巴时不占位（返回空串）', P.pointsHtml(BODY) === '', JSON
 
 console.log('\n⑤ 接线：函数取出来了，还得真被调用（切出来跑证明不了这个）');
 const panelSrc = read(PANEL_FILE);
-const chatSrc = read(CHAT_FILE);
+// 这几条查的是**页面怎么调用**解析函数，不是解析函数本身：看 React 页源码。
+const chatSrc = read('src/app/ai-chat/main.jsx');
 const count = (s, re) => (s.match(re) || []).length;
 check('ai_panel.js：流式/中断/追问三处渲染都带上了记账行',
   count(panelSrc, /pointsHtml\(fullText\)/g) === 3, '实测 ' + count(panelSrc, /pointsHtml\(fullText\)/g) + ' 处');
@@ -181,9 +187,9 @@ const nginxFiles = [];
     if (e.name === 'node_modules' || e.name.endsWith('.bak')) continue;
     const p = path.join(d, e.name);
     if (e.isDirectory()) walk(p);
-    else if (/\.(html|js)$/.test(e.name)) nginxFiles.push(p);
+    else if (/\.(html|js|jsx|mjs)$/.test(e.name)) nginxFiles.push(p);
   }
-})(N('src/web'));
+})(N('src/app'));  // 老树 src/web 已删：扫新树（含 .jsx）
 const autoCallers = nginxFiles.filter((f) => /^\s*autoStartAI\(\);/m.test(fs.readFileSync(f, 'utf8')));
 check('全站没有 autoStartAI() 的调用', autoCallers.length === 0,
   autoCallers.map((f) => path.relative(ROOT, f)).join(', '));
@@ -191,27 +197,10 @@ const autoDefs = nginxFiles.filter((f) => /function autoStartAI\s*\(/.test(fs.re
 check('引擎里也没留着这个没人调的函数', autoDefs.length === 0,
   autoDefs.map((f) => path.relative(ROOT, f)).join(', '));
 
-console.log('\n⑦ 同一份 js/css 的 ?v= 指纹在各页面必须一致（阳爻那次就是栽在这儿）');
-const pages = nginxFiles.filter((f) => f.endsWith('.html'));
-const versions = {};
-for (const f of pages) {
-  const src = fs.readFileSync(f, 'utf8');
-  const re = /(?:src|href)="\/(js|css)\/([\w.-]+)\?v=(\d+)"/g;
-  let m;
-  while ((m = re.exec(src))) {
-    const key = m[1] + '/' + m[2];
-    (versions[key] = versions[key] || new Map()).set(m[3], (versions[key].get(m[3]) || 0) + 1);
-  }
-}
-let bad = 0;
-for (const key of Object.keys(versions).sort()) {
-  const vs = [...versions[key].keys()];
-  const ok = vs.length === 1;
-  if (!ok) bad++;
-  console.log(`   ${ok ? '✓' : '✗'} ${key} → ${vs.map((v) => 'v=' + v).join(' / ')}`);
-}
-if (!Object.keys(versions).length) { console.error('❌ 一个 ?v= 都没扫到 —— 正则或页面结构变了'); process.exit(2); }
-if (bad) fails.push(`⑦ 有 ${bad} 份资源在不同页面挂着不同的 ?v=`);
+// ⑦ 原先查「同一份 js/css 在 11 个页面挂着不同的 ?v=」。切到 Vite 之后这条机制没了：
+//   文件名带内容哈希（`assets/mhys-<hash>.js`），资源变了哈希就变，**没有一处手写的 ?v=
+//   可以漏改**。留着它只会扫到 0 条再 exit 2（扫不到 = 测不出来）。所以退休，不是放行：
+//   它保护的问题已被构建机制消除。
 
 console.log(fails.length
   ? `\n❌ 契约检查：${fails.length} 项失败\n   ` + fails.join('\n   ')
