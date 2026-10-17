@@ -32,6 +32,7 @@ import {
   TRIGRAMS, escHtml, escAttr, renderCard, getCardSummary,
 } from '../lib/hexRender.js'
 import './style.css'
+import { boot as bootVisualPolish } from '../shared/visualPolish.js'
 
 // ===== 状态 =====
 // 与老文件同名的模块级可变状态（page-ai-chat.js:44-49）。
@@ -1037,6 +1038,11 @@ flushSync(function () {
 
 // 页面初始化（老代码挂在 DOMContentLoaded 上；此处此时机等价且更早）
 initPage();
+
+// 等待态增强（计时 + 阶段文案 + 60s 兜底）。★ 必须在 flushSync 之后调：
+// 它 boot 时读 `#msgsArea`，读不到就静默 return（见 shared/visualPolish.js 头注释）。
+// 老页面是传统 script 自己挂 DOMContentLoaded，这里由我们显式给时机。
+bootVisualPolish();
 
 // ===== 必须挂在 window 上的两个名字（内联 HTML 里引用它们）=====
 // 1) sendCardFromPicker —— loadPickerData 生成的条目里写死了

@@ -13,7 +13,17 @@
    设计原则：不劫持任何原有函数（sendMessage / doStreamRender 等），
    只做 DOM 观察，因此即使本文件加载失败，对话功能也不受影响。
    ═══════════════════════════════════════════════════════════════ */
-(function () {
+
+// AI 对话页的等待态增强 —— 阶段 4 cut-over 从 `src/web/js/visual-polish.js` 搬来。
+// 函数体**一字未改**，只做了两件事：
+//   1. `(function(){ 'use strict'; … })();` → `export function boot() { … }`
+//   2. 删掉文件末尾那段「自己看 readyState 决定什么时候 boot」的代码 —— 现在由
+//      `src/app/ai-chat/main.jsx` 在 `flushSync` 提交骨架之后显式调用 `boot()`。
+//      ★ 这一段不能留：ESM 是 defer 的，import 时就 boot 会在 `#msgsArea` 还不存在时
+//        读一次 `document.getElementById('msgsArea')`，读不到就静默 return（老文件头注释
+//        里那句「读不到就直接 return 且不报错」说的就是它）。
+
+export function boot() {
   'use strict';
 
   /* 各阶段文案：[起始毫秒, 文案] —— 按等待时长递进 */
@@ -109,9 +119,4 @@
     obs.observe(area, { childList: true, subtree: true });
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot);
-  } else {
-    boot();
-  }
-})();
+}
