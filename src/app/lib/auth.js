@@ -19,6 +19,20 @@ export function getToken() {
   try { return getCookie('sqw_token') } catch (e) { return null }
 }
 
+/** 登录/注册成功后种下的两个 cookie。老实现把这两行**抄在每个页面里**
+ *  （`page-login.js:21-22`、`page-register.js:83-84`），逐字相同；搬到
+ *  `src/app/` 后放在这里，因为「cookie 长什么样」属于同一份契约，
+ *  散在两条页面里迟早只改一处。
+ *
+ *  ★ `max-age=86400` = 一天；不写 `expires`、不写 `httponly`（老实现也没有，
+ *    那是后端 Set-Cookie 才能干的），所以这份只负责「浏览器端可读的登录态」。 */
+export function sessionCookies(token, username) {
+  return [
+    'sqw_token=' + encodeURIComponent(token) + '; path=/; max-age=86400',
+    'sqw_username=' + encodeURIComponent(username) + '; path=/; max-age=86400',
+  ]
+}
+
 // ⚠ 过渡期胶水，**死期：阶段 4**（随 src/web/js/auth.js 一起搬进 src/app/ 时删）。
 //
 // 登录/注册弹窗那一整套（DOM 注入、CSS、表单提交、验证码冷却）还有 300+ 行留在

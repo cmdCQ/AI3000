@@ -1,0 +1,16 @@
+/* 登录页的样式壳。一行 CSS 都没重写：`@import` 就是老
+ * `src/web/login/index.html:7/10` 那两条 `<link>` 的等价物，**顺序就是外观**：
+ *
+ *   auth.css    `.auth-wrapper` / `.auth-card` / `.sub` / `.auth-form`
+ *               / `.auth-error` / `.auth-btn` / `.auth-link` / `.auth-back`
+ *   tokens.css  CSS 变量（`--gold` / `--gold-rgb` …）
+ *
+ * ★ 老页 tokens.css 在后，照抄——变量是最后写入者生效。
+ * ★ 这页**不需要** `/js/auth.js`：与 `/select-chart/` 相反，登录页自己就是表单，
+ *   不弹登录弹窗。老页引了只是因为 `:1` 用了 `AUTH.isLoggedIn()`，那个已经由
+ *   `../lib/auth.js` 接管。
+ */
+@import '../../web/css/auth.css';
+@import '../../web/css/tokens.css';
+
+#root { display: block; }

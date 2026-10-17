@@ -1,0 +1,15 @@
+/* 注册页的样式壳。`@import` 对应老 `src/web/register/index.html:7/10` 那两条 `<link>`，
+ * **顺序就是外观**（tokens.css 在后，变量最后写入者生效）。
+ *
+ *   auth.css    `.auth-wrapper` / `.auth-card` / `.auth-form` / `.auth-error`
+ *               / `.auth-btn` / `.auth-link` / `.auth-back`
+ *               + `.sms-row` / `.sms-btn`（注册页独有，也写在 auth.css 里）
+ *   tokens.css  CSS 变量
+ *
+ * ★ 老页第 26 行的 `onclick="sendSms()"` 已换成 React 的 onClick，
+ *   所以这页**不需要** `/js/auth.js`，也不需要 `installGlobals()`。
+ */
+@import '../../web/css/auth.css';
+@import '../../web/css/tokens.css';
+
+#root { display: block; }
