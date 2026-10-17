@@ -1,0 +1,17 @@
+/* @import 的顺序与老页面 `src/web/hexagrams/index.html` 一致：
+       :9  /css/page-hexagrams.css
+       :10 /css/tokens.css
+   两条都在 <head> 里，文档顺序就是生效顺序；`@import` 按同一顺序展开。
+
+   **本页不复制任何 CSS 规则** —— 与 `/my/` `/home/` 同一个规矩：复制粘贴等于
+   立刻多出一份真相，改一处漏一处就会悄悄对不上。整页的视觉验收在
+   `tests/hexagrams.spec.mjs` 的截图基线上，基线是拿老页拍的。 */
+@import '../../web/css/page-hexagrams.css';
+@import '../../web/css/tokens.css';
+
+/* 老页面的 `.wrapper` 是 `<body>` 的直接子节点；新页面它外面多了一层 `#root`。
+   `page-hexagrams.css` 里 `.wrapper` 自己 max-width + margin:0 auto，没有一条
+   规则依赖父子关系，所以视觉上不需要补规则。这一行只是显式声明 `#root` 没有
+   背景/边框，避免以后有人给它加样式时误以为「它本来就有」。与 `home/style.css`
+   `my/style.css` 里那条同源。 */
+#root { display: block; }

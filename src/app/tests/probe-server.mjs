@@ -16,7 +16,9 @@ import { extname, join, normalize, resolve } from 'node:path'
 import { request as httpsRequest } from 'node:https'
 
 const ROOT = resolve(process.env.PROBE_DIR || '')
-const PORT = Number(process.env.PROBE_PORT || 8080)
+// 8080 是 nginx 容器的端口，不能当默认值（会 EADDRINUSE，且旧版
+// `reuseExistingServer: true` 会让它静默测线上）。默认值与 playwright.config.mjs 一致。
+const PORT = Number(process.env.PROBE_PORT || 8123)
 const UPSTREAM = process.env.PROBE_UPSTREAM || 'sqw.somtfly.com'
 
 if (!existsSync(ROOT)) {
