@@ -94,7 +94,10 @@ function AnnouncementModal({ open, md, onClose }) {
     >
       <div className="announcement-modal">
         <div className="announcement-modal-header">
-          <span className="announcement-modal-title">📢 公告</span>
+          {/* 标题前缀原来是个 📢 —— 和全站的玉青/暖金系统不搭，也吵。
+              现在改成一个 3px 的玉青竖条（纯 CSS，见 home.css 的
+              `.announcement-modal-title::before`），只用主色，不加 emoji。 */}
+          <span className="announcement-modal-title">公告</span>
           <button className="announcement-modal-close" onClick={onClose}>
             ✕
           </button>
@@ -155,7 +158,10 @@ function ModulesTab({ marquee, onOpenAnnouncement, onModule, onSuggestion, uptim
   return (
     <div id="tab-modules" className="tab-content">
       <div className="announcement-bar" id="announcementBar" onClick={onOpenAnnouncement}>
-        <span className="announcement-icon">📢</span>
+        {/* 原来这里是 📢 emoji。改成一颗玉青小圆点：emoji 在 iOS/Android/桌面
+            三处的字形、基线、颜色都不一样，而这一行只有 0.78rem 高，
+            任何一点差异都能让滚动条跳。纯 CSS 画点最稳。 */}
+        <span className="announcement-icon" aria-hidden="true" />
         <div className="announcement-marquee">
           <span className="announcement-track" id="announcementTrack">
             {marquee}

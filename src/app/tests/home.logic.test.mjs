@@ -69,10 +69,11 @@ describe('extractMarqueeText', () => {
   // page-home.js:167 —— 滚动条的文案是从正文提炼的
   it('从兜底公告里提出 3 段以内、用 · 连接', () => {
     const out = extractMarqueeText(FALLBACK_MD)
+    // 兜底正文 2026-10-17 改短了（只留「取不到」那一句 + 免责声明），
+    // 正文只有一份、住在后端，这里只钉「能提出来、不超 3 段、带上免责那句」。
     expect(out).toContain('·')
     expect(out.split(' · ').length).toBeLessThanOrEqual(3)
-    // 第一行是 `# 欢迎来到易三千 🎉`，去掉 # 后长度 > 8 且有内容，会被留作第一段
-    expect(out.startsWith('欢迎来到易三千')).toBe(true)
+    expect(out).toContain('内容暂时取不到')
   })
 
   it('去掉 markdown 标记：标题 # / 粗体 ** / 链接', () => {
@@ -81,6 +82,8 @@ describe('extractMarqueeText', () => {
     expect(out).not.toContain('**')
     expect(out).not.toContain('](')
     expect(out).toContain('链接文字')
+    // 列表项的行首 `- ` 也要剥掉，否则滚动条里滚的是「· - 粗体内容」。
+    expect(out).not.toContain('- ')
   })
 
   it('跳过空行与 --- 分隔线', () => {

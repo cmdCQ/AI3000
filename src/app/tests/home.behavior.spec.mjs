@@ -86,10 +86,14 @@ test.describe('未登录', () => {
     expect(new URL(page.url()).pathname).toBe('/')
   })
 
+  // ⚠ 这里不能再用 `page.getByText('我们需要你宝贵的建议')`：公告正文里也可能
+  //   提到这个按钮的名字（2026-10-17 重写后的公告最后一句就是「在首页『我们需要你
+  //   宝贵的建议』里说一声」），strict mode 会解析到两个元素直接报错。
+  //   收窄到 `#tab-modules` 内 —— 弹窗是根节点的兄弟，不在这个 tab 里。
   test('建议入口未登录 → 弹登录框', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' })
     await dismissAnnouncement(page)
-    await page.getByText('我们需要你宝贵的建议').click()
+    await page.locator('#tab-modules a').filter({ hasText: '我们需要你宝贵的建议' }).click()
     await expect(page.locator(AUTH_OVERLAY)).toBeVisible()
     expect(new URL(page.url()).pathname).toBe('/')
   })
@@ -146,7 +150,7 @@ test.describe('已登录', () => {
 
   test('建议入口 → /suggestion/', async ({ page }) => {
     await withLogin(page)
-    await page.getByText('我们需要你宝贵的建议').click()
+    await page.locator('#tab-modules a').filter({ hasText: '我们需要你宝贵的建议' }).click()
     await page.waitForURL(/\/suggestion\//, { waitUntil: 'domcontentloaded' })
     expect(new URL(page.url()).pathname).toBe('/suggestion/')
   })
