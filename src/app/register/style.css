@@ -9,7 +9,7 @@
  * ★ 老页第 26 行的 `onclick="sendSms()"` 已换成 React 的 onClick，
  *   所以这页**不需要** `/js/auth.js`，也不需要 `installGlobals()`。
  */
-@import '../../web/css/auth.css';
-@import '../../web/css/tokens.css';
+@import '../shared/css/auth.css';
+@import '../shared/css/tokens.css';
 
 #root { display: block; }

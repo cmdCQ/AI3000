@@ -1,5 +1,5 @@
 /* 设计系统还在老树里：19 个老页面都引 /css/tokens.css，现在搬走它会一次弄坏
    18 个页面。等 src/web/ 空了，这两个文件跟着搬进 src/app/css/，这里的相对
    路径就消失了。顺序不能反 —— auth.css 自己的注释明说它依赖 tokens.css。 */
-@import '../../web/css/tokens.css';
-@import '../../web/css/auth.css';
+@import '../shared/css/tokens.css';
+@import '../shared/css/auth.css';

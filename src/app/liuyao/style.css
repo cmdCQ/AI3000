@@ -21,10 +21,10 @@
  * `:root` 加回来，老顺序是唯一被线上验证过的那个。
  *
  * 本次**不搬任何 CSS 规则**，只 @import 老文件 —— 复制粘贴等于立刻多出一份真相。 */
-@import '../../web/css/mhys_result.css';
-@import '../../web/css/liuyao_result.css';
-@import '../../web/css/page-liuyao.css';
-@import '../../web/css/tokens.css';
+@import '../shared/css/mhys_result.css';
+@import '../shared/css/liuyao_result.css';
+@import '../shared/css/page-liuyao.css';
+@import '../shared/css/tokens.css';
 
 /* 老页面的 `.mh-wrapper` 是 `<body>` 的**直接子节点**（dom_stub / 驱页拿到的
    那棵树的根），新页面它外面多了一层 `#root`。本页 CSS 没有一条依赖父子关系

@@ -17,7 +17,7 @@
  * 老 CSS 里，而 `.float-menu` 是 `position:fixed`、`.mh-wrapper` 要有个撑得开的父级
  * 才量得到高度。
  */
-@import '../../web/css/shared-history.css';
-@import '../../web/css/tokens.css';
+@import '../shared/css/shared-history.css';
+@import '../shared/css/tokens.css';
 
 #root { display: block; }

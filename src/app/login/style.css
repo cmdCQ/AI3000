@@ -10,7 +10,7 @@
  *   不弹登录弹窗。老页引了只是因为 `:1` 用了 `AUTH.isLoggedIn()`，那个已经由
  *   `../lib/auth.js` 接管。
  */
-@import '../../web/css/auth.css';
-@import '../../web/css/tokens.css';
+@import '../shared/css/auth.css';
+@import '../shared/css/tokens.css';
 
 #root { display: block; }

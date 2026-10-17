@@ -31,13 +31,11 @@ import { Solar, Lunar } from '../shared/lunar.js'
 // 其余一切（字符串常量、分支顺序、变量名、注释里的老行号）都与快照逐字一致。
 // 老行号用 `老 :NNN` 标注，方便随时回快照对照。
 
-/* global TRIGRAMS */
-// ↑ `TRIGRAMS` 是 classic script `/js/hexagrams_data.js` 的**全局**，本次不搬
-//   （结果页 /mhys/result.html 还在用它）。`calcGua` / `fillManualSelects` 直接
-//   按裸名读全局 —— 与老实现一模一样。ESM 里裸名会解析到 `globalThis.TRIGRAMS`，
-//   而 index.html 里 `hexagrams_data.js` 排在 module 之前，装载时就已经挂好。
-//   **不要**为了「干净」在模块级 `const { TRIGRAMS } = globalThis`：那会在
-//   module 求值时快照一次，把装载顺序变成硬依赖；裸名是每次调用时才读。
+// ★ 阶段 4：`TRIGRAMS` 不再是 classic script 的全局。`hexagrams_data.js` 已经
+//   搬成 `src/app/shared/hexagramsData.js`（ESM），`mhys_render` 从那里导出
+//   `TRIGRAMS`（/mhys/ 与 /mhys/result.html 现在都走同一个 import 绑定）。
+//   `calcGua` / `fillManualSelects` 里的裸名 `TRIGRAMS` 因此解析到本文件的
+//   import（见文件头 import 那一行），装载顺序不再是硬依赖。
 
 /** 老实现的模块级可变状态，收在一个盒子里（原因见文件头）。 */
 export const state = {

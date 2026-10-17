@@ -15,9 +15,9 @@
    删了（`grep -c '^:root' src/web/css/page-my.css` → 0），令牌现在只来自
    tokens.css。顺序照旧保留，是因为改成别的顺序没有任何收益，而万一将来哪个文件
    又把 `:root` 加回来，老顺序是唯一被线上验证过的那个。 */
-@import '../../web/css/auth.css';
-@import '../../web/css/page-my.css';
-@import '../../web/css/tokens.css';
+@import '../shared/css/auth.css';
+@import '../shared/css/page-my.css';
+@import '../shared/css/tokens.css';
 
 /* 老页面的 `.my-wrapper` 是 `<body>` 的**直接子节点**（dom_stub / 驱页拿到的
    那棵树的根），新页面它外面多了一层 `#root`。本页 CSS 没有一条依赖父子关系

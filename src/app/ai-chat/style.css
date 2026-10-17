@@ -7,8 +7,8 @@
      page-ai-chat.css  `.input-share-btn { border-radius: var(--r-full) }`   (0,1,0)
    聚焦到「分享排盘」这类按钮时两者同特异性，谁赢完全由文件顺序决定 ——
    老行为是 tokens.css 赢。调换这两行会改掉这个聚焦态外观，改之前先想清楚。 */
-@import '../../web/css/page-ai-chat.css';
-@import '../../web/css/tokens.css';
+@import '../shared/css/page-ai-chat.css';
+@import '../shared/css/tokens.css';
 
 /* 老页面里 .chat-app 是 <body> 的直接子节点，靠 page-ai-chat.css:11 的
    `html, body { height: 100% }` 拿到满屏高度，`.msgs-area { flex: 1 }` 才有

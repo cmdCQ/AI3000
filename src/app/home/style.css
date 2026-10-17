@@ -7,8 +7,8 @@
    就会悄悄对不上。整页的视觉验收在 `tests/home.spec.mjs` 的截图基线上 ——
    基线是拿老页（提交 `0db7241` 时的 `src/web/index.html`）拍的，
    所以「样式搬丢了」会直接变成一条红测试。 */
-@import '../../web/css/tokens.css';
-@import '../../web/css/home.css';
+@import '../shared/css/tokens.css';
+@import '../shared/css/home.css';
 
 /* 老页面的 `.home-wrapper` 是 `<body>` 的直接子节点；新页面它外面多了一层
    `#root`。`home.css` 里 `.home-wrapper` 自己 max-width + margin:0 auto，

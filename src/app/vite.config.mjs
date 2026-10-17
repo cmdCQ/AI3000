@@ -4,7 +4,9 @@
 //   src/app/  新前端（React / ESM）。每个 src/app/<页>/index.html 自动成为一个入口；
 //             同目录下的其它 <名字>.html 也各成一个入口（保住老的 `.html` 地址，
 //             见下面「加一个页面」那段）。
-//   src/web/  还没搬过来的老页面，交给 publicDir **逐字**拷过去，Vite 不解析它们。
+//   src/app/public/  运行时**按绝对路径**取的文件（`/assets/img/…`、`/50x.html`、
+//             `/.well-known/`）。publicDir 指向这里：Vite 只逐字拷贝、不解析。
+//             （阶段 4 之前 publicDir 是 `src/web/`，那棵树 2026-10-17 已经空了。）
 //
 // 为什么老页面不能交给 Vite 处理（实测，不是推测）：
 //   它会把 <link href="/css/x.css"> 重写成 /assets/x-<hash>.css，
@@ -12,8 +14,9 @@
 //   老页面全是传统 script（19 个页面没有一个 type="module"）且靠跨文件全局变量
 //   互相调用，走 Vite 会静默丢掉全部 JS。
 //
-// 搬迁方式：src/web/<页>/ 删掉，src/app/<页>/ 建起来。src/web/ 空了就把
-// publicDir 改成 false —— 到那时代码里不再有第二棵树。
+// 搬迁方式：src/web/<页>/ 删掉，src/app/<页>/ 建起来。老树已经清空（js 删了、
+// css 搬进 `src/app/shared/css/`、运行时资源搬进 `src/app/public/`），
+// 所以现在只有**一棵**源码树。
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { existsSync, readdirSync } from 'node:fs'
@@ -22,7 +25,6 @@ import { fileURLToPath } from 'node:url'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = resolve(HERE, '..', '..')
-const LEGACY = join(REPO, 'src', 'web')
 
 // 加一个页面 = 加一个 `<页>/index.html`，或者 `<页>/<名字>.html`，不用回来改这张表。
 //
@@ -57,7 +59,7 @@ export default defineConfig({
   root: HERE,
   base: '/',
   plugins: [react()],
-  publicDir: existsSync(LEGACY) ? LEGACY : false,
+  publicDir: join(HERE, 'public'),
   build: {
     outDir: join(REPO, 'build', 'nginx'),
     // 实测过：emptyOutDir 只删 outDir 的**子文件**，不重建目录本身。

@@ -16,7 +16,7 @@
  *   新实现在 `main.jsx` 里用同一套机制（`style={{display:'block'}}`），
  *   所以这两条 CSS 一行都不用动。
  */
-@import '../../web/css/page-suggestion.css';
-@import '../../web/css/tokens.css';
+@import '../shared/css/page-suggestion.css';
+@import '../shared/css/tokens.css';
 
 #root { display: block; }

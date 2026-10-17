@@ -2,6 +2,11 @@
 import { formatTime, escHtml } from './uiCommon.js';
 import { renderLiuyaoResult } from './liuyaoRender.js';
 import { aiSaved, aiInlineHost } from './aiPanel.js';
+// ★ 阶段 4 收口：这两个函数原来是 classic script `/js/hexagrams_data.js` 的全局，
+//   本文件按裸名调用（5 处 `getHexagramByTrigrams`、`getHexagramByName`）。
+//   老 html 里那条 `<script>` 已删、`src/web/js/` 已整个删掉，裸名会 ReferenceError
+//   （/mhys/ 时间起卦当场白屏成「加载失败，请重试」），所以必须显式 import。
+import { getHexagramByTrigrams, getHexagramByName } from './hexagramsData.js';
 // 梅花排盘渲染层 —— 由 mhys/result.html 整段搬出（2026-09-25）。
 // result.html 与 index.html（原地出结果）共用这一份，勿在页面里再抄一份。
 // 入口：renderResult(result) 返回 HTML；插进 DOM 之后必须再调一次 renderAnalysis()

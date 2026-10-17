@@ -19,8 +19,8 @@
  *   所以游客态的「登录」用 `<button>` 而不是老页的 `<a href="javascript:void(0)">`
  *   也能长得一模一样——视觉基线把这条断言掉了。
  */
-@import '../../web/css/auth.css';
-@import '../../web/css/page-select-chart.css';
-@import '../../web/css/tokens.css';
+@import '../shared/css/auth.css';
+@import '../shared/css/page-select-chart.css';
+@import '../shared/css/tokens.css';
 
 #root { display: block; }

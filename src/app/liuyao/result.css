@@ -20,8 +20,8 @@
  * `#root` 自己补一条 `display:block`：Vite 的 React 模板给 `#root` 的样式不在这三份
  * 老 CSS 里，而 `.mh-wrapper` 的 `min-height:100vh` 要有个撑得开的父级。
  */
-@import '../../web/css/mhys_result.css';
-@import '../../web/css/liuyao_result.css';
-@import '../../web/css/tokens.css';
+@import '../shared/css/mhys_result.css';
+@import '../shared/css/liuyao_result.css';
+@import '../shared/css/tokens.css';
 
 #root { display: block; }

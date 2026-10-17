@@ -5,5 +5,5 @@
  *   先 admin.css 后 tokens.css，是因为 admin.css 里的变量回退值要在 tokens.css
  *   定义的同名变量**之前**进文档流才不被覆盖 —— 反过来会让整页配色变一档。
  */
-@import '../../web/css/admin.css';
-@import '../../web/css/tokens.css';
+@import '../shared/css/admin.css';
+@import '../shared/css/tokens.css';
