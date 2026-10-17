@@ -1,0 +1,319 @@
+/**
+ * 冒烟 · 排盘端点 `/api/meihua/paipan`、`/api/liuyao/paipan`
+ * ==========================================================================
+ *
+ * 这两个端点存在的意义：前端**只渲染**，排盘一律后端算。所以前端会拿到
+ * `chart`（分层渲染用）与 `text`（与 AI 读到的排盘正文逐字相同的那一份）。
+ * 本脚本验的就是这两条承诺。
+ *
+ * **它不覆盖什么**（别把这份绿当成上线没问题）：
+ *   · 真 http server / 路由分发 / nginx 反代 —— 本地无 node_modules，起不了完整后端
+ *   · 鉴权、限流、CORS —— 这两个端点匿名可用，本就没走那套
+ *   · 线上容器里的 `lunar-javascript` 版本与本地是否一致
+ * 它验的是端点**函数体本身**：状态码、字段名、以及「text 与 AI 收到的正文同一份」。
+ *
+ * 做法与 `verify_prompt_refactor.js` 同：从 `auth-server.js` 切出端点那一段原文，
+ * `new Function` 求值，`json` 换成捕获用的桩。切片标记失效时**报错退出**，
+ * 不静默跳过 —— 静默跳过等于这份冒烟从此永远绿。
+ *
+ * 用法：node duipan/smoke_paipan_endpoints.js
+ * 退出码：0 = 全绿；1 = 有用例失败；2 = 取不到源码
+ */
+
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+
+const ROOT = path.join(__dirname, '..');
+const SERVER = path.join(ROOT, 'src', 'server', 'auth-server.js');
+const promptLib = require(path.join(ROOT, 'src', 'server', 'paipan', 'prompt.js'));
+const LY = require(path.join(ROOT, 'src', 'server', 'paipan', 'liuyao.js'));
+const M = require(path.join(ROOT, 'src', 'server', 'paipan', 'meihua.js'));
+
+const A = "  if (req.method === 'POST' && (pathname === '/api/meihua/paipan'";
+// ⚠ 切片尾标记：本脚本只该切到**六爻/梅花那两个端点为止**。八字端点
+//   （`/api/bazi/paipan`）在这之后，它用的 `baziChartFromParams` 不在本脚本
+//   注入的形参里 —— 切进来的话分支虽不执行、解析也不报错，但「切出来的段」
+//   已经与脚本声称验的东西不是一回事了。故尾标记钉在它的注释头上。
+const B = "  // ── POST /api/bazi/paipan";
+
+function loadEndpoint() {
+  const src = fs.readFileSync(SERVER, 'utf8');
+  const i = src.indexOf(A);
+  const j = src.indexOf(B);
+  if (i < 0 || j < 0 || j <= i) {
+    console.error(`❌ 取不到排盘端点段（标记 ${i < 0 ? `缺「${A.slice(0, 40)}…」` : ''}`
+      + `${j < 0 ? `缺「${B}」` : ''}）。auth-server.js 结构变了？请更新本脚本的切片标记。`);
+    process.exit(2);
+  }
+  const slice = src.slice(i, j);
+  for (const want of ['/api/meihua/paipan', '/api/liuyao/paipan']) {
+    if (!slice.includes(want)) {
+      console.error(`❌ 切出的段里没有「${want}」—— 切片标记已失效，拒绝在残缺代码上冒烟。`);
+      process.exit(2);
+    }
+  }
+  return new Function('req', 'res', 'body', 'pathname', 'json', 'promptLib', 'liuyaoPaipan',
+    slice + '\n;return false;');
+}
+
+const run = loadEndpoint();
+
+// 每次调用换一份新的 res/json 捕获器 —— 复用会让上一条用例的残留混进来。
+function call(pathname, body) {
+  const out = { status: null, payload: null, called: false };
+  const res = {};
+  const json = (r, obj, status) => {
+    out.called = true;
+    out.status = status || 200;
+    out.payload = obj;
+    return obj;
+  };
+  run({ method: 'POST' }, res, body, pathname, json, promptLib, LY);
+  return out;
+}
+
+const fails = [];
+function check(label, cond, detail) {
+  if (!cond) fails.push(`${label}：${detail}`);
+  console.log(`   ${cond ? '✓' : '✗'} ${label}${cond ? '' : ` —— ${detail}`}`);
+}
+
+// ── 梅花 ─────────────────────────────────────────────────────────────
+{
+  const p = M.analyze(M.fromGua(7, 4, 3), { monthDizhi: '' });
+  const g = p.gua;
+  const tri = (x) => ({ number: x.number, name: x.name, element: x.wuxing });
+  const card = {
+    method: 'time', numbers: '7,4,3',
+    hexagrams: {
+      benGua: { upper: 7, lower: 4, movingYao: p.moving_lines.slice(),
+        name: M.hexName(7, 4), upperTri: tri(g.main.upper), lowerTri: tri(g.main.lower) },
+      bianGua: { upper: g.changed.upper.number, lower: g.changed.lower.number },
+    },
+  };
+  const r = call('/api/meihua/paipan', card);
+  check('梅花：出了响应', r.called, '端点没有调 json()');
+  check('梅花：200', r.status === 200, `状态 ${r.status}`);
+  check('梅花：有 paipan', !!(r.payload && r.payload.paipan), JSON.stringify(r.payload).slice(0, 120));
+  check('梅花：paipan.moving_lines 与卦号对得上',
+    !!r.payload && r.payload.paipan && String(r.payload.paipan.moving_lines) === String(p.moving_lines),
+    `收到 ${r.payload && r.payload.paipan && r.payload.paipan.moving_lines}`);
+  check('梅花：报错走 400 而不是 200',
+    (() => { const b = call('/api/meihua/paipan', { hexagrams: {} }); return b.status === 400; })(),
+    '缺上下卦号时没回 400');
+  // 上面这张 card **同时**带 `method:'time'` 与 `hexagrams` —— 它因此是一条
+  // **回归用例**：判据若写成 `method`（而不是 `hexagrams`），老入参会被当成
+  // 「起卦原始参数」，于是按服务器当前时刻重起一卦，`moving_lines` 立刻对不上。
+  check('梅花：text === prompt 里的 {{paipan}}（老入参路径）',
+    !!r.payload && r.payload.text === promptLib.meihuaBlock(r.payload.paipan),
+    '端点 text 与 prompt 正文不是同一份');
+}
+
+// ── 梅花：起卦原始参数（目标形态 —— 卦由后端起）──────────────────────
+{
+  // 1) 报数：后端起卦，端点把起卦结果一并交回（前端渲染用）
+  const num = call('/api/meihua/paipan',
+    { method: 'number', num1: 7, num2: 4, num3: 3, datetime: '2026-09-25T14:30:00' });
+  check('梅花/原始：报数 200', num.status === 200, `状态 ${num.status} ${JSON.stringify(num.payload).slice(0, 100)}`);
+  // 期望值**手算后写死**，不复用 `M.qiguaNumbers`（两边调同一个函数就等于没验）：
+  //   上 = 7 % 8 = 7；下 = 4 % 8 = 4；动 = (7+4+3) % 6 = 2
+  // 「2」而不是「3」正是要点：古法动爻取**三数之和**，不是第三个数本身
+  // （前端早先写的就是后者，属计划里点明的第 8 号 bug）。
+  check('梅花/原始：报数 7/4/3 → 上7下4动2（动爻取三数之和，非第三数）',
+    !!num.payload.qigua && num.payload.qigua.upper_num === 7 && num.payload.qigua.lower_num === 4
+    && num.payload.qigua.moving === 2,
+    JSON.stringify(num.payload.qigua && [num.payload.qigua.upper_num, num.payload.qigua.lower_num, num.payload.qigua.moving]));
+  check('梅花/原始：text === prompt 里的 {{paipan}}',
+    num.payload.text === promptLib.meihuaBlock(num.payload.paipan), '端点 text 与 prompt 正文不是同一份');
+
+  // 2) 时间法：必须用**提交上来的时刻**，且缺时刻要报错（不许退回服务器当前时刻）
+  const t1 = call('/api/meihua/paipan', { method: 'time', datetime: '2026-09-25T14:30:00' });
+  const t2 = call('/api/meihua/paipan', { method: 'time', datetime: '2026-09-25T14:30:00' });
+  check('梅花/原始：时间法可起卦且两次同刻同卦',
+    t1.status === 200 && JSON.stringify(t1.payload.qigua) === JSON.stringify(t2.payload.qigua),
+    `状态 ${t1.status}/${t2.status}`);
+  check('梅花/原始：时间法缺时刻 → 400（不许用服务器当前时刻）',
+    call('/api/meihua/paipan', { method: 'time' }).status === 400, '缺 datetime 时没回 400');
+
+  // 3) 字占：**只有后端能做**（笔画表在 `paipan/strokes.js`、四字以上要用的平仄取数表
+  //    26660 字在 `paipan/pingze.js`，两张表前端都没有），这条是它存在的理由
+  const ch = call('/api/meihua/paipan', { method: 'character', text: '求财', datetime: '2026-09-25T14:30:00' });
+  check('梅花/原始：字占可起卦', ch.status === 200 && !!ch.payload.qigua,
+    `状态 ${ch.status} ${JSON.stringify(ch.payload).slice(0, 100)}`);
+
+  // 3a) 六个字 —— 《梅花易数·字占》原文自带的验算例「今日动静如何」：
+  //   今[平1] 日[入4] 动[去3] 静[去3] 如[平1] 何[平1] → 前 3 字 8（坤）、后 3 字 5（巽）
+  //   = **地风升**，总 13 ÷ 6 余 1 = **初爻**。期望值**手算写死**（不调 M.qiguaCharacters，
+  //   两边调同一个函数就等于没验）。这条钉住四字以上确实走后端**平仄档**。
+  const ch6 = call('/api/meihua/paipan',
+    { method: 'character', text: '今日动静如何', datetime: '2026-09-25T14:30:00' });
+  check('梅花/原始：字占六字按原文平仄取数 → 上8下5动1（原文例「今日动静如何」）',
+    ch6.status === 200 && !!ch6.payload.qigua
+    && ch6.payload.qigua.upper_num === 8 && ch6.payload.qigua.lower_num === 5
+    && ch6.payload.qigua.moving === 1,
+    `状态 ${ch6.status} `
+    + JSON.stringify([ch6.payload.qigua && ch6.payload.qigua.upper_num,
+      ch6.payload.qigua && ch6.payload.qigua.lower_num, ch6.payload.qigua && ch6.payload.qigua.moving]));
+  check('梅花/原始：取数明细随响应给前端（字→取数→依据，前端只渲染）',
+    !!ch6.payload.qigua && !!ch6.payload.qigua.derivation
+    && JSON.stringify(ch6.payload.qigua.derivation.counts_per_char) === '[1,4,3,3,1,1]'
+    && ch6.payload.qigua.derivation.count_source_per_char[1] === '入声'
+    && ch6.payload.qigua.derivation.count_source_per_char[2] === '今音',
+    JSON.stringify(ch6.payload.qigua && ch6.payload.qigua.derivation).slice(0, 200));
+
+  // 3b) 一个字：**拒收**（古法一字占要按楷书拆左右笔画，本版未做；前端也拦了一道）。
+  //     后端这一道必须留着 —— 前端是老版本缓存/接口直调时它才是最后一道门。
+  const ch1 = call('/api/meihua/paipan', { method: 'character', text: '山', datetime: '2026-09-25T14:30:00' });
+  check('梅花/原始：字占一个字 → 400 且文案指路（请输入两个字以上）',
+    ch1.status === 400 && /两个字以上/.test(String(ch1.payload && ch1.payload.error)),
+    `状态 ${ch1.status} ${JSON.stringify(ch1.payload).slice(0, 140)}`);
+
+  // 3c) **老记录兼容**：历史档里的 cardData（带 `hexagrams`）只取卦号、不重新起卦。
+  //     若这条被当成「起卦原始参数」按 text 重起，一条**一字占**的老记录会变成 400 ——
+  //     用户点开自己的历史记录就报错，而那是他昨天明明算出来过的卦。
+  const old1 = call('/api/meihua/paipan', {
+    method: 'character', text: '梅',
+    hexagrams: { benGua: { upper: 8, lower: 5, movingYao: [1, 0, 0, 1, 1, 0] },
+      bianGua: { upper: 8, lower: 1 } },
+    qigua: { upper_num: 8, lower_num: 5, moving: 1 },
+  });
+  check('梅花/原始：一字占的老 cardData 仍 200（老记录只取卦号，不按 text 重起）',
+    old1.status === 200 && !!old1.payload.paipan,
+    `状态 ${old1.status} ${JSON.stringify(old1.payload).slice(0, 140)}`);
+
+  // 4) 拆半求和（本项目自有法）+ 加时辰：时辰取**提交的时刻**，不是真实时钟
+  const sp = call('/api/meihua/paipan',
+    { method: 'split', digits: [3, 8, 6], datetime: '2026-09-25T14:30:00' });
+  check('梅花/原始：拆半求和可起卦', sp.status === 200 && !!sp.payload.qigua, `状态 ${sp.status}`);
+  // 两个时刻的**时辰序必须对 6 不同余**，否则加不加、加得对不对都看不出来 ——
+  // 时辰序差 6 的两档（如未时 8 与丑时 2）加进同一个和里 mod 6 后完全一样，
+  // 这种用例会**恒绿**。故这里先自检这一点，再比手算的期望值。
+  //   基准和 = 3+8+6 = 17；未时(14:30)=8 → 25 % 6 = 1；辰时(08:30)=5 → 22 % 6 = 4
+  const addA = call('/api/meihua/paipan',
+    { method: 'number', num1: 3, num2: 8, num3: 6, addShichen: true, datetime: '2026-09-25T14:30:00' });
+  const addB = call('/api/meihua/paipan',
+    { method: 'number', num1: 3, num2: 8, num3: 6, addShichen: true, datetime: '2026-09-25T08:30:00' });
+  check('（自检）两个时辰序对 6 不同余，否则本用例恒绿',
+    (M.hourNumAt(14) - M.hourNumAt(8)) % 6 !== 0, `${M.hourNumAt(14)} / ${M.hourNumAt(8)}`);
+  check('梅花/原始：加时辰用提交时刻的时辰（未时→1 / 辰时→4）',
+    addA.status === 200 && addB.status === 200
+    && addA.payload.qigua.moving === 1 && addB.payload.qigua.moving === 4,
+    `未时动爻 ${addA.payload.qigua && addA.payload.qigua.moving} / 辰时动爻 ${addB.payload.qigua && addB.payload.qigua.moving}`);
+  check('梅花/原始：加时辰缺时刻 → 400',
+    call('/api/meihua/paipan', { method: 'number', num1: 3, num2: 8, num3: 6, addShichen: true }).status === 400,
+    '缺 datetime 时没回 400');
+
+  // 5) 坏输入：报数含 0（金标准钉住「0 非法」）、拆半缺 digits
+  check('梅花/原始：报数含 0 → 400', call('/api/meihua/paipan', { method: 'number', num1: 3, num2: 0, num3: 8 }).status === 400, '0 没被拒');
+  check('梅花/原始：拆半缺 digits → 400', call('/api/meihua/paipan', { method: 'split' }).status === 400, '缺 digits 没被拒');
+  check('梅花/原始：起卦法名非法 → 400', call('/api/meihua/paipan', { method: '瞎写' }).status === 400, '非法法名没被拒');
+}
+
+// ── 六爻 ─────────────────────────────────────────────────────────────
+{
+  const s = require(path.join(ROOT, 'src', 'server', 'paipan', 'ganzhi.js')).sizhu('2026-05-10T14:30:00');
+  const card = {
+    topic: '这次合作能不能成',
+    hexagrams: {
+      benGua: { upper: 5, lower: 1, movingYao: [3] },
+      bianGua: { upper: 5, lower: 1 },
+      gender: 'male',
+    },
+    lunarInfo: { yearGZ: s.year_gz, monthGZ: s.month_gz, dayGZ: s.day_gz, hourGZ: s.hour_gz },
+    divinationTime: '2026-05-10T14:30:00',
+  };
+  const r = call('/api/liuyao/paipan', card);
+  check('六爻：出了响应', r.called, '端点没有调 json()');
+  check('六爻：200', r.status === 200, `状态 ${r.status}`);
+  check('六爻：有 chart', !!(r.payload && r.payload.chart), JSON.stringify(r.payload).slice(0, 160));
+  check('六爻：有 text', !!(r.payload && r.payload.text), '缺 text');
+
+  // 核心承诺：端点吐给前端的 text，必须与 AI 在 prompt 里读到的那一段**逐字相同**。
+  if (r.payload && r.payload.text) {
+    const vars = promptLib.liuyaoVars(card.topic, card, '');
+    check('六爻：text === prompt 里的 {{paipan}}', r.payload.text === vars.paipan,
+      '端点正文与 AI 收到的正文不是同一份 —— 用户看到的盘与 AI 读的盘会对不上');
+    check('六爻：text 里出现日辰（有真数据，不是空盘）',
+      /月建：|日辰：/.test(r.payload.text), '正文里没有月建/日辰');
+    check('六爻：text 里出现六亲', /妻财|官鬼|父母|兄弟|子孙/.test(r.payload.text), '正文里没有六亲');
+  }
+  check('六爻：装卦失败走 400',
+    call('/api/liuyao/paipan', { hexagrams: { benGua: {} } }).status === 400,
+    '缺上下卦号时没回 400');
+
+  // `display`：盘面显示补充（农历/节气/旬空/神煞/变卦整列）。它**不进 text**，
+  // 所以这一组与上面那条「逐字相同」互不冲突 —— 两条一起绿才算既给了页面
+  // 要的东西、又没动 AI 读到的正文。
+  const d = r.payload && r.payload.display;
+  check('六爻：有 display', !!d, '缺 display');
+  if (d) {
+    check('六爻：四柱旬空四格齐全',
+      ['year', 'month', 'day', 'hour'].every((k) => d.kong[k]), JSON.stringify(d.kong));
+    check('六爻：日柱旬空与 chart.kong 同值',
+      d.kong.day === (r.payload.chart.kong || []).join(''),
+      `display ${d.kong.day} vs chart ${(r.payload.chart.kong || []).join('')}`);
+    check('六爻：神煞三项齐（驿马/桃花/日禄）',
+      !!(d.shensha.yiMa && d.shensha.taoHua && d.shensha.riLu), JSON.stringify(d.shensha));
+    check('六爻：无动爻时变卦列为空（本卦无变，何来变列）',
+      r.payload.chart.bian === null ? d.bianLines.length === 0 : d.bianLines.length === 6,
+      `bian=${r.payload.chart.bian === null ? 'null' : '有'} bianLines=${d.bianLines.length}`);
+    check('六爻：农历与节气区间都取到了',
+      !!d.lunar && !!(d.jieQi && d.jieQi.name && d.jieQi.at && d.jieQi.nextName),
+      `lunar=${d.lunar} jieQi=${JSON.stringify(d.jieQi)}`);
+    check('六爻：display 的东西没混进 AI 正文',
+      !/驿马|桃花|日禄|节气/.test(r.payload.text),
+      'display 的字段漏进 text 了 —— AI 读到的正文就不再是基准那一份');
+  }
+}
+
+// 有动爻的那条路：真有变卦，变卦列必须整列都在，且六亲**以本卦之宫论**。
+// 这一例是用户 2026-09-25 给的参考图那一卦（艮为山 二四爻动 → 火风鼎），
+// 图上的变卦列逐字是「父巳火 己／兄未土 己／孙酉金 己／孙酉金 辛／财亥水 辛／兄丑土 辛」。
+{
+  const card = {
+    topic: '我能不能和我喜欢的女生在一起',
+    divinationTime: '2026-09-24 19:49:00',
+    method: '手动指定',
+    lunarInfo: { yearGZ: '丙午', monthGZ: '丁酉', dayGZ: '辛丑', hourGZ: '戊戌' },
+    hexagrams: { benGua: { upper: 7, lower: 7 }, bianGua: { upper: 3, lower: 5 } },
+  };
+  const r = call('/api/liuyao/paipan', card);
+  const d = r.payload && r.payload.display;
+  check('参考图例：200 且有 display', r.status === 200 && !!d, `状态 ${r.status}`);
+  if (d) {
+    const at = (p) => (d.bianLines || []).find((y) => y.position === p) || {};
+    check('参考图例：变卦列整列 6 爻', d.bianLines.length === 6, `bianLines=${d.bianLines.length}`);
+    check('参考图例：变卦六亲以本卦之宫（艮宫土）论',
+      at(6).liuqin === '父母' && at(4).liuqin === '子孙' && at(2).liuqin === '妻财'
+      && at(1).liuqin === '兄弟',
+      [6, 4, 2, 1].map((p) => p + ':' + at(p).liuqin).join(' '));
+    check('参考图例：变卦纳甲干随变卦半卦（离外取己、巽内取辛）',
+      at(4).tiangan === '己' && at(2).tiangan === '辛',
+      `四爻 ${at(4).tiangan} 二爻 ${at(2).tiangan}`);
+    check('参考图例：卦身巳、驿马亥、桃花午、日禄酉（与图逐字相同）',
+      d.shensha.guaShen === '巳' && d.shensha.yiMa === '亥'
+      && d.shensha.taoHua === '午' && d.shensha.riLu === '酉',
+      JSON.stringify(d.shensha));
+    check('参考图例：本卦 艮为山（艮宫）判为六冲卦',
+      d.ben.palaceName === '艮' && d.ben.isChongGua === true,
+      `${d.ben.palaceName} chong=${d.ben.isChongGua}`);
+    check('参考图例：变卦 火风鼎（离宫）',
+      d.bian.name === '火风鼎' && d.bian.palaceName === '离',
+      `${d.bian.name}(${d.bian.palaceName})`);
+    check('参考图例：四柱旬空 寅卯/辰巳/辰巳/辰巳（与图逐字相同）',
+      d.kong.year === '寅卯' && d.kong.month === '辰巳'
+      && d.kong.day === '辰巳' && d.kong.hour === '辰巳',
+      JSON.stringify(d.kong));
+    check('参考图例：农历八月十四',
+      d.lunar === '八月十四', d.lunar);
+  }
+}
+
+if (fails.length) {
+  console.log(`\n❌ ${fails.length} 项失败：`);
+  for (const f of fails) console.log('   ' + f);
+  process.exit(1);
+}
+console.log('\n✅ 两个端点全绿（注意：不含真 http 服务/鉴权/线上依赖版本，见文件头）');

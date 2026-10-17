@@ -1,0 +1,3047 @@
+{
+ "fixture|1893-12-26T12:00|test_famous_case_mao(时柱夹具未钉,取12:00)": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 1,
+   "query_day": 1
+  },
+  "age": 6.44,
+  "raw": 6.441828703703703,
+  "forward": false,
+  "jie_name": "大雪",
+  "jie_at": "1893-12-07 04:11:18",
+  "fallback": false
+ },
+ "fixture|1907-10-04T12:00|test_day_pillar_differential(seed7)": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 1928,
+   "query_month": 2,
+   "query_day": 2
+  },
+  "age": 1.76,
+  "raw": 1.7609683641975309,
+  "forward": true,
+  "jie_name": "寒露",
+  "jie_at": "1907-10-09 18:47:23",
+  "fallback": false
+ },
+ "fixture|1941-03-13T12:00|test_day_pillar_differential(seed7)": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 1963,
+   "query_month": 3,
+   "query_day": 3
+  },
+  "age": 2.4,
+  "raw": 2.4022067901234565,
+  "forward": false,
+  "jie_name": "惊蛰",
+  "jie_at": "1941-03-06 07:02:28",
+  "fallback": false
+ },
+ "fixture|1973-10-13T12:00|test_day_pillar_differential(seed7)": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 1996,
+   "query_month": 4,
+   "query_day": 4
+  },
+  "age": 8.46,
+  "raw": 8.46426311728395,
+  "forward": true,
+  "jie_name": "立冬",
+  "jie_at": "1973-11-07 21:25:37",
+  "fallback": false
+ },
+ "fixture|1987-09-14T12:00|test_day_pillar_differential(seed7)": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 5,
+   "query_day": 5
+  },
+  "age": 2.0,
+  "raw": 1.9963850308641975,
+  "forward": false,
+  "jie_name": "白露",
+  "jie_at": "1987-09-08 12:15:37",
+  "fallback": false
+ },
+ "fixture|2024-02-03T12:00|test_year_pillar_switches_at_lichun(立春前)": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2049,
+   "query_month": 6,
+   "query_day": 6
+  },
+  "age": 0.39,
+  "raw": 0.39284336419753085,
+  "forward": true,
+  "jie_name": "立春",
+  "jie_at": "2024-02-04 16:17:05",
+  "fallback": false
+ },
+ "fixture|2026-06-24T14:00|test_calendar_canonical::test_day_ganzhi": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2052,
+   "query_month": 7,
+   "query_day": 7
+  },
+  "age": 4.28,
+  "raw": 4.275895061728395,
+  "forward": true,
+  "jie_name": "小暑",
+  "jie_at": "2026-07-07 09:51:52",
+  "fallback": false
+ },
+ "grid|2025-01-01T00:30|第1天": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2052,
+   "query_month": 8,
+   "query_day": 8
+  },
+  "age": 8.35,
+  "raw": 8.35226851851852,
+  "forward": false,
+  "jie_name": "大雪",
+  "jie_at": "2024-12-06 23:08:12",
+  "fallback": false
+ },
+ "grid|2025-01-04T00:30|第2天": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 9,
+   "query_day": 9
+  },
+  "age": 0.47,
+  "raw": 0.47097993827160495,
+  "forward": true,
+  "jie_name": "小寒",
+  "jie_at": "2025-01-05 10:24:38",
+  "fallback": false
+ },
+ "grid|2025-01-07T00:30|第3天": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2054,
+   "query_month": 10,
+   "query_day": 10
+  },
+  "age": 0.53,
+  "raw": 0.529020061728395,
+  "forward": false,
+  "jie_name": "小寒",
+  "jie_at": "2025-01-05 10:24:38",
+  "fallback": false
+ },
+ "grid|2025-02-12T00:30|第1天": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2055,
+   "query_month": 11,
+   "query_day": 11
+  },
+  "age": 2.7,
+  "raw": 2.7007716049382715,
+  "forward": false,
+  "jie_name": "立春",
+  "jie_at": "2025-02-03 22:02:40",
+  "fallback": false
+ },
+ "grid|2025-02-15T00:30|第2天": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2045,
+   "query_month": 12,
+   "query_day": 12
+  },
+  "age": 6.22,
+  "raw": 6.2151350308641975,
+  "forward": true,
+  "jie_name": "惊蛰",
+  "jie_at": "2025-03-05 15:59:23",
+  "fallback": false
+ },
+ "grid|2025-02-18T00:30|第3天": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 1,
+   "query_day": 13
+  },
+  "age": 4.7,
+  "raw": 4.7007716049382715,
+  "forward": false,
+  "jie_name": "立春",
+  "jie_at": "2025-02-03 22:02:40",
+  "fallback": false
+ },
+ "grid|2025-03-01T00:30|第3天": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2047,
+   "query_month": 2,
+   "query_day": 14
+  },
+  "age": 1.55,
+  "raw": 1.5484683641975308,
+  "forward": true,
+  "jie_name": "惊蛰",
+  "jie_at": "2025-03-05 15:59:23",
+  "fallback": false
+ },
+ "grid|2025-03-23T00:30|第1天": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2048,
+   "query_month": 3,
+   "query_day": 15
+  },
+  "age": 5.78,
+  "raw": 5.7848649691358025,
+  "forward": false,
+  "jie_name": "惊蛰",
+  "jie_at": "2025-03-05 15:59:23",
+  "fallback": false
+ },
+ "grid|2025-03-26T00:30|第2天": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2049,
+   "query_month": 4,
+   "query_day": 16
+  },
+  "age": 3.28,
+  "raw": 3.2801851851851853,
+  "forward": true,
+  "jie_name": "清明",
+  "jie_at": "2025-04-04 20:40:24",
+  "fallback": false
+ },
+ "grid|2025-04-06T00:30|第1天": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 5,
+   "query_day": 17
+  },
+  "age": 0.39,
+  "raw": 0.3864814814814815,
+  "forward": false,
+  "jie_name": "清明",
+  "jie_at": "2025-04-04 20:40:24",
+  "fallback": false
+ },
+ "grid|2025-04-09T00:30|第2天": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2051,
+   "query_month": 6,
+   "query_day": 18
+  },
+  "age": 8.85,
+  "raw": 8.851620370370371,
+  "forward": true,
+  "jie_name": "立夏",
+  "jie_at": "2025-05-05 13:49:00",
+  "fallback": false
+ },
+ "grid|2025-04-12T00:30|第3天": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2052,
+   "query_month": 7,
+   "query_day": 19
+  },
+  "age": 2.39,
+  "raw": 2.3864814814814816,
+  "forward": false,
+  "jie_name": "清明",
+  "jie_at": "2025-04-04 20:40:24",
+  "fallback": false
+ },
+ "grid|2025-05-17T00:30|第1天": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2053,
+   "query_month": 8,
+   "query_day": 20
+  },
+  "age": 6.57,
+  "raw": 6.573738425925925,
+  "forward": true,
+  "jie_name": "芒种",
+  "jie_at": "2025-06-05 17:48:33",
+  "fallback": false
+ },
+ "grid|2025-05-20T00:30|第2天": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 9,
+   "query_day": 21
+  },
+  "age": 4.82,
+  "raw": 4.8150462962962965,
+  "forward": false,
+  "jie_name": "立夏",
+  "jie_at": "2025-05-05 13:49:00",
+  "fallback": false
+ },
+ "grid|2025-05-23T00:30|第3天": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2055,
+   "query_month": 10,
+   "query_day": 22
+  },
+  "age": 4.57,
+  "raw": 4.573738425925926,
+  "forward": true,
+  "jie_name": "芒种",
+  "jie_at": "2025-06-05 17:48:33",
+  "fallback": false
+ },
+ "grid|2025-06-03T00:30|第2天": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2045,
+   "query_month": 11,
+   "query_day": 23
+  },
+  "age": 9.48,
+  "raw": 9.481712962962963,
+  "forward": false,
+  "jie_name": "立夏",
+  "jie_at": "2025-05-05 13:49:00",
+  "fallback": false
+ },
+ "grid|2025-06-06T00:30|第3天": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2046,
+   "query_month": 12,
+   "query_day": 24
+  },
+  "age": 10.38,
+  "raw": 10.381404320987654,
+  "forward": true,
+  "jie_name": "小暑",
+  "jie_at": "2025-07-07 03:57:40",
+  "fallback": false
+ },
+ "grid|2025-06-28T00:30|第1天": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 1,
+   "query_day": 25
+  },
+  "age": 7.43,
+  "raw": 7.426261574074075,
+  "forward": false,
+  "jie_name": "芒种",
+  "jie_at": "2025-06-05 17:48:33",
+  "fallback": false
+ },
+ "grid|2025-07-11T00:30|第1天": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2048,
+   "query_month": 2,
+   "query_day": 26
+  },
+  "age": 9.18,
+  "raw": 9.183989197530865,
+  "forward": true,
+  "jie_name": "立秋",
+  "jie_at": "2025-08-07 13:44:50",
+  "fallback": false
+ },
+ "grid|2025-07-14T00:30|第2天": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2049,
+   "query_month": 3,
+   "query_day": 27
+  },
+  "age": 2.29,
+  "raw": 2.2852623456790124,
+  "forward": false,
+  "jie_name": "小暑",
+  "jie_at": "2025-07-07 03:57:40",
+  "fallback": false
+ },
+ "grid|2025-07-17T00:30|第3天": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2050,
+   "query_month": 4,
+   "query_day": 28
+  },
+  "age": 7.18,
+  "raw": 7.183989197530864,
+  "forward": true,
+  "jie_name": "立秋",
+  "jie_at": "2025-08-07 13:44:50",
+  "fallback": false
+ },
+ "grid|2025-08-22T00:30|第1天": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 5,
+   "query_day": 1
+  },
+  "age": 4.82,
+  "raw": 4.816010802469136,
+  "forward": false,
+  "jie_name": "立秋",
+  "jie_at": "2025-08-07 13:44:50",
+  "fallback": false
+ },
+ "grid|2025-08-25T00:30|第2天": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2052,
+   "query_month": 6,
+   "query_day": 2
+  },
+  "age": 4.56,
+  "raw": 4.5590470679012345,
+  "forward": true,
+  "jie_name": "白露",
+  "jie_at": "2025-09-07 16:45:05",
+  "fallback": false
+ },
+ "grid|2025-08-28T00:30|第3天": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2053,
+   "query_month": 7,
+   "query_day": 3
+  },
+  "age": 6.82,
+  "raw": 6.816010802469136,
+  "forward": false,
+  "jie_name": "立秋",
+  "jie_at": "2025-08-07 13:44:50",
+  "fallback": false
+ },
+ "grid|2025-09-05T00:30|第1天": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2054,
+   "query_month": 8,
+   "query_day": 4
+  },
+  "age": 0.89,
+  "raw": 0.892380401234568,
+  "forward": true,
+  "jie_name": "白露",
+  "jie_at": "2025-09-07 16:45:05",
+  "fallback": false
+ },
+ "grid|2025-09-08T00:30|第2天": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 9,
+   "query_day": 5
+  },
+  "age": 0.11,
+  "raw": 0.10761959876543209,
+  "forward": false,
+  "jie_name": "白露",
+  "jie_at": "2025-09-07 16:45:05",
+  "fallback": false
+ },
+ "grid|2025-09-11T00:30|第3天": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2045,
+   "query_month": 10,
+   "query_day": 6
+  },
+  "age": 9.11,
+  "raw": 9.112010030864198,
+  "forward": true,
+  "jie_name": "寒露",
+  "jie_at": "2025-10-08 08:33:53",
+  "fallback": false
+ },
+ "grid|2025-10-16T00:30|第1天": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2046,
+   "query_month": 11,
+   "query_day": 7
+  },
+  "age": 2.55,
+  "raw": 2.5546566358024694,
+  "forward": false,
+  "jie_name": "寒露",
+  "jie_at": "2025-10-08 08:33:53",
+  "fallback": false
+ },
+ "grid|2025-10-19T00:30|第2天": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2047,
+   "query_month": 12,
+   "query_day": 8
+  },
+  "age": 6.49,
+  "raw": 6.49230324074074,
+  "forward": true,
+  "jie_name": "立冬",
+  "jie_at": "2025-11-07 11:56:45",
+  "fallback": false
+ },
+ "grid|2025-10-22T00:30|第3天": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 1,
+   "query_day": 9
+  },
+  "age": 4.55,
+  "raw": 4.554656635802469,
+  "forward": false,
+  "jie_name": "寒露",
+  "jie_at": "2025-10-08 08:33:53",
+  "fallback": false
+ },
+ "grid|2025-11-02T00:30|第2天": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2049,
+   "query_month": 2,
+   "query_day": 10
+  },
+  "age": 1.83,
+  "raw": 1.825636574074074,
+  "forward": true,
+  "jie_name": "立冬",
+  "jie_at": "2025-11-07 11:56:45",
+  "fallback": false
+ },
+ "grid|2025-11-05T00:30|第3天": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2050,
+   "query_month": 3,
+   "query_day": 11
+  },
+  "age": 9.22,
+  "raw": 9.221323302469136,
+  "forward": false,
+  "jie_name": "寒露",
+  "jie_at": "2025-10-08 08:33:53",
+  "fallback": false
+ },
+ "grid|2025-11-27T00:30|第1天": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2051,
+   "query_month": 4,
+   "query_day": 12
+  },
+  "age": 3.4,
+  "raw": 3.395354938271605,
+  "forward": true,
+  "jie_name": "大雪",
+  "jie_at": "2025-12-07 04:57:56",
+  "fallback": false
+ },
+ "grid|2025-12-10T00:30|第1天": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 5,
+   "query_day": 13
+  },
+  "age": 0.94,
+  "raw": 0.9379783950617284,
+  "forward": false,
+  "jie_name": "大雪",
+  "jie_at": "2025-12-07 04:57:56",
+  "fallback": false
+ },
+ "grid|2025-12-13T00:30|第2天": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2053,
+   "query_month": 6,
+   "query_day": 14
+  },
+  "age": 7.89,
+  "raw": 7.885952932098765,
+  "forward": true,
+  "jie_name": "小寒",
+  "jie_at": "2026-01-05 16:17:19",
+  "fallback": false
+ },
+ "grid|2025-12-16T00:30|第3天": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2054,
+   "query_month": 7,
+   "query_day": 15
+  },
+  "age": 2.94,
+  "raw": 2.9379783950617284,
+  "forward": false,
+  "jie_name": "大雪",
+  "jie_at": "2025-12-07 04:57:56",
+  "fallback": false
+ },
+ "grid|2026-01-21T00:30|第1天": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2056,
+   "query_month": 8,
+   "query_day": 16
+  },
+  "age": 4.71,
+  "raw": 4.714510030864198,
+  "forward": true,
+  "jie_name": "立春",
+  "jie_at": "2026-02-04 03:56:41",
+  "fallback": false
+ },
+ "grid|2026-01-24T00:30|第2天": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 9,
+   "query_day": 17
+  },
+  "age": 6.11,
+  "raw": 6.114047067901235,
+  "forward": false,
+  "jie_name": "小寒",
+  "jie_at": "2026-01-05 16:17:19",
+  "fallback": false
+ },
+ "grid|2026-01-27T00:30|第3天": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2047,
+   "query_month": 10,
+   "query_day": 18
+  },
+  "age": 2.71,
+  "raw": 2.7145100308641976,
+  "forward": true,
+  "jie_name": "立春",
+  "jie_at": "2026-02-04 03:56:41",
+  "fallback": false
+ },
+ "grid|2026-02-04T00:30|第1天": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2048,
+   "query_month": 11,
+   "query_day": 19
+  },
+  "age": 9.78,
+  "raw": 9.780713734567902,
+  "forward": false,
+  "jie_name": "小寒",
+  "jie_at": "2026-01-05 16:17:19",
+  "fallback": false
+ },
+ "grid|2026-02-07T00:30|第2天": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2049,
+   "query_month": 12,
+   "query_day": 20
+  },
+  "age": 0.95,
+  "raw": 0.9521566358024692,
+  "forward": false,
+  "jie_name": "立春",
+  "jie_at": "2026-02-04 03:56:41",
+  "fallback": false
+ },
+ "grid|2026-02-10T00:30|第3天": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 1,
+   "query_day": 21
+  },
+  "age": 7.96,
+  "raw": 7.963742283950617,
+  "forward": true,
+  "jie_name": "惊蛰",
+  "jie_at": "2026-03-05 21:53:22",
+  "fallback": false
+ },
+ "grid|2026-03-15T00:30|第1天": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2051,
+   "query_month": 2,
+   "query_day": 22
+  },
+  "age": 3.04,
+  "raw": 3.0362577160493824,
+  "forward": false,
+  "jie_name": "惊蛰",
+  "jie_at": "2026-03-05 21:53:22",
+  "fallback": false
+ },
+ "grid|2026-03-18T00:30|第2天": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2052,
+   "query_month": 3,
+   "query_day": 23
+  },
+  "age": 6.03,
+  "raw": 6.028680555555556,
+  "forward": true,
+  "jie_name": "清明",
+  "jie_at": "2026-04-05 02:33:54",
+  "fallback": false
+ },
+ "grid|2026-03-21T00:30|第3天": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2053,
+   "query_month": 4,
+   "query_day": 24
+  },
+  "age": 5.04,
+  "raw": 5.036257716049382,
+  "forward": false,
+  "jie_name": "惊蛰",
+  "jie_at": "2026-03-05 21:53:22",
+  "fallback": false
+ },
+ "grid|2026-04-01T00:30|第2天": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 5,
+   "query_day": 25
+  },
+  "age": 1.36,
+  "raw": 1.3620138888888889,
+  "forward": true,
+  "jie_name": "清明",
+  "jie_at": "2026-04-05 02:33:54",
+  "fallback": false
+ },
+ "grid|2026-04-04T00:30|第3天": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2055,
+   "query_month": 6,
+   "query_day": 26
+  },
+  "age": 9.7,
+  "raw": 9.70292438271605,
+  "forward": false,
+  "jie_name": "惊蛰",
+  "jie_at": "2026-03-05 21:53:22",
+  "fallback": false
+ },
+ "grid|2026-04-26T00:30|第1天": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2056,
+   "query_month": 7,
+   "query_day": 27
+  },
+  "age": 3.27,
+  "raw": 3.2668055555555555,
+  "forward": true,
+  "jie_name": "立夏",
+  "jie_at": "2026-05-05 19:42:36",
+  "fallback": false
+ },
+ "grid|2026-05-09T00:30|第1天": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2046,
+   "query_month": 8,
+   "query_day": 28
+  },
+  "age": 1.07,
+  "raw": 1.0665277777777777,
+  "forward": false,
+  "jie_name": "立夏",
+  "jie_at": "2026-05-05 19:42:36",
+  "fallback": false
+ },
+ "grid|2026-05-12T00:30|第2天": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 9,
+   "query_day": 1
+  },
+  "age": 8.32,
+  "raw": 8.322384259259259,
+  "forward": true,
+  "jie_name": "芒种",
+  "jie_at": "2026-06-05 23:42:42",
+  "fallback": false
+ },
+ "grid|2026-05-15T00:30|第3天": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2048,
+   "query_month": 10,
+   "query_day": 2
+  },
+  "age": 3.07,
+  "raw": 3.0665277777777775,
+  "forward": false,
+  "jie_name": "立夏",
+  "jie_at": "2026-05-05 19:42:36",
+  "fallback": false
+ },
+ "grid|2026-06-20T00:30|第1天": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2049,
+   "query_month": 11,
+   "query_day": 3
+  },
+  "age": 5.8,
+  "raw": 5.796728395061728,
+  "forward": true,
+  "jie_name": "小暑",
+  "jie_at": "2026-07-07 09:51:52",
+  "fallback": false
+ },
+ "grid|2026-06-23T00:30|第2天": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2050,
+   "query_month": 12,
+   "query_day": 4
+  },
+  "age": 5.68,
+  "raw": 5.677615740740741,
+  "forward": false,
+  "jie_name": "芒种",
+  "jie_at": "2026-06-05 23:42:42",
+  "fallback": false
+ },
+ "grid|2026-06-26T00:30|第3天": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 1,
+   "query_day": 5
+  },
+  "age": 3.8,
+  "raw": 3.7967283950617285,
+  "forward": true,
+  "jie_name": "小暑",
+  "jie_at": "2026-07-07 09:51:52",
+  "fallback": false
+ },
+ "grid|2026-07-03T00:30|第1天": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2052,
+   "query_month": 2,
+   "query_day": 6
+  },
+  "age": 9.01,
+  "raw": 9.010949074074075,
+  "forward": false,
+  "jie_name": "芒种",
+  "jie_at": "2026-06-05 23:42:42",
+  "fallback": false
+ },
+ "grid|2026-07-06T00:30|第2天": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2053,
+   "query_month": 3,
+   "query_day": 7
+  },
+  "age": 0.46,
+  "raw": 0.46339506172839506,
+  "forward": true,
+  "jie_name": "小暑",
+  "jie_at": "2026-07-07 09:51:52",
+  "fallback": false
+ },
+ "grid|2026-07-09T00:30|第3天": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2054,
+   "query_month": 4,
+   "query_day": 8
+  },
+  "age": 0.54,
+  "raw": 0.5366049382716049,
+  "forward": false,
+  "jie_name": "小暑",
+  "jie_at": "2026-07-07 09:51:52",
+  "fallback": false
+ },
+ "grid|2026-08-14T00:30|第1天": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 5,
+   "query_day": 9
+  },
+  "age": 8.31,
+  "raw": 8.3070987654321,
+  "forward": true,
+  "jie_name": "白露",
+  "jie_at": "2026-09-07 22:36:40",
+  "fallback": false
+ },
+ "grid|2026-08-17T00:30|第2天": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2056,
+   "query_month": 6,
+   "query_day": 10
+  },
+  "age": 3.07,
+  "raw": 3.0675848765432097,
+  "forward": false,
+  "jie_name": "立秋",
+  "jie_at": "2026-08-07 19:38:02",
+  "fallback": false
+ },
+ "grid|2026-08-20T00:30|第3天": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2046,
+   "query_month": 7,
+   "query_day": 11
+  },
+  "age": 6.31,
+  "raw": 6.307098765432099,
+  "forward": true,
+  "jie_name": "白露",
+  "jie_at": "2026-09-07 22:36:40",
+  "fallback": false
+ },
+ "grid|2026-09-03T00:30|第3天": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2047,
+   "query_month": 8,
+   "query_day": 12
+  },
+  "age": 8.73,
+  "raw": 8.734251543209878,
+  "forward": false,
+  "jie_name": "立秋",
+  "jie_at": "2026-08-07 19:38:02",
+  "fallback": false
+ },
+ "grid|2026-09-25T00:30|第1天": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 9,
+   "query_day": 13
+  },
+  "age": 4.53,
+  "raw": 4.526454475308642,
+  "forward": true,
+  "jie_name": "寒露",
+  "jie_at": "2026-10-08 14:24:17",
+  "fallback": false
+ },
+ "grid|2026-09-28T00:30|第2天": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2049,
+   "query_month": 10,
+   "query_day": 14
+  },
+  "age": 6.69,
+  "raw": 6.692901234567901,
+  "forward": false,
+  "jie_name": "白露",
+  "jie_at": "2026-09-07 22:36:40",
+  "fallback": false
+ },
+ "grid|2026-10-08T00:30|第1天": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2050,
+   "query_month": 11,
+   "query_day": 15
+  },
+  "age": 0.19,
+  "raw": 0.19312114197530864,
+  "forward": true,
+  "jie_name": "寒露",
+  "jie_at": "2026-10-08 14:24:17",
+  "fallback": false
+ },
+ "grid|2026-10-11T00:30|第2天": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2051,
+   "query_month": 12,
+   "query_day": 16
+  },
+  "age": 0.81,
+  "raw": 0.8068788580246914,
+  "forward": false,
+  "jie_name": "寒露",
+  "jie_at": "2026-10-08 14:24:17",
+  "fallback": false
+ },
+ "grid|2026-10-14T00:30|第3天": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 1,
+   "query_day": 17
+  },
+  "age": 8.24,
+  "raw": 8.240011574074074,
+  "forward": true,
+  "jie_name": "立冬",
+  "jie_at": "2026-11-07 17:46:51",
+  "fallback": false
+ },
+ "grid|2026-11-19T00:30|第1天": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2053,
+   "query_month": 2,
+   "query_day": 18
+  },
+  "age": 3.76,
+  "raw": 3.759988425925926,
+  "forward": false,
+  "jie_name": "立冬",
+  "jie_at": "2026-11-07 17:46:51",
+  "fallback": false
+ },
+ "grid|2026-11-22T00:30|第2天": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2054,
+   "query_month": 3,
+   "query_day": 19
+  },
+  "age": 5.14,
+  "raw": 5.142993827160494,
+  "forward": true,
+  "jie_name": "大雪",
+  "jie_at": "2026-12-07 10:47:44",
+  "fallback": false
+ },
+ "grid|2026-11-25T00:30|第3天": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2055,
+   "query_month": 4,
+   "query_day": 20
+  },
+  "age": 5.76,
+  "raw": 5.7599884259259255,
+  "forward": false,
+  "jie_name": "立冬",
+  "jie_at": "2026-11-07 17:46:51",
+  "fallback": false
+ },
+ "grid|2026-12-02T00:30|第1天": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 5,
+   "query_day": 21
+  },
+  "age": 1.81,
+  "raw": 1.8096604938271605,
+  "forward": true,
+  "jie_name": "大雪",
+  "jie_at": "2026-12-07 10:47:44",
+  "fallback": false
+ },
+ "grid|2026-12-05T00:30|第2天": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2046,
+   "query_month": 6,
+   "query_day": 22
+  },
+  "age": 9.09,
+  "raw": 9.09332175925926,
+  "forward": false,
+  "jie_name": "立冬",
+  "jie_at": "2026-11-07 17:46:51",
+  "fallback": false
+ },
+ "grid|2026-12-08T00:30|第3天": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2047,
+   "query_month": 7,
+   "query_day": 23
+  },
+  "age": 9.63,
+  "raw": 9.633310185185186,
+  "forward": true,
+  "jie_name": "小寒",
+  "jie_at": "2027-01-05 22:05:54",
+  "fallback": false
+ },
+ "hour|2025-08-08T00:00|子时": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2047,
+   "query_month": 8,
+   "query_day": 24
+  },
+  "age": 10.23,
+  "raw": 10.232658179012345,
+  "forward": true,
+  "jie_name": "白露",
+  "jie_at": "2025-09-07 16:45:05",
+  "fallback": false
+ },
+ "hour|2025-08-08T12:00|午时": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 9,
+   "query_day": 25
+  },
+  "age": 0.31,
+  "raw": 0.30906635802469135,
+  "forward": false,
+  "jie_name": "立秋",
+  "jie_at": "2025-08-07 13:44:50",
+  "fallback": false
+ },
+ "hour|2026-11-11T00:00|子时": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2050,
+   "query_month": 10,
+   "query_day": 26
+  },
+  "age": 1.09,
+  "raw": 1.0863773148148148,
+  "forward": false,
+  "jie_name": "立冬",
+  "jie_at": "2026-11-07 17:46:51",
+  "fallback": false
+ },
+ "hour|2026-11-11T12:00|午时": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2051,
+   "query_month": 11,
+   "query_day": 27
+  },
+  "age": 8.65,
+  "raw": 8.649938271604938,
+  "forward": true,
+  "jie_name": "大雪",
+  "jie_at": "2026-12-07 10:47:44",
+  "fallback": false
+ },
+ "jie|2025-01-05T10:14|小寒": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2051,
+   "query_month": 12,
+   "query_day": 28
+  },
+  "age": 9.82,
+  "raw": 9.820787037037038,
+  "forward": false,
+  "jie_name": "大雪",
+  "jie_at": "2024-12-06 23:08:12",
+  "fallback": false
+ },
+ "jie|2025-01-05T10:26|小寒": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 1,
+   "query_day": 1
+  },
+  "age": 9.83,
+  "raw": 9.827932098765432,
+  "forward": true,
+  "jie_name": "立春",
+  "jie_at": "2025-02-03 22:02:40",
+  "fallback": false
+ },
+ "jie|2025-01-05T10:38|小寒": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2053,
+   "query_month": 2,
+   "query_day": 2
+  },
+  "age": 0.0,
+  "raw": 0.003094135802469136,
+  "forward": false,
+  "jie_name": "小寒",
+  "jie_at": "2025-01-05 10:24:38",
+  "fallback": false
+ },
+ "jie|2025-01-20T03:56|大寒": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2054,
+   "query_month": 3,
+   "query_day": 3
+  },
+  "age": 4.92,
+  "raw": 4.91820987654321,
+  "forward": true,
+  "jie_name": "立春",
+  "jie_at": "2025-02-03 22:02:40",
+  "fallback": false
+ },
+ "jie|2025-01-20T04:08|大寒": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2055,
+   "query_month": 4,
+   "query_day": 4
+  },
+  "age": 4.91,
+  "raw": 4.912816358024691,
+  "forward": false,
+  "jie_name": "小寒",
+  "jie_at": "2025-01-05 10:24:38",
+  "fallback": false
+ },
+ "jie|2025-02-03T22:00|立春": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 5,
+   "query_day": 5
+  },
+  "age": 0.0,
+  "raw": 0.0006172839506172839,
+  "forward": true,
+  "jie_name": "立春",
+  "jie_at": "2025-02-03 22:02:40",
+  "fallback": false
+ },
+ "jie|2025-02-03T22:12|立春": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2046,
+   "query_month": 6,
+   "query_day": 6
+  },
+  "age": 9.91,
+  "raw": 9.913746141975308,
+  "forward": true,
+  "jie_name": "惊蛰",
+  "jie_at": "2025-03-05 15:59:23",
+  "fallback": false
+ },
+ "jie|2025-02-18T17:58|雨水": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2047,
+   "query_month": 7,
+   "query_day": 7
+  },
+  "age": 4.94,
+  "raw": 4.943364197530864,
+  "forward": false,
+  "jie_name": "立春",
+  "jie_at": "2025-02-03 22:02:40",
+  "fallback": false
+ },
+ "jie|2025-02-18T18:10|雨水": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2048,
+   "query_month": 8,
+   "query_day": 8
+  },
+  "age": 4.97,
+  "raw": 4.969764660493827,
+  "forward": true,
+  "jie_name": "惊蛰",
+  "jie_at": "2025-03-05 15:59:23",
+  "fallback": false
+ },
+ "jie|2025-03-05T15:53|惊蛰": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 9,
+   "query_day": 9
+  },
+  "age": 9.91,
+  "raw": 9.91442901234568,
+  "forward": false,
+  "jie_name": "立春",
+  "jie_at": "2025-02-03 22:02:40",
+  "fallback": false
+ },
+ "jie|2025-03-05T16:05|惊蛰": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2050,
+   "query_month": 10,
+   "query_day": 10
+  },
+  "age": 10.06,
+  "raw": 10.06375,
+  "forward": true,
+  "jie_name": "清明",
+  "jie_at": "2025-04-04 20:40:24",
+  "fallback": false
+ },
+ "jie|2025-03-05T16:17|惊蛰": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2051,
+   "query_month": 11,
+   "query_day": 11
+  },
+  "age": 0.0,
+  "raw": 0.004077932098765432,
+  "forward": false,
+  "jie_name": "惊蛰",
+  "jie_at": "2025-03-05 15:59:23",
+  "fallback": false
+ },
+ "jie|2025-03-20T17:01|春分": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2052,
+   "query_month": 12,
+   "query_day": 12
+  },
+  "age": 5.05,
+  "raw": 5.050787037037037,
+  "forward": true,
+  "jie_name": "清明",
+  "jie_at": "2025-04-04 20:40:24",
+  "fallback": false
+ },
+ "jie|2025-04-04T20:30|清明": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 1,
+   "query_day": 13
+  },
+  "age": 10.06,
+  "raw": 10.06264274691358,
+  "forward": false,
+  "jie_name": "惊蛰",
+  "jie_at": "2025-03-05 15:59:23",
+  "fallback": false
+ },
+ "jie|2025-04-04T20:42|清明": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2054,
+   "query_month": 2,
+   "query_day": 14
+  },
+  "age": 10.24,
+  "raw": 10.23773148148148,
+  "forward": true,
+  "jie_name": "立夏",
+  "jie_at": "2025-05-05 13:49:00",
+  "fallback": false
+ },
+ "jie|2025-04-04T20:54|清明": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2055,
+   "query_month": 3,
+   "query_day": 15
+  },
+  "age": 0.0,
+  "raw": 0.003148148148148148,
+  "forward": false,
+  "jie_name": "清明",
+  "jie_at": "2025-04-04 20:40:24",
+  "fallback": false
+ },
+ "jie|2025-04-20T03:52|谷雨": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2045,
+   "query_month": 4,
+   "query_day": 16
+  },
+  "age": 5.14,
+  "raw": 5.138194444444444,
+  "forward": true,
+  "jie_name": "立夏",
+  "jie_at": "2025-05-05 13:49:00",
+  "fallback": false
+ },
+ "jie|2025-04-20T04:04|谷雨": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 5,
+   "query_day": 17
+  },
+  "age": 5.1,
+  "raw": 5.102685185185185,
+  "forward": false,
+  "jie_name": "清明",
+  "jie_at": "2025-04-04 20:40:24",
+  "fallback": false
+ },
+ "jie|2025-05-05T13:47|立夏": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2047,
+   "query_month": 6,
+   "query_day": 18
+  },
+  "age": 0.0,
+  "raw": 0.000462962962962963,
+  "forward": true,
+  "jie_name": "立夏",
+  "jie_at": "2025-05-05 13:49:00",
+  "fallback": false
+ },
+ "jie|2025-05-05T13:59|立夏": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2048,
+   "query_month": 7,
+   "query_day": 19
+  },
+  "age": 0.0,
+  "raw": 0.0023148148148148147,
+  "forward": false,
+  "jie_name": "立夏",
+  "jie_at": "2025-05-05 13:49:00",
+  "fallback": false
+ },
+ "jie|2025-05-21T02:46|小满": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2049,
+   "query_month": 8,
+   "query_day": 20
+  },
+  "age": 5.21,
+  "raw": 5.2089236111111115,
+  "forward": true,
+  "jie_name": "芒种",
+  "jie_at": "2025-06-05 17:48:33",
+  "fallback": false
+ },
+ "jie|2025-05-21T02:58|小满": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 9,
+   "query_day": 21
+  },
+  "age": 5.18,
+  "raw": 5.1826388888888895,
+  "forward": false,
+  "jie_name": "立夏",
+  "jie_at": "2025-05-05 13:49:00",
+  "fallback": false
+ },
+ "jie|2025-06-05T17:42|芒种": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2051,
+   "query_month": 10,
+   "query_day": 22
+  },
+  "age": 0.0,
+  "raw": 0.0015162037037037036,
+  "forward": true,
+  "jie_name": "芒种",
+  "jie_at": "2025-06-05 17:48:33",
+  "fallback": false
+ },
+ "jie|2025-06-05T17:54|芒种": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2052,
+   "query_month": 11,
+   "query_day": 23
+  },
+  "age": 0.0,
+  "raw": 0.001261574074074074,
+  "forward": false,
+  "jie_name": "芒种",
+  "jie_at": "2025-06-05 17:48:33",
+  "fallback": false
+ },
+ "jie|2025-06-05T18:06|芒种": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2053,
+   "query_month": 12,
+   "query_day": 24
+  },
+  "age": 10.47,
+  "raw": 10.470293209876543,
+  "forward": true,
+  "jie_name": "小暑",
+  "jie_at": "2025-07-07 03:57:40",
+  "fallback": false
+ },
+ "jie|2025-06-21T10:42|夏至": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 1,
+   "query_day": 25
+  },
+  "age": 5.23,
+  "raw": 5.234594907407407,
+  "forward": false,
+  "jie_name": "芒种",
+  "jie_at": "2025-06-05 17:48:33",
+  "fallback": false
+ },
+ "jie|2025-07-07T03:47|小暑": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2055,
+   "query_month": 2,
+   "query_day": 26
+  },
+  "age": 0.0,
+  "raw": 0.0024691358024691358,
+  "forward": true,
+  "jie_name": "小暑",
+  "jie_at": "2025-07-07 03:57:40",
+  "fallback": false
+ },
+ "jie|2025-07-07T03:56|小暑": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2045,
+   "query_month": 3,
+   "query_day": 27
+  },
+  "age": 10.47,
+  "raw": 10.47394675925926,
+  "forward": false,
+  "jie_name": "芒种",
+  "jie_at": "2025-06-05 17:48:33",
+  "fallback": false
+ },
+ "jie|2025-07-07T04:02|小暑": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2046,
+   "query_month": 4,
+   "query_day": 28
+  },
+  "age": 10.47,
+  "raw": 10.468248456790123,
+  "forward": true,
+  "jie_name": "立秋",
+  "jie_at": "2025-08-07 13:44:50",
+  "fallback": false
+ },
+ "jie|2025-07-07T04:08|小暑": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 5,
+   "query_day": 1
+  },
+  "age": 0.0,
+  "raw": 0.0023919753086419754,
+  "forward": false,
+  "jie_name": "小暑",
+  "jie_at": "2025-07-07 03:57:40",
+  "fallback": false
+ },
+ "jie|2025-07-22T21:23|大暑": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2048,
+   "query_month": 6,
+   "query_day": 2
+  },
+  "age": 5.23,
+  "raw": 5.227276234567902,
+  "forward": true,
+  "jie_name": "立秋",
+  "jie_at": "2025-08-07 13:44:50",
+  "fallback": false
+ },
+ "jie|2025-07-22T21:35|大暑": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2049,
+   "query_month": 7,
+   "query_day": 3
+  },
+  "age": 5.24,
+  "raw": 5.244753086419753,
+  "forward": false,
+  "jie_name": "小暑",
+  "jie_at": "2025-07-07 03:57:40",
+  "fallback": false
+ },
+ "jie|2025-08-07T13:40|立秋": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2050,
+   "query_month": 8,
+   "query_day": 4
+  },
+  "age": 0.0,
+  "raw": 0.0011188271604938272,
+  "forward": true,
+  "jie_name": "立秋",
+  "jie_at": "2025-08-07 13:44:50",
+  "fallback": false
+ },
+ "jie|2025-08-07T13:46|立秋": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 9,
+   "query_day": 5
+  },
+  "age": 0.0,
+  "raw": 0.0002700617283950617,
+  "forward": false,
+  "jie_name": "立秋",
+  "jie_at": "2025-08-07 13:44:50",
+  "fallback": false
+ },
+ "jie|2025-08-07T13:52|立秋": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2052,
+   "query_month": 10,
+   "query_day": 6
+  },
+  "age": 10.37,
+  "raw": 10.373398919753086,
+  "forward": true,
+  "jie_name": "白露",
+  "jie_at": "2025-09-07 16:45:05",
+  "fallback": false
+ },
+ "jie|2025-08-07T14:01|立秋": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2053,
+   "query_month": 11,
+   "query_day": 7
+  },
+  "age": 0.0,
+  "raw": 0.003742283950617284,
+  "forward": false,
+  "jie_name": "立秋",
+  "jie_at": "2025-08-07 13:44:50",
+  "fallback": false
+ },
+ "jie|2025-08-23T04:33|处暑": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2054,
+   "query_month": 12,
+   "query_day": 8
+  },
+  "age": 5.17,
+  "raw": 5.169463734567901,
+  "forward": true,
+  "jie_name": "白露",
+  "jie_at": "2025-09-07 16:45:05",
+  "fallback": false
+ },
+ "jie|2025-09-07T16:35|白露": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 1,
+   "query_day": 9
+  },
+  "age": 10.37,
+  "raw": 10.372723765432099,
+  "forward": false,
+  "jie_name": "立秋",
+  "jie_at": "2025-08-07 13:44:50",
+  "fallback": false
+ },
+ "jie|2025-09-07T16:47|白露": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2045,
+   "query_month": 2,
+   "query_day": 10
+  },
+  "age": 10.22,
+  "raw": 10.219185956790124,
+  "forward": true,
+  "jie_name": "寒露",
+  "jie_at": "2025-10-08 08:33:53",
+  "fallback": false
+ },
+ "jie|2025-09-07T16:59|白露": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2046,
+   "query_month": 3,
+   "query_day": 11
+  },
+  "age": 0.0,
+  "raw": 0.0032214506172839504,
+  "forward": false,
+  "jie_name": "白露",
+  "jie_at": "2025-09-07 16:45:05",
+  "fallback": false
+ },
+ "jie|2025-09-23T02:17|秋分": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2047,
+   "query_month": 4,
+   "query_day": 12
+  },
+  "age": 5.09,
+  "raw": 5.0872415123456785,
+  "forward": true,
+  "jie_name": "寒露",
+  "jie_at": "2025-10-08 08:33:53",
+  "fallback": false
+ },
+ "jie|2025-09-23T02:29|秋分": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 5,
+   "query_day": 13
+  },
+  "age": 5.14,
+  "raw": 5.1351658950617285,
+  "forward": false,
+  "jie_name": "白露",
+  "jie_at": "2025-09-07 16:45:05",
+  "fallback": false
+ },
+ "jie|2025-10-08T08:33|寒露": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2049,
+   "query_month": 6,
+   "query_day": 14
+  },
+  "age": 0.0,
+  "raw": 0.0002044753086419753,
+  "forward": true,
+  "jie_name": "寒露",
+  "jie_at": "2025-10-08 08:33:53",
+  "fallback": false
+ },
+ "jie|2025-10-08T08:45|寒露": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2050,
+   "query_month": 7,
+   "query_day": 15
+  },
+  "age": 0.0,
+  "raw": 0.0025733024691358022,
+  "forward": false,
+  "jie_name": "寒露",
+  "jie_at": "2025-10-08 08:33:53",
+  "fallback": false
+ },
+ "jie|2025-10-23T11:44|霜降": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2051,
+   "query_month": 8,
+   "query_day": 16
+  },
+  "age": 5.0,
+  "raw": 5.0029513888888895,
+  "forward": true,
+  "jie_name": "立冬",
+  "jie_at": "2025-11-07 11:56:45",
+  "fallback": false
+ },
+ "jie|2025-10-23T11:56|霜降": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 9,
+   "query_day": 17
+  },
+  "age": 5.05,
+  "raw": 5.0467862654320985,
+  "forward": false,
+  "jie_name": "寒露",
+  "jie_at": "2025-10-08 08:33:53",
+  "fallback": false
+ },
+ "jie|2025-11-07T11:52|立冬": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2053,
+   "query_month": 10,
+   "query_day": 18
+  },
+  "age": 0.0,
+  "raw": 0.001099537037037037,
+  "forward": true,
+  "jie_name": "立冬",
+  "jie_at": "2025-11-07 11:56:45",
+  "fallback": false
+ },
+ "jie|2025-11-07T12:04|立冬": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2054,
+   "query_month": 11,
+   "query_day": 19
+  },
+  "age": 0.0,
+  "raw": 0.0016782407407407408,
+  "forward": false,
+  "jie_name": "立冬",
+  "jie_at": "2025-11-07 11:56:45",
+  "fallback": false
+ },
+ "jie|2025-11-22T09:25|小雪": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2055,
+   "query_month": 12,
+   "query_day": 20
+  },
+  "age": 4.94,
+  "raw": 4.938179012345679,
+  "forward": true,
+  "jie_name": "大雪",
+  "jie_at": "2025-12-07 04:57:56",
+  "fallback": false
+ },
+ "jie|2025-11-22T09:37|小雪": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 1,
+   "query_day": 21
+  },
+  "age": 4.97,
+  "raw": 4.967650462962963,
+  "forward": false,
+  "jie_name": "立冬",
+  "jie_at": "2025-11-07 11:56:45",
+  "fallback": false
+ },
+ "jie|2025-12-07T04:49|大雪": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2046,
+   "query_month": 2,
+   "query_day": 22
+  },
+  "age": 0.0,
+  "raw": 0.002067901234567901,
+  "forward": true,
+  "jie_name": "大雪",
+  "jie_at": "2025-12-07 04:57:56",
+  "fallback": false
+ },
+ "jie|2025-12-07T04:57|大雪": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2047,
+   "query_month": 3,
+   "query_day": 23
+  },
+  "age": 9.9,
+  "raw": 9.902835648148148,
+  "forward": false,
+  "jie_name": "立冬",
+  "jie_at": "2025-11-07 11:56:45",
+  "fallback": false
+ },
+ "jie|2025-12-07T05:03|大雪": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2048,
+   "query_month": 4,
+   "query_day": 24
+  },
+  "age": 9.82,
+  "raw": 9.82275848765432,
+  "forward": true,
+  "jie_name": "小寒",
+  "jie_at": "2026-01-05 16:17:19",
+  "fallback": false
+ },
+ "jie|2025-12-07T05:10|大雪": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 5,
+   "query_day": 25
+  },
+  "age": 0.0,
+  "raw": 0.0027932098765432096,
+  "forward": false,
+  "jie_name": "大雪",
+  "jie_at": "2025-12-07 04:57:56",
+  "fallback": false
+ },
+ "jie|2025-12-21T22:59|DONG_ZHI": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2050,
+   "query_month": 6,
+   "query_day": 26
+  },
+  "age": 4.91,
+  "raw": 4.9070177469135805,
+  "forward": true,
+  "jie_name": "小寒",
+  "jie_at": "2026-01-05 16:17:19",
+  "fallback": false
+ },
+ "jie|2025-12-21T23:11|DONG_ZHI": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2051,
+   "query_month": 7,
+   "query_day": 27
+  },
+  "age": 4.92,
+  "raw": 4.919691358024692,
+  "forward": false,
+  "jie_name": "大雪",
+  "jie_at": "2025-12-07 04:57:56",
+  "fallback": false
+ },
+ "jie|2026-01-05T16:15|小寒": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2053,
+   "query_month": 8,
+   "query_day": 28
+  },
+  "age": 0.0,
+  "raw": 0.0005362654320987655,
+  "forward": true,
+  "jie_name": "小寒",
+  "jie_at": "2026-01-05 16:17:19",
+  "fallback": false
+ },
+ "jie|2026-01-05T16:27|小寒": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 9,
+   "query_day": 1
+  },
+  "age": 0.0,
+  "raw": 0.002241512345679012,
+  "forward": false,
+  "jie_name": "小寒",
+  "jie_at": "2026-01-05 16:17:19",
+  "fallback": false
+ },
+ "jie|2026-01-20T09:38|大寒": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2055,
+   "query_month": 10,
+   "query_day": 2
+  },
+  "age": 4.92,
+  "raw": 4.920991512345679,
+  "forward": true,
+  "jie_name": "立春",
+  "jie_at": "2026-02-04 03:56:41",
+  "fallback": false
+ },
+ "jie|2026-01-20T09:50|大寒": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2056,
+   "query_month": 11,
+   "query_day": 3
+  },
+  "age": 4.91,
+  "raw": 4.910343364197531,
+  "forward": false,
+  "jie_name": "小寒",
+  "jie_at": "2026-01-05 16:17:19",
+  "fallback": false
+ },
+ "jie|2026-02-04T03:52|立春": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2046,
+   "query_month": 12,
+   "query_day": 4
+  },
+  "age": 0.0,
+  "raw": 0.001084104938271605,
+  "forward": true,
+  "jie_name": "立春",
+  "jie_at": "2026-02-04 03:56:41",
+  "fallback": false
+ },
+ "jie|2026-02-04T04:04|立春": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 1,
+   "query_day": 5
+  },
+  "age": 9.91,
+  "raw": 9.91420524691358,
+  "forward": true,
+  "jie_name": "惊蛰",
+  "jie_at": "2026-03-05 21:53:22",
+  "fallback": false
+ },
+ "jie|2026-02-18T23:43|雨水": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2048,
+   "query_month": 2,
+   "query_day": 6
+  },
+  "age": 4.94,
+  "raw": 4.9412770061728395,
+  "forward": false,
+  "jie_name": "立春",
+  "jie_at": "2026-02-04 03:56:41",
+  "fallback": false
+ },
+ "jie|2026-02-18T23:55|雨水": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2049,
+   "query_month": 3,
+   "query_day": 7
+  },
+  "age": 4.97,
+  "raw": 4.97184413580247,
+  "forward": true,
+  "jie_name": "惊蛰",
+  "jie_at": "2026-03-05 21:53:22",
+  "fallback": false
+ },
+ "jie|2026-03-05T21:47|惊蛰": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2050,
+   "query_month": 4,
+   "query_day": 8
+  },
+  "age": 9.91,
+  "raw": 9.914425154320988,
+  "forward": false,
+  "jie_name": "立春",
+  "jie_at": "2026-02-04 03:56:41",
+  "fallback": false
+ },
+ "jie|2026-03-05T21:59|惊蛰": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 5,
+   "query_day": 9
+  },
+  "age": 10.06,
+  "raw": 10.06363425925926,
+  "forward": true,
+  "jie_name": "清明",
+  "jie_at": "2026-04-05 02:33:54",
+  "fallback": false
+ },
+ "jie|2026-03-20T22:35|春分": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2052,
+   "query_month": 6,
+   "query_day": 10
+  },
+  "age": 5.01,
+  "raw": 5.009637345679012,
+  "forward": false,
+  "jie_name": "惊蛰",
+  "jie_at": "2026-03-05 21:53:22",
+  "fallback": false
+ },
+ "jie|2026-03-20T22:47|春分": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2053,
+   "query_month": 7,
+   "query_day": 11
+  },
+  "age": 5.05,
+  "raw": 5.052523148148148,
+  "forward": true,
+  "jie_name": "清明",
+  "jie_at": "2026-04-05 02:33:54",
+  "fallback": false
+ },
+ "jie|2026-04-05T02:25|清明": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2054,
+   "query_month": 8,
+   "query_day": 12
+  },
+  "age": 10.06,
+  "raw": 10.062878086419753,
+  "forward": false,
+  "jie_name": "惊蛰",
+  "jie_at": "2026-03-05 21:53:22",
+  "fallback": false
+ },
+ "jie|2026-04-05T02:33|清明": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 9,
+   "query_day": 13
+  },
+  "age": 0.0,
+  "raw": 0.00020833333333333335,
+  "forward": true,
+  "jie_name": "清明",
+  "jie_at": "2026-04-05 02:33:54",
+  "fallback": false
+ },
+ "jie|2026-04-05T02:39|清明": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2056,
+   "query_month": 10,
+   "query_day": 14
+  },
+  "age": 0.0,
+  "raw": 0.0011805555555555556,
+  "forward": false,
+  "jie_name": "清明",
+  "jie_at": "2026-04-05 02:33:54",
+  "fallback": false
+ },
+ "jie|2026-04-05T02:46|清明": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2046,
+   "query_month": 11,
+   "query_day": 15
+  },
+  "age": 10.24,
+  "raw": 10.235324074074073,
+  "forward": true,
+  "jie_name": "立夏",
+  "jie_at": "2026-05-05 19:42:36",
+  "fallback": false
+ },
+ "jie|2026-04-20T09:35|谷雨": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2047,
+   "query_month": 12,
+   "query_day": 16
+  },
+  "age": 5.1,
+  "raw": 5.097476851851852,
+  "forward": false,
+  "jie_name": "清明",
+  "jie_at": "2026-04-05 02:33:54",
+  "fallback": false
+ },
+ "jie|2026-04-20T09:47|谷雨": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 1,
+   "query_day": 17
+  },
+  "age": 5.14,
+  "raw": 5.13787037037037,
+  "forward": true,
+  "jie_name": "立夏",
+  "jie_at": "2026-05-05 19:42:36",
+  "fallback": false
+ },
+ "jie|2026-05-05T19:40|立夏": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2049,
+   "query_month": 2,
+   "query_day": 18
+  },
+  "age": 10.24,
+  "raw": 10.237523148148147,
+  "forward": false,
+  "jie_name": "清明",
+  "jie_at": "2026-04-05 02:33:54",
+  "fallback": false
+ },
+ "jie|2026-05-05T19:52|立夏": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2050,
+   "query_month": 3,
+   "query_day": 19
+  },
+  "age": 10.39,
+  "raw": 10.38673611111111,
+  "forward": true,
+  "jie_name": "芒种",
+  "jie_at": "2026-06-05 23:42:42",
+  "fallback": false
+ },
+ "jie|2026-05-21T08:30|小满": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2051,
+   "query_month": 4,
+   "query_day": 20
+  },
+  "age": 5.18,
+  "raw": 5.177638888888889,
+  "forward": false,
+  "jie_name": "立夏",
+  "jie_at": "2026-05-05 19:42:36",
+  "fallback": false
+ },
+ "jie|2026-05-21T08:42|小满": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 5,
+   "query_day": 21
+  },
+  "age": 5.21,
+  "raw": 5.208495370370371,
+  "forward": true,
+  "jie_name": "芒种",
+  "jie_at": "2026-06-05 23:42:42",
+  "fallback": false
+ },
+ "jie|2026-06-05T23:38|芒种": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2053,
+   "query_month": 6,
+   "query_day": 22
+  },
+  "age": 10.39,
+  "raw": 10.387824074074073,
+  "forward": false,
+  "jie_name": "立夏",
+  "jie_at": "2026-05-05 19:42:36",
+  "fallback": false
+ },
+ "jie|2026-06-05T23:50|芒种": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2054,
+   "query_month": 7,
+   "query_day": 23
+  },
+  "age": 10.47,
+  "raw": 10.472654320987655,
+  "forward": true,
+  "jie_name": "小暑",
+  "jie_at": "2026-07-07 09:51:52",
+  "fallback": false
+ },
+ "jie|2026-06-21T16:16|夏至": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2055,
+   "query_month": 8,
+   "query_day": 24
+  },
+  "age": 5.23,
+  "raw": 5.229930555555556,
+  "forward": false,
+  "jie_name": "芒种",
+  "jie_at": "2026-06-05 23:42:42",
+  "fallback": false
+ },
+ "jie|2026-06-21T16:28|夏至": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 9,
+   "query_day": 25
+  },
+  "age": 5.24,
+  "raw": 5.241635802469136,
+  "forward": true,
+  "jie_name": "小暑",
+  "jie_at": "2026-07-07 09:51:52",
+  "fallback": false
+ },
+ "jie|2026-07-07T09:45|小暑": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2046,
+   "query_month": 10,
+   "query_day": 26
+  },
+  "age": 10.47,
+  "raw": 10.472754629629629,
+  "forward": false,
+  "jie_name": "芒种",
+  "jie_at": "2026-06-05 23:42:42",
+  "fallback": false
+ },
+ "jie|2026-07-07T09:51|小暑": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2047,
+   "query_month": 11,
+   "query_day": 27
+  },
+  "age": 0.0,
+  "raw": 0.0002006172839506173,
+  "forward": true,
+  "jie_name": "小暑",
+  "jie_at": "2026-07-07 09:51:52",
+  "fallback": false
+ },
+ "jie|2026-07-07T09:57|小暑": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2048,
+   "query_month": 12,
+   "query_day": 28
+  },
+  "age": 0.0,
+  "raw": 0.0011882716049382716,
+  "forward": false,
+  "jie_name": "小暑",
+  "jie_at": "2026-07-07 09:51:52",
+  "fallback": false
+ },
+ "jie|2026-07-07T10:04|小暑": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 1,
+   "query_day": 1
+  },
+  "age": 10.47,
+  "raw": 10.466211419753087,
+  "forward": true,
+  "jie_name": "立秋",
+  "jie_at": "2026-08-07 19:38:02",
+  "fallback": false
+ },
+ "jie|2026-07-23T03:11|大暑": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2050,
+   "query_month": 2,
+   "query_day": 2
+  },
+  "age": 5.24,
+  "raw": 5.24054012345679,
+  "forward": false,
+  "jie_name": "小暑",
+  "jie_at": "2026-07-07 09:51:52",
+  "fallback": false
+ },
+ "jie|2026-07-23T03:23|大暑": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2051,
+   "query_month": 3,
+   "query_day": 3
+  },
+  "age": 5.23,
+  "raw": 5.225702160493827,
+  "forward": true,
+  "jie_name": "立秋",
+  "jie_at": "2026-08-07 19:38:02",
+  "fallback": false
+ },
+ "jie|2026-08-07T19:38|立秋": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2052,
+   "query_month": 4,
+   "query_day": 4
+  },
+  "age": 10.47,
+  "raw": 10.469012345679012,
+  "forward": false,
+  "jie_name": "小暑",
+  "jie_at": "2026-07-07 09:51:52",
+  "fallback": false
+ },
+ "jie|2026-08-07T19:50|立秋": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 5,
+   "query_day": 5
+  },
+  "age": 10.37,
+  "raw": 10.371913580246913,
+  "forward": true,
+  "jie_name": "白露",
+  "jie_at": "2026-09-07 22:36:40",
+  "fallback": false
+ },
+ "jie|2026-08-23T10:16|处暑": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2054,
+   "query_month": 6,
+   "query_day": 6
+  },
+  "age": 5.2,
+  "raw": 5.203233024691358,
+  "forward": false,
+  "jie_name": "立秋",
+  "jie_at": "2026-08-07 19:38:02",
+  "fallback": false
+ },
+ "jie|2026-08-23T10:28|处暑": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2055,
+   "query_month": 7,
+   "query_day": 7
+  },
+  "age": 5.17,
+  "raw": 5.168672839506173,
+  "forward": true,
+  "jie_name": "白露",
+  "jie_at": "2026-09-07 22:36:40",
+  "fallback": false
+ },
+ "jie|2026-09-07T22:33|白露": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2056,
+   "query_month": 8,
+   "query_day": 8
+  },
+  "age": 10.37,
+  "raw": 10.37383487654321,
+  "forward": false,
+  "jie_name": "立秋",
+  "jie_at": "2026-08-07 19:38:02",
+  "fallback": false
+ },
+ "jie|2026-09-07T22:39|白露": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 9,
+   "query_day": 9
+  },
+  "age": 10.22,
+  "raw": 10.218815586419753,
+  "forward": true,
+  "jie_name": "寒露",
+  "jie_at": "2026-10-08 14:24:17",
+  "fallback": false
+ },
+ "jie|2026-09-07T22:45|白露": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2047,
+   "query_month": 10,
+   "query_day": 10
+  },
+  "age": 0.0,
+  "raw": 0.0019290123456790122,
+  "forward": false,
+  "jie_name": "白露",
+  "jie_at": "2026-09-07 22:36:40",
+  "fallback": false
+ },
+ "jie|2026-09-23T07:57|秋分": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2048,
+   "query_month": 11,
+   "query_day": 11
+  },
+  "age": 5.09,
+  "raw": 5.0896489197530865,
+  "forward": true,
+  "jie_name": "寒露",
+  "jie_at": "2026-10-08 14:24:17",
+  "fallback": false
+ },
+ "jie|2026-09-23T08:09|秋分": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2049,
+   "query_month": 12,
+   "query_day": 12
+  },
+  "age": 5.13,
+  "raw": 5.132484567901234,
+  "forward": false,
+  "jie_name": "白露",
+  "jie_at": "2026-09-07 22:36:40",
+  "fallback": false
+ },
+ "jie|2026-10-08T14:18|寒露": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 1,
+   "query_day": 13
+  },
+  "age": 0.0,
+  "raw": 0.0014544753086419753,
+  "forward": true,
+  "jie_name": "寒露",
+  "jie_at": "2026-10-08 14:24:17",
+  "fallback": false
+ },
+ "jie|2026-10-08T14:24|寒露": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2051,
+   "query_month": 2,
+   "query_day": 14
+  },
+  "age": 10.22,
+  "raw": 10.21929012345679,
+  "forward": false,
+  "jie_name": "白露",
+  "jie_at": "2026-09-07 22:36:40",
+  "fallback": false
+ },
+ "jie|2026-10-08T14:30|寒露": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2052,
+   "query_month": 3,
+   "query_day": 15
+  },
+  "age": 10.05,
+  "raw": 10.04556712962963,
+  "forward": true,
+  "jie_name": "立冬",
+  "jie_at": "2026-11-07 17:46:51",
+  "fallback": false
+ },
+ "jie|2026-10-08T14:37|寒露": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2053,
+   "query_month": 4,
+   "query_day": 16
+  },
+  "age": 0.0,
+  "raw": 0.002943672839506173,
+  "forward": false,
+  "jie_name": "寒露",
+  "jie_at": "2026-10-08 14:24:17",
+  "fallback": false
+ },
+ "jie|2026-10-23T17:35|霜降": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 5,
+   "query_day": 17
+  },
+  "age": 5.0,
+  "raw": 5.002743055555555,
+  "forward": true,
+  "jie_name": "立冬",
+  "jie_at": "2026-11-07 17:46:51",
+  "fallback": false
+ },
+ "jie|2026-10-23T17:47|霜降": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2055,
+   "query_month": 6,
+   "query_day": 18
+  },
+  "age": 5.05,
+  "raw": 5.046925154320988,
+  "forward": false,
+  "jie_name": "寒露",
+  "jie_at": "2026-10-08 14:24:17",
+  "fallback": false
+ },
+ "jie|2026-11-07T17:46|立冬": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2056,
+   "query_month": 7,
+   "query_day": 19
+  },
+  "age": 0.0,
+  "raw": 0.00019675925925925926,
+  "forward": true,
+  "jie_name": "立冬",
+  "jie_at": "2026-11-07 17:46:51",
+  "fallback": false
+ },
+ "jie|2026-11-07T17:58|立冬": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2046,
+   "query_month": 8,
+   "query_day": 20
+  },
+  "age": 0.0,
+  "raw": 0.0025810185185185185,
+  "forward": false,
+  "jie_name": "立冬",
+  "jie_at": "2026-11-07 17:46:51",
+  "fallback": false
+ },
+ "jie|2026-11-22T15:19|小雪": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 9,
+   "query_day": 21
+  },
+  "age": 4.94,
+  "raw": 4.937206790123457,
+  "forward": true,
+  "jie_name": "大雪",
+  "jie_at": "2026-12-07 10:47:44",
+  "fallback": false
+ },
+ "jie|2026-11-22T15:31|小雪": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2048,
+   "query_month": 10,
+   "query_day": 22
+  },
+  "age": 4.97,
+  "raw": 4.96855324074074,
+  "forward": false,
+  "jie_name": "立冬",
+  "jie_at": "2026-11-07 17:46:51",
+  "fallback": false
+ },
+ "jie|2026-12-07T10:43|大雪": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2049,
+   "query_month": 11,
+   "query_day": 23
+  },
+  "age": 0.0,
+  "raw": 0.001095679012345679,
+  "forward": true,
+  "jie_name": "大雪",
+  "jie_at": "2026-12-07 10:47:44",
+  "fallback": false
+ },
+ "jie|2026-12-07T10:49|大雪": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2050,
+   "query_month": 12,
+   "query_day": 24
+  },
+  "age": 0.0,
+  "raw": 0.0002932098765432099,
+  "forward": false,
+  "jie_name": "大雪",
+  "jie_at": "2026-12-07 10:47:44",
+  "fallback": false
+ },
+ "jie|2026-12-07T10:55|大雪": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 1,
+   "query_day": 25
+  },
+  "age": 9.82,
+  "raw": 9.821967592592593,
+  "forward": true,
+  "jie_name": "小寒",
+  "jie_at": "2027-01-05 22:05:54",
+  "fallback": false
+ },
+ "jie|2026-12-22T04:40|DONG_ZHI": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2052,
+   "query_month": 2,
+   "query_day": 26
+  },
+  "age": 4.91,
+  "raw": 4.914876543209877,
+  "forward": false,
+  "jie_name": "大雪",
+  "jie_at": "2026-12-07 10:47:44",
+  "fallback": false
+ },
+ "jie|2026-12-22T04:52|DONG_ZHI": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2053,
+   "query_month": 3,
+   "query_day": 27
+  },
+  "age": 4.91,
+  "raw": 4.905995370370371,
+  "forward": true,
+  "jie_name": "小寒",
+  "jie_at": "2027-01-05 22:05:54",
+  "fallback": false
+ },
+ "siling|2026-01-30T12:00|30日": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2054,
+   "query_month": 4,
+   "query_day": 28
+  },
+  "age": 1.55,
+  "raw": 1.5547878086419755,
+  "forward": true,
+  "jie_name": "立春",
+  "jie_at": "2026-02-04 03:56:41",
+  "fallback": false
+ },
+ "siling|2026-04-30T12:00|30日": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 5,
+   "query_day": 1
+  },
+  "age": 1.77,
+  "raw": 1.77375,
+  "forward": true,
+  "jie_name": "立夏",
+  "jie_at": "2026-05-05 19:42:36",
+  "fallback": false
+ },
+ "siling|2026-07-29T12:00|29日": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2056,
+   "query_month": 6,
+   "query_day": 2
+  },
+  "age": 7.36,
+  "raw": 7.362993827160494,
+  "forward": false,
+  "jie_name": "小暑",
+  "jie_at": "2026-07-07 09:51:52",
+  "fallback": false
+ },
+ "siling|2026-09-29T12:00|29日": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2046,
+   "query_month": 7,
+   "query_day": 3
+  },
+  "age": 3.03,
+  "raw": 3.033398919753086,
+  "forward": true,
+  "jie_name": "寒露",
+  "jie_at": "2026-10-08 14:24:17",
+  "fallback": false
+ },
+ "siling|2026-11-30T12:00|30日": {
+  "params": {
+   "gender": "female",
+   "variant": 3,
+   "query_year": 2047,
+   "query_month": 8,
+   "query_day": 4
+  },
+  "age": 7.59,
+  "raw": 7.586377314814815,
+  "forward": false,
+  "jie_name": "立冬",
+  "jie_at": "2026-11-07 17:46:51",
+  "fallback": false
+ },
+ "solar|2026-06-24T14:30|经度116.4": {
+  "params": {
+   "gender": "male",
+   "variant": 0,
+   "query_year": null,
+   "query_month": 9,
+   "query_day": 5
+  },
+  "age": 4.27,
+  "raw": 4.27276429025463,
+  "forward": true,
+  "jie_name": "小暑",
+  "jie_at": "2026-07-07 09:51:52",
+  "fallback": false
+ },
+ "zi|2026-01-15T23:59|晚子时": {
+  "params": {
+   "gender": "female",
+   "variant": 1,
+   "query_year": 2049,
+   "query_month": 10,
+   "query_day": 6
+  },
+  "age": 6.39,
+  "raw": 6.38835262345679,
+  "forward": true,
+  "jie_name": "立春",
+  "jie_at": "2026-02-04 03:56:41",
+  "fallback": false
+ },
+ "zi|2026-06-15T23:59|晚子时": {
+  "params": {
+   "gender": "male",
+   "variant": 2,
+   "query_year": 2050,
+   "query_month": 11,
+   "query_day": 7
+  },
+  "age": 7.14,
+  "raw": 7.1372376543209874,
+  "forward": true,
+  "jie_name": "小暑",
+  "jie_at": "2026-07-07 09:51:52",
+  "fallback": false
+ }
+}

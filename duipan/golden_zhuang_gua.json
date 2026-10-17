@@ -1,0 +1,4738 @@
+{
+ "1": {
+  "num": 1,
+  "upper": 1,
+  "lower": 1,
+  "upper_name": "乾",
+  "lower_name": "乾",
+  "gua_name": "乾",
+  "palace": "乾",
+  "palace_wuxing": "金",
+  "palace_position": 1,
+  "gua_type": "八纯卦",
+  "world_line": 6,
+  "application_line": 3,
+  "lines": [
+   1,
+   1,
+   1,
+   1,
+   1,
+   1
+  ],
+  "gua_shen": "巳",
+  "world_yin_yang": "阳",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "子",
+    "wuxing": "水",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "寅",
+    "wuxing": "木",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "辰",
+    "wuxing": "土",
+    "liu_qin": "父母",
+    "shi_ying": "应"
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "午",
+    "wuxing": "火",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "申",
+    "wuxing": "金",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "戌",
+    "wuxing": "土",
+    "liu_qin": "父母",
+    "shi_ying": "世"
+   }
+  ]
+ },
+ "2": {
+  "num": 2,
+  "upper": 8,
+  "lower": 8,
+  "upper_name": "坤",
+  "lower_name": "坤",
+  "gua_name": "坤",
+  "palace": "坤",
+  "palace_wuxing": "土",
+  "palace_position": 1,
+  "gua_type": "八纯卦",
+  "world_line": 6,
+  "application_line": 3,
+  "lines": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "gua_shen": "亥",
+  "world_yin_yang": "阴",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "未",
+    "wuxing": "土",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "巳",
+    "wuxing": "火",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "卯",
+    "wuxing": "木",
+    "liu_qin": "官鬼",
+    "shi_ying": "应"
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "丑",
+    "wuxing": "土",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "亥",
+    "wuxing": "水",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "酉",
+    "wuxing": "金",
+    "liu_qin": "子孙",
+    "shi_ying": "世"
+   }
+  ]
+ },
+ "3": {
+  "num": 3,
+  "upper": 6,
+  "lower": 4,
+  "upper_name": "坎",
+  "lower_name": "震",
+  "gua_name": "屯",
+  "palace": "坎",
+  "palace_wuxing": "水",
+  "palace_position": 3,
+  "gua_type": "二世卦",
+  "world_line": 2,
+  "application_line": 5,
+  "lines": [
+   1,
+   0,
+   0,
+   0,
+   1,
+   0
+  ],
+  "gua_shen": "未",
+  "world_yin_yang": "阴",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "子",
+    "wuxing": "水",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "寅",
+    "wuxing": "木",
+    "liu_qin": "子孙",
+    "shi_ying": "世"
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "辰",
+    "wuxing": "土",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "申",
+    "wuxing": "金",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "戌",
+    "wuxing": "土",
+    "liu_qin": "官鬼",
+    "shi_ying": "应"
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "子",
+    "wuxing": "水",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "4": {
+  "num": 4,
+  "upper": 7,
+  "lower": 6,
+  "upper_name": "艮",
+  "lower_name": "坎",
+  "gua_name": "蒙",
+  "palace": "离",
+  "palace_wuxing": "火",
+  "palace_position": 5,
+  "gua_type": "四世卦",
+  "world_line": 4,
+  "application_line": 1,
+  "lines": [
+   0,
+   1,
+   0,
+   0,
+   0,
+   1
+  ],
+  "gua_shen": "酉",
+  "world_yin_yang": "阴",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "寅",
+    "wuxing": "木",
+    "liu_qin": "父母",
+    "shi_ying": "应"
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "辰",
+    "wuxing": "土",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "午",
+    "wuxing": "火",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "戌",
+    "wuxing": "土",
+    "liu_qin": "子孙",
+    "shi_ying": "世"
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "子",
+    "wuxing": "水",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "寅",
+    "wuxing": "木",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "5": {
+  "num": 5,
+  "upper": 6,
+  "lower": 1,
+  "upper_name": "坎",
+  "lower_name": "乾",
+  "gua_name": "需",
+  "palace": "坤",
+  "palace_wuxing": "土",
+  "palace_position": 7,
+  "gua_type": "游魂卦",
+  "world_line": 4,
+  "application_line": 1,
+  "lines": [
+   1,
+   1,
+   1,
+   0,
+   1,
+   0
+  ],
+  "gua_shen": "酉",
+  "world_yin_yang": "阴",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "子",
+    "wuxing": "水",
+    "liu_qin": "妻财",
+    "shi_ying": "应"
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "寅",
+    "wuxing": "木",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "辰",
+    "wuxing": "土",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "申",
+    "wuxing": "金",
+    "liu_qin": "子孙",
+    "shi_ying": "世"
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "戌",
+    "wuxing": "土",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "子",
+    "wuxing": "水",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "6": {
+  "num": 6,
+  "upper": 1,
+  "lower": 6,
+  "upper_name": "乾",
+  "lower_name": "坎",
+  "gua_name": "讼",
+  "palace": "离",
+  "palace_wuxing": "火",
+  "palace_position": 7,
+  "gua_type": "游魂卦",
+  "world_line": 4,
+  "application_line": 1,
+  "lines": [
+   0,
+   1,
+   0,
+   1,
+   1,
+   1
+  ],
+  "gua_shen": "卯",
+  "world_yin_yang": "阳",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "寅",
+    "wuxing": "木",
+    "liu_qin": "父母",
+    "shi_ying": "应"
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "辰",
+    "wuxing": "土",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "午",
+    "wuxing": "火",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "午",
+    "wuxing": "火",
+    "liu_qin": "兄弟",
+    "shi_ying": "世"
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "申",
+    "wuxing": "金",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "戌",
+    "wuxing": "土",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "7": {
+  "num": 7,
+  "upper": 8,
+  "lower": 6,
+  "upper_name": "坤",
+  "lower_name": "坎",
+  "gua_name": "师",
+  "palace": "坎",
+  "palace_wuxing": "水",
+  "palace_position": 8,
+  "gua_type": "归魂卦",
+  "world_line": 3,
+  "application_line": 6,
+  "lines": [
+   0,
+   1,
+   0,
+   0,
+   0,
+   0
+  ],
+  "gua_shen": "申",
+  "world_yin_yang": "阴",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "寅",
+    "wuxing": "木",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "辰",
+    "wuxing": "土",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "午",
+    "wuxing": "火",
+    "liu_qin": "妻财",
+    "shi_ying": "世"
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "丑",
+    "wuxing": "土",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "亥",
+    "wuxing": "水",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "酉",
+    "wuxing": "金",
+    "liu_qin": "父母",
+    "shi_ying": "应"
+   }
+  ]
+ },
+ "8": {
+  "num": 8,
+  "upper": 6,
+  "lower": 8,
+  "upper_name": "坎",
+  "lower_name": "坤",
+  "gua_name": "比",
+  "palace": "坤",
+  "palace_wuxing": "土",
+  "palace_position": 8,
+  "gua_type": "归魂卦",
+  "world_line": 3,
+  "application_line": 6,
+  "lines": [
+   0,
+   0,
+   0,
+   0,
+   1,
+   0
+  ],
+  "gua_shen": "申",
+  "world_yin_yang": "阴",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "未",
+    "wuxing": "土",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "巳",
+    "wuxing": "火",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "卯",
+    "wuxing": "木",
+    "liu_qin": "官鬼",
+    "shi_ying": "世"
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "申",
+    "wuxing": "金",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "戌",
+    "wuxing": "土",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "子",
+    "wuxing": "水",
+    "liu_qin": "妻财",
+    "shi_ying": "应"
+   }
+  ]
+ },
+ "9": {
+  "num": 9,
+  "upper": 5,
+  "lower": 1,
+  "upper_name": "巽",
+  "lower_name": "乾",
+  "gua_name": "小畜",
+  "palace": "巽",
+  "palace_wuxing": "木",
+  "palace_position": 2,
+  "gua_type": "一世卦",
+  "world_line": 1,
+  "application_line": 4,
+  "lines": [
+   1,
+   1,
+   1,
+   0,
+   1,
+   1
+  ],
+  "gua_shen": "子",
+  "world_yin_yang": "阳",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "子",
+    "wuxing": "水",
+    "liu_qin": "父母",
+    "shi_ying": "世"
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "寅",
+    "wuxing": "木",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "辰",
+    "wuxing": "土",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "未",
+    "wuxing": "土",
+    "liu_qin": "妻财",
+    "shi_ying": "应"
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "巳",
+    "wuxing": "火",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "卯",
+    "wuxing": "木",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "10": {
+  "num": 10,
+  "upper": 1,
+  "lower": 2,
+  "upper_name": "乾",
+  "lower_name": "兑",
+  "gua_name": "履",
+  "palace": "艮",
+  "palace_wuxing": "土",
+  "palace_position": 6,
+  "gua_type": "五世卦",
+  "world_line": 5,
+  "application_line": 2,
+  "lines": [
+   1,
+   1,
+   0,
+   1,
+   1,
+   1
+  ],
+  "gua_shen": "辰",
+  "world_yin_yang": "阳",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "巳",
+    "wuxing": "火",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "卯",
+    "wuxing": "木",
+    "liu_qin": "官鬼",
+    "shi_ying": "应"
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "丑",
+    "wuxing": "土",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "午",
+    "wuxing": "火",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "申",
+    "wuxing": "金",
+    "liu_qin": "子孙",
+    "shi_ying": "世"
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "戌",
+    "wuxing": "土",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "11": {
+  "num": 11,
+  "upper": 8,
+  "lower": 1,
+  "upper_name": "坤",
+  "lower_name": "乾",
+  "gua_name": "泰",
+  "palace": "坤",
+  "palace_wuxing": "土",
+  "palace_position": 4,
+  "gua_type": "三世卦",
+  "world_line": 3,
+  "application_line": 6,
+  "lines": [
+   1,
+   1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "gua_shen": "寅",
+  "world_yin_yang": "阳",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "子",
+    "wuxing": "水",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "寅",
+    "wuxing": "木",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "辰",
+    "wuxing": "土",
+    "liu_qin": "兄弟",
+    "shi_ying": "世"
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "丑",
+    "wuxing": "土",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "亥",
+    "wuxing": "水",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "酉",
+    "wuxing": "金",
+    "liu_qin": "子孙",
+    "shi_ying": "应"
+   }
+  ]
+ },
+ "12": {
+  "num": 12,
+  "upper": 1,
+  "lower": 8,
+  "upper_name": "乾",
+  "lower_name": "坤",
+  "gua_name": "否",
+  "palace": "乾",
+  "palace_wuxing": "金",
+  "palace_position": 4,
+  "gua_type": "三世卦",
+  "world_line": 3,
+  "application_line": 6,
+  "lines": [
+   0,
+   0,
+   0,
+   1,
+   1,
+   1
+  ],
+  "gua_shen": "申",
+  "world_yin_yang": "阴",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "未",
+    "wuxing": "土",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "巳",
+    "wuxing": "火",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "卯",
+    "wuxing": "木",
+    "liu_qin": "妻财",
+    "shi_ying": "世"
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "午",
+    "wuxing": "火",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "申",
+    "wuxing": "金",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "戌",
+    "wuxing": "土",
+    "liu_qin": "父母",
+    "shi_ying": "应"
+   }
+  ]
+ },
+ "13": {
+  "num": 13,
+  "upper": 1,
+  "lower": 3,
+  "upper_name": "乾",
+  "lower_name": "离",
+  "gua_name": "同人",
+  "palace": "离",
+  "palace_wuxing": "火",
+  "palace_position": 8,
+  "gua_type": "归魂卦",
+  "world_line": 3,
+  "application_line": 6,
+  "lines": [
+   1,
+   0,
+   1,
+   1,
+   1,
+   1
+  ],
+  "gua_shen": "寅",
+  "world_yin_yang": "阳",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "卯",
+    "wuxing": "木",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "丑",
+    "wuxing": "土",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "亥",
+    "wuxing": "水",
+    "liu_qin": "官鬼",
+    "shi_ying": "世"
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "午",
+    "wuxing": "火",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "申",
+    "wuxing": "金",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "戌",
+    "wuxing": "土",
+    "liu_qin": "子孙",
+    "shi_ying": "应"
+   }
+  ]
+ },
+ "14": {
+  "num": 14,
+  "upper": 3,
+  "lower": 1,
+  "upper_name": "离",
+  "lower_name": "乾",
+  "gua_name": "大有",
+  "palace": "乾",
+  "palace_wuxing": "金",
+  "palace_position": 8,
+  "gua_type": "归魂卦",
+  "world_line": 3,
+  "application_line": 6,
+  "lines": [
+   1,
+   1,
+   1,
+   1,
+   0,
+   1
+  ],
+  "gua_shen": "寅",
+  "world_yin_yang": "阳",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "子",
+    "wuxing": "水",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "寅",
+    "wuxing": "木",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "辰",
+    "wuxing": "土",
+    "liu_qin": "父母",
+    "shi_ying": "世"
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "酉",
+    "wuxing": "金",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "未",
+    "wuxing": "土",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "巳",
+    "wuxing": "火",
+    "liu_qin": "官鬼",
+    "shi_ying": "应"
+   }
+  ]
+ },
+ "15": {
+  "num": 15,
+  "upper": 8,
+  "lower": 7,
+  "upper_name": "坤",
+  "lower_name": "艮",
+  "gua_name": "谦",
+  "palace": "兑",
+  "palace_wuxing": "金",
+  "palace_position": 6,
+  "gua_type": "五世卦",
+  "world_line": 5,
+  "application_line": 2,
+  "lines": [
+   0,
+   0,
+   1,
+   0,
+   0,
+   0
+  ],
+  "gua_shen": "戌",
+  "world_yin_yang": "阴",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "辰",
+    "wuxing": "土",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "午",
+    "wuxing": "火",
+    "liu_qin": "官鬼",
+    "shi_ying": "应"
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "申",
+    "wuxing": "金",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "丑",
+    "wuxing": "土",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "亥",
+    "wuxing": "水",
+    "liu_qin": "子孙",
+    "shi_ying": "世"
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "酉",
+    "wuxing": "金",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "16": {
+  "num": 16,
+  "upper": 4,
+  "lower": 8,
+  "upper_name": "震",
+  "lower_name": "坤",
+  "gua_name": "豫",
+  "palace": "震",
+  "palace_wuxing": "木",
+  "palace_position": 2,
+  "gua_type": "一世卦",
+  "world_line": 1,
+  "application_line": 4,
+  "lines": [
+   0,
+   0,
+   0,
+   1,
+   0,
+   0
+  ],
+  "gua_shen": "午",
+  "world_yin_yang": "阴",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "未",
+    "wuxing": "土",
+    "liu_qin": "妻财",
+    "shi_ying": "世"
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "巳",
+    "wuxing": "火",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "卯",
+    "wuxing": "木",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "午",
+    "wuxing": "火",
+    "liu_qin": "子孙",
+    "shi_ying": "应"
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "申",
+    "wuxing": "金",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "戌",
+    "wuxing": "土",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "17": {
+  "num": 17,
+  "upper": 2,
+  "lower": 4,
+  "upper_name": "兑",
+  "lower_name": "震",
+  "gua_name": "随",
+  "palace": "震",
+  "palace_wuxing": "木",
+  "palace_position": 8,
+  "gua_type": "归魂卦",
+  "world_line": 3,
+  "application_line": 6,
+  "lines": [
+   1,
+   0,
+   0,
+   1,
+   1,
+   0
+  ],
+  "gua_shen": "申",
+  "world_yin_yang": "阴",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "子",
+    "wuxing": "水",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "寅",
+    "wuxing": "木",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "辰",
+    "wuxing": "土",
+    "liu_qin": "妻财",
+    "shi_ying": "世"
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "亥",
+    "wuxing": "水",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "酉",
+    "wuxing": "金",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "未",
+    "wuxing": "土",
+    "liu_qin": "妻财",
+    "shi_ying": "应"
+   }
+  ]
+ },
+ "18": {
+  "num": 18,
+  "upper": 7,
+  "lower": 5,
+  "upper_name": "艮",
+  "lower_name": "巽",
+  "gua_name": "蛊",
+  "palace": "巽",
+  "palace_wuxing": "木",
+  "palace_position": 8,
+  "gua_type": "归魂卦",
+  "world_line": 3,
+  "application_line": 6,
+  "lines": [
+   0,
+   1,
+   1,
+   0,
+   0,
+   1
+  ],
+  "gua_shen": "寅",
+  "world_yin_yang": "阳",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "丑",
+    "wuxing": "土",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "亥",
+    "wuxing": "水",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "酉",
+    "wuxing": "金",
+    "liu_qin": "官鬼",
+    "shi_ying": "世"
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "戌",
+    "wuxing": "土",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "子",
+    "wuxing": "水",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "寅",
+    "wuxing": "木",
+    "liu_qin": "兄弟",
+    "shi_ying": "应"
+   }
+  ]
+ },
+ "19": {
+  "num": 19,
+  "upper": 8,
+  "lower": 2,
+  "upper_name": "坤",
+  "lower_name": "兑",
+  "gua_name": "临",
+  "palace": "坤",
+  "palace_wuxing": "土",
+  "palace_position": 3,
+  "gua_type": "二世卦",
+  "world_line": 2,
+  "application_line": 5,
+  "lines": [
+   1,
+   1,
+   0,
+   0,
+   0,
+   0
+  ],
+  "gua_shen": "丑",
+  "world_yin_yang": "阳",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "巳",
+    "wuxing": "火",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "卯",
+    "wuxing": "木",
+    "liu_qin": "官鬼",
+    "shi_ying": "世"
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "丑",
+    "wuxing": "土",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "丑",
+    "wuxing": "土",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "亥",
+    "wuxing": "水",
+    "liu_qin": "妻财",
+    "shi_ying": "应"
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "酉",
+    "wuxing": "金",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "20": {
+  "num": 20,
+  "upper": 5,
+  "lower": 8,
+  "upper_name": "巽",
+  "lower_name": "坤",
+  "gua_name": "观",
+  "palace": "乾",
+  "palace_wuxing": "金",
+  "palace_position": 5,
+  "gua_type": "四世卦",
+  "world_line": 4,
+  "application_line": 1,
+  "lines": [
+   0,
+   0,
+   0,
+   0,
+   1,
+   1
+  ],
+  "gua_shen": "酉",
+  "world_yin_yang": "阴",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "未",
+    "wuxing": "土",
+    "liu_qin": "父母",
+    "shi_ying": "应"
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "巳",
+    "wuxing": "火",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "卯",
+    "wuxing": "木",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "未",
+    "wuxing": "土",
+    "liu_qin": "父母",
+    "shi_ying": "世"
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "巳",
+    "wuxing": "火",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "卯",
+    "wuxing": "木",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "21": {
+  "num": 21,
+  "upper": 3,
+  "lower": 4,
+  "upper_name": "离",
+  "lower_name": "震",
+  "gua_name": "噬嗑",
+  "palace": "巽",
+  "palace_wuxing": "木",
+  "palace_position": 6,
+  "gua_type": "五世卦",
+  "world_line": 5,
+  "application_line": 2,
+  "lines": [
+   1,
+   0,
+   0,
+   1,
+   0,
+   1
+  ],
+  "gua_shen": "戌",
+  "world_yin_yang": "阴",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "子",
+    "wuxing": "水",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "寅",
+    "wuxing": "木",
+    "liu_qin": "兄弟",
+    "shi_ying": "应"
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "辰",
+    "wuxing": "土",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "酉",
+    "wuxing": "金",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "未",
+    "wuxing": "土",
+    "liu_qin": "妻财",
+    "shi_ying": "世"
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "巳",
+    "wuxing": "火",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "22": {
+  "num": 22,
+  "upper": 7,
+  "lower": 3,
+  "upper_name": "艮",
+  "lower_name": "离",
+  "gua_name": "贲",
+  "palace": "艮",
+  "palace_wuxing": "土",
+  "palace_position": 2,
+  "gua_type": "一世卦",
+  "world_line": 1,
+  "application_line": 4,
+  "lines": [
+   1,
+   0,
+   1,
+   0,
+   0,
+   1
+  ],
+  "gua_shen": "子",
+  "world_yin_yang": "阳",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "卯",
+    "wuxing": "木",
+    "liu_qin": "官鬼",
+    "shi_ying": "世"
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "丑",
+    "wuxing": "土",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "亥",
+    "wuxing": "水",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "戌",
+    "wuxing": "土",
+    "liu_qin": "兄弟",
+    "shi_ying": "应"
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "子",
+    "wuxing": "水",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "寅",
+    "wuxing": "木",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "23": {
+  "num": 23,
+  "upper": 7,
+  "lower": 8,
+  "upper_name": "艮",
+  "lower_name": "坤",
+  "gua_name": "剥",
+  "palace": "乾",
+  "palace_wuxing": "金",
+  "palace_position": 6,
+  "gua_type": "五世卦",
+  "world_line": 5,
+  "application_line": 2,
+  "lines": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   1
+  ],
+  "gua_shen": "戌",
+  "world_yin_yang": "阴",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "未",
+    "wuxing": "土",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "巳",
+    "wuxing": "火",
+    "liu_qin": "官鬼",
+    "shi_ying": "应"
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "卯",
+    "wuxing": "木",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "戌",
+    "wuxing": "土",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "子",
+    "wuxing": "水",
+    "liu_qin": "子孙",
+    "shi_ying": "世"
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "寅",
+    "wuxing": "木",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "24": {
+  "num": 24,
+  "upper": 8,
+  "lower": 4,
+  "upper_name": "坤",
+  "lower_name": "震",
+  "gua_name": "复",
+  "palace": "坤",
+  "palace_wuxing": "土",
+  "palace_position": 2,
+  "gua_type": "一世卦",
+  "world_line": 1,
+  "application_line": 4,
+  "lines": [
+   1,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "gua_shen": "子",
+  "world_yin_yang": "阳",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "子",
+    "wuxing": "水",
+    "liu_qin": "妻财",
+    "shi_ying": "世"
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "寅",
+    "wuxing": "木",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "辰",
+    "wuxing": "土",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "丑",
+    "wuxing": "土",
+    "liu_qin": "兄弟",
+    "shi_ying": "应"
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "亥",
+    "wuxing": "水",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "酉",
+    "wuxing": "金",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "25": {
+  "num": 25,
+  "upper": 1,
+  "lower": 4,
+  "upper_name": "乾",
+  "lower_name": "震",
+  "gua_name": "无妄",
+  "palace": "巽",
+  "palace_wuxing": "木",
+  "palace_position": 5,
+  "gua_type": "四世卦",
+  "world_line": 4,
+  "application_line": 1,
+  "lines": [
+   1,
+   0,
+   0,
+   1,
+   1,
+   1
+  ],
+  "gua_shen": "卯",
+  "world_yin_yang": "阳",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "子",
+    "wuxing": "水",
+    "liu_qin": "父母",
+    "shi_ying": "应"
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "寅",
+    "wuxing": "木",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "辰",
+    "wuxing": "土",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "午",
+    "wuxing": "火",
+    "liu_qin": "子孙",
+    "shi_ying": "世"
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "申",
+    "wuxing": "金",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "戌",
+    "wuxing": "土",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "26": {
+  "num": 26,
+  "upper": 7,
+  "lower": 1,
+  "upper_name": "艮",
+  "lower_name": "乾",
+  "gua_name": "大畜",
+  "palace": "艮",
+  "palace_wuxing": "土",
+  "palace_position": 3,
+  "gua_type": "二世卦",
+  "world_line": 2,
+  "application_line": 5,
+  "lines": [
+   1,
+   1,
+   1,
+   0,
+   0,
+   1
+  ],
+  "gua_shen": "丑",
+  "world_yin_yang": "阳",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "子",
+    "wuxing": "水",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "寅",
+    "wuxing": "木",
+    "liu_qin": "官鬼",
+    "shi_ying": "世"
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "辰",
+    "wuxing": "土",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "戌",
+    "wuxing": "土",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "子",
+    "wuxing": "水",
+    "liu_qin": "妻财",
+    "shi_ying": "应"
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "寅",
+    "wuxing": "木",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "27": {
+  "num": 27,
+  "upper": 7,
+  "lower": 4,
+  "upper_name": "艮",
+  "lower_name": "震",
+  "gua_name": "颐",
+  "palace": "巽",
+  "palace_wuxing": "木",
+  "palace_position": 7,
+  "gua_type": "游魂卦",
+  "world_line": 4,
+  "application_line": 1,
+  "lines": [
+   1,
+   0,
+   0,
+   0,
+   0,
+   1
+  ],
+  "gua_shen": "酉",
+  "world_yin_yang": "阴",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "子",
+    "wuxing": "水",
+    "liu_qin": "父母",
+    "shi_ying": "应"
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "寅",
+    "wuxing": "木",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "辰",
+    "wuxing": "土",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "戌",
+    "wuxing": "土",
+    "liu_qin": "妻财",
+    "shi_ying": "世"
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "子",
+    "wuxing": "水",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "寅",
+    "wuxing": "木",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "28": {
+  "num": 28,
+  "upper": 2,
+  "lower": 5,
+  "upper_name": "兑",
+  "lower_name": "巽",
+  "gua_name": "大过",
+  "palace": "震",
+  "palace_wuxing": "木",
+  "palace_position": 7,
+  "gua_type": "游魂卦",
+  "world_line": 4,
+  "application_line": 1,
+  "lines": [
+   0,
+   1,
+   1,
+   1,
+   1,
+   0
+  ],
+  "gua_shen": "卯",
+  "world_yin_yang": "阳",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "丑",
+    "wuxing": "土",
+    "liu_qin": "妻财",
+    "shi_ying": "应"
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "亥",
+    "wuxing": "水",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "酉",
+    "wuxing": "金",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "亥",
+    "wuxing": "水",
+    "liu_qin": "父母",
+    "shi_ying": "世"
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "酉",
+    "wuxing": "金",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "未",
+    "wuxing": "土",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "29": {
+  "num": 29,
+  "upper": 6,
+  "lower": 6,
+  "upper_name": "坎",
+  "lower_name": "坎",
+  "gua_name": "坎",
+  "palace": "坎",
+  "palace_wuxing": "水",
+  "palace_position": 1,
+  "gua_type": "八纯卦",
+  "world_line": 6,
+  "application_line": 3,
+  "lines": [
+   0,
+   1,
+   0,
+   0,
+   1,
+   0
+  ],
+  "gua_shen": "亥",
+  "world_yin_yang": "阴",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "寅",
+    "wuxing": "木",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "辰",
+    "wuxing": "土",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "午",
+    "wuxing": "火",
+    "liu_qin": "妻财",
+    "shi_ying": "应"
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "申",
+    "wuxing": "金",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "戌",
+    "wuxing": "土",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "子",
+    "wuxing": "水",
+    "liu_qin": "兄弟",
+    "shi_ying": "世"
+   }
+  ]
+ },
+ "30": {
+  "num": 30,
+  "upper": 3,
+  "lower": 3,
+  "upper_name": "离",
+  "lower_name": "离",
+  "gua_name": "离",
+  "palace": "离",
+  "palace_wuxing": "火",
+  "palace_position": 1,
+  "gua_type": "八纯卦",
+  "world_line": 6,
+  "application_line": 3,
+  "lines": [
+   1,
+   0,
+   1,
+   1,
+   0,
+   1
+  ],
+  "gua_shen": "巳",
+  "world_yin_yang": "阳",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "卯",
+    "wuxing": "木",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "丑",
+    "wuxing": "土",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "亥",
+    "wuxing": "水",
+    "liu_qin": "官鬼",
+    "shi_ying": "应"
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "酉",
+    "wuxing": "金",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "未",
+    "wuxing": "土",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "巳",
+    "wuxing": "火",
+    "liu_qin": "兄弟",
+    "shi_ying": "世"
+   }
+  ]
+ },
+ "31": {
+  "num": 31,
+  "upper": 2,
+  "lower": 7,
+  "upper_name": "兑",
+  "lower_name": "艮",
+  "gua_name": "咸",
+  "palace": "兑",
+  "palace_wuxing": "金",
+  "palace_position": 4,
+  "gua_type": "三世卦",
+  "world_line": 3,
+  "application_line": 6,
+  "lines": [
+   0,
+   0,
+   1,
+   1,
+   1,
+   0
+  ],
+  "gua_shen": "寅",
+  "world_yin_yang": "阳",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "辰",
+    "wuxing": "土",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "午",
+    "wuxing": "火",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "申",
+    "wuxing": "金",
+    "liu_qin": "兄弟",
+    "shi_ying": "世"
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "亥",
+    "wuxing": "水",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "酉",
+    "wuxing": "金",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "未",
+    "wuxing": "土",
+    "liu_qin": "父母",
+    "shi_ying": "应"
+   }
+  ]
+ },
+ "32": {
+  "num": 32,
+  "upper": 4,
+  "lower": 5,
+  "upper_name": "震",
+  "lower_name": "巽",
+  "gua_name": "恒",
+  "palace": "震",
+  "palace_wuxing": "木",
+  "palace_position": 4,
+  "gua_type": "三世卦",
+  "world_line": 3,
+  "application_line": 6,
+  "lines": [
+   0,
+   1,
+   1,
+   1,
+   0,
+   0
+  ],
+  "gua_shen": "寅",
+  "world_yin_yang": "阳",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "丑",
+    "wuxing": "土",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "亥",
+    "wuxing": "水",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "酉",
+    "wuxing": "金",
+    "liu_qin": "官鬼",
+    "shi_ying": "世"
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "午",
+    "wuxing": "火",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "申",
+    "wuxing": "金",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "戌",
+    "wuxing": "土",
+    "liu_qin": "妻财",
+    "shi_ying": "应"
+   }
+  ]
+ },
+ "33": {
+  "num": 33,
+  "upper": 1,
+  "lower": 7,
+  "upper_name": "乾",
+  "lower_name": "艮",
+  "gua_name": "遁",
+  "palace": "乾",
+  "palace_wuxing": "金",
+  "palace_position": 3,
+  "gua_type": "二世卦",
+  "world_line": 2,
+  "application_line": 5,
+  "lines": [
+   0,
+   0,
+   1,
+   1,
+   1,
+   1
+  ],
+  "gua_shen": "未",
+  "world_yin_yang": "阴",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "辰",
+    "wuxing": "土",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "午",
+    "wuxing": "火",
+    "liu_qin": "官鬼",
+    "shi_ying": "世"
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "申",
+    "wuxing": "金",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "午",
+    "wuxing": "火",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "申",
+    "wuxing": "金",
+    "liu_qin": "兄弟",
+    "shi_ying": "应"
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "戌",
+    "wuxing": "土",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "34": {
+  "num": 34,
+  "upper": 4,
+  "lower": 1,
+  "upper_name": "震",
+  "lower_name": "乾",
+  "gua_name": "大壮",
+  "palace": "坤",
+  "palace_wuxing": "土",
+  "palace_position": 5,
+  "gua_type": "四世卦",
+  "world_line": 4,
+  "application_line": 1,
+  "lines": [
+   1,
+   1,
+   1,
+   1,
+   0,
+   0
+  ],
+  "gua_shen": "卯",
+  "world_yin_yang": "阳",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "子",
+    "wuxing": "水",
+    "liu_qin": "妻财",
+    "shi_ying": "应"
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "寅",
+    "wuxing": "木",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "辰",
+    "wuxing": "土",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "午",
+    "wuxing": "火",
+    "liu_qin": "父母",
+    "shi_ying": "世"
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "申",
+    "wuxing": "金",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "戌",
+    "wuxing": "土",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "35": {
+  "num": 35,
+  "upper": 3,
+  "lower": 8,
+  "upper_name": "离",
+  "lower_name": "坤",
+  "gua_name": "晋",
+  "palace": "乾",
+  "palace_wuxing": "金",
+  "palace_position": 7,
+  "gua_type": "游魂卦",
+  "world_line": 4,
+  "application_line": 1,
+  "lines": [
+   0,
+   0,
+   0,
+   1,
+   0,
+   1
+  ],
+  "gua_shen": "卯",
+  "world_yin_yang": "阳",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "未",
+    "wuxing": "土",
+    "liu_qin": "父母",
+    "shi_ying": "应"
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "巳",
+    "wuxing": "火",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "卯",
+    "wuxing": "木",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "酉",
+    "wuxing": "金",
+    "liu_qin": "兄弟",
+    "shi_ying": "世"
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "未",
+    "wuxing": "土",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "巳",
+    "wuxing": "火",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "36": {
+  "num": 36,
+  "upper": 8,
+  "lower": 3,
+  "upper_name": "坤",
+  "lower_name": "离",
+  "gua_name": "明夷",
+  "palace": "坎",
+  "palace_wuxing": "水",
+  "palace_position": 7,
+  "gua_type": "游魂卦",
+  "world_line": 4,
+  "application_line": 1,
+  "lines": [
+   1,
+   0,
+   1,
+   0,
+   0,
+   0
+  ],
+  "gua_shen": "酉",
+  "world_yin_yang": "阴",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "卯",
+    "wuxing": "木",
+    "liu_qin": "子孙",
+    "shi_ying": "应"
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "丑",
+    "wuxing": "土",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "亥",
+    "wuxing": "水",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "丑",
+    "wuxing": "土",
+    "liu_qin": "官鬼",
+    "shi_ying": "世"
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "亥",
+    "wuxing": "水",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "酉",
+    "wuxing": "金",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "37": {
+  "num": 37,
+  "upper": 5,
+  "lower": 3,
+  "upper_name": "巽",
+  "lower_name": "离",
+  "gua_name": "家人",
+  "palace": "巽",
+  "palace_wuxing": "木",
+  "palace_position": 3,
+  "gua_type": "二世卦",
+  "world_line": 2,
+  "application_line": 5,
+  "lines": [
+   1,
+   0,
+   1,
+   0,
+   1,
+   1
+  ],
+  "gua_shen": "未",
+  "world_yin_yang": "阴",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "卯",
+    "wuxing": "木",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "丑",
+    "wuxing": "土",
+    "liu_qin": "妻财",
+    "shi_ying": "世"
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "亥",
+    "wuxing": "水",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "未",
+    "wuxing": "土",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "巳",
+    "wuxing": "火",
+    "liu_qin": "子孙",
+    "shi_ying": "应"
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "卯",
+    "wuxing": "木",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "38": {
+  "num": 38,
+  "upper": 3,
+  "lower": 2,
+  "upper_name": "离",
+  "lower_name": "兑",
+  "gua_name": "睽",
+  "palace": "艮",
+  "palace_wuxing": "土",
+  "palace_position": 5,
+  "gua_type": "四世卦",
+  "world_line": 4,
+  "application_line": 1,
+  "lines": [
+   1,
+   1,
+   0,
+   1,
+   0,
+   1
+  ],
+  "gua_shen": "卯",
+  "world_yin_yang": "阳",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "巳",
+    "wuxing": "火",
+    "liu_qin": "父母",
+    "shi_ying": "应"
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "卯",
+    "wuxing": "木",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "丑",
+    "wuxing": "土",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "酉",
+    "wuxing": "金",
+    "liu_qin": "子孙",
+    "shi_ying": "世"
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "未",
+    "wuxing": "土",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "巳",
+    "wuxing": "火",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "39": {
+  "num": 39,
+  "upper": 6,
+  "lower": 7,
+  "upper_name": "坎",
+  "lower_name": "艮",
+  "gua_name": "蹇",
+  "palace": "兑",
+  "palace_wuxing": "金",
+  "palace_position": 5,
+  "gua_type": "四世卦",
+  "world_line": 4,
+  "application_line": 1,
+  "lines": [
+   0,
+   0,
+   1,
+   0,
+   1,
+   0
+  ],
+  "gua_shen": "酉",
+  "world_yin_yang": "阴",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "辰",
+    "wuxing": "土",
+    "liu_qin": "父母",
+    "shi_ying": "应"
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "午",
+    "wuxing": "火",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "申",
+    "wuxing": "金",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "申",
+    "wuxing": "金",
+    "liu_qin": "兄弟",
+    "shi_ying": "世"
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "戌",
+    "wuxing": "土",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "子",
+    "wuxing": "水",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "40": {
+  "num": 40,
+  "upper": 4,
+  "lower": 6,
+  "upper_name": "震",
+  "lower_name": "坎",
+  "gua_name": "解",
+  "palace": "震",
+  "palace_wuxing": "木",
+  "palace_position": 3,
+  "gua_type": "二世卦",
+  "world_line": 2,
+  "application_line": 5,
+  "lines": [
+   0,
+   1,
+   0,
+   1,
+   0,
+   0
+  ],
+  "gua_shen": "丑",
+  "world_yin_yang": "阳",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "寅",
+    "wuxing": "木",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "辰",
+    "wuxing": "土",
+    "liu_qin": "妻财",
+    "shi_ying": "世"
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "午",
+    "wuxing": "火",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "午",
+    "wuxing": "火",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "申",
+    "wuxing": "金",
+    "liu_qin": "官鬼",
+    "shi_ying": "应"
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "戌",
+    "wuxing": "土",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "41": {
+  "num": 41,
+  "upper": 7,
+  "lower": 2,
+  "upper_name": "艮",
+  "lower_name": "兑",
+  "gua_name": "损",
+  "palace": "艮",
+  "palace_wuxing": "土",
+  "palace_position": 4,
+  "gua_type": "三世卦",
+  "world_line": 3,
+  "application_line": 6,
+  "lines": [
+   1,
+   1,
+   0,
+   0,
+   0,
+   1
+  ],
+  "gua_shen": "申",
+  "world_yin_yang": "阴",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "巳",
+    "wuxing": "火",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "卯",
+    "wuxing": "木",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "丑",
+    "wuxing": "土",
+    "liu_qin": "兄弟",
+    "shi_ying": "世"
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "戌",
+    "wuxing": "土",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "子",
+    "wuxing": "水",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "寅",
+    "wuxing": "木",
+    "liu_qin": "官鬼",
+    "shi_ying": "应"
+   }
+  ]
+ },
+ "42": {
+  "num": 42,
+  "upper": 5,
+  "lower": 4,
+  "upper_name": "巽",
+  "lower_name": "震",
+  "gua_name": "益",
+  "palace": "巽",
+  "palace_wuxing": "木",
+  "palace_position": 4,
+  "gua_type": "三世卦",
+  "world_line": 3,
+  "application_line": 6,
+  "lines": [
+   1,
+   0,
+   0,
+   0,
+   1,
+   1
+  ],
+  "gua_shen": "申",
+  "world_yin_yang": "阴",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "子",
+    "wuxing": "水",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "寅",
+    "wuxing": "木",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "辰",
+    "wuxing": "土",
+    "liu_qin": "妻财",
+    "shi_ying": "世"
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "未",
+    "wuxing": "土",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "巳",
+    "wuxing": "火",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "卯",
+    "wuxing": "木",
+    "liu_qin": "兄弟",
+    "shi_ying": "应"
+   }
+  ]
+ },
+ "43": {
+  "num": 43,
+  "upper": 2,
+  "lower": 1,
+  "upper_name": "兑",
+  "lower_name": "乾",
+  "gua_name": "夬",
+  "palace": "坤",
+  "palace_wuxing": "土",
+  "palace_position": 6,
+  "gua_type": "五世卦",
+  "world_line": 5,
+  "application_line": 2,
+  "lines": [
+   1,
+   1,
+   1,
+   1,
+   1,
+   0
+  ],
+  "gua_shen": "辰",
+  "world_yin_yang": "阳",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "子",
+    "wuxing": "水",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "寅",
+    "wuxing": "木",
+    "liu_qin": "官鬼",
+    "shi_ying": "应"
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "辰",
+    "wuxing": "土",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "亥",
+    "wuxing": "水",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "酉",
+    "wuxing": "金",
+    "liu_qin": "子孙",
+    "shi_ying": "世"
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "未",
+    "wuxing": "土",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "44": {
+  "num": 44,
+  "upper": 1,
+  "lower": 5,
+  "upper_name": "乾",
+  "lower_name": "巽",
+  "gua_name": "姤",
+  "palace": "乾",
+  "palace_wuxing": "金",
+  "palace_position": 2,
+  "gua_type": "一世卦",
+  "world_line": 1,
+  "application_line": 4,
+  "lines": [
+   0,
+   1,
+   1,
+   1,
+   1,
+   1
+  ],
+  "gua_shen": "午",
+  "world_yin_yang": "阴",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "丑",
+    "wuxing": "土",
+    "liu_qin": "父母",
+    "shi_ying": "世"
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "亥",
+    "wuxing": "水",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "酉",
+    "wuxing": "金",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "午",
+    "wuxing": "火",
+    "liu_qin": "官鬼",
+    "shi_ying": "应"
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "申",
+    "wuxing": "金",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "戌",
+    "wuxing": "土",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "45": {
+  "num": 45,
+  "upper": 2,
+  "lower": 8,
+  "upper_name": "兑",
+  "lower_name": "坤",
+  "gua_name": "萃",
+  "palace": "兑",
+  "palace_wuxing": "金",
+  "palace_position": 3,
+  "gua_type": "二世卦",
+  "world_line": 2,
+  "application_line": 5,
+  "lines": [
+   0,
+   0,
+   0,
+   1,
+   1,
+   0
+  ],
+  "gua_shen": "未",
+  "world_yin_yang": "阴",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "未",
+    "wuxing": "土",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "巳",
+    "wuxing": "火",
+    "liu_qin": "官鬼",
+    "shi_ying": "世"
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "卯",
+    "wuxing": "木",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "亥",
+    "wuxing": "水",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "酉",
+    "wuxing": "金",
+    "liu_qin": "兄弟",
+    "shi_ying": "应"
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "未",
+    "wuxing": "土",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "46": {
+  "num": 46,
+  "upper": 8,
+  "lower": 5,
+  "upper_name": "坤",
+  "lower_name": "巽",
+  "gua_name": "升",
+  "palace": "震",
+  "palace_wuxing": "木",
+  "palace_position": 5,
+  "gua_type": "四世卦",
+  "world_line": 4,
+  "application_line": 1,
+  "lines": [
+   0,
+   1,
+   1,
+   0,
+   0,
+   0
+  ],
+  "gua_shen": "酉",
+  "world_yin_yang": "阴",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "丑",
+    "wuxing": "土",
+    "liu_qin": "妻财",
+    "shi_ying": "应"
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "亥",
+    "wuxing": "水",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "酉",
+    "wuxing": "金",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "丑",
+    "wuxing": "土",
+    "liu_qin": "妻财",
+    "shi_ying": "世"
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "亥",
+    "wuxing": "水",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "酉",
+    "wuxing": "金",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "47": {
+  "num": 47,
+  "upper": 2,
+  "lower": 6,
+  "upper_name": "兑",
+  "lower_name": "坎",
+  "gua_name": "困",
+  "palace": "兑",
+  "palace_wuxing": "金",
+  "palace_position": 2,
+  "gua_type": "一世卦",
+  "world_line": 1,
+  "application_line": 4,
+  "lines": [
+   0,
+   1,
+   0,
+   1,
+   1,
+   0
+  ],
+  "gua_shen": "午",
+  "world_yin_yang": "阴",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "寅",
+    "wuxing": "木",
+    "liu_qin": "妻财",
+    "shi_ying": "世"
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "辰",
+    "wuxing": "土",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "午",
+    "wuxing": "火",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "亥",
+    "wuxing": "水",
+    "liu_qin": "子孙",
+    "shi_ying": "应"
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "酉",
+    "wuxing": "金",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "未",
+    "wuxing": "土",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "48": {
+  "num": 48,
+  "upper": 6,
+  "lower": 5,
+  "upper_name": "坎",
+  "lower_name": "巽",
+  "gua_name": "井",
+  "palace": "震",
+  "palace_wuxing": "木",
+  "palace_position": 6,
+  "gua_type": "五世卦",
+  "world_line": 5,
+  "application_line": 2,
+  "lines": [
+   0,
+   1,
+   1,
+   0,
+   1,
+   0
+  ],
+  "gua_shen": "辰",
+  "world_yin_yang": "阳",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "丑",
+    "wuxing": "土",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "亥",
+    "wuxing": "水",
+    "liu_qin": "父母",
+    "shi_ying": "应"
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "酉",
+    "wuxing": "金",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "申",
+    "wuxing": "金",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "戌",
+    "wuxing": "土",
+    "liu_qin": "妻财",
+    "shi_ying": "世"
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "子",
+    "wuxing": "水",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "49": {
+  "num": 49,
+  "upper": 2,
+  "lower": 3,
+  "upper_name": "兑",
+  "lower_name": "离",
+  "gua_name": "革",
+  "palace": "坎",
+  "palace_wuxing": "水",
+  "palace_position": 5,
+  "gua_type": "四世卦",
+  "world_line": 4,
+  "application_line": 1,
+  "lines": [
+   1,
+   0,
+   1,
+   1,
+   1,
+   0
+  ],
+  "gua_shen": "卯",
+  "world_yin_yang": "阳",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "卯",
+    "wuxing": "木",
+    "liu_qin": "子孙",
+    "shi_ying": "应"
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "丑",
+    "wuxing": "土",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "亥",
+    "wuxing": "水",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "亥",
+    "wuxing": "水",
+    "liu_qin": "兄弟",
+    "shi_ying": "世"
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "酉",
+    "wuxing": "金",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "未",
+    "wuxing": "土",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "50": {
+  "num": 50,
+  "upper": 3,
+  "lower": 5,
+  "upper_name": "离",
+  "lower_name": "巽",
+  "gua_name": "鼎",
+  "palace": "离",
+  "palace_wuxing": "火",
+  "palace_position": 3,
+  "gua_type": "二世卦",
+  "world_line": 2,
+  "application_line": 5,
+  "lines": [
+   0,
+   1,
+   1,
+   1,
+   0,
+   1
+  ],
+  "gua_shen": "丑",
+  "world_yin_yang": "阳",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "丑",
+    "wuxing": "土",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "亥",
+    "wuxing": "水",
+    "liu_qin": "官鬼",
+    "shi_ying": "世"
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "酉",
+    "wuxing": "金",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "酉",
+    "wuxing": "金",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "未",
+    "wuxing": "土",
+    "liu_qin": "子孙",
+    "shi_ying": "应"
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "巳",
+    "wuxing": "火",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "51": {
+  "num": 51,
+  "upper": 4,
+  "lower": 4,
+  "upper_name": "震",
+  "lower_name": "震",
+  "gua_name": "震",
+  "palace": "震",
+  "palace_wuxing": "木",
+  "palace_position": 1,
+  "gua_type": "八纯卦",
+  "world_line": 6,
+  "application_line": 3,
+  "lines": [
+   1,
+   0,
+   0,
+   1,
+   0,
+   0
+  ],
+  "gua_shen": "亥",
+  "world_yin_yang": "阴",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "子",
+    "wuxing": "水",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "寅",
+    "wuxing": "木",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "辰",
+    "wuxing": "土",
+    "liu_qin": "妻财",
+    "shi_ying": "应"
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "午",
+    "wuxing": "火",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "申",
+    "wuxing": "金",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "戌",
+    "wuxing": "土",
+    "liu_qin": "妻财",
+    "shi_ying": "世"
+   }
+  ]
+ },
+ "52": {
+  "num": 52,
+  "upper": 7,
+  "lower": 7,
+  "upper_name": "艮",
+  "lower_name": "艮",
+  "gua_name": "艮",
+  "palace": "艮",
+  "palace_wuxing": "土",
+  "palace_position": 1,
+  "gua_type": "八纯卦",
+  "world_line": 6,
+  "application_line": 3,
+  "lines": [
+   0,
+   0,
+   1,
+   0,
+   0,
+   1
+  ],
+  "gua_shen": "巳",
+  "world_yin_yang": "阳",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "辰",
+    "wuxing": "土",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "午",
+    "wuxing": "火",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "申",
+    "wuxing": "金",
+    "liu_qin": "子孙",
+    "shi_ying": "应"
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "戌",
+    "wuxing": "土",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "子",
+    "wuxing": "水",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "寅",
+    "wuxing": "木",
+    "liu_qin": "官鬼",
+    "shi_ying": "世"
+   }
+  ]
+ },
+ "53": {
+  "num": 53,
+  "upper": 5,
+  "lower": 7,
+  "upper_name": "巽",
+  "lower_name": "艮",
+  "gua_name": "渐",
+  "palace": "艮",
+  "palace_wuxing": "土",
+  "palace_position": 8,
+  "gua_type": "归魂卦",
+  "world_line": 3,
+  "application_line": 6,
+  "lines": [
+   0,
+   0,
+   1,
+   0,
+   1,
+   1
+  ],
+  "gua_shen": "寅",
+  "world_yin_yang": "阳",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "辰",
+    "wuxing": "土",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "午",
+    "wuxing": "火",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "申",
+    "wuxing": "金",
+    "liu_qin": "子孙",
+    "shi_ying": "世"
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "未",
+    "wuxing": "土",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "巳",
+    "wuxing": "火",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "卯",
+    "wuxing": "木",
+    "liu_qin": "官鬼",
+    "shi_ying": "应"
+   }
+  ]
+ },
+ "54": {
+  "num": 54,
+  "upper": 4,
+  "lower": 2,
+  "upper_name": "震",
+  "lower_name": "兑",
+  "gua_name": "归妹",
+  "palace": "兑",
+  "palace_wuxing": "金",
+  "palace_position": 8,
+  "gua_type": "归魂卦",
+  "world_line": 3,
+  "application_line": 6,
+  "lines": [
+   1,
+   1,
+   0,
+   1,
+   0,
+   0
+  ],
+  "gua_shen": "申",
+  "world_yin_yang": "阴",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "巳",
+    "wuxing": "火",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "卯",
+    "wuxing": "木",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "丑",
+    "wuxing": "土",
+    "liu_qin": "父母",
+    "shi_ying": "世"
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "午",
+    "wuxing": "火",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "申",
+    "wuxing": "金",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "戌",
+    "wuxing": "土",
+    "liu_qin": "父母",
+    "shi_ying": "应"
+   }
+  ]
+ },
+ "55": {
+  "num": 55,
+  "upper": 4,
+  "lower": 3,
+  "upper_name": "震",
+  "lower_name": "离",
+  "gua_name": "丰",
+  "palace": "坎",
+  "palace_wuxing": "水",
+  "palace_position": 6,
+  "gua_type": "五世卦",
+  "world_line": 5,
+  "application_line": 2,
+  "lines": [
+   1,
+   0,
+   1,
+   1,
+   0,
+   0
+  ],
+  "gua_shen": "戌",
+  "world_yin_yang": "阴",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "卯",
+    "wuxing": "木",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "丑",
+    "wuxing": "土",
+    "liu_qin": "官鬼",
+    "shi_ying": "应"
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "亥",
+    "wuxing": "水",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "午",
+    "wuxing": "火",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "申",
+    "wuxing": "金",
+    "liu_qin": "父母",
+    "shi_ying": "世"
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "戌",
+    "wuxing": "土",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "56": {
+  "num": 56,
+  "upper": 3,
+  "lower": 7,
+  "upper_name": "离",
+  "lower_name": "艮",
+  "gua_name": "旅",
+  "palace": "离",
+  "palace_wuxing": "火",
+  "palace_position": 2,
+  "gua_type": "一世卦",
+  "world_line": 1,
+  "application_line": 4,
+  "lines": [
+   0,
+   0,
+   1,
+   1,
+   0,
+   1
+  ],
+  "gua_shen": "午",
+  "world_yin_yang": "阴",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "辰",
+    "wuxing": "土",
+    "liu_qin": "子孙",
+    "shi_ying": "世"
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "午",
+    "wuxing": "火",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "申",
+    "wuxing": "金",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "酉",
+    "wuxing": "金",
+    "liu_qin": "妻财",
+    "shi_ying": "应"
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "未",
+    "wuxing": "土",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "巳",
+    "wuxing": "火",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "57": {
+  "num": 57,
+  "upper": 5,
+  "lower": 5,
+  "upper_name": "巽",
+  "lower_name": "巽",
+  "gua_name": "巽",
+  "palace": "巽",
+  "palace_wuxing": "木",
+  "palace_position": 1,
+  "gua_type": "八纯卦",
+  "world_line": 6,
+  "application_line": 3,
+  "lines": [
+   0,
+   1,
+   1,
+   0,
+   1,
+   1
+  ],
+  "gua_shen": "巳",
+  "world_yin_yang": "阳",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "丑",
+    "wuxing": "土",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "亥",
+    "wuxing": "水",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "酉",
+    "wuxing": "金",
+    "liu_qin": "官鬼",
+    "shi_ying": "应"
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "未",
+    "wuxing": "土",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "巳",
+    "wuxing": "火",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "卯",
+    "wuxing": "木",
+    "liu_qin": "兄弟",
+    "shi_ying": "世"
+   }
+  ]
+ },
+ "58": {
+  "num": 58,
+  "upper": 2,
+  "lower": 2,
+  "upper_name": "兑",
+  "lower_name": "兑",
+  "gua_name": "兑",
+  "palace": "兑",
+  "palace_wuxing": "金",
+  "palace_position": 1,
+  "gua_type": "八纯卦",
+  "world_line": 6,
+  "application_line": 3,
+  "lines": [
+   1,
+   1,
+   0,
+   1,
+   1,
+   0
+  ],
+  "gua_shen": "亥",
+  "world_yin_yang": "阴",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "巳",
+    "wuxing": "火",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "卯",
+    "wuxing": "木",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "丑",
+    "wuxing": "土",
+    "liu_qin": "父母",
+    "shi_ying": "应"
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "亥",
+    "wuxing": "水",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "酉",
+    "wuxing": "金",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "未",
+    "wuxing": "土",
+    "liu_qin": "父母",
+    "shi_ying": "世"
+   }
+  ]
+ },
+ "59": {
+  "num": 59,
+  "upper": 5,
+  "lower": 6,
+  "upper_name": "巽",
+  "lower_name": "坎",
+  "gua_name": "涣",
+  "palace": "离",
+  "palace_wuxing": "火",
+  "palace_position": 6,
+  "gua_type": "五世卦",
+  "world_line": 5,
+  "application_line": 2,
+  "lines": [
+   0,
+   1,
+   0,
+   0,
+   1,
+   1
+  ],
+  "gua_shen": "辰",
+  "world_yin_yang": "阳",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "寅",
+    "wuxing": "木",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "辰",
+    "wuxing": "土",
+    "liu_qin": "子孙",
+    "shi_ying": "应"
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "午",
+    "wuxing": "火",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "未",
+    "wuxing": "土",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "巳",
+    "wuxing": "火",
+    "liu_qin": "兄弟",
+    "shi_ying": "世"
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "卯",
+    "wuxing": "木",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "60": {
+  "num": 60,
+  "upper": 6,
+  "lower": 2,
+  "upper_name": "坎",
+  "lower_name": "兑",
+  "gua_name": "节",
+  "palace": "坎",
+  "palace_wuxing": "水",
+  "palace_position": 2,
+  "gua_type": "一世卦",
+  "world_line": 1,
+  "application_line": 4,
+  "lines": [
+   1,
+   1,
+   0,
+   0,
+   1,
+   0
+  ],
+  "gua_shen": "子",
+  "world_yin_yang": "阳",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "巳",
+    "wuxing": "火",
+    "liu_qin": "妻财",
+    "shi_ying": "世"
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "卯",
+    "wuxing": "木",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "丑",
+    "wuxing": "土",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "申",
+    "wuxing": "金",
+    "liu_qin": "父母",
+    "shi_ying": "应"
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "戌",
+    "wuxing": "土",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "子",
+    "wuxing": "水",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "61": {
+  "num": 61,
+  "upper": 5,
+  "lower": 2,
+  "upper_name": "巽",
+  "lower_name": "兑",
+  "gua_name": "中孚",
+  "palace": "艮",
+  "palace_wuxing": "土",
+  "palace_position": 7,
+  "gua_type": "游魂卦",
+  "world_line": 4,
+  "application_line": 1,
+  "lines": [
+   1,
+   1,
+   0,
+   0,
+   1,
+   1
+  ],
+  "gua_shen": "酉",
+  "world_yin_yang": "阴",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "巳",
+    "wuxing": "火",
+    "liu_qin": "父母",
+    "shi_ying": "应"
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "卯",
+    "wuxing": "木",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "丑",
+    "wuxing": "土",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "未",
+    "wuxing": "土",
+    "liu_qin": "兄弟",
+    "shi_ying": "世"
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "巳",
+    "wuxing": "火",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "卯",
+    "wuxing": "木",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "62": {
+  "num": 62,
+  "upper": 4,
+  "lower": 7,
+  "upper_name": "震",
+  "lower_name": "艮",
+  "gua_name": "小过",
+  "palace": "兑",
+  "palace_wuxing": "金",
+  "palace_position": 7,
+  "gua_type": "游魂卦",
+  "world_line": 4,
+  "application_line": 1,
+  "lines": [
+   0,
+   0,
+   1,
+   1,
+   0,
+   0
+  ],
+  "gua_shen": "卯",
+  "world_yin_yang": "阳",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "辰",
+    "wuxing": "土",
+    "liu_qin": "父母",
+    "shi_ying": "应"
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "午",
+    "wuxing": "火",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "申",
+    "wuxing": "金",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "午",
+    "wuxing": "火",
+    "liu_qin": "官鬼",
+    "shi_ying": "世"
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "申",
+    "wuxing": "金",
+    "liu_qin": "兄弟",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "戌",
+    "wuxing": "土",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   }
+  ]
+ },
+ "63": {
+  "num": 63,
+  "upper": 6,
+  "lower": 3,
+  "upper_name": "坎",
+  "lower_name": "离",
+  "gua_name": "既济",
+  "palace": "坎",
+  "palace_wuxing": "水",
+  "palace_position": 4,
+  "gua_type": "三世卦",
+  "world_line": 3,
+  "application_line": 6,
+  "lines": [
+   1,
+   0,
+   1,
+   0,
+   1,
+   0
+  ],
+  "gua_shen": "寅",
+  "world_yin_yang": "阳",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "卯",
+    "wuxing": "木",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "丑",
+    "wuxing": "土",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "亥",
+    "wuxing": "水",
+    "liu_qin": "兄弟",
+    "shi_ying": "世"
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "申",
+    "wuxing": "金",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "戌",
+    "wuxing": "土",
+    "liu_qin": "官鬼",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "子",
+    "wuxing": "水",
+    "liu_qin": "兄弟",
+    "shi_ying": "应"
+   }
+  ]
+ },
+ "64": {
+  "num": 64,
+  "upper": 3,
+  "lower": 6,
+  "upper_name": "离",
+  "lower_name": "坎",
+  "gua_name": "未济",
+  "palace": "离",
+  "palace_wuxing": "火",
+  "palace_position": 4,
+  "gua_type": "三世卦",
+  "world_line": 3,
+  "application_line": 6,
+  "lines": [
+   0,
+   1,
+   0,
+   1,
+   0,
+   1
+  ],
+  "gua_shen": "申",
+  "world_yin_yang": "阴",
+  "rows": [
+   {
+    "position": 1,
+    "name": "初爻",
+    "zhi": "寅",
+    "wuxing": "木",
+    "liu_qin": "父母",
+    "shi_ying": ""
+   },
+   {
+    "position": 2,
+    "name": "二爻",
+    "zhi": "辰",
+    "wuxing": "土",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   },
+   {
+    "position": 3,
+    "name": "三爻",
+    "zhi": "午",
+    "wuxing": "火",
+    "liu_qin": "兄弟",
+    "shi_ying": "世"
+   },
+   {
+    "position": 4,
+    "name": "四爻",
+    "zhi": "酉",
+    "wuxing": "金",
+    "liu_qin": "妻财",
+    "shi_ying": ""
+   },
+   {
+    "position": 5,
+    "name": "五爻",
+    "zhi": "未",
+    "wuxing": "土",
+    "liu_qin": "子孙",
+    "shi_ying": ""
+   },
+   {
+    "position": 6,
+    "name": "上爻",
+    "zhi": "巳",
+    "wuxing": "火",
+    "liu_qin": "兄弟",
+    "shi_ying": "应"
+   }
+  ]
+ }
+}

@@ -41,6 +41,12 @@ __pycache__/
 /duipan/js_*.json
 /duipan/probe_meihua.json
 /duipan/*_strict.json
+# ★ 上面那条 `*_strict.json` 会**误伤三个基准**：`golden_bazi_strict.json`、
+#   `golden_bazi_analysis_strict.json`、`golden_bazi_fortune_strict.json`
+#   虽然也以 `_strict` 结尾，但它们和别的 `golden_*.json` 一样是「shushu 说了
+#   什么」的记录，**必须入库**。不补下面这条取反，安全网的真值就少三份，
+#   而且是静默的 —— 门照跑，对着少了一块的基准比。
+!/duipan/golden_*_strict.json
 
 # ── build/ 全是部署产物，由 src/ 生成，不入库 ──────────────
 # 人只改 src/，然后跑 deploy/sync.sh：
