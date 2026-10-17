@@ -9,7 +9,7 @@
 [![官网](https://img.shields.io/badge/%E5%AE%98%E7%BD%91-sqw.somtfly.com-brightgreen)](https://sqw.somtfly.com)
 [![node](https://img.shields.io/badge/node-%5E20.19%20%7C%7C%20%3E%3D22.12-brightgreen)](https://nodejs.org)
 [![mysql](https://img.shields.io/badge/mysql-8.0-blue)](https://www.mysql.com)
-[![license](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
+[![license](https://img.shields.io/badge/license-GPLv3-blue)](./LICENSE)
 
 </div>
 
@@ -270,7 +270,11 @@ done
 
 ## License
 
-[MIT](./LICENSE) © 2026 CQ
+[GNU General Public License v3.0](./LICENSE) © 2026 CQ
+
+本项目以 GPLv3 **only** 发布（`GPL-3.0-only`，不含「或任何更新版本」）。
+你可以自由使用、修改、再分发；再分发衍生作品时须同样以 GPLv3 开放源码，
+并保留版权与许可声明。完整条款见 [LICENSE](./LICENSE)。
 
 ## 致谢
 
