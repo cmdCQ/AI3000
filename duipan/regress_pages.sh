@@ -106,6 +106,12 @@ run diff-mhys  node diff_mhys.mjs
 # 换掉 `decodeURIComponent`），症状会是「新页认得我是登录的、老页认不得」这种极难查的
 # 不一致。这条差分对 AUTH.isLoggedIn / getToken / getUsername 逐个 cookie 串比返回值。
 run diff-auth  node diff_auth_cookie.mjs
+# 六爻结果页 / 记录页的差分（115 例 + 28 个函数逐字比对 + 常量表超集的反向用例）。
+# 记录页那 13 个函数是 `src/app/lib/recordsHistory.js` **一份**服务两户（六爻与梅花），
+# 所以它对着两份老实现各跑一遍 —— 只对一份比，另一户抄错的地方永远看不见。
+# 判据读的是冻结快照 `duipan/legacy_ref/page-liuyao-{result,history}.js`：
+# 老文件已经 `git rm`（7ec4fda），读活文件会 ENOENT，且读活文件 = 判据跟着实现漂。
+run diff-liuyao-rh node diff_liuyao_result_history.mjs
 # 变异套件自己会把驱动跑九遍（每遍改坏一处再还原），故它最慢、放在最后。
 # `fast` 只跳过它 —— 但**发版前必须跑**：驱动里那些断言是写驱动的人自己写的，
 # 只有变异能证伪「这些断言是不是橡皮章」。
@@ -121,4 +127,4 @@ printf '\n═════ 汇总 ═════\n'
 if [ -n "$ENVFAIL" ]; then echo "⚠ 没测到东西：$ENVFAIL"; fi
 if [ -n "$FAIL" ]; then echo "✗ 未过：$FAIL"; exit 1; fi
 if [ -n "$ENVFAIL" ]; then exit 2; fi
-echo "✓ 六个页面驱动 + 三个纯函数差分（含变异套件）全部通过 $SKIPPED"
+echo "✓ 六个页面驱动 + 四个纯函数差分（含变异套件）全部通过 $SKIPPED"

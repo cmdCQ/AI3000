@@ -58,6 +58,13 @@ function makeSandbox(opts) {
     handleApiUnauthorized: () => false,
     openAuthModal: noop,
     CustomEvent: function () {},
+    // `page-liuyao-result.js` 用 `new URLSearchParams(window.location.search)` 取 id。
+    // 它是宿主（浏览器 / node）的全局，**不是** vm 的内建 —— 不显式灌进去就是
+    // `ReferenceError: URLSearchParams is not defined`。
+    URLSearchParams,
+    // `page-liuyao-history.js` 的 `deleteSelected()` 先 `confirm(...)` 再动手。
+    // 浏览器有，桩里没有；默认返回 false（＝用户点了取消，一条都不删）。
+    confirm: () => false,
     // `preloadCoinImages()` 里 `new Image()` 预热六张铜钱图；桩只需要能构造 + 设 src。
     Image: function () { return { src: '', onload: null, onerror: null }; },
     navigator: { userAgent: 'node' },
@@ -76,12 +83,29 @@ function makeSandbox(opts) {
 }
 
 /**
- * @returns {object} 沙箱全局（`triToLines` / `getShichen` / `buildCard` / …都在上面）
+ * 装载**任意一个**老页面脚本（同一个 `makeSandbox`、同一个 vm 装载方式）。
+ *
+ * 抽这个出口是因为六爻有三张老页共用这套桩：排盘页（`legacy_ref/page-liuyao.js`）、
+ * 结果页（`src/web/js/page-liuyao-result.js`）、记录页（`src/web/js/page-liuyao-history.js`）。
+ * 三者的差别只有「跑哪些前置脚本」与「补哪些全局」，所以参数化两个，别复制第二套桩 ——
+ * 复制出来的第二套迟早与第一套长歪，然后差分就在比两份桩的差异而不是两份实现的差异。
+ *
+ * @param {string} file  要装的脚本（绝对路径）
+ * @param {object} [opts]
+ *   · `noLunar` / `noPrereqs` —— 同 `loadLegacy`
+ *   · `prereqs: string[]`    —— 按顺序先跑的 classic 前置脚本（默认不跑）
+ *   · `globals: object`      —— 额外灌进沙箱的全局（浏览器有、桩里没有的那些：
+ *                               `escHtml` 的替身、`refreshAIPanel` 的替身、脚本化的
+ *                               `fetch` / `localStorage` / `AUTH` …）
+ * @returns {object} 沙箱全局（脚本的顶层函数/变量都在上面）
  * @throws 桩不够用时抛 —— 调用方应当把它当「测不出来」（退出 2），不是通过
  */
-function loadLegacy(opts) {
+function loadLegacyScript(file, opts) {
+  opts = opts || {};
   const sb = makeSandbox(opts);
-  if (!(opts && opts.noLunar)) {
+  // 先灌再进 context：进了 context 之后这些属性也是可写的，但顺序上先给更明白。
+  if (opts.globals) Object.assign(sb, opts.globals);
+  if (!opts.noLunar) {
     // 真加载农历库：它是 classic script，跑进同一个沙箱就留下全局 `Lunar`。
     try {
       vm.createContext(sb);
@@ -95,16 +119,27 @@ function loadLegacy(opts) {
     vm.createContext(sb);
   }
   try {
-    if (!(opts && opts.noPrereqs)) {
-      for (const f of PREREQS) vm.runInContext(fs.readFileSync(f, 'utf8'), sb, { filename: f });
+    if (!opts.noPrereqs) {
+      for (const f of opts.prereqs || []) vm.runInContext(fs.readFileSync(f, 'utf8'), sb, { filename: f });
     }
-    vm.runInContext(fs.readFileSync(LEGACY, 'utf8'), sb, { filename: LEGACY });
+    vm.runInContext(fs.readFileSync(file, 'utf8'), sb, { filename: file });
   } catch (e) {
-    const err = new Error(`老脚本在 DOM 桩里没跑起来：${e.message} —— 补 legacy_liuyao.js 的 makeSandbox()`);
+    const err = new Error(
+      `老脚本在 DOM 桩里没跑起来（${path.basename(file)}）：${e.message} —— 补 legacy_liuyao.js 的 makeSandbox()`
+    );
     err.cause = e;
     throw err;
   }
   return sb;
+}
+
+/**
+ * @returns {object} 沙箱全局（`triToLines` / `getShichen` / `buildCard` / …都在上面）
+ * @throws 桩不够用时抛 —— 调用方应当把它当「测不出来」（退出 2），不是通过
+ */
+function loadLegacy(opts) {
+  // 排盘页的原样行为：农历库 + `liuyao_render.js` + 快照。
+  return loadLegacyScript(LEGACY, Object.assign({ prereqs: PREREQS }, opts));
 }
 
 /** 把同一份 DOM 桩装进 Node 真实全局（新模块是被 ESM import 的，走 globalThis.document）。 */
@@ -113,4 +148,4 @@ function installDomGlobals(sb) {
   return sb;
 }
 
-module.exports = { loadLegacy, LEGACY, LUNAR, ROOT, makeSandbox, installDomGlobals, ESC_TEXT };
+module.exports = { loadLegacy, loadLegacyScript, LEGACY, LUNAR, PREREQS, ROOT, makeSandbox, installDomGlobals, ESC_TEXT };
