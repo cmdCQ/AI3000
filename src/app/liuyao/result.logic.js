@@ -1,3 +1,7 @@
+import { AUTH } from '../shared/auth.js';
+import { refreshAIPanel } from '../shared/aiPanel.js';
+import { savedAnalysis, renderLiuyaoResult } from '../shared/liuyaoRender.js';
+import { escHtml } from '../shared/uiCommon.js';
 // 六爻结果页（`/liuyao/result.html?id=<记录id>`）的命令式逻辑 —— 阶段 3 第 6 页。
 // 逐字搬运自 `src/web/js/page-liuyao-result.js`（115 行）。
 // ==========================================================================

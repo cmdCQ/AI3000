@@ -36,7 +36,6 @@
        排在 auth.js 之前；但 module 自带 defer，要等 HTML 解析完（auth.js 已跑完）
        才执行。所以真实顺序是 auth.js → main.jsx。main.jsx 用 `flushSync` 同步提交
        骨架，紧接着裸调 `loadMain()` —— 那时 `#myContent` 一定已在 DOM 里。 -->
-<script src="/js/auth.js"></script>
 <script type="module" src="./main.jsx"></script>
 </body>
 </html>

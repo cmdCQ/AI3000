@@ -1,3 +1,7 @@
+import { AUTH } from '../shared/auth.js';
+import { refreshAIPanel } from '../shared/aiPanel.js';
+import { TRIGRAMS, currentGua, currentTopic, currentRecordId, currentResultMeta, currentAiPayload, renderAnalysis, renderResult } from '../shared/mhysRender.js';
+import { setCurrentAiPayload, setCurrentRecordId, setCurrentResultMeta } from '../shared/mhysRender.js';
 import { Solar, Lunar } from '../shared/lunar.js'
 
 // 梅花易数起卦页 —— 「取数与渲染之外」的那一半：纯函数 + 时间选择器状态。
@@ -558,22 +562,22 @@ export async function startDivination(e) {
   // ⚠ 认记录 id 要**等 showResultHere 渲染完**再说：renderResult() 里会把
   //   `currentRecordId` 清空（它属于上一卦，见那个函数里的注释）。先设就被清掉了 ——
   //   那样这一卦的解读不会回写记录，而界面上一点异常都看不出来。
-  currentRecordId = newRecordId;
+  setCurrentRecordId( newRecordId);
 }
 
 // 结果就渲染在本页下面（原先这里是跳 /mhys/result.html）。
 // 结果页 result.html 没废：历史记录点进去看的还是它，两页共用 mhys_render.js。
 export function showResultHere(result) {
   // 这两项 result.html 的 load() 会填，本页也得填 —— AI 面板（下一步）要用
-  currentResultMeta = {
+  setCurrentResultMeta( {
     divinationTime: result.divinationTime || '',
     createdAt: result.createdAt || '',
     method: result.method || ''
-  };
-  currentAiPayload = {
+  });
+  setCurrentAiPayload( {
     numbers: result.numbers || '',
     lunarInfo: result.lunarInfo || {}
-  };
+  });
   var area = document.getElementById('resultArea');
   area.innerHTML = renderResult(result);  // 顺手设好全局 g / currentTopic / currentGua
   renderAnalysis();                       // 必须在插进 DOM 之后，它要找 #analysisArea

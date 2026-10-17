@@ -1,3 +1,4 @@
+import { AUTH, openAuthModal } from '../shared/auth.js';
 // 梅花易数排盘记录页（`/mhys/history.html`）—— 阶段 3 第 8 页。
 // 骨架逐字搬运自 `src/web/mhys/history.html`（51 行），逻辑在
 // `../lib/recordsHistory.js` + `./history.logic.js`。

@@ -31,11 +31,6 @@
      传统 script 会立刻执行、module 是 defer 的，所以这个顺序等价于「依赖先于使用者」。
      阶段 4 收口时它们整体搬进 src/app/，这几个 script 标签一起去掉；
      在那之前 main.jsx 只经由 window 借它们，并写明了死期。 -->
-<script src="/js/auth.js"></script>
-<script src="/js/ui_common.js"></script>
-<script src="/js/bazi_render.js"></script>
-<script src="/js/ai_panel.js"></script>
-<script src="/js/bazi_ai_panel.js"></script>
 <script type="module" src="./main.jsx"></script>
 </body>
 </html>

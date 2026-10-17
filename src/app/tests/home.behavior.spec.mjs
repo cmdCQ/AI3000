@@ -160,7 +160,15 @@ test.describe('已登录', () => {
     await expect(page.locator('body')).toHaveCSS('overflow', 'hidden')
 
     // 点遮罩背景关闭（点内部不关）—— 老实现 page-home.js:131
-    await page.locator('#chatOverlay').click({ position: { x: 3, y: 3 } })
+    //
+    // ★ 必须先拉宽视口。500px（本套件默认）下 `.chat-overlay-inner` 是
+    // `position:fixed; inset:0`，把遮罩全盖住了，elementFromPoint 在 (3,3)
+    // 拿到的是 `chatIframe` —— 那不是遮罩，点它当然不关。实测线上老页同样
+    // 不关（老页与 probe 新页在 500px 行为一致），所以这是**判据写错了**，
+    // 不是搬迁改坏了。900px 下遮罩两侧留出真实背景区，(6,400) 命中
+    // `#chatOverlay` 本身，线上老页与 probe 新页都会关。
+    await page.setViewportSize({ width: 900, height: 800 })
+    await page.locator('#chatOverlay').click({ position: { x: 6, y: 400 } })
     await expect(page.locator('#chatOverlay')).not.toHaveClass(/\bopen\b/)
     // 只断言「不再 hidden」：老实现把 inline 值清成空串，计算值随浏览器默认解析
     await expect(page.locator('body')).not.toHaveCSS('overflow', 'hidden')

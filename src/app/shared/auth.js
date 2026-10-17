@@ -1,3 +1,7 @@
+// 阶段 4 cut-over：`auth-modal.css` 从「运行时插 <link>」改成静态 import。
+// 原来那条 `link.href = '/css/auth-modal.css'` 依赖 publicDir，删掉 src/web 后必然 404。
+import './authModal.css';
+
 // 阶段 4 cut-over：由 `src/web/js/auth.js` 逐字搬来，只给顶层声明加了 `export `。
 /* 易三千 — Auth (cookie版) */
 
@@ -58,35 +62,11 @@ export var _authModalInjected = false;
 export var _authSmsTimer = 0;
 export var _authModalCssPromise = null;
 
+// 样式随包进首屏，不再需要「等 CSS 加载完再显形」的 Promise。
+// 保留函数名与 `_authModalCssPromise`，是因为 auth.js 内部与过渡期全局还在调它们
+// （死期：阶段 5 清 installGlobals / window 复用时一起删）。
 export function _ensureAuthModalCSS() {
-  if (_authModalCssPromise) return _authModalCssPromise;
-  _authModalCssPromise = new Promise(function(resolve) {
-    var existing = document.querySelector('link[data-auth-modal-css]');
-    if (existing) {
-      if (existing.dataset.loaded === '1' || existing.sheet) {
-        existing.dataset.loaded = '1';
-        resolve();
-        return;
-      }
-      existing.addEventListener('load', function() {
-        existing.dataset.loaded = '1';
-        resolve();
-      }, { once: true });
-      existing.addEventListener('error', function() { resolve(); }, { once: true });
-      return;
-    }
-
-    var link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = '/css/auth-modal.css';
-    link.setAttribute('data-auth-modal-css', '1');
-    link.onload = function() {
-      link.dataset.loaded = '1';
-      resolve();
-    };
-    link.onerror = function() { resolve(); };
-    document.head.appendChild(link);
-  });
+  if (!_authModalCssPromise) _authModalCssPromise = Promise.resolve();
   return _authModalCssPromise;
 }
 
@@ -360,4 +340,19 @@ export function submitAuthRegister() {
     err.textContent = e.message;
     btn.disabled = false; btn.textContent = '注册';
   });
+}
+
+// 阶段 4：模块 A 的 state 由模块 B 写入，ESM 的 import 绑定不可赋值，所以给写方一对 setter。
+
+// ── 阶段 4 桥：本模块生成的 HTML 里还是内联 `onclick="xxx()"`，这些名字必须是全局 ──
+// `src/web/js/*.js` 是 classic script，顶层函数自动挂 window；搬成 ESM 之后不挂了，
+// 内联处理器会抛 `xxx is not defined`（面板按钮点了没反应、控制台一条 pageerror）。
+// 死期：阶段 5 把这批 HTML 换成真实事件监听，与 installGlobals 一起删。
+if (typeof window !== 'undefined') {
+  window.hideAuthModal = hideAuthModal;
+  window.openAuthModal = openAuthModal;
+  window.submitAuthLogin = submitAuthLogin;
+  window.submitAuthRegister = submitAuthRegister;
+  window.submitAuthSms = submitAuthSms;
+  window.switchAuthTab = switchAuthTab;
 }

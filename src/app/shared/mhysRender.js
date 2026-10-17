@@ -399,3 +399,18 @@ export function setSavedAnalysis(v) { savedAnalysis = v; }
 // `g` 是梅花家族的「当前卦对象」（与六爻家族的 currentChart 同角色，名字不同）。
 // conf 的 hasChart 用它判「有没有卦」，所以也要一个读取器。
 export function getG() { return typeof g === 'undefined' ? null : g; }
+
+// 阶段 4：模块 A 的 state 由模块 B 写入，ESM 的 import 绑定不可赋值，所以给写方一对 setter。
+export function setCurrentTopic(v) { currentTopic = v; }
+export function setCurrentRecordId(v) { currentRecordId = v; }
+export function setCurrentResultMeta(v) { currentResultMeta = v; }
+export function setCurrentAiPayload(v) { currentAiPayload = v; }
+
+// ── 阶段 4 桥：本模块生成的 HTML 里还是内联 `onclick="xxx()"`，这些名字必须是全局 ──
+// `src/web/js/*.js` 是 classic script，顶层函数自动挂 window；搬成 ESM 之后不挂了，
+// 内联处理器会抛 `xxx is not defined`（面板按钮点了没反应、控制台一条 pageerror）。
+// 死期：阶段 5 把这批 HTML 换成真实事件监听，与 installGlobals 一起删。
+if (typeof window !== 'undefined') {
+  window.selectGua = selectGua;
+  window.showRelatedGua = showRelatedGua;
+}

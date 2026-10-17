@@ -1,3 +1,7 @@
+import { refreshAIPanel, aiInlineHost } from '../shared/aiPanel.js';
+import { AUTH } from '../shared/auth.js';
+import { AI_PANEL_CONF } from '../shared/liuyaoAiPanel.js';
+import { currentChart, currentTopic, currentGender, currentRecordId, renderLiuyaoResult } from '../shared/liuyaoRender.js';
 // 六爻排盘页（`/liuyao/`，主页面）—— 阶段 3 第 5 页。
 // 逐字搬运自 `src/web/js/page-liuyao.js`（判据快照 `duipan/legacy_ref/page-liuyao.js`，
 // payload sha256 0796c79ced74f04f4d11705db5925af4f83ca27bc8b2249fec584b3ee6ffdf82）。

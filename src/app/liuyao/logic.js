@@ -1,3 +1,8 @@
+import { AUTH } from '../shared/auth.js';
+import { refreshAIPanel } from '../shared/aiPanel.js';
+import { currentChart, currentTopic, currentGender, currentRecordId, renderLiuyaoResult } from '../shared/liuyaoRender.js';
+import { setCurrentGender } from '../shared/liuyaoRender.js';
+import { setCurrentRecordId } from '../shared/mhysRender.js';
 import { Solar, Lunar } from '../shared/lunar.js'
 
 /**
@@ -43,7 +48,7 @@ export const state = {
   tpInitialized: false,
   /** 老 :330 `var currentMethod = 'coin';` */
   currentMethod: 'coin',
-  /** 老 :331 `var currentGender = 'male';` */
+  /** 老 :331 `var setCurrentGender( 'male');` */
   currentGender: 'male',
   /** 老 :400 `var MANUAL_LINES = ['shaoyin' × 6];` —— [初爻,二爻,三爻,四爻,五爻,上爻] */
   MANUAL_LINES: ['shaoyin', 'shaoyin', 'shaoyin', 'shaoyin', 'shaoyin', 'shaoyin'],
@@ -596,7 +601,7 @@ export async function startDivination(e) {
   if (!pay || !pay.chart) { alert('排盘结果不完整，请重试。'); resetBtn(); return; }
 
   // ===== 4. 存记录（有事项才存；存不上不影响看结果，只是记录列表里没有这条） =====
-  currentRecordId = null;
+  setCurrentRecordId( null);
   if (card.topic) {
     try {
       var sresp = await fetch('/api/liuyao-records', {
@@ -612,7 +617,7 @@ export async function startDivination(e) {
       });
       if (sresp.ok) {
         var saved = await sresp.json();
-        currentRecordId = saved.id;
+        setCurrentRecordId( saved.id);
       }
     } catch(e) {}
   }

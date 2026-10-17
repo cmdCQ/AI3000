@@ -1,3 +1,5 @@
+import { BaziAI } from '../shared/baziAiPanel.js';
+import { BaziRender } from '../shared/baziRender.js';
 // 「我的命盘」页 —— 阶段 3 第 1 页。逐字搬运自
 // `src/web/js/page-my-charts.js`（快照见 `duipan/legacy_ref/page-my-charts.js`）。
 // ==========================================================================

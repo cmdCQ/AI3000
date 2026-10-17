@@ -1,3 +1,7 @@
+import { refreshAIPanel, aiInlineHost } from '../shared/aiPanel.js';
+import { AUTH } from '../shared/auth.js';
+import { AI_PANEL_CONF } from '../shared/mhysAiPanel.js';
+import { TRIGRAMS, currentGua, currentTopic, currentRecordId, currentResultMeta, currentAiPayload, renderAnalysis, renderResult } from '../shared/mhysRender.js';
 // 梅花易数起卦页 —— 阶段 3 第 4 页（`/mhys/`）。
 // 逐字搬运自 `src/web/js/page-mhys.js`（判据快照 `duipan/legacy_ref/page-mhys.js`，
 // payload sha256 aad85d443209eaaa4e2080397480b5f163a76fc3049047b3adb762ca32b37f81）。

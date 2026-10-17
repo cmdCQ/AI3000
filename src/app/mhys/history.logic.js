@@ -1,3 +1,4 @@
+import { METHOD_NAMES } from '../shared/mhysRender.js';
 // 梅花易数排盘记录页（`/mhys/history.html`）—— 阶段 3 第 8 页。
 // 逻辑**不在这个文件里**：13 个函数全在 `../lib/recordsHistory.js`，与六爻记录页共用
 // 一份（两份老脚本逐字节相同、只差两张常量表，证据与理由写在那份文件的头注释）。

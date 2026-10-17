@@ -1,3 +1,6 @@
+import { refreshAIPanel, aiInlineHost } from '../shared/aiPanel.js';
+import { AUTH } from '../shared/auth.js';
+import { currentRecordId, savedAnalysis, currentResultMeta, currentAiPayload, renderAnalysis, renderResult } from '../shared/mhysRender.js';
 // 梅花易数结果页（`/mhys/result.html?id=<记录id>`）—— 阶段 3 第 11 页。
 // 骨架逐字搬运自 `src/web/mhys/result.html`（56 行），逻辑在 `./result.logic.js`。
 // ==========================================================================

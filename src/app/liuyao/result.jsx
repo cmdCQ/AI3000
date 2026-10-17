@@ -1,3 +1,8 @@
+import { refreshAIPanel, aiInlineHost } from '../shared/aiPanel.js';
+import { AUTH } from '../shared/auth.js';
+import { AI_PANEL_CONF } from '../shared/liuyaoAiPanel.js';
+import { savedAnalysis, renderLiuyaoResult } from '../shared/liuyaoRender.js';
+import { escHtml } from '../shared/uiCommon.js';
 // 六爻结果页（`/liuyao/result.html?id=<记录id>`）—— 阶段 3 第 6 页。
 // 骨架逐字搬运自 `src/web/liuyao/result.html`（45 行），逻辑在 `./result.logic.js`。
 // ==========================================================================

@@ -470,7 +470,9 @@ const SHELL_HTML = `<div class="adm-root">
  * 动态行（`renderUsers` / `renderDash` 之类用 `esc()` 拼出来的字符串）里还有
  * 用户点击时才解析的 `onclick`，漏一个就是「点了没反应」，不会报错。
  *
- * ★ 这是过渡期胶水，死期 = 阶段 4 共享层 cut-over（和其它页的 installGlobals 一起删）。
+ * ★ 这是过渡期胶水。**死期改判为阶段 5.5（HTML 里的内联 on* 换成真实监听）**：
+ *   阶段 4 只搬共享层，没动本页 HTML，`admin/index.html` 与下面那些模板串里
+ *   仍有 17 处内联 `onclick=`，删了它就等于把按钮点成死的。
  */
 function installGlobals() {
   for (const [name, value] of Object.entries(adminLogic)) {

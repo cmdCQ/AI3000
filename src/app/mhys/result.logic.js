@@ -1,3 +1,7 @@
+import { AUTH } from '../shared/auth.js';
+import { refreshAIPanel } from '../shared/aiPanel.js';
+import { currentRecordId, savedAnalysis, currentResultMeta, currentAiPayload, renderAnalysis, renderResult } from '../shared/mhysRender.js';
+import { setCurrentAiPayload, setCurrentRecordId, setCurrentResultMeta, setSavedAnalysis } from '../shared/mhysRender.js';
 // 梅花易数结果页（`/mhys/result.html?id=<记录id>`）的命令式逻辑 —— 阶段 3 第 11 页。
 // 逐字搬运自 `src/web/js/page-mhys-result.js`（85 行）。
 // ==========================================================================
@@ -45,22 +49,22 @@ export async function load() {
       var result = typeof data.result_data === 'string' ? JSON.parse(data.result_data) : data.result_data;
       result.topic = data.topic;
       result.createdAt = data.created_at ? new Date(data.created_at) : null;
-      currentResultMeta = {
+      setCurrentResultMeta( {
         divinationTime: result.divinationTime || '',
         createdAt: result.createdAt ? (result.createdAt instanceof Date ? result.createdAt.toISOString() : result.createdAt) : (data.created_at || ''),
         method: result.method || ''
-      };
-      currentAiPayload = {
+      });
+      setCurrentAiPayload( {
         numbers: result.numbers || '',
         lunarInfo: result.lunarInfo || {}
-      };
+      });
       area.innerHTML = renderResult(result);
       renderAnalysis();
       // ⚠ 这两项**必须在 renderResult() 之后**挂：那个函数会把与「上一卦」绑定的
       //   状态清空（savedAnalysis / currentRecordId）。顺序反过来 = 从记录点进来时
       //   既看不到已存的解读、解析也没法回写这条记录。
-      currentRecordId = id;
-      savedAnalysis = data.ai_analysis || '';
+      setCurrentRecordId( id);
+      setSavedAnalysis( data.ai_analysis || '');
       // 盘已经在了 → 把 AI 块摆出来（有存过的解读就直接展示，没有就是「开始解卦」）。
       // 必须在上面两行**之后**：早了 panel 认不到这份解析，画的还是「开始解卦」。
       if (typeof refreshAIPanel === 'function') refreshAIPanel();
@@ -76,15 +80,15 @@ export async function load() {
     localStorage.removeItem('mhys_result');
     sessionStorage.removeItem('mhys_result');
     var result = JSON.parse(stored);
-    currentResultMeta = {
+    setCurrentResultMeta( {
       divinationTime: result.divinationTime || '',
       createdAt: result.createdAt || '',
       method: result.method || ''
-    };
-    currentAiPayload = {
+    });
+    setCurrentAiPayload( {
       numbers: result.numbers || '',
       lunarInfo: result.lunarInfo || {}
-    };
+    });
     area.innerHTML = renderResult(result);
     renderAnalysis();
     // ⚠ 这个分支**没有 await**（数据直接从 localStorage 读），所以跑到这儿时页面还在

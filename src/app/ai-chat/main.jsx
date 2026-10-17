@@ -1,4 +1,5 @@
-// AI 对话页 —— 忠实搬运自 src/web/js/page-ai-chat.js（1264 行）+ src/web/ai-chat/index.html。
+
+import { handleApiUnauthorized } from '../shared/auth.js';// AI 对话页 —— 忠实搬运自 src/web/js/page-ai-chat.js（1264 行）+ src/web/ai-chat/index.html。
 // 阶段 2a：**零行为变更**。不许顺手修的任何东西（extractDigits 的宽松匹配、
 // 假 SSE、两支流式实现的不一致收尾）都原样留着，阶段 2b 才动。
 //

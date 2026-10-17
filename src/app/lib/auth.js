@@ -33,19 +33,7 @@ export function sessionCookies(token, username) {
   ]
 }
 
-// ⚠ 过渡期胶水，**死期：阶段 4**（随 src/web/js/auth.js 一起搬进 src/app/ 时删）。
-//
-// 登录/注册弹窗那一整套（DOM 注入、CSS、表单提交、验证码冷却）还有 300+ 行留在
-// 老树 `src/web/js/auth.js` 里，它的 `window.openAuthModal` 是全局的，页面里
-// `<script src="/js/auth.js">` 一引就有。现在照旧调它，不把那 300 行提前搬过来 ——
-// 搬了会和老页面共用同一份实现的问题变成两份。
-//
-// 同样在过渡期借用老全局的还有 `window.handleApiUnauthorized`（流式收尾的 401
-// 分支），它不在本文件里包一层：调用点在 ai-chat/main.jsx，直接写明是借的。
-//
-// 老实现见 src/web/js/auth.js:183-206（openAuthModal / window.openAuthModal）。
-export function openAuthModal(tab) {
-  if (typeof window !== 'undefined' && typeof window.openAuthModal === 'function') {
-    window.openAuthModal(tab);
-  }
-}
+// 阶段 4 收口：这里原来是一层「借老全局 window.openAuthModal」的胶水，
+// 现在 `src/web/js/auth.js` 已搬成 `src/app/shared/auth.js`，直接从那边来。
+// 保留这个再导出，是为了不动 8 个页面的 import 路径（阶段 5 统一改成 shared/）。
+export { openAuthModal } from '../shared/auth.js'

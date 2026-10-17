@@ -1,3 +1,4 @@
+import { AUTH, openAuthModal } from '../shared/auth.js';
 // 六爻排盘记录页（`/liuyao/history.html`）—— 阶段 3 第 7 页。
 // 骨架逐字搬运自 `src/web/liuyao/history.html`（51 行），逻辑在
 // `../lib/recordsHistory.js` + `./history.logic.js`。

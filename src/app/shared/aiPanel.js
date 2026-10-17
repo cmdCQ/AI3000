@@ -102,16 +102,22 @@ export var MH_AI_PANEL_HTML = `
   </div>
 </div>`;
 
-(function mountAIPanel() {
-  function mount() {
-    if (document.getElementById('aiPanel')) return;
-    var box = document.createElement('div');
-    box.innerHTML = MH_AI_PANEL_HTML;
-    while (box.firstChild) document.body.appendChild(box.firstChild);
-  }
-  if (document.body) mount();
-  else document.addEventListener('DOMContentLoaded', mount);
-})();
+// ★ 阶段 4：从「import 就把面板塞进 body」改成「第一次要用时才塞」。
+// 老文件是 classic script，只有页面显式 `<script src="/js/ai_panel.js">` 才会注入；
+// 搬成 ESM 之后，只要模块图上任何一个文件 import 到它（例如 `/mhys/history.html`
+// 为了 METHOD_NAMES 引了 mhysRender），注入就会发生 —— 而这一页从来没有 AI 面板，
+// 视觉基线上直接多出一整块「自动解析 / 追问」。
+// 现在由 aiInlineHost() 与 refreshAIPanel()（= 真正要用面板的两个入口）触发，
+// 时机仍晚于 DOM 就绪，行为与老页一致。
+export function ensureAIPanelMounted() {
+  if (!document.body) return false;
+  if (document.getElementById('aiPanel')) return true;
+  var box = document.createElement('div');
+  box.innerHTML = MH_AI_PANEL_HTML;
+  while (box.firstChild) document.body.appendChild(box.firstChild);
+  bindPanelOverlayClose();
+  return true;
+}
 
 // ===== AI 智能解析 =====
 //
@@ -331,6 +337,7 @@ export function toggleAIPanelFold() {
  * ⚠ 这里**只是摆出来**，不发起任何请求：请求要用户自己点「开始解卦」。
  */
 export function refreshAIPanel() {
+  ensureAIPanelMounted();
   abortAIStream();
   var hist = document.getElementById('aiFollowHist');
   if (hist) hist.innerHTML = '';
@@ -367,6 +374,7 @@ export function refreshAIPanel() {
  * `innerHTML = …` 重建，面板若挂在容器**内部**会被一起清掉。
  */
 export function aiInlineHost() {
+  ensureAIPanelMounted();
   var sel = AIC().hostSelector;
   var area = sel ? document.querySelector(sel) : null;
   if (!area) area = document.getElementById('resultArea');
@@ -742,16 +750,23 @@ async function startAIStream() {
 // overlay 点击关闭（用 JS 监听避免误触）—— 原先各页各写一份（result.html 那个
 // `setTimeout(checkBar)` 定时器，2026-09-25 随页头按钮一起删了），现在搬到面板
 // 自己的文件里：面板在哪一页就在哪一页生效，不必每页各写一次。
-(function bindOverlayClose() {
-  function bind() {
-    var overlay = document.getElementById('aiPanelOverlay');
-    if (!overlay) { setTimeout(bind, 100); return; }
-    if (overlay.dataset.bound) return;
-    overlay.dataset.bound = '1';
-    overlay.addEventListener('click', function(e) {
-      if (e.target === overlay) closeAIPanel();
-    });
-  }
-  if (document.body) bind();
-  else document.addEventListener('DOMContentLoaded', bind);
-})();
+function bindPanelOverlayClose() {
+  var overlay = document.getElementById('aiPanelOverlay');
+  if (!overlay || overlay.dataset.bound) return;
+  overlay.dataset.bound = '1';
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) closeAIPanel();
+  });
+}
+
+// 阶段 4：模块 A 的 state 由模块 B 写入，ESM 的 import 绑定不可赋值，所以给写方一对 setter。
+
+// ── 阶段 4 桥：本模块生成的 HTML 里还是内联 `onclick="xxx()"`，这些名字必须是全局 ──
+// `src/web/js/*.js` 是 classic script，顶层函数自动挂 window；搬成 ESM 之后不挂了，
+// 内联处理器会抛 `xxx is not defined`（面板按钮点了没反应、控制台一条 pageerror）。
+// 死期：阶段 5 把这批 HTML 换成真实事件监听，与 installGlobals 一起删。
+if (typeof window !== 'undefined') {
+  window.startButtonClicked = startButtonClicked;
+  window.toggleAIPanelFold = toggleAIPanelFold;
+  window.sendFollowUp = sendFollowUp;
+}

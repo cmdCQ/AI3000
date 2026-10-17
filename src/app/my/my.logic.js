@@ -1,3 +1,4 @@
+import { openAuthModal } from '../shared/auth.js';
 // 「我的」页（`/my/`）—— 阶段 3 第 8 页。
 // 逻辑逐字搬运自 `src/web/js/page-my.js`（135 行，冻结快照
 // `duipan/legacy_ref/page-my.js`，sha256 21123b04…）。

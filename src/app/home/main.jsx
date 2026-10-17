@@ -1,3 +1,4 @@
+import { getCookie, AUTH } from '../shared/auth.js';
 // 首页 —— 阶段 3 的第一页用**真 React 组件**写成，不是 `dangerouslySetInnerHTML` 套壳。
 //
 // 为什么这一页不照前五页的套壳写法：那五页（`/my/` `/mhys/` `/liuyao/` …）套壳是为了

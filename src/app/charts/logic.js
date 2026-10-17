@@ -1,3 +1,4 @@
+import { AUTH, openAuthModal } from '../shared/auth.js';
 import { CHINA_REGIONS } from '../shared/chinaRegions.js'
 import { Solar } from '../shared/lunar.js'
 import { ChartsStore } from '../shared/chartsStore.js'

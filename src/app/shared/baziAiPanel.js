@@ -437,3 +437,5 @@ export var BaziAI = (function () {
 
   return { mount: mount, select: select, beforeLogin: beforeLogin, ASPECTS: ASPECTS };
 })();
+
+// 阶段 4：模块 A 的 state 由模块 B 写入，ESM 的 import 绑定不可赋值，所以给写方一对 setter。
