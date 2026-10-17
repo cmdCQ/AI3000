@@ -155,6 +155,58 @@ test.describe('/mhys/history.html', () => {
     await expect(wrapper).not.toHaveClass(/manage-mode/)
   })
 
+  // ★ §5.3（用户 2026-10-17：「管理」按钮的文字被主题色覆盖）。
+  //   真 bug 的形状：进入管理模式后按钮是 `background:var(--accent)` +
+  //   `color:var(--accent)`（同一颜色），「完成」两个字**完全看不见** —— 因为
+  //   `.fm-btn.manage-btn` 的 `color` 与 `.fm-btn.active` 特异性相同却写在后面。
+  //   鼠标悬停时那条 hover 会把底色换成浅洗色，看上去又能读，所以肉眼很容易放过。
+  //   这条判据把鼠标移开（让 `:hover` 失效）再量**计算后的颜色**，并且算对比度。
+  //   样式在 `src/app/shared/css/shared-history.css`，六爻/梅花两个记录页共用。
+  test('管理模式：按钮文字与底色不能同色（§5.3 的回归钉）', async ({ page }) => {
+    await page.goto(PAGE)
+    await loginAs(page)
+    await page.reload()
+    await expect(page.locator('#manageBtn')).toBeVisible()
+
+    await page.locator('#manageBtn').click()
+    // 移开鼠标：`:hover` 会给底色加一层浅洗色，掩盖「文字与底色同色」这个 bug。
+    await page.mouse.move(5, 700)
+    await expect(page.locator('#manageBtn')).toHaveText('完成')
+
+    // ⚠ `.fm-btn` 带 `transition: all 0.2s` —— 点完立刻量会读到**过渡中间态**
+    //   （第一次就是这么红的：`rgb(122,167,160) on rgb(164,195,189)`，两个颜色都在
+    //   往终点走，对比度 1.41 毫无意义）。所以先等它稳定：连续两次取样一样才算数。
+    let colors = null
+    let prev = null
+    for (let i = 0; i < 25; i++) {
+      prev = colors
+      colors = await page.locator('#manageBtn').evaluate((el) => {
+      const cs = getComputedStyle(el)
+      const parse = (v) => v.match(/\d+/g).slice(0, 3).map(Number)
+      const lum = (rgb) => {
+        const c = rgb.map((n) => {
+          const s = n / 255
+          return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4)
+        })
+        return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+      }
+      const fg = parse(cs.color)
+      const bg = parse(cs.backgroundColor)
+      const l1 = lum(fg)
+      const l2 = lum(bg)
+      return { color: cs.color, backgroundColor: cs.backgroundColor, contrast: (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05) }
+      })
+      if (prev && prev.color === colors.color && prev.backgroundColor === colors.backgroundColor) break
+      await page.waitForTimeout(40)
+    }
+
+    // 同色 = 字看不见；对比度不足 4.5 也过不了。
+    //   断言带上实测颜色当原因说明 —— 红了要能直接看出是「同色」还是「对比度不够」。
+    const got = `${colors.color} on ${colors.backgroundColor}`
+    expect(colors.color, got).not.toBe(colors.backgroundColor)
+    expect(colors.contrast, got).toBeGreaterThanOrEqual(4.5)
+  })
+
   test('返回链接指向 /mhys/（不是 /liuyao/）', async ({ page }) => {
     await page.goto(PAGE)
     const back = page.locator('.fm-back')

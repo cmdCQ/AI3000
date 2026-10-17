@@ -15,7 +15,18 @@ html,body { background:var(--bg); color:var(--text); font-family:var(--sans); mi
 .fm-btn:hover { border-color:var(--border-active); color:var(--text); }
 .fm-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
 .fm-btn.manage-btn { border-color:var(--accent-dim); color:var(--accent); font-weight:500; }
-.fm-btn.manage-btn:hover { background:var(--gold-wash); border-color:var(--accent); }
+.fm-btn.manage-btn:hover:not(.active) { background:var(--gold-wash); border-color:var(--accent); }
+/* §5.3（用户 2026-10-17：「管理」按钮的文字被主题色覆盖）。
+ *
+ * 原来的顺序是 `.fm-btn.active { background:var(--accent); color:#fff }` 在前、
+ * `.fm-btn.manage-btn { color:var(--accent) }` 在后 —— 两者**特异性相同**（都是
+ * 0,2,0），后写的赢，于是进入管理模式后那颗按钮变成了「主题色文字 + 主题色底」，
+ * 实测 color 与 background 都是 rgb(31,107,94)，「完成」两个字完全看不见
+ * （鼠标悬停时因为上面那条 hover 又把底色换成浅洗色，才显得能读 —— 这是掩体，
+ * 不是修好）。所以这里显式补回 active 态：
+ *   · 底与边框用主色，文字纯白（白字其上 6.32:1，见 tokens.css 的对比度表）；
+ *   · hover 加 `:not(.active)`，免得它把 active 的底色又盖回浅洗色。 */
+.fm-btn.manage-btn.active { background:var(--accent); border-color:var(--accent); color:#fff; }
 
 /* 搜索框 */
 .fm-search { margin-top:0.5rem; display:flex; align-items:center; gap:0.4rem; }
