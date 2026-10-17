@@ -109,6 +109,31 @@ test.describe('/mhys/ 梅花易数', () => {
     expect(errors).toEqual([])
   })
 
+  // ★ §5.1 的判据（2026-10-17 用户提出：提示文案与实际校验不一致）。
+  //   实测结论（三路互证，见提交消息）：**校验没有问题**——`10 8 6`／`16 8 6` 本来
+  //   就出盘，后端 `qiguaNumbers()` 也只要求正整数、不设上限。不一致在**提示文案**：
+  //   placeholder 示例是两位数 `10 8 6`，同一段提示却写着「八卦对应 1-8」，
+  //   用户据此读成「只许填 1-8」，与它自己的示例打架。
+  //   计划要求「不许两边都改」（那等于没定），所以改文案、且只改文案。
+  //   这条判据钉两件事：文案必须明说两位数可以填；校验照旧拦住 0。
+  test('数字起卦：提示文案与实际校验一致（两位数能填，0 会被拦）', async ({ page }) => {
+    await page.goto(PAGE)
+    const tip = page.locator('#methodParams .algo-text')
+    await expect(tip).toContainText('两位数')
+    await expect(tip).toContainText('除以 8 的余数')
+
+    // 0 仍然被拦 —— 文案改动不许顺手放松校验。
+    let dialogMsg = ''
+    page.on('dialog', async (d) => {
+      dialogMsg = d.message()
+      await d.accept()
+    })
+    await page.locator('#methodParams input#numberInput').fill('0 8 6')
+    await page.locator('#startBtn').click()
+    await expect.poll(() => dialogMsg).toContain('报的数要 1 以上')
+    await expect(page.locator('#resultArea .card-flush')).toHaveCount(0)
+  })
+
   test('AI 宿主挂在结果区后面，且有「解卦」按钮', async ({ page }) => {
     const errors = collectErrors(page)
     await page.goto(PAGE)
