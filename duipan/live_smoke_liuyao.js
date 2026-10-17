@@ -53,13 +53,21 @@ async function main() {
     // 定义的全局在这边**一律是 undefined**（第一版这行就是这么误报的）。
     // 并且**轮询**而不是只看一眼：body 末尾那几个脚本与这里是有先后的。
     const parts = await L.until(m, `${W}
-      return ['escHtml','toggleAIPanel','renderLiuyaoResult','castToTrigrams','startDivination']
+      return ['escHtml','toggleAIPanelFold','renderLiuyaoResult','startDivination']
         .map(function(k){ return k + ':' + (typeof W[k]); })
         .concat(['aiPanel:' + (document.getElementById('aiPanel') ? 'yes' : 'no'),
                  'resultArea:' + (document.getElementById('resultArea') ? 'yes' : 'no')]).join(' ');`,
     (s) => !/:undefined/.test(s) && !/:no/.test(s), 8000, 150);
     check('页面上的共享件都到位了（11 个文件有一个 404 就会在这里露出来）',
       !/:undefined/.test(parts) && !/:no/.test(parts), parts);
+
+    // `castToTrigrams` 从上面那条共享件清单里**移走了**：它随 `page-liuyao.js` 搬进
+    // `src/app/liuyao/logic.js`，现在不再是裸全局（ESM 不自动上 window），只能在测试桥里问。
+    // 从清单里删掉而不是放宽判据 —— 放宽会让上面那条检查对**真的**共享件缺失也失明。
+    check('测试桥能看见折卦函数（模块内导出，浏览器控制台里本来就不该有）',
+      await js(m, `${W} return 'castToTrigrams:' + (W.__liuyaoTestApi ? W.__liuyaoTestApi.has('castToTrigrams') : 'no-bridge');`)
+        === 'castToTrigrams:function',
+      await js(m, `${W} return String(W.__liuyaoTestApi && W.__liuyaoTestApi.has('castToTrigrams'));`));
 
     const gone = await js(m, `${W}
       return ['calcGua','HEX64','TRIGRAMS','NAJIA','getGuaShen','getPalaceInfo','buildPalaceTable']
@@ -71,7 +79,9 @@ async function main() {
       var el = document.querySelector('.method-option[data-method="manual"]');
       W.selectMethod('manual', el); return true;`);
     await L.sleep(250);   // 等 fillManualLineSelects 那 50ms 的定时器跑完再写
-    await js(m, `${W} W.MANUAL_LINES = arguments[0].slice(); W.renderManualLines(); return true;`, [MANUAL_A]);
+    await js(m, `${W}
+      if (W.__liuyaoTestApi) { W.__liuyaoTestApi.setManualLines(arguments[0]); return true; }
+      W.MANUAL_LINES = arguments[0].slice(); W.renderManualLines(); return true;`, [MANUAL_A]);
     await js(m, `document.getElementById('startBtn').click(); return true;`);
 
     const text = await L.textOf(m, '#resultArea', 15000, 30);
@@ -153,7 +163,7 @@ async function main() {
       // 同 ① 的道理：带 `W.`，且在结果的页面上也确认那几个共享件在（这张页面若有一个
       // script 404，表现同样是「静静的不出现」，不会自己喊）
       const rparts = await L.until(m, `${W}
-        return ['escHtml','renderLiuyaoResult','toggleAIPanel']
+        return ['escHtml','renderLiuyaoResult','toggleAIPanelFold']
           .map(function(k){ return k + ':' + (typeof W[k]); }).join(' ')
           + ' contentArea:' + (document.getElementById('contentArea') ? 'yes' : 'no');`,
       (s) => !/:undefined/.test(s) && !/:no/.test(s), 8000, 150);

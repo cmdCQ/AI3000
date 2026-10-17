@@ -56,10 +56,23 @@ ENVFAIL=""
 run() {          # run <层名> <命令...>
   name="$1"; shift
   printf '\n───── %s ─────\n' "$name"
-  "$@" > "/tmp/regress_pages_${name}.log" 2>&1
+  # ⚠ 必须套 timeout。2026-10-17 实测：`drive_liuyao_page.js` 卡在 Marionette 的
+  #   `ep_poll` 上（页面等一个永远不出现的选择器），**不抛错、不退出**，本脚本
+  #   就跟着一起卡死 —— 整条冻结门看起来「还在跑」，其实是永远不会结束。
+  #   这种「卡住」和「断言红了」不是一回事，但**都不能算绿**，所以记进 FAIL 并单独写清楚。
+  #   超时默认 600s（单层实测最长约 160s，四倍余量）。要改：REGRESS_TIMEOUT=300 sh …
+  timeout --kill-after=10 "${REGRESS_TIMEOUT:-600}" "$@" > "/tmp/regress_pages_${name}.log" 2>&1
   rc=$?
   if [ "$rc" -eq 0 ]; then
     tail -3 "/tmp/regress_pages_${name}.log"
+  elif [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
+    # 卡死 ≠ 测出来是坏的 ≠ 测不出来。三种都记，但话要分开说，
+    # 否则下次看到红会照着「页面坏了」的方向去查，浪费一整轮。
+    echo "⏱ 超时 ${REGRESS_TIMEOUT:-600}s —— 驱动卡死（**没测完，也没测出坏**）"
+    echo "   见 /tmp/regress_pages_${name}.log；常见原因：页面等一个永远不出现的选择器、"
+    echo "   上一轮 Firefox/端口没退干净、或者另一个驱页在同时跑（全机只能有一个）。"
+    tail -12 "/tmp/regress_pages_${name}.log"
+    FAIL="$FAIL $name(timeout)"
   elif [ "$rc" -eq 2 ]; then
     # 退出码 2 是驱动自己定的「测不出来」（站点起不来 / 切片标记失效）——
     # 跟「测出来是坏的」不是一回事，分开记，别混进失败里一起看。

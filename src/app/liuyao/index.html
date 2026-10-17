@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>六爻 · 易三千</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all';this.onload=null">
+</head>
+<body>
+<div id="root"></div>
+
+<!-- 老页 `src/web/liuyao/index.html` 第 15-18 行那四条 CSS <link> 搬进了
+     `./style.css` 的 `@import`（顺序就是外观：mhys_result.css → liuyao_result.css
+     → page-liuyao.css → tokens.css）。这里**不再有 <link>**，CSS 由本页的 ESM
+     入口 `./main.jsx` import 进来。 -->
+
+<!-- 下面这六条是**传统 script**，本次阶段 3 一个都不搬，照旧排在 module 之前
+     （老页 `src/web/liuyao/index.html` 第 122-130 行就是这个顺序，一条都不许调）：
+
+     · lunar.min.js       全局 `Solar` / `Lunar`（真库，不是桩）。`initTime()`、
+                           `enrichTimeInfo()`、`getLunarInfo()`、`getMaxDay()`、
+                           `switchCalendar()`、`updateTopDisplay()` 真的会调它。
+     · auth.js            `window.AUTH`（记录入库时读 isLoggedIn/getToken）+
+                           `window.openAuthModal`。
+     · ui_common.js       共用渲染小工具。
+     · liuyao_render.js   ★ 结果区渲染层：`renderLiuyaoResult(chart, display, meta)`
+                           与 `buildLiuyaoAiPayload()`，以及渲染层自己那批裸全局
+                           `currentChart` / `currentDisplay` / `currentTopic` /
+                           `currentGender` / `currentRecordId` / `savedAnalysis` /
+                           `currentLunarInfo` / `currentResultMeta`。
+                           `logic.js` 的 `showResultHere()` 按**裸名**调
+                           `renderLiuyaoResult(...)` 并读 `currentRecordId`、
+                           `startDivination()` 会写 `currentRecordId` —— 缺了就是
+                           `ReferenceError: renderLiuyaoResult is not defined`
+                           （报得很响，不会静默）。
+                           老页注释提醒过：结果页的样式与渲染层跟本页共用一份，别抄。
+     · ai_panel.js        共用 AI 面板引擎（与梅花页同一份）。装载时自己往 body 挂
+                           面板；它的 `mountAIPanel()` 在 DOMContentLoaded 里要找
+                           `#resultArea`（AI 宿主插在「结果容器 nextSibling」上）才
+                           插得进 `#aiInlineHost` —— 找不到就**静默 return**。
+                           main.jsx 因此用 flushSync 做同步首提交（见那边注释）。
+     · liuyao_ai_panel.js 本页的 AI 配置（`window.AI_PANEL_CONF`：cardType /
+                           recordsPath / anonUsedKey / hasChart / topic / recordId /
+                           payload / saved / setSaved）。它读的 `currentChart` /
+                           `currentTopic` / `currentRecordId` / `savedAnalysis` 来自
+                           `liuyao_render.js`。
+
+     ⚠ `page-liuyao.js`（老页第 126 行那个）本次搬进 `src/app/liuyao/`，所以这一行
+       换成了下面的 module。它是本页唯一的 ESM 入口。
+
+     ★ 执行顺序为什么仍然对（**这是 Vite 的实际行为，别按源码里的位置想**）：
+       `vite build` 会把 `<script type="module">` 连同 CSS link **搬进 `<head>`**，
+       所以产物里 module 标签在文档顺序上**排在这六条之前**。但 `type="module"`
+       自带 defer 语义：它要等 HTML 解析完（也就是六条 classic script 全跑完）
+       才执行。于是真实顺序是
+           六条传统 script（依赖） → main.jsx（使用者） → DOMContentLoaded
+       而 main.jsx 里用 `flushSync` 同步提交 React 外壳，所以 AI 面板引擎在
+       DOMContentLoaded 分支里已经能拿到 `#resultArea`。
+       ⚠ 反过来说：**不能**因为「module 被搬到前面了」就以为页面会在 classic
+       script 之前跑 —— 那样 `renderLiuyaoResult` / `Solar` / `AI_PANEL_CONF` 全都
+       还不存在。defer 是这个顺序唯一的保障。
+     阶段 4 收口时它们整体搬进 src/app/，这几个 script 标签一起去掉。 -->
+<script src="/js/lunar.min.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/ui_common.js"></script>
+<script src="/js/liuyao_render.js"></script>
+<script src="/js/ai_panel.js"></script>
+<script src="/js/liuyao_ai_panel.js"></script>
+<script type="module" src="./main.jsx"></script>
+</body>
+</html>

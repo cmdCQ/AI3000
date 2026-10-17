@@ -1,3 +1,54 @@
+/**
+ * 六爻页（/liuyao/，主页面）的命令式逻辑层。
+ *
+ * 逐字搬运自 `src/web/js/page-liuyao.js`（判据快照 `duipan/legacy_ref/page-liuyao.js`，
+ * payload sha256 `0796c79ced74f04f4d11705db5925af4f83ca27bc8b2249fec584b3ee6ffdf82`）。
+ * 下面每个函数体与老实现逐字一致（只有 6 个被重新赋值的模块级名字换成了 `state.<名>`，
+ * 以及两处顶层监听包成了函数 / export 前缀），`duipan/diff_liuyao.mjs` 的
+ * 「逐字比对」段把这条断言钉住了。
+ *
+ * ⚠ **不许 import 任何东西**：这里读的 `Solar` / `Lunar` / `renderLiuyaoResult` /
+ *   `currentRecordId` 全是 classic script（lunar.min.js / liuyao_render.js）留在
+ *   `window` 上的裸全局。判据也是照这个形状跑的（duipan/legacy_liuyao.js 按老
+ *   `<script>` 顺序把同一个沙箱灌起来）。import 进来会同时破坏判据与顺序保证。
+ *
+ * 与老实现的形态差异（只有这三类，别在这里顺手做别的）：
+ *   1. 被重新赋值的 6 个模块级变量（老 :330-331 / :400 / :644-646）收进了下面的
+ *      `state`；`COIN`（老 :132）从不整体重新赋值，所以保持 `var COIN`，
+ *      `state.COIN` 只是**同一个对象的引用**。
+ *   2. 老 :355-362 的顶层 `document.addEventListener('click', …)` → `bindDocumentClick()`；
+ *      老 :624-633 的顶层 `pagehide`/`pageshow` → `bindPageLifecycle()`。
+ *      ESM 不能留顶层副作用，两者都由 main.jsx 在装载时显式调用。
+ *   3. 老末尾 :957 的裸调 `init();` → 由 main.jsx 在首屏同步提交后调用。
+ *
+ * 老实现里的死代码与「写了但行为怪」的地方**原样保留**（改它属产品决定），
+ * 已逐处加 `⚠ 死代码` 注释，清单见 duipan/diff_liuyao.mjs 的报告段。
+ */
+
+/* global Solar, Lunar, renderLiuyaoResult, refreshAIPanel, AUTH */
+
+/**
+ * 老实现的模块级可变状态，收在一个盒子里（mhys 同款，见 src/app/mhys/logic.js:37）。
+ * 只有**会被整体重新赋值**的名字才需要进来；常量（POS_NAMES / TYPE_MAP / LUNAR_* 等）
+ * 依旧是模块级 `var`，不进这里。
+ */
+export const state = {
+  /** 老 :644 `var selectedTime = null;` —— { year, month, day, hour, minute, calendar:'gregorian'|'lunar' } */
+  selectedTime: null,
+  /** 老 :645 `var currentCalendar = 'gregorian';` */
+  currentCalendar: 'gregorian',
+  /** 老 :646 `var tpInitialized = false;` —— ⚠ 死代码：老实现里只写不读（:801-802），照搬保留。 */
+  tpInitialized: false,
+  /** 老 :330 `var currentMethod = 'coin';` */
+  currentMethod: 'coin',
+  /** 老 :331 `var currentGender = 'male';` */
+  currentGender: 'male',
+  /** 老 :400 `var MANUAL_LINES = ['shaoyin' × 6];` —— [初爻,二爻,三爻,四爻,五爻,上爻] */
+  MANUAL_LINES: ['shaoyin', 'shaoyin', 'shaoyin', 'shaoyin', 'shaoyin', 'shaoyin'],
+  /** 老 :132 的 `COIN` 对象本身。下面的 `state.COIN = COIN;` 放的是同一个引用。 */
+  COIN: null,
+};
+
 // ===== 取卦算术（只有卦号 ↔ 三爻，**不含装卦**）=====
 //
 // 摇出的六爻要折成上下卦号才能交给后端 —— 这是取卦，不是装卦。
@@ -7,11 +58,11 @@
 // 从前这里有一整份 TRIGRAMS / HEX64 / 纳甲表 / 八宫世应表 + calcGua，还有一套
 // 梅花才用的体用互变错综（六爻页上显示「体用判词」是张冠李戴）—— 全部删掉。
 
-function triToLines(num) {
+export function triToLines(num) {
   var m={1:[1,1,1],2:[1,1,0],3:[1,0,1],4:[1,0,0],5:[0,1,1],6:[0,1,0],7:[0,0,1],8:[0,0,0]};
   return m[num]||[0,0,0];
 }
-function linesToTri(lines) {
+export function linesToTri(lines) {
   var k=lines.join(''), m={'111':1,'110':2,'101':3,'100':4,'011':5,'010':6,'001':7,'000':8};
   return m[k]||8;
 }
@@ -20,7 +71,7 @@ function linesToTri(lines) {
  * 六爻（自初爻到上爻）→ 本卦与变卦的上下卦号 + 动爻位置。
  * @param {Array} lines 长度 6，每项 { yang:Boolean, changing:Boolean }，下标 0 = 初爻
  */
-function castToTrigrams(lines) {
+export function castToTrigrams(lines) {
   var yangs = [], bianYangs = [], movePositions = [];
   for (var i = 0; i < 6; i++) {
     var y = lines[i].yang ? 1 : 0;
@@ -40,7 +91,7 @@ function castToTrigrams(lines) {
 
 
 // ===== 时间计算（农历） =====
-function getShichen(hour) {
+export function getShichen(hour) {
   var names=['子时','丑时','寅时','卯时','辰时','巳时','午时','未时','申时','酉时','戌时','亥时'];
   var idx;
   if(hour>=23||hour<1) idx=0; else if(hour<3) idx=1; else if(hour<5) idx=2;
@@ -50,7 +101,7 @@ function getShichen(hour) {
   return {name:names[idx], num:idx+1};
 }
 
-function getYearZhi(year) {
+export function getYearZhi(year) {
   // 年支（地支名，子丑寅…）。本页曾**同时存在两个同名定义**，另一个写成
   // `a[(y-4)%12]`：`%` 在 y<4 时给负数下标，取不到值就返回 `undefined`，
   // 而且它返回字符串、这个返回序号，两个「同名函数」语义不同 —— 谁生效只看
@@ -59,7 +110,12 @@ function getYearZhi(year) {
   return a[((year - 4) % 12 + 12) % 12];
 }
 
-function getLunarInfo() {
+// ⚠ 死代码（老 :62-88）：`getLunarInfo()` 定义之后**全仓没有任何调用者**
+// （`grep -rn getLunarInfo src/web src/app` 只剩它自己的定义与注释）。
+// 连带着 `getYearZhi()`（老 :53-60）也只在这条死路上被调用 —— 它唯一活着的
+// 可达路径就是这个函数。两条都原样保留（删它属产品决定）；差分脚本为了覆盖
+// 它们，专门用「冻结 Date」挡位把 `new Date()` 钉死（见 diff_liuyao.mjs）。
+export function getLunarInfo() {
   var now = new Date();
   var y=now.getFullYear(), m=now.getMonth()+1, d=now.getDate();
   var h=now.getHours(), min=now.getMinutes(), s=now.getSeconds();
@@ -87,14 +143,14 @@ function getLunarInfo() {
   };
 }
 
-function enrichTimeInfo() {
-  if (!selectedTime) initTime();
+export function enrichTimeInfo() {
+  if (!state.selectedTime) initTime();
   var info = {};
   try {
     if (typeof Solar !== 'undefined') {
-      var y = selectedTime.year, m = selectedTime.month, d = selectedTime.day;
-      var h = selectedTime.hour, min = selectedTime.minute;
-      var isLunar = selectedTime.calendar === 'lunar';
+      var y = state.selectedTime.year, m = state.selectedTime.month, d = state.selectedTime.day;
+      var h = state.selectedTime.hour, min = state.selectedTime.minute;
+      var isLunar = state.selectedTime.calendar === 'lunar';
       
       var solar, lunar;
       if (isLunar && typeof Lunar !== 'undefined') {
@@ -136,6 +192,13 @@ var COIN = {
   spinTimer: null
 };
 
+// ⚠ 老 :132 的 `COIN` 是**对象**：全页只改它的属性（`COIN.results = […]`、
+//   `COIN.state = …`），从不整体重新赋值。所以它**不**进 `state.selectedTime` 那种
+//   搬法，而是在 state 上放**同一个对象的引用** —— `state.COIN.results = x` 与老页的
+//   `COIN.results = x` 是同一次写入，不是副本。
+//   （差分脚本正是靠这条注入摇卦结果；main.jsx 的 __liuyaoTestApi.setCoinResults 同。）
+state.COIN = COIN;
+
 var POS_NAMES = ['初爻','二爻','三爻','四爻','五爻','上爻'];
 var TYPE_MAP = {
   laoyin: {label:'老阴',symbol:'━ ━ ━ ×',yang:0,num:6,changing:1},
@@ -144,7 +207,7 @@ var TYPE_MAP = {
   laoyang: {label:'老阳',symbol:'━━━━━ ○',yang:1,num:9,changing:1}
 };
 
-function initCoinToss() {
+export function initCoinToss() {
   // 它是 `setTimeout(initCoinToss, 50)` 叫起来的（`renderMethodParams` 里），而这
   // 50 毫秒里用户可能已经切到别的起卦法 —— 那样铜钱那一块 DOM 已经整个被换掉了。
   // 此时再往下走，`coinResetBtn` 是 null，`null.style` 抛 TypeError。这个错不白屏、
@@ -166,20 +229,20 @@ function initCoinToss() {
   document.querySelectorAll('.coin-slot').forEach(function(s){ s.classList.remove('spinning','stopped'); });
 }
 
-function preloadCoinImages() {
+export function preloadCoinImages() {
   ['/assets/img/liuyao/coin_hua.png', '/assets/img/liuyao/coin_zi.png'].forEach(function(src) {
     var img = new Image();
     img.src = src;
   });
 }
 
-function setCoinImage(idx, isHua) {
+export function setCoinImage(idx, isHua) {
   // isHua=true → 花面(阳), isHua=false → 字面(阴)
   var img = document.getElementById('coinImg'+idx);
   if (img) img.src = isHua ? '/assets/img/liuyao/coin_hua.png' : '/assets/img/liuyao/coin_zi.png';
 }
 
-function coinClick() {
+export function coinClick() {
   if (COIN.state === 'idle') {
     startSpin();
   } else if (COIN.state === 'spinning') {
@@ -187,7 +250,7 @@ function coinClick() {
   }
 }
 
-function startSpin() {
+export function startSpin() {
   COIN.state = 'spinning';
   document.querySelectorAll('.coin-slot').forEach(function(s){ s.classList.remove('stopped'); s.classList.add('spinning'); });
   // 开始随机翻转
@@ -199,7 +262,11 @@ function startSpin() {
   }, 80);
 }
 
-function stopSpin() {
+export function stopSpin() {
+  // ⚠ 怪写法（老 :206、COIN 的枚举注释在老 :133）：老注释写的是
+  //   `idle | spinning | complete`，但这里赋的是第四个值 `'spinning_stopped'`，
+  //   全页没有任何地方读 `COIN.state` —— 也就是这个字段写进了一个自己注释里
+  //   不存在的状态，且无人消费。原样保留。
   COIN.state = 'spinning_stopped';
   if (COIN.spinTimer) { clearInterval(COIN.spinTimer); COIN.spinTimer = null; }
   document.querySelectorAll('.coin-slot').forEach(function(s){ s.classList.remove('spinning'); s.classList.add('stopped'); });
@@ -235,7 +302,7 @@ function stopSpin() {
   }
 }
 
-function getLineType(huaCount) {
+export function getLineType(huaCount) {
   // 0花面=老阴, 1花面=少阳, 2花面=少阴, 3花面=老阳
   if (huaCount === 0) return 'laoyin';
   if (huaCount === 1) return 'shaoyang';
@@ -243,7 +310,7 @@ function getLineType(huaCount) {
   return 'laoyang';
 }
 
-function renderAccumulatedLines() {
+export function renderAccumulatedLines() {
   var el = document.getElementById('coinLinesArea');
   if (!el) return;
   el.style.display = '';
@@ -272,13 +339,13 @@ function renderAccumulatedLines() {
   el.innerHTML = h;
 }
 
-function coinReset() {
+export function coinReset() {
   if (COIN.spinTimer) { clearInterval(COIN.spinTimer); COIN.spinTimer = null; }
   initCoinToss();
 }
 
 // 摇卦四象名 → 逐爻记录。三种起卦法共用：从前这段在 coin/auto 里各写一遍。
-function linesFromTypes(types) {
+export function linesFromTypes(types) {
   return types.map(function(t, i){
     var info = TYPE_MAP[t];
     return { num:info.num, yang:!!info.yang, changing:!!info.changing, type:t, pos:i+1 };
@@ -287,18 +354,21 @@ function linesFromTypes(types) {
 
 // 三种起卦法的**同一个出口**：给出六爻 + 折出的卦号 + 动爻位置。
 // 返回值就是「起卦结果」的全部，没有装卦的东西 —— 装卦在后端。
-function castResult(method, lines) {
+export function castResult(method, lines) {
   var tri = castToTrigrams(lines);
   return {
     method: method,
     coinLines: lines,
     movePositions: tri.movePositions,
+    // ⚠ 怪写法（老 :294-303）：`movePositions` 在这里出现**两次** —— 顶层一次，
+    //   下面的 `trigrams: tri` 里还有一次（`castToTrigrams()` 的返回值自带）。
+    //   两个值永远相等。原样保留，没顺手去重。
     // 上/下卦号与变卦上/下卦号，直接进 cardData.hexagrams
     trigrams: tri,
   };
 }
 
-function coinDivination() {
+export function coinDivination() {
   if (COIN.results.length !== 6) {
     // 如果还没完成6次，自动补齐
     while (COIN.results.length < 6) {
@@ -309,15 +379,15 @@ function coinDivination() {
   return castResult('coin', linesFromTypes(COIN.results));
 }
 
-function manualDivination() {
+export function manualDivination() {
   var types = [];
-  for (var i = 0; i < 6; i++) types.push(MANUAL_LINES[i] || 'shaoyin');
+  for (var i = 0; i < 6; i++) types.push(state.MANUAL_LINES[i] || 'shaoyin');
   // 手动指定的四象名是页面自己的交互词汇（少阴/少阳/老阴/老阳），
   // TYPE_MAP 认的就是它们 —— 交给同一张表转成逐爻记录，不另写一份。
   return castResult('manual', linesFromTypes(types));
 }
 
-function autoDivination() {
+export function autoDivination() {
   COIN.results = [];
   for (var i = 0; i < 6; i++) {
     var huaCount = Math.floor(Math.random()*4);
@@ -327,10 +397,10 @@ function autoDivination() {
 }
 
 // ===== 当前选中的方法 =====
-var currentMethod = 'coin';
-var currentGender = 'male';
+// ⚠ 老 :330-331 的 `var currentMethod` / `var currentGender` 两行搬到了文件头的
+//   `state` 里（原因见文件头「形态差异」）。
 
-function toggleDropdown() {
+export function toggleDropdown() {
   var dd=document.getElementById('methodDropdown');
   var ar=document.getElementById('methodArrow');
   if(dd.classList.contains('open')){
@@ -342,8 +412,8 @@ function toggleDropdown() {
   }
 }
 
-function selectMethod(method, el) {
-  currentMethod = method;
+export function selectMethod(method, el) {
+  state.currentMethod = method;
   document.getElementById('methodLabel').textContent = el.textContent.replace('✓','');
   document.querySelectorAll('.method-option').forEach(function(o){ o.classList.remove('selected'); });
   el.classList.add('selected');
@@ -352,19 +422,27 @@ function selectMethod(method, el) {
   renderMethodParams();
 }
 
-// 点击空白关闭下拉
-document.addEventListener('click', function(e) {
-  var sel=document.getElementById('methodSelector');
-  if(!sel.contains(e.target)){
-    document.getElementById('methodDropdown').classList.remove('open');
-    document.getElementById('methodArrow').textContent='▾';
-  }
-});
+// 点击空白关闭下拉。
+// ⚠ 老实现（快照 :355-362）是在 classic script **顶层**注册的；ESM 不能留顶层副作用，
+//   这里包成导出的 `bindDocumentClick()`，由 main.jsx 在 React 外壳 flushSync 提交
+//   之后调用一次。理由与 mhys 那处（src/app/mhys/logic.js:397-403）完全相同：
+//   ESM 模块求值时 `document` 一定在、但 `#methodSelector`（React 还没提交）不一定在，
+//   顶层直接注册的话用户在这之前点到页面就会走进 `sel.contains` 抛错。
+//   注册时机的差异只影响「首屏提交前能否点到」，差分脚本对拍不到这一段。
+export function bindDocumentClick() {
+  document.addEventListener('click', function(e) {
+    var sel=document.getElementById('methodSelector');
+    if(!sel.contains(e.target)){
+      document.getElementById('methodDropdown').classList.remove('open');
+      document.getElementById('methodArrow').textContent='▾';
+    }
+  });
+}
 
-function renderMethodParams() {
+export function renderMethodParams() {
   var container = document.getElementById('methodParams');
   var h = '';
-  switch(currentMethod) {
+  switch(state.currentMethod) {
     case 'coin':
       h = '<div class="coin-toss-area">'+
           '<div class="coin-instr">请集中精力默想所占之事<br>点击铜钱开始旋转，再次点击可得一爻</div>'+
@@ -397,18 +475,19 @@ function renderMethodParams() {
   container.innerHTML = h;
 }
 
-var MANUAL_LINES = ['shaoyin','shaoyin','shaoyin','shaoyin','shaoyin','shaoyin']; // [初爻,二爻,三爻,四爻,五爻,上爻]
+// ⚠ 老 :400 的 `var state.MANUAL_LINES = ['shaoyin' × 6];`（[初爻,二爻,三爻,四爻,五爻,上爻]）
+//   搬到了文件头的 `state` 里。
 
-function cycleManualLine(posIdx) {
+export function cycleManualLine(posIdx) {
   // posIdx: 0=初爻 ... 5=上爻
   var order = ['shaoyang','laoyang','shaoyin','laoyin'];
-  var cur = MANUAL_LINES[posIdx];
+  var cur = state.MANUAL_LINES[posIdx];
   var nextIdx = (order.indexOf(cur) + 1) % order.length;
-  MANUAL_LINES[posIdx] = order[nextIdx];
+  state.MANUAL_LINES[posIdx] = order[nextIdx];
   renderManualLines();
 }
 
-function renderManualLines() {
+export function renderManualLines() {
   var el = document.getElementById('manualLines');
   if (!el) return;
   var posNames = ['初爻','二爻','三爻','四爻','五爻','上爻'];
@@ -421,7 +500,7 @@ function renderManualLines() {
   var h = '';
   // 显示顺序：上爻(top) → 初爻(bottom)
   for (var i = 5; i >= 0; i--) {
-    var type = MANUAL_LINES[i];
+    var type = state.MANUAL_LINES[i];
     var info = typeInfo[type];
     var barHtml = '';
     if (info.bar === 'yang') {
@@ -441,37 +520,39 @@ function renderManualLines() {
   el.innerHTML = h;
 }
 
-function fillManualLineSelects() {
+export function fillManualLineSelects() {
   // 与 initCoinToss 同一处境：它也是 50ms 后叫起来的，那时用户可能已经离开手动指定。
-  // 手动那一块不在就**别动 MANUAL_LINES** —— 否则会在用户看不见的地方把六爻重置成
+  // 手动那一块不在就**别动 state.MANUAL_LINES** —— 否则会在用户看不见的地方把六爻重置成
   // 全少阴，下次切回手动时他之前点的那六爻已经没了（`renderManualLines` 自己有
   // 判空，所以这里从前连报错都不报，只是静静地丢）。
   if (!document.getElementById('manualLines')) return;
   // 兼容旧调用，重置手动行并渲染
-  MANUAL_LINES = ['shaoyin','shaoyin','shaoyin','shaoyin','shaoyin','shaoyin'];
+  state.MANUAL_LINES = ['shaoyin','shaoyin','shaoyin','shaoyin','shaoyin','shaoyin'];
   renderManualLines();
 }
 
 // ===== 开始排盘 =====
-async function startDivination(e) {
+export async function startDivination(e) {
   if(e){ e.preventDefault(); e.stopPropagation(); }
   var btn = document.getElementById('startBtn');
 
   // ===== 1. 验证 =====
-  if (currentMethod === 'coin') {
+  if (state.currentMethod === 'coin') {
     if (COIN.results.length < 6) {
       alert('请先完成六次摇卦');
       resetBtn(); return;
     }
   }
-  if (currentMethod === 'manual') {
+  if (state.currentMethod === 'manual') {
+    // ⚠ 怪写法（老 :536）：空分支 —— 条件成立什么都不做。原样保留。老注释原文
+    //   就是「手动指定无需验证，已设默认值」。
     // 手动指定无需验证，已设默认值
   }
 
   // ===== 2. 取卦（本页只做这一件事） =====
   var result;
   try {
-    switch(currentMethod) {
+    switch(state.currentMethod) {
       case 'coin': result = coinDivination(); break;
       case 'manual': result = manualDivination(); break;
       case 'auto': result = autoDivination(); break;
@@ -547,16 +628,16 @@ async function startDivination(e) {
  * 要求日柱**与**时柱同时对上才采信后端重算的四柱）。带不上的后果不是报错，而是
  * 后端静默退回前端四柱 —— 那样「立春换年」这类修正就白做了。
  */
-function buildCard(result) {
+export function buildCard(result) {
   var tri = result.trigrams;
   var dt = '';
-  if (selectedTime) {
-    dt = selectedTime.year+'-'+String(selectedTime.month).padStart(2,'0')+'-'+String(selectedTime.day).padStart(2,'0')+' '+
-      String(selectedTime.hour).padStart(2,'0')+':'+String(selectedTime.minute).padStart(2,'0');
+  if (state.selectedTime) {
+    dt = state.selectedTime.year+'-'+String(state.selectedTime.month).padStart(2,'0')+'-'+String(state.selectedTime.day).padStart(2,'0')+' '+
+      String(state.selectedTime.hour).padStart(2,'0')+':'+String(state.selectedTime.minute).padStart(2,'0');
   }
   return {
     topic: document.getElementById('topicInput').value.trim(),
-    gender: currentGender,
+    gender: state.currentGender,
     method: result.method,
     divinationTime: dt,
     createdAt: new Date().toISOString(),
@@ -564,7 +645,7 @@ function buildCard(result) {
     recordTime: new Date().toISOString(),
     lunarInfo: enrichTimeInfo(),
     hexagrams: {
-      gender: currentGender,
+      gender: state.currentGender,
       benGua: { upper: tri.upper, lower: tri.lower },
       bianGua: { upper: tri.bianUpper, lower: tri.bianLower }
     },
@@ -577,7 +658,7 @@ function buildCard(result) {
 
 // 结果就渲染在本页下面（原先这里是跳 /liuyao/result.html）。
 // result.html 没废：历史记录点进去看的还是它，两页共用 liuyao_render.js。
-function showResultHere(card, pay) {
+export function showResultHere(card, pay) {
   var area = document.getElementById('resultArea');
   // renderLiuyaoResult 顺手设好全局（currentChart / currentTopic / …），
   // AI 面板读的就是那几个 —— 必须在用户点「☯ 自动解析」之前渲染好
@@ -604,7 +685,10 @@ function showResultHere(card, pay) {
 }
 
 // ===== 初始化 =====
-function init() {
+// ⚠ 老实现末尾（快照 :955、老 :957）是一行**裸调** `init();`。ESM 不能留顶层副作用，
+//   那行已删除；改由 main.jsx 在 React 外壳 flushSync 提交之后调用一次 —— 时序与老页
+//   面等价（都在页面可交互之前、DOM 已在）。装载顺序本身是判据，见 main.jsx 顶部。
+export function init() {
   initTime();
   updateTimeDisplay();
   setInterval(updateTimeDisplay, 30000);
@@ -614,25 +698,30 @@ function init() {
 }
 
 // ===== 性别切换 =====
-function selectGender(gender) {
-  currentGender = gender;
+export function selectGender(gender) {
+  state.currentGender = gender;
   document.querySelectorAll('.gender-btn').forEach(function(btn) {
     btn.classList.toggle('active', btn.dataset.gender === gender);
   });
 }
 
-// 页面离开前重置按钮，确保 bfcache 恢复时按钮状态正常
-window.addEventListener('pagehide', function() {
-  resetBtn();
-});
+// 页面离开前重置按钮，确保 bfcache 恢复时按钮状态正常。
+// ⚠ 老实现（快照 :624-633）是在 classic script **顶层**注册的；ESM 不能留顶层副作用，
+//   这里包成 `bindPageLifecycle()`，由 main.jsx 在装载时调用一次（与 mhys 的
+//   src/app/mhys/logic.js:608 同名同位置：在 init() 之前）。两个监听的回调体逐字未动。
+export function bindPageLifecycle() {
+  window.addEventListener('pagehide', function() {
+    resetBtn();
+  });
 
-// 双保险：pageshow 在从 bfcache 恢复时也触发
-window.addEventListener('pageshow', function() {
-  // requestAnimationFrame 确保 DOM 已渲染后再重置
-  requestAnimationFrame(function() { resetBtn(); });
-});
+  // 双保险：pageshow 在从 bfcache 恢复时也触发
+  window.addEventListener('pageshow', function() {
+    // requestAnimationFrame 确保 DOM 已渲染后再重置
+    requestAnimationFrame(function() { resetBtn(); });
+  });
+}
 
-function resetBtn() {
+export function resetBtn() {
   var btn = document.getElementById('startBtn');
   if (btn) {
     btn.textContent = '开始排盘';
@@ -641,52 +730,59 @@ function resetBtn() {
   }
 }
 // ===== 时间选择器 =====
-var selectedTime = null; // { year, month, day, hour, minute, calendar:'gregorian'|'lunar' }
-var currentCalendar = 'gregorian';
-var tpInitialized = false;
+// ⚠ 老 :644-646 的三行
+//     var selectedTime = null; // { year, month, day, hour, minute, calendar:'gregorian'|'lunar' }
+//     var currentCalendar = 'gregorian';
+//     var tpInitialized = false;
+//   搬到了文件头的 `state` 里。
 
 var LUNAR_MONTHS = ['正月','二月','三月','四月','五月','六月','七月','八月','九月','十月','冬月','腊月'];
 var LUNAR_DAYS30 = ['初一','初二','初三','初四','初五','初六','初七','初八','初九','初十','十一','十二','十三','十四','十五','十六','十七','十八','十九','二十','廿一','廿二','廿三','廿四','廿五','廿六','廿七','廿八','廿九','三十'];
+// ⚠ 死代码（老 :650）：`LUNAR_DAYS29` 声明后全页**从未被读过**（农历日名一律走
+//   LUNAR_DAYS30 兜底，见 renderPicker/updateTopDisplay/renderPicker 那几处
+//   `LUNAR_DAYS30[d-1]||String(d)`）。原样保留。
 var LUNAR_DAYS29 = ['初一','初二','初三','初四','初五','初六','初七','初八','初九','初十','十一','十二','十三','十四','十五','十六','十七','十八','十九','二十','廿一','廿二','廿三','廿四','廿五','廿六','廿七','廿八','廿九'];
+// ⚠ 死代码（老 :651）：`SHICHEN_NAMES` 声明后全页**从未被读过** —— 时辰名走
+//   `getShichen()` 自己那份 `names`（老 :47-51）。原样保留。
 var SHICHEN_NAMES = ['子时','丑时','寅时','卯时','辰时','巳时','午时','未时','申时','酉时','戌时','亥时'];
 
 
-function initTime() {
+export function initTime() {
   var now = new Date();
-  selectedTime = {
+  state.selectedTime = {
     year: now.getFullYear(), month: now.getMonth()+1, day: now.getDate(),
     hour: now.getHours(), minute: now.getMinutes(),
     calendar: 'gregorian'
   };
-  currentCalendar = 'gregorian';
+  state.currentCalendar = 'gregorian';
   updateTimeDisplay();
 }
 
-function updateTimeDisplay() {
-  if (!selectedTime) return;
+export function updateTimeDisplay() {
+  if (!state.selectedTime) return;
   var el = document.getElementById('timeDisplay');
   if (!el) return;
-  if (selectedTime.calendar === 'lunar') {
-    var m = selectedTime.month, d = selectedTime.day;
+  if (state.selectedTime.calendar === 'lunar') {
+    var m = state.selectedTime.month, d = state.selectedTime.day;
     var monName = (m>=1&&m<=12) ? LUNAR_MONTHS[m-1] : String(m);
     var dayName = (d>=1&&d<=30) ? LUNAR_DAYS30[d-1] : String(d);
-    var sc = getShichen(selectedTime.hour);
-    el.textContent = '农历'+selectedTime.year+'年'+monName+dayName+' '+selectedTime.hour+sc.name+String(selectedTime.minute).padStart(2,'0')+'分';
+    var sc = getShichen(state.selectedTime.hour);
+    el.textContent = '农历'+state.selectedTime.year+'年'+monName+dayName+' '+state.selectedTime.hour+sc.name+String(state.selectedTime.minute).padStart(2,'0')+'分';
   } else {
-    el.textContent = selectedTime.year+'-'+String(selectedTime.month).padStart(2,'0')+'-'+String(selectedTime.day).padStart(2,'0')+' '+
-      String(selectedTime.hour).padStart(2,'0')+':'+String(selectedTime.minute).padStart(2,'0');
+    el.textContent = state.selectedTime.year+'-'+String(state.selectedTime.month).padStart(2,'0')+'-'+String(state.selectedTime.day).padStart(2,'0')+' '+
+      String(state.selectedTime.hour).padStart(2,'0')+':'+String(state.selectedTime.minute).padStart(2,'0');
   }
 }
 
-function openTimePicker() {
-  if (!selectedTime) initTime();
+export function openTimePicker() {
+  if (!state.selectedTime) initTime();
   var overlay = document.getElementById('tpOverlay');
   overlay.style.display = 'flex';
-  currentCalendar = selectedTime.calendar;
+  state.currentCalendar = state.selectedTime.calendar;
   
   // 更新切换按钮
   var btns = document.querySelectorAll('.tp-toggle-btn');
-  btns.forEach(function(b){ b.classList.toggle('active', b.dataset.cal===currentCalendar); });
+  btns.forEach(function(b){ b.classList.toggle('active', b.dataset.cal===state.currentCalendar); });
   
   renderPicker();
   
@@ -694,14 +790,14 @@ function openTimePicker() {
   scrollToCurrent();
 }
 
-function closeTimePicker(e) {
+export function closeTimePicker(e) {
   if (e && e.target !== document.getElementById('tpOverlay')) return;
   document.getElementById('tpOverlay').style.display = 'none';
 }
 
-function switchCalendar(cal) {
-  if (cal === currentCalendar) return;
-  currentCalendar = cal;
+export function switchCalendar(cal) {
+  if (cal === state.currentCalendar) return;
+  state.currentCalendar = cal;
   var btns = document.querySelectorAll('.tp-toggle-btn');
   btns.forEach(function(b){ b.classList.toggle('active', b.dataset.cal===cal); });
   
@@ -710,45 +806,45 @@ function switchCalendar(cal) {
     if (cal === 'lunar') {
       // 公历→农历
       if (typeof Solar !== 'undefined') {
-        var s = Solar.fromYmd(selectedTime.year, selectedTime.month, selectedTime.day);
+        var s = Solar.fromYmd(state.selectedTime.year, state.selectedTime.month, state.selectedTime.day);
         var l = s.getLunar();
-        selectedTime.year = l.getYear();
-        selectedTime.month = l.getMonth();
-        selectedTime.day = l.getDay();
+        state.selectedTime.year = l.getYear();
+        state.selectedTime.month = l.getMonth();
+        state.selectedTime.day = l.getDay();
       }
     } else {
       // 农历→公历
       if (typeof Lunar !== 'undefined') {
-        var l2 = Lunar.fromYmd(selectedTime.year, selectedTime.month, selectedTime.day);
+        var l2 = Lunar.fromYmd(state.selectedTime.year, state.selectedTime.month, state.selectedTime.day);
         var s2 = l2.getSolar();
-        selectedTime.year = s2.getYear();
-        selectedTime.month = s2.getMonth();
-        selectedTime.day = s2.getDay();
+        state.selectedTime.year = s2.getYear();
+        state.selectedTime.month = s2.getMonth();
+        state.selectedTime.day = s2.getDay();
       }
     }
-    selectedTime.calendar = cal;
-  } catch(e) { selectedTime.calendar = cal; }
+    state.selectedTime.calendar = cal;
+  } catch(e) { state.selectedTime.calendar = cal; }
   
   renderPicker();
   updateTopDisplay();
 }
 
-function updateTopDisplay() {
+export function updateTopDisplay() {
   var el = document.getElementById('tpDisplay');
   if (!el) return;
-  if (currentCalendar === 'lunar') {
-    var m = selectedTime.month, d = selectedTime.day;
+  if (state.currentCalendar === 'lunar') {
+    var m = state.selectedTime.month, d = state.selectedTime.day;
     var monName = (m>=1&&m<=12) ? LUNAR_MONTHS[m-1] : String(m);
     var dayName = (d>=1&&d<=30) ? LUNAR_DAYS30[d-1] : String(d);
-    var sc = getShichen(selectedTime.hour);
-    el.textContent = selectedTime.year+'年'+monName+dayName+' '+selectedTime.hour+sc.name+String(selectedTime.minute).padStart(2,'0')+'分';
+    var sc = getShichen(state.selectedTime.hour);
+    el.textContent = state.selectedTime.year+'年'+monName+dayName+' '+state.selectedTime.hour+sc.name+String(state.selectedTime.minute).padStart(2,'0')+'分';
   } else {
-    el.textContent = selectedTime.year+'-'+String(selectedTime.month).padStart(2,'0')+'-'+String(selectedTime.day).padStart(2,'0')+' '+
-      String(selectedTime.hour).padStart(2,'0')+':'+String(selectedTime.minute).padStart(2,'0');
+    el.textContent = state.selectedTime.year+'-'+String(state.selectedTime.month).padStart(2,'0')+'-'+String(state.selectedTime.day).padStart(2,'0')+' '+
+      String(state.selectedTime.hour).padStart(2,'0')+':'+String(state.selectedTime.minute).padStart(2,'0');
   }
 }
 
-function renderPicker() {
+export function renderPicker() {
   var maxDay = getMaxDay();
   
   // 年份（不超过当前年份）
@@ -765,14 +861,18 @@ function renderPicker() {
   document.getElementById('tpColMonth').innerHTML = mHtml;
   
   // 日期（不允许未来日）
+  // ⚠ 怪写法（老 :755 与老 :768）：同一个函数作用域里 `var nowY` **声明了两次**，
+  //   里面还有 `var nowM` / `var nowD`。`var` 重复声明在 ESM 严格模式下依然合法，
+  //   且第二次声明紧跟第一次、中间没有对 nowY 的写入，所以行为与只声明一次完全相同。
+  //   原样保留（并进差分脚本的逐字比对范围）。
   var nowY = new Date().getFullYear();
   var nowM = new Date().getMonth() + 1;
   var nowD = new Date().getDate();
-  var isFutureYM = selectedTime && (selectedTime.year > nowY || (selectedTime.year === nowY && selectedTime.month > nowM));
-  var maxD = isFutureYM ? 1 : (selectedTime && selectedTime.year === nowY && selectedTime.month === nowM) ? Math.min(maxDay, nowD) : maxDay;
+  var isFutureYM = state.selectedTime && (state.selectedTime.year > nowY || (state.selectedTime.year === nowY && state.selectedTime.month > nowM));
+  var maxD = isFutureYM ? 1 : (state.selectedTime && state.selectedTime.year === nowY && state.selectedTime.month === nowM) ? Math.min(maxDay, nowD) : maxDay;
   var dHtml = '';
   for (var d=1; d<=maxD; d++) {
-    var dLabel = currentCalendar==='lunar' ? (LUNAR_DAYS30[d-1]||String(d)) : String(d)+'日';
+    var dLabel = state.currentCalendar==='lunar' ? (LUNAR_DAYS30[d-1]||String(d)) : String(d)+'日';
     dHtml += '<div class="tp-item" data-val="'+d+'">'+dLabel+'</div>';
   }
   document.getElementById('tpColDay').innerHTML = dHtml;
@@ -798,15 +898,17 @@ function renderPicker() {
     el.onscroll = function(){ onColScroll(col); };
   });
   
-  if (!tpInitialized) {
-    tpInitialized = true;
+  // ⚠ 死代码（老 :801-803）：`tpInitialized` 只在这里被写、**全页从未被读**
+  //   （所以 `renderPicker()` 里这段 if 没有任何可观察效果）。原样保留。
+  if (!state.tpInitialized) {
+    state.tpInitialized = true;
   }
 }
 
-function scrollToCurrent() {
+export function scrollToCurrent() {
   ['Year','Month','Day','Hour','Minute'].forEach(function(col){
     var el = document.getElementById('tpCol'+col);
-    var val = selectedTime[col.toLowerCase()];
+    var val = state.selectedTime[col.toLowerCase()];
     // Map for year: year
     if (col === 'Year') {
       var idx = val - 1900;
@@ -825,7 +927,7 @@ function scrollToCurrent() {
   setTimeout(highlightActive, 100);
 }
 
-function onColScroll(col) {
+export function onColScroll(col) {
   var el = document.getElementById('tpCol'+col);
   var items = el.querySelectorAll('.tp-item');
   var center = el.scrollTop + el.clientHeight/2;
@@ -847,8 +949,8 @@ function onColScroll(col) {
   if (best) {
     var val = parseInt(best.dataset.val);
     var key = col.toLowerCase();
-    if (selectedTime[key] !== val) {
-      selectedTime[key] = val;
+    if (state.selectedTime[key] !== val) {
+      state.selectedTime[key] = val;
       updateTopDisplay();
       
       // 年变了 → 更新月和日
@@ -864,19 +966,21 @@ function onColScroll(col) {
   }
 }
 
-function highlightActive() {
+export function highlightActive() {
   ['Year','Month','Day','Hour','Minute'].forEach(function(col){
     onColScroll(col);
   });
   updateTopDisplay();
 }
 
-function getMaxDay() {
-  var y = selectedTime.year, m = selectedTime.month;
-  if (currentCalendar === 'lunar') {
+export function getMaxDay() {
+  var y = state.selectedTime.year, m = state.selectedTime.month;
+  if (state.currentCalendar === 'lunar') {
     // 农历大月30天，小月29天；简化处理，默认30天
     try {
       if (typeof Lunar !== 'undefined') {
+        // ⚠ 怪写法（老 :880）：`var l` 赋值后**从未被使用**（下面改用 `maxDay`）。
+        //   保留是因为删掉它就改了老实现的文本，而它对行为没有任何影响。
         var l = Lunar.fromYmd(y, m, 1);
         // 检查是否有30日
         try { Lunar.fromYmd(y, m, 30); return 30; } catch(e) { return 29; }
@@ -887,22 +991,22 @@ function getMaxDay() {
   return new Date(y, m, 0).getDate();
 }
 
-function updateDayColumn() {
+export function updateDayColumn() {
   var maxDay = getMaxDay();
   var nowY = new Date().getFullYear();
   var nowM = new Date().getMonth() + 1;
   var nowD = new Date().getDate();
-  var isFutureYM = selectedTime && (selectedTime.year > nowY || (selectedTime.year === nowY && selectedTime.month > nowM));
-  var maxD = isFutureYM ? 1 : (selectedTime && selectedTime.year === nowY && selectedTime.month === nowM) ? Math.min(maxDay, nowD) : maxDay;
-  var currentDay = selectedTime.day;
+  var isFutureYM = state.selectedTime && (state.selectedTime.year > nowY || (state.selectedTime.year === nowY && state.selectedTime.month > nowM));
+  var maxD = isFutureYM ? 1 : (state.selectedTime && state.selectedTime.year === nowY && state.selectedTime.month === nowM) ? Math.min(maxDay, nowD) : maxDay;
+  var currentDay = state.selectedTime.day;
   if (currentDay > maxD) {
-    selectedTime.day = maxD;
+    state.selectedTime.day = maxD;
     updateTopDisplay();
   }
   
   var dHtml = '';
   for (var d=1; d<=maxD; d++) {
-    var dLabel = currentCalendar==='lunar' ? (LUNAR_DAYS30[d-1]||String(d)) : String(d)+'日';
+    var dLabel = state.currentCalendar==='lunar' ? (LUNAR_DAYS30[d-1]||String(d)) : String(d)+'日';
     dHtml += '<div class="tp-item" data-val="'+d+'">'+dLabel+'</div>';
   }
   var dayCol = document.getElementById('tpColDay');
@@ -910,48 +1014,47 @@ function updateDayColumn() {
   dayCol.onscroll = function(){ onColScroll('Day'); };
   
   // 滚动到正确位置
-  dayCol.scrollTop = (selectedTime.day-1) * 38;
+  dayCol.scrollTop = (state.selectedTime.day-1) * 38;
   setTimeout(function(){ onColScroll('Day'); }, 150);
 }
 
-function renderMonthColumn() {
+export function renderMonthColumn() {
   var nowY = new Date().getFullYear();
   var nowM = new Date().getMonth() + 1;
-  var maxM = (selectedTime && selectedTime.year >= nowY) ? nowM : 12;
+  var maxM = (state.selectedTime && state.selectedTime.year >= nowY) ? nowM : 12;
   var h = '';
   for (var m=1; m<=maxM; m++) {
-    var mL = currentCalendar==='lunar' ? LUNAR_MONTHS[m-1] : String(m)+'月';
+    var mL = state.currentCalendar==='lunar' ? LUNAR_MONTHS[m-1] : String(m)+'月';
     h += '<div class="tp-item" data-val="'+m+'">'+mL+'</div>';
   }
   return h;
 }
 
-function updateMonthColumn() {
+export function updateMonthColumn() {
   var el = document.getElementById('tpColMonth');
   var nowY = new Date().getFullYear();
   var nowM = new Date().getMonth() + 1;
-  var maxM = (selectedTime && selectedTime.year >= nowY) ? nowM : 12;
+  var maxM = (state.selectedTime && state.selectedTime.year >= nowY) ? nowM : 12;
   var h = '';
   for (var m=1; m<=maxM; m++) {
-    var mL = currentCalendar==='lunar' ? LUNAR_MONTHS[m-1] : String(m)+'月';
+    var mL = state.currentCalendar==='lunar' ? LUNAR_MONTHS[m-1] : String(m)+'月';
     h += '<div class="tp-item" data-val="'+m+'">'+mL+'</div>';
   }
   el.innerHTML = h;
   el.onscroll = function(){ onColScroll('Month'); };
   // 如果当前选中的月份超出范围，回退
-  if (selectedTime.month > maxM) {
-    selectedTime.month = maxM;
+  if (state.selectedTime.month > maxM) {
+    state.selectedTime.month = maxM;
     updateTopDisplay();
   }
-  var scrollMonth = Math.min(selectedTime.month, maxM);
+  var scrollMonth = Math.min(state.selectedTime.month, maxM);
   el.scrollTop = (scrollMonth-1) * 38;
   setTimeout(function(){ onColScroll('Month'); }, 100);
 }
 
-function confirmTimePicker() {
-  selectedTime.calendar = currentCalendar;
+export function confirmTimePicker() {
+  state.selectedTime.calendar = state.currentCalendar;
   updateTimeDisplay();
   document.getElementById('tpOverlay').style.display = 'none';
 }
 
-init();

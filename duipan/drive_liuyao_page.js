@@ -50,8 +50,16 @@ const SERVER = path.join(ROOT, 'src', 'server', 'auth-server.js');
 const promptLib = require(path.join(ROOT, 'src', 'server', 'paipan', 'prompt.js'));
 const LY = require(path.join(ROOT, 'src', 'server', 'paipan', 'liuyao.js'));
 
-const PORT = 8898;
-const MARIONETTE_PORT = 2829;
+// ⚠ 端口错开**不代表能并行**：`drive_lib.launchFirefox()` 上来就把全机的无头
+//   Firefox 杀掉（snap 版不认 `-profile`，只能共用同一个真 profile），两个驱动
+//   同时跑就是互相掐死 —— 报出来的却是 EADDRINUSE 或一个莫名其妙的断言红。
+//   所以这两个口子只解决「上一轮没退干净」的残留，不解决并发。
+//   2026-10-17 实测踩过：我一边跑本驱动、一边派出去的子代理也在跑同一个，
+//   结果 `freeze_backend.sh` 的页面层红在 `listen EADDRINUSE 127.0.0.1:8898`
+//   上 —— 那不是页面坏了，是我自己撞了自己。
+//   **规矩：同一时刻全机只能有一个驱页在跑。** 要并发验证就先等对方跑完。
+const PORT = Number(process.env.DRIVE_PORT || 8898);
+const MARIONETTE_PORT = Number(process.env.DRIVE_MARIONETTE_PORT || 2829);
 const ORIGIN = `http://127.0.0.1:${PORT}`;
 
 // ─────────────────────────────────────────────────────────────
@@ -699,10 +707,27 @@ async function main() {
       && lastChat.cardData.topic === '老记录一卦',
       JSON.stringify(lastChat.cardData).slice(0, 220));
     await L.panelTextUntil(m, /【三、建议】/, 8000);
-    const ptOld = await patched();
-    check('老记录的解读也存回它自己的 id（末一条 PATCH 是 /999/ai，不是凭空一个 id）',
+    // ★ 等这条 PATCH **落地**再判，不要判完再猜。
+    //
+    //   原来是一行 `const ptOld = await patched();` 紧跟 `ptOld.length >= 2 && …`。
+    //   问题：上面等的是**正文流到《三、建议》**，而 PATCH 是流结束后才发的 ——
+    //   两者有一小段先后。冻结门里撞上了：
+    //       证据 = ["/api/liuyao-records/999/ai"]（长度 1）
+    //     断言 = 需要长度 ≥ 2 且末一条是 /999/ai
+    //   **贴出来的证据和断言结论自相矛盾**，一条假红。
+    //
+    //   也不能就把 2 改成 1 了事：那样会拿 ⑧ 那一条冒充 ⑨ 的（⑧ 也是 /999/ai），
+    //   变成假绿 —— 而这条断言的全部意义就是「⑨ 这次解读也存回同一条记录」。
+    //   正确做法是**轮询等它出现**，等不到才算失败，并且报清楚等了几轮。
+    let ptOld = await patched();
+    let ptOldWaited = 0;
+    for (; ptOldWaited < 40 && ptOld.length < 2; ptOldWaited++) {
+      await L.sleep(200);
+      ptOld = await patched();
+    }
+    check('老记录的解读也存回它自己的 id（⑨ 这次新加一条，末一条是 /999/ai，不是凭空一个 id）',
       ptOld.length >= 2 && ptOld[ptOld.length - 1].path === '/api/liuyao-records/999/ai',
-      JSON.stringify(ptOld.map((x) => x.path)));
+      JSON.stringify(ptOld.map((x) => x.path)) + `（等了 ${ptOldWaited * 200}ms，期望 2 条）`);
 
     // ── ⑩ 还没起卦：页面上根本没有 AI 块（入口随页头按钮一起删了）──
     console.log('\n⑩ 还没起卦：页头没有那颗按钮，页面上也没有块');

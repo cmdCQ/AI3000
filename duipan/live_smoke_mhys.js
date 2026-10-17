@@ -49,7 +49,7 @@ async function main() {
     await L.goto(m, `${BASE}/mhys/index.html`);
     await js(m, `window.localStorage.setItem('mhys_anon_used', '1'); return true;`);
 
-    const parts = await L.until(m, partsExpr(['escHtml', 'toggleAIPanel', 'renderResult',
+    const parts = await L.until(m, partsExpr(['escHtml', 'toggleAIPanelFold', 'renderResult',
       'selectMethod', 'startDivination'], 'resultArea'), partsOk, 8000, 150);
     check('页面共享件都到位了（这几个有一个 404 就会在这里露出来）', partsOk(parts), parts);
 
@@ -90,7 +90,7 @@ async function main() {
     const rtext = (await L.textOf(m, '#contentArea', 15000, 10)).replace(/\s+/g, ' ');
     check('取不到记录时给的是明确提示而不是白屏',
       /失败|不存在|登录|没有|错误/.test(rtext), JSON.stringify(rtext.slice(0, 200)));
-    const rparts = await L.until(m, partsExpr(['escHtml', 'renderResult', 'toggleAIPanel'], 'contentArea'),
+    const rparts = await L.until(m, partsExpr(['escHtml', 'renderResult', 'toggleAIPanelFold'], 'contentArea'),
       partsOk, 8000, 150);
     check('结果页共享件也都在', partsOk(rparts), rparts);
     check('结果页没有 JS 报错',

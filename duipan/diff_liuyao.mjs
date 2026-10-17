@@ -1477,13 +1477,22 @@ function normalizeFn(code) {
 
 const oldFns = extractFunctions(stripComments(SNAP_SRC));
 const newFns = extractFunctions(stripComments(LOGIC_SRC));
-const verbatim = { sameNormalized: [], diffNormalized: [], missing: [], sameRaw: 0 };
+const verbatim = {
+  sameNormalized: [], diffNormalized: [], missing: [], sameRaw: 0,
+  // 只归一化 `export `、**保留** `state.` 的中间挡位：这一挡一致 = 该函数一行都没被
+  // 机械改写（连 state 都没碰）；不一致 = 它含有 `state.` 前缀改写。用来把
+  // 「48 个逐字一致」拆成「N 个完全没动 + M 个只多了 state. 前缀」。
+  sameWithoutState: [], touchedByState: [],
+};
 for (const [name, body] of oldFns) {
   if (!newFns.has(name)) { verbatim.missing.push(name); continue; }
   const rawSame = body.replace(/\s+/g, '') === newFns.get(name).replace(/\s+/g, '');
   if (rawSame) verbatim.sameRaw++;
   if (normalizeFn(body) === normalizeFn(newFns.get(name))) verbatim.sameNormalized.push(name);
   else verbatim.diffNormalized.push({ name, old: body, new: newFns.get(name) });
+  const onlyExport = (s) => s.replace(/\bexport\b/g, '').replace(/\s+/g, '');
+  if (onlyExport(body) === onlyExport(newFns.get(name))) verbatim.sameWithoutState.push(name);
+  else verbatim.touchedByState.push(name);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1534,6 +1543,11 @@ console.log('剥注释+空白+归一化 `export `/`state.` 后：'
   + '（缺同名 ' + verbatim.missing.length + ' 个）');
 console.log('不归一化（只剥空白）：' + verbatim.sameRaw + ' 个逐字一致 / '
   + (oldFns.size - verbatim.sameRaw - verbatim.missing.length) + ' 个仅因 `export `/`state.` 前缀而不同');
+// 中间挡位：只摘掉 `export `、保留 `state.`。这一挡把 48 拆成两份证据 ——
+// 「一行都没动」的那些（连 state 都没碰）和「只多了 state. 前缀」的那些。
+console.log('只归一化 `export `（保留 `state.`）：' + verbatim.sameWithoutState.length
+  + ' 个连 state 都没碰 / ' + verbatim.touchedByState.length + ' 个只是被加了 `state.` 前缀');
+if (verbatim.touchedByState.length) console.log('  被 state 改写的：' + verbatim.touchedByState.join(' '));
 if (verbatim.missing.length) console.log('  缺同名：' + verbatim.missing.join(' '));
 for (const d of verbatim.diffNormalized) {
   let k = 0;
