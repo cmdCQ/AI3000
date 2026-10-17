@@ -134,6 +134,8 @@ const REF_PAYLOAD = (() => {
 const state = {
   stub: false, captured: [], savedRecords: [], patched: [], chat: [],
   chatFirstDelay: 0, chatDelay: 150, chatLive: [], chatAborts: [], chatSeq: 0,
+  recordList: [],   // history.html 拉的那份列表；由 /__records 灌，测完清空
+  deleted: [],      // DELETE 过的 id，供断言
 };
 
 async function api(req, res, pathname) {
@@ -151,8 +153,17 @@ async function api(req, res, pathname) {
   if (pathname === '/__reset') {
     state.captured = []; state.savedRecords = []; state.patched = []; state.chat = [];
     state.chatLive = []; state.chatAborts = []; state.chatSeq = 0;
+    state.recordList = []; state.deleted = [];
     return L.sendJson(res, { ok: true }), true;
   }
+  if (pathname === '/__records') {
+    if (req.method === 'POST') {
+      state.recordList = (await L.readBody(req)).records || [];
+      return L.sendJson(res, { ok: true, n: state.recordList.length }), true;
+    }
+    return L.sendJson(res, { records: state.recordList }), true;
+  }
+  if (pathname === '/__deleted') return L.sendJson(res, { deleted: state.deleted }), true;
   if (pathname === '/__saved') return L.sendJson(res, { saved: state.savedRecords }), true;
   if (pathname === '/__patched') return L.sendJson(res, { patched: state.patched }), true;
   if (pathname === '/__chat') return L.sendJson(res, { chat: state.chat }), true;
@@ -217,6 +228,19 @@ async function api(req, res, pathname) {
       result_data: last.resultData, ai_analysis: '', created_at: new Date().toISOString(),
     });
     return true;
+  }
+  // 记录**列表**（history.html 拉的那一条）。注意它和上面按 id 取单条是两个端点：
+  // 少了这一条，列表请求会掉进下面「别的 /api/* 一律空回」返回 `{}`，
+  // history.html 拿到非数组 → 直接走空态，看上去像「没有记录」而不是「桩没接上」。
+  if (req.method === 'GET' && pathname === '/api/liuyao-records') {
+    return L.sendJson(res, state.recordList), true;
+  }
+  // 删一条：真删 recordList 里的那条并记账，这样「删完重新拉列表」才能看到变化
+  if (req.method === 'DELETE' && /^\/api\/liuyao-records\/[^/]+$/.test(pathname)) {
+    const id = pathname.split('/').pop();
+    state.deleted.push(id);
+    state.recordList = state.recordList.filter((r) => String(r.id) !== String(id));
+    return L.sendJson(res, { ok: true }), true;
   }
   // 别的 /api/* 一律空回，免得页面上的鉴权请求把水搅浑
   if (pathname.startsWith('/api/')) return L.sendJson(res, {}), true;
@@ -877,6 +901,132 @@ async function main() {
       recPanel.overlayOpen === false, JSON.stringify(recPanel));
     check('盘还在、还能读（面板没把它挤掉或盖掉）',
       /艮为山/.test(await L.textOf(m, '#contentArea', 4000, 10)), '盘没了');
+
+    // ── ⑬ 记录页（history.html）：列表、搜索、管理、删除、点进详情 ──
+    // 这一页此前**一条判据都没有**（`grep -n history.html drive_liuyao_page.js` 为空），
+    // 而它一个月里被真实点了 41 次 —— 判据覆盖率为零的活页。搬它之前先把它钉住。
+    console.log('\n⑬ 记录页：列表 / 搜索 / 管理 / 删除 / 点进详情');
+    await setStub(true);
+    await reset(m);
+
+    // ① 未登录：给的是登录引导，不是空列表
+    await js(m, `document.cookie = 'sqw_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+                 document.cookie = 'sqw_username=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/'; return true;`);
+    await goto(m, `${ORIGIN}/liuyao/history.html`);
+    await L.until(m, `return document.getElementById('contentArea').innerText.length > 10;`, (t) => t, 8000);
+    const guestText = await L.textOf(m, '#contentArea', 4000, 10);
+    check('未登录时给的是登录引导（不是空列表、不是白屏）',
+      /登录后查看排盘记录/.test(guestText), guestText.replace(/\s+/g, ' ').slice(0, 120));
+    check('登录引导上那颗「去登录」调得到 openAuthModal（内联 onclick 的全局得在）',
+      await js(m, `${W} return typeof W.openAuthModal === 'function';`), 'openAuthModal 不是函数');
+
+    // ② 登录 + 三条记录：列表要按 recordTime 倒序，且文案来自记录本身
+    await js(m, `document.cookie = 'sqw_token=test-token; path=/';
+                 document.cookie = 'sqw_username=tester; path=/'; return true;`);
+    const RECORDS = [
+      { id: 101, topic: '早上那一卦', method: 'time',   recordTime: '2026-09-20T08:00:00', created_at: '2026-09-20T08:00:00' },
+      { id: 102, topic: '下午那一卦', method: 'manual', recordTime: '2026-09-21T15:30:00', created_at: '2026-09-21T15:30:00' },
+      { id: 103, topic: '晚上那一卦', method: 'coin',   recordTime: '2026-09-22T21:10:00', created_at: '2026-09-22T21:10:00' },
+    ];
+    await fetch(`${ORIGIN}/__records`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ records: RECORDS }) });
+    await goto(m, `${ORIGIN}/liuyao/history.html`);
+    await L.until(m, `return document.querySelectorAll('.record-card').length;`, (n) => n === 3, 8000);
+    const cards = await js(m, `${W}
+      return Array.from(document.querySelectorAll('.record-card')).map(function (c) {
+        return { topic: (c.querySelector('.rc-topic') || {}).innerText || '',
+                 meta: (c.querySelector('.rc-meta') || {}).innerText || '' };
+      });`);
+    check('三条记录都渲染出来了', cards.length === 3, JSON.stringify(cards).slice(0, 200));
+    check('列表按 recordTime **倒序**（最早那条在最后）',
+      cards[0].topic === '晚上那一卦' && cards[2].topic === '早上那一卦',
+      JSON.stringify(cards.map((c) => c.topic)));
+    check('卡片文案带方法名与时间（方法名是页面自己的表，不是后端给的）',
+      /手动指定/.test(cards[1].meta) && /2026-09-21 15:30/.test(cards[1].meta),
+      JSON.stringify(cards[1].meta));
+
+    // ③ 搜索：按事项过滤，大小写不敏感；清空后恢复
+    await js(m, `var i = document.getElementById('searchInput'); i.value = '下午';
+                 i.dispatchEvent(new Event('input')); return true;`);
+    await L.sleep(300);
+    check('搜索「下午」只剩一条', (await js(m, `return document.querySelectorAll('.record-card').length;`)) === 1,
+      await L.textOf(m, '#contentArea', 2000, 5));
+    await js(m, `document.getElementById('searchClear').click(); return true;`);
+    await L.sleep(300);
+    check('点清除搜索后三条都回来',
+      (await js(m, `return document.querySelectorAll('.record-card').length;`)) === 3,
+      '清除后没恢复');
+    await js(m, `var i = document.getElementById('searchInput'); i.value = '不存在的卦';
+                 i.dispatchEvent(new Event('input')); return true;`);
+    await L.sleep(300);
+    check('搜不到时给的是「没有匹配的卦例」而不是「暂无排盘记录」',
+      /没有匹配的卦例/.test(await L.textOf(m, '#contentArea', 2000, 5)), '空态文案不对');
+    await js(m, `document.getElementById('searchClear').click(); return true;`);
+    await L.sleep(300);
+
+    // ④ 管理模式：点「管理」→ 复选框与操作条出现；全选；再点「完成」→ 复原
+    await js(m, `document.getElementById('manageBtn').click(); return true;`);
+    await L.sleep(300);
+    const mg = await js(m, `${W}
+      return { btn: document.getElementById('manageBtn').innerText,
+               actionsShown: document.getElementById('fmActions').classList.contains('show'),
+               hasCheckbox: !!document.querySelector('.record-card .rc-checkbox'),
+               count: document.getElementById('selectedCount').innerText };`);
+    check('点「管理」→ 按钮变「完成」、操作条出现、卡片长出复选框',
+      mg.btn === '完成' && mg.actionsShown && mg.hasCheckbox, JSON.stringify(mg));
+    await js(m, `document.querySelector('.fm-select-all').click(); return true;`);
+    await L.sleep(300);
+    check('全选后计数是「已选 3」且删除按钮可用',
+      await js(m, `return document.getElementById('selectedCount').innerText === '已选 3'
+                 && document.getElementById('deleteSelectedBtn').disabled === false;`), '全选没生效');
+    await js(m, `document.getElementById('manageBtn').click(); return true;`);
+    await L.sleep(300);
+    check('再点「完成」→ 退出管理、复选框消失、计数清零',
+      await js(m, `return document.getElementById('manageBtn').innerText === '管理'
+                 && !document.querySelector('.record-card .rc-checkbox')
+                 && document.getElementById('selectedCount').innerText === '已选 0';`), '退出管理没复原');
+
+    // ⑤ 删除：真打 DELETE，路径里是记录自己的 id
+    await js(m, `document.getElementById('manageBtn').click(); return true;`);
+    await L.sleep(250);
+    await js(m, `document.querySelector('.record-card').click(); return true;`);   // 管理模式下点卡片 = 勾选
+    await L.sleep(250);
+    check('管理模式下点卡片是「勾选」而不是跳转（还留在本页）',
+      /history\.html/.test(await js(m, `return String(location.href);`))
+      && await js(m, `return document.getElementById('selectedCount').innerText === '已选 1';`),
+      await js(m, `return String(location.href);`));
+    // ⚠ 必须挂在 `W.` 上：`confirm()` 在页面里是**裸名调用**，执行的是页面那个 window
+    //   上的 confirm。在沙箱里写 `window.confirm = …` 改的是沙箱的 window，页面照旧弹框，
+    //   Marionette 的默认处理器会 dismiss 掉 → 删除不执行（第一版就是这么错的）。
+    await js(m, `${W} W.confirm = function () { return true; }; return true;`);
+    await js(m, `document.getElementById('deleteSelectedBtn').click(); return true;`);
+    // 桩会把 DELETE 落到 recordList 上（真后端的等价行为），所以删完重新拉只剩两条
+    await L.until(m, `return document.querySelectorAll('.record-card').length;`, (n) => n === 2, 8000);
+    check('「删除选中」真删掉了那一条（列表从 3 条变 2 条，不是只清了个勾）',
+      (await js(m, `return document.querySelectorAll('.record-card').length;`)) === 2,
+      JSON.stringify(await fetch(`${ORIGIN}/__deleted`).then((r) => r.json()).catch(() => ({}))));
+    check('删完计数清零', /已选 0/.test(await js(m, `return document.getElementById('selectedCount').innerText;`)),
+      '删除后计数没清零');
+
+    // ⑥ 点卡片 → 跳 result.html?id=<那条记录的 id>
+    await js(m, `document.getElementById('manageBtn').click(); return true;`);
+    await L.sleep(300);
+    await js(m, `document.querySelectorAll('.record-card')[0].click(); return true;`);
+    await L.until(m, `return /result\.html\?id=/.test(window.location.href);`, (t) => t, 6000);
+    const href = await js(m, `return String(location.href);`);
+    check('点卡片跳到结果页，且带上那条记录自己的 id',
+      /result\.html\?id=\d+/.test(href), href);
+    check('这一路没有 JS 报错', (await errsOf(m)).length === 0,
+      JSON.stringify(await errsOf(m)).slice(0, 300));
+
+    // ⑦ 空列表：文案是「暂无排盘记录」
+    await fetch(`${ORIGIN}/__records`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ records: [] }) });
+    await goto(m, `${ORIGIN}/liuyao/history.html`);
+    await L.until(m, `return document.getElementById('contentArea').innerText.length > 5;`, (t) => t, 8000);
+    check('一条记录都没有时是「暂无排盘记录」',
+      /暂无排盘记录/.test(await L.textOf(m, '#contentArea', 3000, 10)), '空态文案不对');
+
     await setChatDelay(150);
     code = 0;
   } finally {
