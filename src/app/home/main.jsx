@@ -142,14 +142,10 @@ function BottomNav({ tab, onTab }) {
 }
 
 // ── Tab 1：命理与术数 ────────────────────────────────────────────
-// `icon` 是单个汉字（八 / 卦 / 梅 / 爻），不是 emoji：emoji 在 16px + 半透明下
-// 细节全糊，四个字四种颜色还都不在玉青这套色里。汉字块单色、字形不随平台漂移。
-// 结构（.icon + .body > .name/.desc）一个字没动 —— home.behavior.spec.mjs 靠
-// `.module-card` + `.name` 的精确文本定位，改结构就会丢判据。
 function ModuleCard({ icon, name, desc, onClick }) {
   return (
     <div className="module-card active" onClick={onClick}>
-      <span className="icon" aria-hidden="true">{icon}</span>
+      <span className="icon">{icon}</span>
       <span className="body">
         <span className="name">{name}</span>
         <span className="desc">{desc}</span>
@@ -174,9 +170,37 @@ function ModulesTab({ marquee, onOpenAnnouncement, onModule, onSuggestion, uptim
         <span className="announcement-arrow">›</span>
       </div>
 
-      {/* 建议入口原来在这里：一颗 185×37 的虚线胶囊，占掉 24+37+32≈93px 竖向，
-          点击目标 37px 低于 44px 触控下限，还是全页唯一一条虚线。
-          现在挪进页脚（仍是同一个 <a>、文案一字不改、仍在 #tab-modules 里）。 */}
+      <div style={{ textAlign: 'center', margin: '1.5rem 0 0.5rem' }}>
+        <a
+          href="#"
+          onClick={(e) => {
+            e.preventDefault()
+            onSuggestion()
+          }}
+          style={{
+            display: 'inline-block',
+            fontSize: '0.78rem',
+            color: 'var(--accent-dim)',
+            textDecoration: 'none',
+            padding: '0.45rem 1.2rem',
+            border: '1px dashed var(--border)',
+            borderRadius: '20px',
+            letterSpacing: '0.04em',
+            transition: 'all 0.2s ease',
+            cursor: 'pointer',
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.borderColor = 'var(--border-active)'
+            e.currentTarget.style.color = 'var(--accent)'
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.borderColor = 'var(--border)'
+            e.currentTarget.style.color = 'var(--accent-dim)'
+          }}
+        >
+          💬 我们需要你宝贵的建议
+        </a>
+      </div>
 
       <section className="home-section">
         <div className="section-head">
@@ -187,7 +211,7 @@ function ModulesTab({ marquee, onOpenAnnouncement, onModule, onSuggestion, uptim
           {/* 四柱八字的注释照抄老 HTML 第 86-92 行：这条路本来就是通的，
               只是首页没有一张卡调它。描述只写现在真有的东西。 */}
           <ModuleCard
-            icon="八"
+            icon="📜"
             name="四柱八字"
             desc="四柱干支 · 农历生肖 · 真太阳时"
             onClick={() => onModule('charts')}
@@ -202,19 +226,19 @@ function ModulesTab({ marquee, onOpenAnnouncement, onModule, onSuggestion, uptim
         </div>
         <div className="module-list">
           <ModuleCard
-            icon="卦"
+            icon="📖"
             name="六十四卦"
             desc="卦辞 · 爻辞 · 象传 · 详解"
             onClick={() => (window.location.href = '/hexagrams/')}
           />
           <ModuleCard
-            icon="梅"
+            icon="🌸"
             name="梅花易数"
             desc="年月日时 · 万物类象"
             onClick={() => onModule('meihua')}
           />
           <ModuleCard
-            icon="爻"
+            icon="🪙"
             name="六爻"
             desc="铜钱起卦 · 六十四卦"
             onClick={() => onModule('liuyao')}
@@ -230,16 +254,6 @@ function ModulesTab({ marquee, onOpenAnnouncement, onModule, onSuggestion, uptim
             CQ / 参群
           </a>
         </div>
-        <a
-          className="home-suggest"
-          href="#"
-          onClick={(e) => {
-            e.preventDefault()
-            onSuggestion()
-          }}
-        >
-          我们需要你宝贵的建议
-        </a>
         <div className="uptime-line">
           <span>已稳定运行</span>
           <span className="uptime-timer" id="uptimeTimer">
@@ -459,22 +473,16 @@ function App() {
   return (
     <>
       <div className="home-wrapper">
-        {/* 🏮 删了：它在 Chromium 里是一块高饱和红，是整页唯一的第三种彩色，
-            还把页头撑到 135.8px。品牌感交给字号、字距和那道 20×2 的玉青短线。 */}
         <header className="home-header">
+          <div className="home-emblem">🏮</div>
           <h1 className="home-title">易三千</h1>
           <p className="home-sub">问天 · 问命 · 问心</p>
           <div className="home-rule"></div>
         </header>
 
-        {/* 「问」呼应「问天 · 问命 · 问心」；副标题给这一行一个「是什么」，
-            没有它时 64px 高的卡里只有一行 15px 的字，右边全是空的。 */}
         <div className="ai-chat-entrance" onClick={onChat}>
-          <span className="ai-ent-icon" aria-hidden="true">问</span>
-          <span className="ai-ent-text">
-            <span className="ai-ent-name">AI 对话</span>
-            <span className="ai-ent-sub">智能解卦 · 随时开问</span>
-          </span>
+          <span className="ai-ent-icon">💬</span>
+          <span className="ai-ent-text">AI 对话</span>
           <span className="ai-ent-arrow">›</span>
         </div>
 

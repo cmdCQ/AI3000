@@ -157,49 +157,61 @@ function writeJSON(file, data) {
   fs.writeFileSync(file, JSON.stringify(data, null, 2));
 }
 
-// ===== 公告正文 =====
-// 公告只有这一份，就住在代码里：改这里 → `./deploy/sync.sh` → 首页滚动条与弹窗同时变。
-//
-// 为什么不再从微云笔记同步（2026-10-17 改）：那份笔记的 HTML 转成纯文本之后是
-// 「-**命盘解析」这种断掉的 Markdown、句尾挂着省略号、日期停在 2026.6.28 ——
-// 而首页公告弹窗用的是 `src/app/home/home.logic.js` 里那个**极简**渲染器
-// （只认 `#`/`##`/`###`、`- ` 列表、`**粗体**`、`[文字](链接)`、`> 引用`、`---`、
-// 行首 `○` 右对齐），两边的「富文本」永远对不齐，用户看到的就是一堆星号和横线。
-// 现在没有第二次抓取、没有缓存文件、没有「同步失败就空白」这条路径。
-//
-// ⚠ 改正文时只用上面那几样语法；Markdown 的表格、嵌套列表、图片、代码围栏都不认。
-//
-// 篇幅是硬约束，不是审美偏好：弹窗在手机上只有 60vh 高（.announcement-modal 的
-// max-height），正文区一超就滚，滚下去的那半截没人看。所以上限是「十来行 + 一个五项
-// 列表」，并且**每行都得压进一行内**：弹窗正文列定宽约 330px（手机上不超过 92%），
-// 360px 的机器净宽只有 265px ≈ 0.84rem 下 21 字，再长就掉一个孤字到第二行。
-// 下面每一行都按 ≤21 字写。渲染器把段落里的单个换行折成 <br>，所以免责那两句是
-// 两行硬换行，各自同样要 ≤21 字。
-// 也只写**现在真有的东西**：六爻 `📌 断卦要点` 卡（用神/神煞/回头生）在 §5.2 已下线，
-// 紫微斗数与奇门遁甲还没上线 —— 这两样只能出现在「接下来」里。
-const ANNOUNCEMENT_MD = [
-  '盘排出来只是开始，难的是讲清楚。',
-  '',
-  '## 现在能用的',
-  '',
-  '- **四柱八字**：干支四柱、真太阳时，命盘存得住',
-  '- **六十四卦**：卦辞、象传、爻辞，逐句现代释义',
-  '- **梅花易数**：时间、报数、字占起卦，体用生克',
-  '- **六爻**：铜钱起卦，六神六亲世应，动爻变卦',
-  '- **AI 解读**：就着当前一卦追问，流式回答',
-  '',
-  '## 接下来',
-  '',
-  '- **命盘综合解读**：八字、大运、流年一起讲',
-  '- **紫微斗数**、**奇门遁甲**',
-  '',
-  '---',
-  '',
-  '排盘与解读仅供参考，不作决断依据。',
-  '有问题、有想法，点首页那颗按钮就能写。',
-  '',
-  '○2026 · 十月',
-].join('\n');
+// ===== 公告缓存（持久化 + 后台刷新） =====
+const ANN_CACHE_FILE = path.join(DATA_DIR, 'announcement_cache.json');
+let annCache = readJSON(ANN_CACHE_FILE, { ts: 0, text: '' });
+annCache.loading = false;
+
+async function refreshAnnCache() {
+  if (annCache.loading) return;
+  annCache.loading = true;
+  try {
+    const https = require('https');
+    const annData = await new Promise((resolve, reject) => {
+      https.get('https://share.weiyun.com/qo2KUkDw', {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        timeout: 8000,
+      }, (resp) => {
+        let data = '';
+        resp.on('data', chunk => data += chunk);
+        resp.on('end', () => resolve(data));
+      }).on('error', reject);
+    });
+
+    const match = annData.match(/window\.syncData\s*=\s*(\{[\s\S]*?\});/);
+    if (!match) { annCache.loading = false; return; }
+
+    const syncData = JSON.parse(match[1]);
+    const notes = syncData?.shareInfo?.note_list || [];
+    const note = notes[0];
+    if (!note) { annCache.loading = false; return; }
+
+    const htmlContent = note.html_content || '';
+    const plainText = htmlContent
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/p>\s*<p>/gi, '\n\n')
+      .replace(/<\/?[^>]+(>|$)/g, '')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&quot;/gi, '"')
+      .replace(/&#x27;/g, "'")
+      .replace(/&#39;/g, "'")
+      .trim();
+
+    annCache.ts = Date.now();
+    annCache.text = plainText;
+    writeJSON(ANN_CACHE_FILE, { ts: annCache.ts, text: annCache.text });
+  } catch (e) {
+    console.error('Announcement refresh error:', e.message);
+  } finally {
+    annCache.loading = false;
+  }
+}
+
+// 启动时预加载（不阻塞）
+refreshAnnCache();
 
 // ===== Crypto helpers =====
 function hashPassword(password) {
@@ -2469,9 +2481,22 @@ userPrompt += '\n\n注意：参考古籍已在最上方提供，请在回答开�
     return chatProxy.handleChat(req, res, body);
   }
 
-  // GET /api/announcement — 公告正文（住在源码里，见上面 ANNOUNCEMENT_MD）
+  // GET /api/announcement — 获取公告内容（从微云笔记同步）
   if (req.method === 'GET' && pathname === '/api/announcement') {
-    return json(res, { content: ANNOUNCEMENT_MD });
+    // 有缓存直接返回（即使过期也先用，后台会刷新）
+    if (annCache.text) {
+      // 缓存超过 5 分钟，后台静默刷新
+      if (Date.now() - annCache.ts > 300000) refreshAnnCache();
+      return json(res, { content: annCache.text });
+    }
+    // 首次无缓存，等待拉取
+    if (!annCache.loading) refreshAnnCache();
+    // 最多等 5 秒
+    const start = Date.now();
+    while (!annCache.text && Date.now() - start < 5000) {
+      await new Promise(r => setTimeout(r, 200));
+    }
+    return json(res, { content: annCache.text || '' });
   }
 
   // POST /api/wechat/login — 微信小程序授权登录
