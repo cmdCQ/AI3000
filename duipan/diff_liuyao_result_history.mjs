@@ -86,15 +86,17 @@ const { makeDocument, installGlobals } = require('./dom_stub.js');
 const L = require('./legacy_liuyao.js');
 
 // 判据是**冻结的快照**（`duipan/legacy_ref/`），不是活文件 `src/web/js/`：
-// 那两份活文件已经随三页迁完被删掉了；而且判据读活文件 = 判据跟着实现漂。
+// 那三份活文件已经随各页迁完被删掉了；而且判据读活文件 = 判据跟着实现漂。
 //   page-liuyao-result.js   115 行  sha256 939ee312ed5dd4c2cb09f2569c79b24457cfcfaafaccfc337eb845a16f79231f
 //   page-liuyao-history.js  215 行  sha256 2381473dfc1e231cb35816cc64f8259e428a2ae94db0046ea24f6913726ecc2c
-// **不许改这两个快照** —— 改了就是把判据换成新实现自己。
-// 梅花记录页还没搬（本轮范围外），它的老脚本仍在线上，所以读活文件。
+//   page-mhys-history.js    220 行  sha256 1326dbaf4b86c5b688a36e84d8dd553c6142d91ec03b2cac2f65d9d70f41e62a
+// **不许改这三个快照** —— 改了就是把判据换成新实现自己。
+// 三份都读快照之后，这条判据**不再依赖 `src/web/js/` 里还剩什么**：
+// 老树清空到只剩共享层时，它照样能比。
 const SRC = {
   result: SR('duipan/legacy_ref/page-liuyao-result.js'),
   liuyaoHist: SR('duipan/legacy_ref/page-liuyao-history.js'),
-  mhysHist: SR('src/web/js/page-mhys-history.js'),
+  mhysHist: SR('duipan/legacy_ref/page-mhys-history.js'),
   uiCommon: SR('src/web/js/ui_common.js'),
   render: SR('src/web/js/liuyao_render.js'),
 };
