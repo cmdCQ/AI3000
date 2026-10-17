@@ -51,7 +51,11 @@ const ROOT = path.join(__dirname, '..');
 //   `build/nginx` 是**超集**：没搬的页面是 `src/web` 的逐字拷贝，搬了的在构建产物里。
 //   要临时换根：DRIVE_ROOT=/somewhere node <本脚本>
 const WEB = process.env.DRIVE_ROOT || path.join(ROOT, "build", "nginx");
-const PORT = 8901;
+// 端口 8901 → 8902（2026-10-17）：本机上有个与本项目无关的常驻进程
+//   `/root/DSH/tools/uuapi-relay.mjs` 占着 127.0.0.1:8901，本驱动起静态服务时
+//   直接 `EADDRINUSE`，冻门报「mhys-twice 退出码 1」而页面本身没问题。
+//   改成 8902，并留 `DRIVE_PORT` 覆盖（与 drive_mhys_page.js / drive_liuyao_page.js 一致）。
+const PORT = Number(process.env.DRIVE_PORT || 8902);
 const MARIONETTE_PORT = 2831;
 const ORIGIN = `http://127.0.0.1:${PORT}`;
 const SHOT = '/tmp/mhys-twice';
@@ -497,7 +501,7 @@ async function main() {
   }
   console.log('✅ 梅花「用两次」全绿');
   // ★ 必须显式退：main() 跑完时 marionette 那条连接还开着，node 的事件循环
-  //   不会自己空掉，于是进程**挂在那儿继续占着 :8901**。变异套件下一轮起不来，
+  //   不会自己空掉，于是进程**挂在那儿继续占着 :8902**。变异套件下一轮起不来，
   //   报出来的却是「N 个变异没抓住」——看起来像断言被橡皮章，其实是端口被自己
   //   上一轮占着。失败那支一直有 process.exit(1)，成功这支漏了。
   process.exit(0);

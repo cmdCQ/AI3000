@@ -42,7 +42,7 @@ const legacy = require('./legacy_ai_chat');
 const ROOT = path.join(__dirname, '..');
 const WEB = path.join(ROOT, 'build', 'nginx');
 // 端口错开另四份驱动。**实际在用的**（2026-10-17 逐个 grep 过，别凭注释猜）：
-//   mhys-page  8892/2828   mhys-twice 8901/2831   liuyao 8898/2829   bazi 8897/2830
+//   mhys-page  8892/2828   mhys-twice 8902/2831   liuyao 8898/2829   bazi 8897/2830
 // 我原来写 8896/2831，2831 跟 `drive_mhys_twice.js` **撞了** —— 两个驱动同时跑
 // （冻结门的页面层就是四个连着跑）会互相抢 marionette 端口。改到没人用的 8893/2832。
 const PORT = 8893;

@@ -38,7 +38,7 @@ const ROOT = path.join(__dirname, '..');
 // 打的 `?v=`，所以本脚本刻意不去断言 `?v=`（那是另一层的事）。
 const WEB = process.env.DRIVE_ROOT || path.join(ROOT, 'build', 'nginx');
 // 端口错开另五份驱动（2026-10-17 逐个 grep 过，别凭注释猜）：
-//   mhys-page 8892/2828  mhys-twice 8901/2831  liuyao 8898/2829
+//   mhys-page 8892/2828  mhys-twice 8902/2831  liuyao 8898/2829
 //   bazi 8897/2830       ai-chat 8893/2832
 // 这里用没人碰的 8894/2833。错开只为防残留，**不为并行**（见头注释）。
 const PORT = 8894;
