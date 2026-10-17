@@ -1,4 +1,44 @@
-(function(){
+// `/charts/`（新建 / 编辑命盘）的命令式逻辑 —— 阶段 3 第 12 页。
+// 逐字搬运自 `src/web/js/page-charts.js`（955 行，判据快照见 git 历史：
+// `git show 7ec4fda^:src/web/js/page-charts.js`）。
+// ==========================================================================
+//
+// ─────────────────────────────────────────────────────────────
+// 搬法：整段 IIFE 换成一个具名函数，函数体**一字未改**
+// ─────────────────────────────────────────────────────────────
+// 老文件是 `(function(){ 'use strict'; … })();` —— 整页逻辑都在一个 IIFE 里，
+// 没有任何名字漏到 window（`grep -o 'on[a-z]*="' src/web/charts/index.html` 里
+// 一个行内事件都没有，全是 meta/link 上的属性）。所以这里最忠实也最简单的搬法就是
+// 把那层 IIFE 换成 `export function init()`：
+//
+//     (function(){ 'use strict';   →   export function init() {
+//       … 955 行原样 …                    … 955 行原样 …
+//     })();                        →   }
+//
+// 函数体逐字节保留（含缩进）—— 这样 `git diff -w` 与任何逐字对拍都还对得上，
+// 而且**不需要**理解那 955 行就能保证移植是零风险的：唯一改变的是「谁在什么时候
+// 调它一次」。老页面是 classic script 解析到就执行；新页面由 `main.jsx` 在
+// `flushSync` 提交骨架之后调一次（见那边的注释）。
+//
+// ★ 两个必须放在 init() 内部、不能提到模块顶层的副作用
+// ─────────────────────────────────────────────────────────────
+//   ① 登录检查 `if (!AUTH.isLoggedIn()) { openAuthModal('login'); return; }` ——
+//      放在函数里那个 `return` 就是「未登录 → 什么都不初始化」，与老行为等价；
+//      放在模块顶层就变成语法错误（return 不在函数里）。
+//   ② 一堆**模块求值即执行**的初始化：`updateDateDisplay()`、滚轮 track 的构建、
+//      `document.addEventListener('click', …)`、地区 select 的填充 ——
+//      它们全都要 DOM 已经在。老页此时标记已解析完；新页靠 flushSync 保证。
+//
+// ★ 依赖的全局（六条传统 script 提供，见 `charts/index.html`）
+// ─────────────────────────────────────────────────────────────
+//   · `AUTH`            `/js/auth.js`          —— `isLoggedIn()`
+//   · `openAuthModal`   `/js/auth.js`          —— 未登录时弹登录框
+//   · `ChartsStore`     `/js/charts-store.js`  —— `add` / `update` / `getAll`
+//   · `CHINA_REGIONS`   `/js/china-regions.js` —— 省/市/区三级数据（10 处引用）
+//   · `Solar`           `/js/lunar.min.js`     —— `Solar.fromYmd()` 取农历/节气
+/* global AUTH, openAuthModal, ChartsStore, CHINA_REGIONS, Solar */
+
+export function init() {
   'use strict';
 
   // ===== 登录检查 =====
@@ -952,4 +992,4 @@
       btn.disabled = false; btn.textContent = '开始排盘';
     }
   }
-})();
+}

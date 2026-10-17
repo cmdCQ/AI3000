@@ -1,0 +1,20 @@
+/* `/charts/` —— 阶段 3 第 12 页。
+   @import 顺序刻意与老页面 `src/web/charts/index.html` 的文档顺序一致：
+       :11  /css/charts.css
+       :14  /css/page-charts.css
+       :15  /css/tokens.css
+   三份都在 <head> 里，文档顺序就是生效顺序；`@import` 按同一顺序展开。
+
+   ⚠ 注意 charts.css 在 page-charts.css **之前**：两份文件都有表单控件的通用规则，
+   顺序反过来会改掉输入框的边框/圆角。这是照抄，不是随便排的。
+
+   `#root` 那一行与 `/mhys/`、`/my-charts/` 同源：老页的 `.charts-wrapper` 与
+   `.cal-overlay` 都是 `<body>` 的直接子节点，新页外面多了一层 `#root`。
+   本页没有一条 CSS 依赖父子关系（`.charts-wrapper` 自己 max-width:680px + margin:auto；
+   `.cal-overlay` 是 position:fixed），所以视觉上不需要补规则 ——
+   这行只是把 `#root` 声明成普通块级盒，免得以后有人给它加样式时以为它「本来就有」。 */
+@import '../../web/css/charts.css';
+@import '../../web/css/page-charts.css';
+@import '../../web/css/tokens.css';
+
+#root { display: block; }

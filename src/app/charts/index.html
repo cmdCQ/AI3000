@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>新建命盘 · 易三千</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all';this.onload=null">
+</head>
+<body>
+<div id="root"></div>
+
+<!-- 四条**传统 script**，本次阶段 3 一个都不搬，顺序照抄老页 `src/web/charts/index.html:157-160`：
+     lunar.min → auth → charts-store → china-regions。
+     老页第 161 行那条 `page-charts.js` 换成了下面的 module（`main.jsx` + `logic.js`）。
+
+     · lunar.min.js      全局 `Solar` —— `updateLunarPreview()` 用它取农历与节气；
+                         `logic.js` 里唯一的用法是 `Solar.fromYmd(y,m,d)`。
+     · auth.js           `window.AUTH.isLoggedIn()`（未登录就弹登录框并整页不初始化）
+                         + `window.openAuthModal`。
+     · charts-store.js   `window.ChartsStore.add/update` —— 提交表单时用它入库，
+                         成功后 `location.href = '/my-charts/?id=' + result.id`。
+     · china-regions.js  全局 `CHINA_REGIONS` —— 省/市/区三级联动与地名搜索的数据源
+                         （`logic.js` 里 10 处引用）。
+
+     ★ 执行顺序（与 `/mhys/`、`/mhys/result.html` 同一套论证）：
+       `vite build` 把 `<script type="module">` 搬进 `<head>`，文档顺序上排在四条之前；
+       但 module 自带 defer，要等 HTML 解析完（四条全跑完）才执行。真实顺序是
+           四条传统 script → main.jsx（使用者）→ DOMContentLoaded
+       ⚠ 别因为「module 被搬到前面」就以为它先跑 —— 那样 `Solar` / `AUTH` /
+         `ChartsStore` / `CHINA_REGIONS` 全都还不存在。defer 是这个顺序唯一的保障。
+       阶段 4 收口时这几条整体搬进 src/app/，script 标签一起去掉。 -->
+<script src="/js/lunar.min.js"></script>
+<script src="/js/auth.js"></script>
+<script src="/js/charts-store.js"></script>
+<script src="/js/china-regions.js"></script>
+<script type="module" src="./main.jsx"></script>
+</body>
+</html>
