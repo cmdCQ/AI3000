@@ -471,22 +471,29 @@ html, body {
 
 .announcement-modal {
   background: var(--bg-card);
+  /* 近纯白画布 + 0.2 黑遮罩下，纯投影的边界会发虚 —— 补一道 hairline，
+     弹窗边缘才是清楚的。overflow:hidden 让正文滚动时被圆角裁住。 */
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  width: 100%; max-width: 400px;
+  /* 330px 是照正文排的，不是随手定的：正文最长一行 20 字（见 auth-server.js 的
+     公告注释），0.84rem 下 20 字 ≈ 269px，加左右内边距 27px、列表缩进 18px 约 314px，
+     取 330 让最长一行右边还剩一点气口。原来是 400：行尾在右边空出小半个弹窗，
+     右对齐的日期反而顶到最右，看着像正文没写完。宽度跟着字走，右边缘才齐。 */
+  width: 100%; max-width: 330px;
   max-height: 62vh;
   display: flex; flex-direction: column;
-  box-shadow: 0 16px 48px rgba(0,0,0,0.18);
-  will-change: transform, opacity;
+  overflow: hidden;
+  box-shadow: var(--shadow-modal);
 }
+/* 原来是 40px 位移 + 1.015 过冲的回弹。弹窗不是玩具，改成一次干净的淡入上浮：
+   位移只留 8px，全程无过冲，0.3s 走 --ease-out 的尾部减速。 */
 .announcement-overlay.open .announcement-modal {
-  animation: annModalSpring 0.5s cubic-bezier(0.22, 0.61, 0.36, 1);
+  animation: annModalIn 0.3s var(--ease-out) both;
 }
 
-@keyframes annModalSpring {
-  0%   { transform: translateY(40px) scale(0.9); opacity: 0; }
-  50%  { transform: translateY(-6px) scale(1.015); opacity: 1; }
-  75%  { transform: translateY(2px) scale(0.995); }
-  100% { transform: translateY(0) scale(1); opacity: 1; }
+@keyframes annModalIn {
+  from { transform: translateY(8px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
 }
 
 .announcement-modal-header {
@@ -513,8 +520,8 @@ html, body {
 
 .announcement-modal-close {
   background: none; border: none;
-  font-size: 1.1rem; color: var(--text-muted);
-  cursor: pointer; padding: 0.25rem 0.45rem;
+  font-size: 1.05rem; color: var(--text-muted);
+  cursor: pointer; padding: 0.3rem 0.5rem;
   border-radius: 6px;
   transition: all 0.15s;
   line-height: 1; font-family: inherit;
@@ -529,6 +536,18 @@ html, body {
   overflow-y: auto;
   flex: 1;
   -webkit-overflow-scrolling: touch;
+  /* 滚动到正文末尾时不要把滚动链传给底下的首页 */
+  overscroll-behavior: contain;
+  /* 默认滚动条是浏览器灰槽，在近纯白的弹窗里很扎眼。细到 6px、
+     颜色只比描边深一档。 */
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+.announcement-modal-body::-webkit-scrollbar { width: 6px; }
+.announcement-modal-body::-webkit-scrollbar-track { background: transparent; }
+.announcement-modal-body::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 3px;
 }
 
 /* ===== Markdown 渲染样式 ===== */
@@ -558,10 +577,29 @@ html, body {
   margin-top: 0;
 }
 .markdown-body p { margin: 0.5rem 0; }
-.markdown-body ul, .markdown-body ol {
-  padding-left: 1.5rem; margin: 0.5rem 0;
+.markdown-body > p:first-child { margin-top: 0; }
+/* 渲染器把行首 `○` 那行包成 `<p><div style="text-align:right">…</div></p>`，
+   `div` 不允许嵌在 `p` 里，浏览器会在解析时拆出一个空的 `<p></p>`。
+   它高度为 0，但上下各 0.5rem 的外边距会实打实地撑在末尾。
+   空段落没有任何内容可显示，直接隐掉 —— 这是渲染器的形状，不是文案问题。 */
+.markdown-body p:empty { display: none; }
+/* 右对齐那行是页脚的「年月」，不是正文：小一档、弱一档、字距放开。 */
+.markdown-body > div {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  margin-top: 0.85rem;
 }
-.markdown-body li { margin: 0.25rem 0; }
+/* 缩进从 1.5rem 收到 1.1rem：正文只有 ~21 字宽，多出来的每一像素都算在
+   换行上；圆点退成暖金装饰色，不跟玉青的粗体抢。 */
+.markdown-body ul, .markdown-body ol {
+  padding-left: 1.1rem; margin: 0.4rem 0;
+}
+.markdown-body li { margin: 0.3rem 0; }
+.markdown-body li::marker {
+  color: var(--gold-line);
+  font-size: 0.7em;
+}
 /* ⚠ 这两行原来是 `var(--warm)`（暗金 #7a6109）。玉青主色改造时漏掉了它们，
    于是公告正文里的粗体与链接仍是旧主题的金棕色 —— 用户 2026-10-17 报
    「主题色没改过来」说的就是这里（截图里那一排金色小标题）。
@@ -576,7 +614,7 @@ html, body {
 .markdown-body hr {
   border: none;
   border-top: 1px solid var(--border);
-  margin: 0.9rem 0;
+  margin: 1rem 0 0.9rem;
 }
 .markdown-body blockquote {
   border-left: 3px solid var(--accent);
@@ -592,15 +630,23 @@ html, body {
     padding: 0.4rem 0.7rem; gap: 0.4rem;
   }
   .announcement-track { font-size: 0.72rem; }
+  .announcement-overlay { padding: 0.8rem; }
   .announcement-modal {
-    max-width: 88%;
+    /* 330px 之外再留一个百分比兜底：359px 以下的机器（老 320 之类）才轮到 92%
+       接管，免得弹窗贴到屏幕边。平时这两条里生效的都是 330。 */
+    max-width: min(92%, 330px);
     max-height: 60vh;
     margin: auto;
   }
   .announcement-modal-body {
-    padding: 0.8rem 0.9rem 1rem;
+    padding: 0.75rem 0.85rem 0.85rem;
   }
   .markdown-body { font-size: 0.8rem; }
   .markdown-body h1 { font-size: 1.05rem; }
-  .markdown-body h2 { font-size: 0.92rem; }
+  /* 窄屏一行只有 ~20 字，正文比宽屏多出三四行；这里把节间留白各收 2px 左右，
+     60vh 装得下整篇，读者不必为了最后两行去拖滚动条。 */
+  .markdown-body h2 { font-size: 0.92rem; margin-top: 0.75rem; }
+  .markdown-body ul { margin: 0.3rem 0; padding-left: 0.95rem; }
+  .markdown-body hr { margin: 0.8rem 0 0.7rem; }
+  .markdown-body > div { margin-top: 0.65rem; }
 }
