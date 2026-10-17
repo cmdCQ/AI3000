@@ -20,10 +20,19 @@
  *   M2 `cycleManualLine` 没挂到 window  —— 同上（第二个名字，防只挂了一半）
  *   M3 `cycleManualLine` 挂上了但空转    —— ⑥bis「内容确实变了」必须红
  *   M4 `castToTrigrams` 折卦算错         —— ⑥ 的折卦判据必须红（证它也不是摆设）
+ *   M5 记录页 `toggleManage` 没挂到 window —— ⑬「管理」必须红（同一类故障，另一页）
+ *   M6 记录页 `viewRecord` 没挂到 window   —— ⑬「点卡片跳转」必须红
+ *   M7 记录页 `viewRecord` 把 id 弄丢      —— ⑬「带上它自己的 id」必须红
+ *   M8 结果页 `cardFromResult` 老形状折错  —— ⑨「老形状也渲染出卦」必须红
+ *   M9 结果页 `meta.recordId` 传错         —— ⑨「解读存回它自己的 id」必须红
+ *
+ *   M5–M9 只在**新实现**分支里存在：这两页的老产物
+ *   （`build/nginx/js/page-liuyao-{result,history}.js`）已随三页迁完删除，
+ *   没有老东西可改。这不是覆盖漏洞，是那一侧已经没有实现。
  *
  * 每个变异跑完按 sha256 逐字节还原，最后一个变异之后统一再核一次全部文件。
  *
- * 用法：node duipan/mutate_liuyao_page.js     （四轮驱动，约 6–8 分钟）
+ * 用法：node duipan/mutate_liuyao_page.js     （九轮驱动，约 15–20 分钟）
  * 退出码：0 = 全部被抓且文件全还原
  */
 
@@ -53,6 +62,11 @@ const F = {
   // 新实现：函数在 logic.js，挂 window 的那几行在 main.jsx
   logic: path.join(ROOT, 'src', 'app', 'liuyao', 'logic.js'),
   main: path.join(ROOT, 'src', 'app', 'liuyao', 'main.jsx'),
+  // 结果页 / 记录页（阶段 3 第 6、7 页）。记录页的 13 个函数在共享件里，
+  // 挂 window 的 7 行在 history.jsx —— 一页两文件，理由见 M5/M6。
+  resultLogic: path.join(ROOT, 'src', 'app', 'liuyao', 'result.logic.js'),
+  historyJsx: path.join(ROOT, 'src', 'app', 'liuyao', 'history.jsx'),
+  lib: path.join(ROOT, 'src', 'app', 'lib', 'recordsHistory.js'),
 };
 
 const VITE = path.join(ROOT, 'src', 'app', 'node_modules', '.bin', 'vite');
@@ -127,6 +141,64 @@ function mutations(isReact) {
         repl: '    upper: linesToTri([yangs[0], yangs[1], yangs[2]]),\n'
             + '    lower: linesToTri([yangs[3], yangs[4], yangs[5]]),',
         expect: '与手算逐字相同',
+      },
+      // ── 结果页 / 记录页（阶段 3 第 6、7 页）────────────────────────────
+      // ⚠ 这两页的老产物（`build/nginx/js/page-liuyao-{result,history}.js`）
+      //   已经随三页迁完删掉了，所以下面四条只在 isReact 分支里存在；
+      //   老实现分支没有「新两页」可变异，不是漏了。
+      {
+        // 记录页的内联 onclick 要 7 个**真** window 全局。漏挂的症状是「点了没反应、
+        // 控制台只有一行 `toggleManage is not defined`」—— ⑬ 的「管理」那条必须红。
+        // 拿它当第一条，是因为它测的正是「内联 onclick 的全局得在」这条契约。
+        name: 'M5 记录页 toggleManage 没挂到 window -> ⑬ 的「管理」判据必须红',
+        files: ['historyJsx'],
+        find: "  expose('toggleManage', toggleManage);",
+        repl: "  // [变异 M5] expose('toggleManage', toggleManage);",
+        // ⚠ 期望项是**那条断言**，不是 `toggleManage is not defined`：管理模式没进去，
+        //   后面「点卡片」就变成跳转（本页不再是本页），驱动在那之后会拿 result.html
+        //   上的 DOM 去 getElementById → 崩在 `null.click`（退出码 2），
+        //   `errsOf` 那一行根本没机会打印。抓「第一条红的断言」才是这条判据的本意。
+        expect: '✗ 点「管理」',
+      },
+      {
+        // 同上，第二个名字（防只挂了一半）。`viewRecord` 是 renderCards() 拼进
+        // HTML 字符串里的 onclick，比骨架里那几个更容易漏。
+        name: 'M6 记录页 viewRecord 没挂到 window -> ⑬ 的「点卡片跳转」必须红',
+        files: ['historyJsx'],
+        find: "  expose('viewRecord', viewRecord);",
+        repl: "  // [变异 M6] expose('viewRecord', viewRecord);",
+        // 期望项取「第一条会红的断言」，不取控制台那行 `viewRecord is not defined`：
+        // 点了不跳 → `L.until` 空转 6s → href 那条断言立刻红；而错误串要等后面
+        // ⑦「没有 JS 报错」才打印，中间任何一步崩了它就没机会出现（M5 踩过同一个坑）。
+        expect: '✗ 点卡片跳到结果页',
+      },
+      {
+        // ⚠ 这里刻意不用「跳错成 999」：⑬ 只断言 href 匹配 /result\.html\?id=\d+/，
+        //   一个**错的数字 id 照样过**。所以变异取「id 丢了」—— 那才是现有判据
+        //   真能看见的错。（「跳错但仍是数字」这条判据现在不守，已写进报告。）
+        name: 'M7 记录页 viewRecord 把 id 丢了 -> ⑬ 的「带上它自己的 id」必须红',
+        files: ['lib'],
+        find: '    window.location.href = detailsUrl + id;',
+        repl: '    window.location.href = detailsUrl; // [变异 M7] id 没带上',
+        expect: '✗ 点卡片跳到结果页',
+      },
+      {
+        // 老形状记录（卦在 result.gua.benGua 而不是 result.hexagrams）是本轮最容易
+        // 折错的一处：把「变卦」当「本卦」折，页面照常渲染、只是那一卦不对。
+        name: 'M8 结果页 cardFromResult 把老形状的变卦当本卦 -> ⑨ 的「老形状也渲染出卦」必须红',
+        files: ['resultLogic'],
+        find: '      benGua: { upper: b.upper, lower: b.lower },',
+        repl: '      benGua: { upper: n.upper || b.upper, lower: n.lower || b.lower }, // [变异 M8]',
+        expect: '✗ 老形状记录也渲染出卦',
+      },
+      {
+        // meta.recordId 是「盘上带着这条记录的 id」的唯一来源，AI 存档靠它。
+        // 传错不白屏、盘也对，只有存档落到别的 id 上 —— ⑨ 末尾那条轮询是唯一能看见它的判据。
+        name: 'M9 结果页把 meta.recordId 传错 -> ⑨ 的「解读存回它自己的 id」必须红',
+        files: ['resultLogic'],
+        find: '    recordId: id,',
+        repl: "    recordId: '0', // [变异 M9] 盘上带的 id 错了，AI 存档会存到 0 号",
+        expect: '✗ 老记录的解读也存回它自己的 id',
       },
     ];
   }

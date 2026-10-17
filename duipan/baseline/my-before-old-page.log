@@ -1,0 +1,114 @@
+   · 顺手清掉真 profile 里上一轮留下的站点状态（5 项）—— 不清的话这一轮会读到上一轮的游客标记
+
+【A】游客态：引导卡 + 两颗按钮（老页上这两颗是死的）
+   ✓ 游客态渲染出 .my-guest
+   ✓ 图标是 👤
+   ✓ 标题「登录账号」
+   ✓ 副标题「登录后使用全部功能」
+   ✓ 两颗按钮，文案与 class 都对
+   ✓ 按钮的行内 onclick 逐字保留（openAuthModal 的两条）
+   ✓ 游客态不打 /api/user/tokens（没 token，loadTokenUsage 第一句就返回）
+
+【B】★ 点「去登录」/「注册」真能开弹窗（老页上点了没反应）
+   ✓ 装载期没有任何未捕获错误
+   ✗ 点「去登录」→ #authModalOverlay 出现
+       null
+   ✗   不再 hidden、且带上 .open
+       null
+   ✗   落在登录 tab（#authModalLogin 可见、#authModalRegister 隐藏）
+       null
+   ✗   副标题是登录那一句「登录以使用 AI 命理解读」
+       null
+   ✗   ★ 弹窗真的画出来了：铺满视口 + 有遮罩底色 + 视口中心的命中点在它里面
+       null
+   ✗   弹窗 CSS 是运行时插进来的 /css/auth-modal.css，且 sheet 真的加载成功
+       null
+   ✗ 点「注册」→ 弹窗落在注册 tab（#authModalRegister 可见）
+       null
+   ✗ 关掉弹窗后 overlay 回到 hidden
+
+【C】登录态：用户名 / 等级 / 用量 / 进度条 / 剩余次数
+   ✓ 渲染出一张账户卡 + 一张设置卡
+   ✓ 账户卡带 .my-card
+   ✓ 用户名显示成 alice
+   ✓ tier=1 → 徽章「普通会员」
+   ✓ 用量 15,000 / 40,000（千分位都带了）
+   ✓ 百分比 37.5%
+   ✓ 剩余次数 floor((40000-15000)/1500)=16 → 「还剩约 16 次」
+   ✓ 有限额度时写「Token 用量」（不是「（无限）」）
+   ✓ 进度条宽度就是 37.5%（行内 style，差分看不见）
+   ✓ 打的是 GET /api/user/tokens，带 Bearer stub-token-abc
+
+【D】等级徽章三档 + tokenLimit=null（无限）
+   ✓ tier=0 → 徽章「普通用户」
+   ✓ tier=1 → 徽章「普通会员」
+   ✓ tier=2 → 徽章「SVIP」
+   ✓ tokenLimit=null → 「无限」
+   ✓   百分比位显示 ∞
+   ✓   额度标签写「（无限）」而不是「Token 用量」
+   ✓   不出现「剩余AI解析次数」那一行（remainCount 为 null）
+   ✓   进度条恒 100%（barColor 也换成 #d4c9b0）
+
+【E】拿不到用量 → 「加载失败」兜底卡，设置卡还在
+   ✓ HTTP 500 → 兜底卡里有「加载失败」
+   ✓   HTTP 500 → 用户名仍然显示（失败不影响标题）
+   ✓   HTTP 500 → 设置卡仍在（第 2 张，可点）
+   ✓ 响应缺 tokenUsed（返回 {}） → 兜底卡里有「加载失败」
+   ✓   响应缺 tokenUsed（返回 {}） → 用户名仍然显示（失败不影响标题）
+   ✓   响应缺 tokenUsed（返回 {}） → 设置卡仍在（第 2 张，可点）
+
+【F】设置页：返回链接 / 退出账号 / 确认后真清 cookie
+   ✓ 设置页有「← 返回」
+   ✓   返回链接走 window.loadMain()（行内 onclick）
+   ✓   两张卡：⚙️ 设置 / 退出账号
+   ✓   退出账号那张带 .danger
+   ✓ 点「← 返回」回到主界面：两张卡、第一张是账户卡（有用户名与用量）
+   ✓   返回后不再有 .my-back-link
+   ✓ 退出前弹确认，文案逐字「确定退出登录吗？」
+   ✓   确认框点了取消 → cookie 还在
+   ✓   取消后没有跳转（地址仍是 /my/）
+   ✓ 确认后跳回首页 /
+   ✓   两个 cookie 都被清掉（max-age=0）
+
+【G】骨架（老页 `src/web/my/index.html` 的静态部分）
+   ✓ .my-wrapper 在
+   ✓ 页头「我的 易三千」
+   ✓ 底部导航三项，文案与 href 都对
+   ✓ 第三项（我的）是 active
+   ✓ 第三项是 <span> 不是 <a>（老页就是 span）
+   ✓ tokenUsed=0 → 0.0%
+
+【H】产物：/my/index.html 该只剩 auth.js 一条传统 script
+   ✗ /my/index.html 的传统 script 只有 /js/auth.js
+       ["/js/page-my.js"]
+   ✗   没有把 page-my.js 再引回来
+       ["<script src=\"/js/page-my.js\"></script>"]
+   ✓   没有顺手引上 lunar / hexagrams_data / ai_panel（本页不需要）
+   ✗   产物里有 my 的 CSS chunk（HTML 引到了它）
+   ✗   那个 chunk 文件真的存在
+       null
+   ✗   page-my.css 的记号都在打包产物里（@import 真被展开了）
+       [".my-wrapper",".my-guest",".guest-btn",".my-bottom-nav"]
+
+【I】全部用例过完，没有未捕获错误
+   ✓ window.__errs 为空
+   ✓ 没有 alert 弹窗
+   ✓ 页面没有未捕获异常（与上面 __errs 同一份，这里再断一次累计）
+
+────────────────────────────────────────────────────────────
+❌ 13 条红 / 共 66 条
+红的是：
+  · 点「去登录」→ #authModalOverlay 出现
+  ·   不再 hidden、且带上 .open
+  ·   落在登录 tab（#authModalLogin 可见、#authModalRegister 隐藏）
+  ·   副标题是登录那一句「登录以使用 AI 命理解读」
+  ·   ★ 弹窗真的画出来了：铺满视口 + 有遮罩底色 + 视口中心的命中点在它里面
+  ·   弹窗 CSS 是运行时插进来的 /css/auth-modal.css，且 sheet 真的加载成功
+  · 点「注册」→ 弹窗落在注册 tab（#authModalRegister 可见）
+  · 关掉弹窗后 overlay 回到 hidden
+  · /my/index.html 的传统 script 只有 /js/auth.js
+  ·   没有把 page-my.js 再引回来
+  ·   产物里有 my 的 CSS chunk（HTML 引到了它）
+  ·   那个 chunk 文件真的存在
+  ·   page-my.css 的记号都在打包产物里（@import 真被展开了）
+截图：/tmp/my-drive

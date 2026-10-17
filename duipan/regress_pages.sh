@@ -92,6 +92,7 @@ run liuyao     node drive_liuyao_page.js
 run bazi       node drive_bazi_page.js
 run ai-chat    node drive_ai_chat_page.js
 run my-charts  node drive_my_charts_page.js
+run my-page    node drive_my_page.js
 # 纯函数差分：不开浏览器，但它是 ai-chat 那条断言链的**判据来源** ——
 # 期望值不是手抄的常量，是当场从 duipan/legacy_ref/ 里那份冻结的老实现算出来的。
 # 快照被改动 = 判据被换成新实现自己 = 差分退化成橡皮章，所以它必须每次都跑。
@@ -112,6 +113,13 @@ run diff-auth  node diff_auth_cookie.mjs
 # 判据读的是冻结快照 `duipan/legacy_ref/page-liuyao-{result,history}.js`：
 # 老文件已经 `git rm`（7ec4fda），读活文件会 ENOENT，且读活文件 = 判据跟着实现漂。
 run diff-liuyao-rh node diff_liuyao_result_history.mjs
+# 「我的」页的差分（16 种输入 × innerHTML 逐字节 + 4 个函数体逐字比对 + 重复代码审计）。
+# 这一页的输出**全部**是 `#myContent.innerHTML`，所以比字符串比比 DOM 树更严。
+# 三个归一化规则写在 `stripCode()` 里，只有那条注释列出的三条 —— 谁要往那儿加
+# 「大致等价」的规则（比如把 `var` 抹成 `const`），这一层就不是逐字比了。
+# 附带证明的重复代码事实：老页自己写了两份正则读 cookie（`getUser` / `getToken`），
+# 新页把 `getToken` 换成 `../lib/auth.js`，差分里那条断言就是钉这个的。
+run diff-my node diff_my_functions.mjs
 # 变异套件自己会把驱动跑九遍（每遍改坏一处再还原），故它最慢、放在最后。
 # `fast` 只跳过它 —— 但**发版前必须跑**：驱动里那些断言是写驱动的人自己写的，
 # 只有变异能证伪「这些断言是不是橡皮章」。
@@ -121,10 +129,11 @@ if [ "$1" = "fast" ]; then
   printf '\n───── mutate-mhys-twice ─────\n（fast：跳过）\n'
 else
   run mutate-mhys-twice node mutate_mhys_twice.js
+  run mutate-my node mutate_my_functions.js
 fi
 
 printf '\n═════ 汇总 ═════\n'
 if [ -n "$ENVFAIL" ]; then echo "⚠ 没测到东西：$ENVFAIL"; fi
 if [ -n "$FAIL" ]; then echo "✗ 未过：$FAIL"; exit 1; fi
 if [ -n "$ENVFAIL" ]; then exit 2; fi
-echo "✓ 六个页面驱动 + 四个纯函数差分（含变异套件）全部通过 $SKIPPED"
+echo "✓ 七个页面驱动 + 五个纯函数差分（含两个变异套件）全部通过 $SKIPPED"
