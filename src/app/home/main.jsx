@@ -170,38 +170,6 @@ function ModulesTab({ marquee, onOpenAnnouncement, onModule, onSuggestion, uptim
         <span className="announcement-arrow">›</span>
       </div>
 
-      <div style={{ textAlign: 'center', margin: '1.5rem 0 0.5rem' }}>
-        <a
-          href="#"
-          onClick={(e) => {
-            e.preventDefault()
-            onSuggestion()
-          }}
-          style={{
-            display: 'inline-block',
-            fontSize: '0.78rem',
-            color: 'var(--accent-dim)',
-            textDecoration: 'none',
-            padding: '0.45rem 1.2rem',
-            border: '1px dashed var(--border)',
-            borderRadius: '20px',
-            letterSpacing: '0.04em',
-            transition: 'all 0.2s ease',
-            cursor: 'pointer',
-          }}
-          onMouseOver={(e) => {
-            e.currentTarget.style.borderColor = 'var(--border-active)'
-            e.currentTarget.style.color = 'var(--accent)'
-          }}
-          onMouseOut={(e) => {
-            e.currentTarget.style.borderColor = 'var(--border)'
-            e.currentTarget.style.color = 'var(--accent-dim)'
-          }}
-        >
-          💬 我们需要你宝贵的建议
-        </a>
-      </div>
-
       <section className="home-section">
         <div className="section-head">
           <span className="cat">命理</span>
@@ -245,6 +213,20 @@ function ModulesTab({ marquee, onOpenAnnouncement, onModule, onSuggestion, uptim
           />
         </div>
       </section>
+
+      <div className="home-suggestion-wrap">
+        <a
+          className="home-suggestion-link"
+          href="#"
+          onClick={(e) => {
+            e.preventDefault()
+            onSuggestion()
+          }}
+        >
+          我们需要你宝贵的建议
+          <span aria-hidden="true">›</span>
+        </a>
+      </div>
 
       <footer className="home-footer">
         <div>易三千 · 2026</div>
@@ -474,7 +456,6 @@ function App() {
     <>
       <div className="home-wrapper">
         <header className="home-header">
-          <div className="home-emblem">🏮</div>
           <h1 className="home-title">易三千</h1>
           <p className="home-sub">问天 · 问命 · 问心</p>
           <div className="home-rule"></div>

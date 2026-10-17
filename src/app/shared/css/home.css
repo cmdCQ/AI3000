@@ -121,6 +121,17 @@ html, body {
   border: 1px solid var(--border);
 }
 
+/* ===== 建议入口 ===== */
+.home-suggestion-wrap { text-align: center; margin: -0.5rem 0 0; }
+.home-suggestion-link {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+  min-height: 44px; padding: 0 0.75rem;
+  color: var(--text-muted); font-size: 0.75rem; letter-spacing: 0.04em;
+  text-decoration: none; transition: color 0.2s;
+}
+.home-suggestion-link span { color: var(--accent); font-size: 1rem; }
+.home-suggestion-link:hover { color: var(--accent); }
+
 /* ===== Footer ===== */
 .home-footer {
   text-align: center; padding: 3rem 0 1rem;
@@ -397,7 +408,7 @@ html, body {
   margin: 0.5rem 0 0;
   padding: 0.5rem 0.15rem;
   background: transparent;
-  border-top: 1px solid var(--border);
+  border-top: none;
   border-bottom: 1px solid var(--border);
   border-left: none;
   border-right: none;
