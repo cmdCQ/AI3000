@@ -23,7 +23,16 @@ export const AUTH = {
   getToken()    { try { return getCookie('sqw_token'); }     catch(e) { return null; } },
   getUsername() { try { return getCookie('sqw_username'); }  catch(e) { return null; } },
 };
-window.AUTH = AUTH;
+// ── 阶段 4 桥：把老 classic script 里「顶层声明自动挂 window」的那几个名字补回来 ──
+// 页面里的内联 `onclick="hideAuthModal()"` 之类是字符串处理器，只认全局；classic 时代
+// `function hideAuthModal(){}` 自带全局，ESM 不会。死期：阶段 5 把内联处理器换成真实监听。
+// ⚠ 一律走 winSet：本模块**也会被 Node 直接 import**（`duipan/` 的判据、Vitest 的 node
+//   环境），那里没有 `window` —— 裸写 `window.X = X` 会让整个模块在 import 阶段就抛
+//   `window is not defined`，看起来像「测试坏了」，其实是搬运时漏了这层判断。
+function winSet(name, value) {
+  if (typeof window !== 'undefined') window[name] = value;
+}
+winSet('AUTH', AUTH);
 
 // ═══════════════════════════════════════════════
 // 401 统一处理：清除错误内容 + 弹出登录窗口
@@ -51,7 +60,7 @@ export function handleApiUnauthorized(xhr, el) {
   try { openAuthModal('login'); } catch(e) {}
   return true;
 }
-window.handleApiUnauthorized = handleApiUnauthorized;
+winSet('handleApiUnauthorized', handleApiUnauthorized);
 
 // ═══════════════════════════════════════════════
 // 嵌入式登录/注册弹窗
@@ -183,17 +192,17 @@ export function openAuthModal(tab) {
     window.location.href = tab === 'register' ? '/register/' : '/login/';
   }
 }
-window.openAuthModal = openAuthModal;
+winSet('openAuthModal', openAuthModal);
 
 export function showAuthModal() { openAuthModal('login'); }
-window.showAuthModal = showAuthModal;
+winSet('showAuthModal', showAuthModal);
 
 export function showRegisterModal() { openAuthModal('register'); }
-window.showRegisterModal = showRegisterModal;
+winSet('showRegisterModal', showRegisterModal);
 
-window.getCookie = getCookie;
-window.setCookie = setCookie;
-window.removeCookie = removeCookie;
+winSet('getCookie', getCookie);
+winSet('setCookie', setCookie);
+winSet('removeCookie', removeCookie);
 
 export function hideAuthModal() {
   try {
@@ -205,7 +214,7 @@ export function hideAuthModal() {
     document.body.style.overflow = '';
   } catch(e) {}
 }
-window.hideAuthModal = hideAuthModal;
+winSet('hideAuthModal', hideAuthModal);
 
 
 /* 切换 Tab */

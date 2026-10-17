@@ -179,8 +179,8 @@ pnpm --dir src/app test:e2e
 `PROBE_DIR` 让 `playwright.config.mjs` 起本地 probe server 打本地构建。首次运行需要
 `pnpm --dir src/app exec playwright install chromium`。
 
-当前全量 138 项：136 通过，1 条重试后通过（`/admin/` 登录卡片像素基线），1 条失败
-（`/charts/` 的「编辑模式标题」实际仍是「我的命盘」）。以 `tests/.report` 里的详情为准。
+当前全量 138 项：137 通过、1 条首次偶发（`/mhys/result.html` 的空态视觉基线，重试通过，
+单独复跑 3/3 稳过）。以 `tests/.report` 里的详情为准。
 
 纯函数单测（Vitest）：
 
@@ -188,8 +188,8 @@ pnpm --dir src/app test:e2e
 pnpm --dir src/app test:unit
 ```
 
-注意：当前 `tests/auth-pages.logic.test.mjs` 在 `environment: node` 下会报
-`window is not defined`（`shared/auth.js:27`），修好前以端到端结果为准。
+Vitest 4 个文件 91 项全绿（`environment: node`）。`shared/auth.js` 这类模块会同时被
+Node 判据与浏览器 import，所以它的 `window` 桥必须带 `typeof window !== 'undefined'` 判断。
 
 排盘数学另有一套对拍基线（`duipan/`）：
 

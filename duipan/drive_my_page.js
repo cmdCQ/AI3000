@@ -523,7 +523,12 @@ async function main() {
         noComments.indexOf('/js/ai_panel.js') < 0, 'found');
     // CSS chunk 名带 hash，且 `assets/` 里同时有 my-charts 的 chunk —— 所以按
     // HTML 里真正引到的那一个取，不靠 glob 猜（glob 会同时命中 my-charts-*.css）。
-    const cssHref = (noComments.match(/<link rel="stylesheet"[^>]*href="(\/assets\/[^"]+\.css)"/) || [])[1];
+    // ⚠ 允许 href 带上 `?v=<内容哈希>`：`deploy/sync.sh` 的 version-assets.py 会给静态资源
+    //   追加版本号，于是部署过的 `build/nginx` 里是 `/assets/my-xxxx.css?v=ab12`。
+    //   原来这条正则要求 `"` 紧跟 `.css`，一整条冻结门就因为「产物是发布态」而假红
+    //   —— 判据要读的是文件名，不是引用形态。
+    const cssHref = (noComments.match(
+      /<link rel="stylesheet"[^>]*href="(\/assets\/[^"?]+\.css)(?:\?[^"]*)?"/) || [])[1];
     ok('  产物里有 my 的 CSS chunk（HTML 引到了它）', !!cssHref, JSON.stringify(cssHref));
     const cssFile = cssHref ? path.join(WEB, cssHref.replace(/^\//, '')) : null;
     ok('  那个 chunk 文件真的存在', !!cssFile && fs.existsSync(cssFile), JSON.stringify(cssFile));
