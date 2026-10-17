@@ -119,6 +119,11 @@ services:
       # 都会换 inode），容器里看到的还是旧 inode，改配置不生效又看不出来 —— 这个坑
       # 导致过一次线上 HTTPS 全挂。挂目录就能看到目录内文件的新旧替换。
       - /var/www/sqw.somtfly.com/deploy/nginx-conf:/etc/nginx/conf.d:ro
+      # music.somtfly.com 是另一个项目（EBNR），它的配置**不在本仓库里**：
+      # 静态文件挂到 /usr/share/nginx/music，server 块挂到 /etc/nginx/music-conf，
+      # 再由 deploy/nginx-conf/music-include.conf 里那一行 include 接进来。
+      - /var/www/music.somtfly.com:/usr/share/nginx/music:ro
+      - /var/www/music.somtfly.com/nginx:/etc/nginx/music-conf:ro
       # billion-context 面板的 basic auth 凭据
       - /etc/dsh-bili:/etc/nginx/dsh-bili:ro
     networks:
