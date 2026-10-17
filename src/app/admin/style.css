@@ -1,0 +1,9 @@
+/* `/admin/` 的样式入口。
+ *
+ * ★ `@import` 顺序必须与老 `src/web/admin/index.html` 的 `<link>` 顺序一致：
+ *   `/css/admin.css` → `/css/tokens.css`。
+ *   先 admin.css 后 tokens.css，是因为 admin.css 里的变量回退值要在 tokens.css
+ *   定义的同名变量**之前**进文档流才不被覆盖 —— 反过来会让整页配色变一档。
+ */
+@import '../../web/css/admin.css';
+@import '../../web/css/tokens.css';

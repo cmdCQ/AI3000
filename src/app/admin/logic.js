@@ -1,3 +1,29 @@
+/* ============================================================================
+ * `/admin/`（后台管理）—— 老 `page-` 系列里唯一没有 `page-` 前缀的脚本，
+ * 也是全站最大的一页（470 行 HTML + 1160 行 JS）。
+ *
+ * ★ 相对老 `src/web/js/admin.js` 只做了**搬移性**修改，没有改写逻辑：
+ *
+ *   ① 顶层 `function xxx()` 加 `export`：28 处内联 `onclick="xxx()"` 要靠
+ *      main.jsx 的 installGlobals 挂回 window（老页面里它们本来就是 window 属性）。
+ *   ② 老的 `document.addEventListener('DOMContentLoaded', () => {...})` 改成
+ *      `export function init()`。这页用 `dangerouslySetInnerHTML` 渲染老骨架，
+ *      骨架必须在 `init()` 之前**同步**提交 —— `init()` 第一句就
+ *      `document.getElementById('admLoginForm').addEventListener(...)`。
+ *      main.jsx 里 `flushSync(render)` 之后再 `init()`。
+ *   ③ 老文件 :557 有一条**顶层** `document.getElementById('confirmBtn').addEventListener(...)`
+ *      （在 DOMContentLoaded 外面）。React 页面里 main.jsx 在骨架提交前执行，
+ *      那时 `getElementById('confirmBtn')` 返回 **null**，`.addEventListener` 直接抛，
+ *      整个模块停摆。所以删掉它，改在 `init()` 末尾绑（骨架已提交）。
+ *   ④ 老文件 :941 还有**第二个** `DOMContentLoaded`，只绑 `#bookEditForm` 的 submit。
+ *      同样搬进 `init()` 末尾。
+ *
+ * ★ 为什么不做成真 React 组件：28 处内联 onclick（还有 `esc()` 拼字符串拼出来的动态行
+ *   里的）、8 个 tab、4 个模态框，逐块改写是 1160 行重写；这页 30 天只有 1 次真实请求。
+ *   判据 12 条钉的是**行为**，不是写法。与 `/charts/` 同一档策略：React 只当骨架宿主。
+ *
+ * ★ `installGlobals()` 是过渡期胶水，死期 = 阶段 4 共享层 cut-over。
+ * ========================================================================== */
 /* 后台管理 v3 */
 
 let admToken = null, admExpiry = 0;
@@ -7,7 +33,7 @@ try {
 } catch(e) { /* localStorage unavailable */ }
 let _deleteTarget = null; // 待确认删除目标
 
-document.addEventListener('DOMContentLoaded', () => {
+export function init() {
   if (admToken && Date.now() < admExpiry) {
     verifyAdmin().then(ok => ok ? showDash() : showLogin());
   } else {
@@ -53,39 +79,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 设置页服务器时间
   updateSettingTime();
-});
+
+  // ── 从老文件另外两处搬进来（头注释 ③④）──
+  document.getElementById('confirmBtn').addEventListener('click', doConfirmDelete);
+
+  var bookEditForm = document.getElementById('bookEditForm');
+  if (bookEditForm) {
+    bookEditForm.addEventListener('submit', function (e) { e.preventDefault(); saveBook(); });
+  }
+}
 
 // ========================= 认证 =========================
 
-function clearAuth() {
+export function clearAuth() {
   admToken = null; admExpiry = 0;
   localStorage.removeItem('sqw_admin_token');
   localStorage.removeItem('sqw_admin_expiry');
 }
 
-async function adminFetch(path, opts = {}) {
+export async function adminFetch(path, opts = {}) {
   if (!path.startsWith('/')) throw new Error('Invalid admin API path');
   const headers = { ...(opts.headers || {}), 'Authorization': 'Bearer ' + admToken };
   return fetch('/api/admin' + path, { ...opts, headers });
 }
 
-async function verifyAdmin() {
+export async function verifyAdmin() {
   try { const r = await adminFetch('/verify'); return r.ok; }
   catch { return false; }
 }
 
-function showLogin() {
+export function showLogin() {
   document.getElementById('admLogin').style.display = 'flex';
   document.getElementById('admDash').style.display = 'none';
 }
 
-function showDash() {
+export function showDash() {
   document.getElementById('admLogin').style.display = 'none';
   document.getElementById('admDash').style.display = 'block';
   loadDashboard();
 }
 
-async function doLogin(e) {
+export async function doLogin(e) {
   e.preventDefault();
   const btn = e.target.querySelector('button');
   const err = document.getElementById('admLoginErr');
@@ -119,7 +153,7 @@ async function doLogin(e) {
 var _dashData = null;
 var _dashMode = 'total';
 
-async function loadDashboard() {
+export async function loadDashboard() {
   var statsEls = ['statUsers','statToday','statActive','statCharts','statDivination','statTokens','statTokens7d'];
   statsEls.forEach(function(id) { var el = document.getElementById(id); if (el) el.textContent = '…'; });
   try {
@@ -133,7 +167,7 @@ async function loadDashboard() {
   }
 }
 
-function switchDash(mode) {
+export function switchDash(mode) {
   _dashMode = mode;
   document.querySelectorAll('.adm-toggle-btn').forEach(function(b) {
     b.classList.toggle('active', b.dataset.dash === mode);
@@ -141,7 +175,7 @@ function switchDash(mode) {
   renderDash();
 }
 
-function renderDash() {
+export function renderDash() {
   if (!_dashData) return;
   // 防御：API 返回异常数据（如 token 过期导致 {error:"..."}）
   if (_dashData.error) {
@@ -176,7 +210,7 @@ function renderDash() {
   }
 }
 
-function setText(id, val) {
+export function setText(id, val) {
   var el = document.getElementById(id);
   if (el) el.textContent = (val !== undefined && val !== null) ? val : '—';
 }
@@ -187,7 +221,7 @@ var tierNames = { 0:'普通', 1:'普通会员', 2:'SVIP' };
 var allUsers = [];
 var allTiers = {};
 
-function filterUsers() {
+export function filterUsers() {
   var q = (document.getElementById('usersSearch').value || '').trim().toLowerCase();
   var tbody = document.getElementById('usersTbody');
   var filtered = q ? allUsers.filter(function(u) {
@@ -197,7 +231,7 @@ function filterUsers() {
   renderUsers(filtered);
 }
 
-function renderUsers(users) {
+export function renderUsers(users) {
   var tbody = document.getElementById('usersTbody');
   if (!users.length) {
     tbody.innerHTML = '<tr><td colspan="9" class="adm-empty">暂无匹配用户</td></tr>';
@@ -229,7 +263,7 @@ function renderUsers(users) {
   }).join('');
 }
 
-async function loadUsers() {
+export async function loadUsers() {
   const tbody = document.getElementById('usersTbody');
   const meta = document.getElementById('usersMeta');
   tbody.innerHTML = '<tr><td colspan="9" class="adm-empty">加载中…</td></tr>';
@@ -254,7 +288,7 @@ async function loadUsers() {
   }
 }
 
-function renderTierSelect(username, currentTier) {
+export function renderTierSelect(username, currentTier) {
   var opts = '';
   for (var t = 0; t <= 2; t++) {
     opts += '<option value="' + t + '"' + (t === currentTier ? ' selected' : '') + '>' + tierNames[t] + '</option>';
@@ -263,7 +297,7 @@ function renderTierSelect(username, currentTier) {
   return '<select id="' + id + '" class="adm-tier-select" onchange="setUserTier(\'' + escAttr(username) + '\', this)">' + opts + '</select>';
 }
 
-async function setUserTier(username, sel) {
+export async function setUserTier(username, sel) {
   var tier = parseInt(sel.value);
   sel.disabled = true;
   try {
@@ -282,7 +316,7 @@ async function setUserTier(username, sel) {
 
 // ========================= 命盘（用户分组 → 点击看详情 → 跳转页面） =========================
 
-async function loadChartUsers() {
+export async function loadChartUsers() {
   var grid = document.getElementById('chartsCardGrid');
   var meta = document.getElementById('chartsMeta');
   grid.innerHTML = '<div class="adm-card-empty">加载中…</div>';
@@ -317,7 +351,7 @@ async function loadChartUsers() {
   }
 }
 
-async function openChartDetail(userId) {
+export async function openChartDetail(userId) {
   var tbody = document.getElementById('chartsDetailTbody');
   var title = document.getElementById('chartsDetailTitle');
   title.textContent = userId + ' 的命盘';
@@ -355,7 +389,7 @@ async function openChartDetail(userId) {
   }
 }
 
-function closeChartDetail() {
+export function closeChartDetail() {
   document.getElementById('chartsDetailPanel').style.display = 'none';
   document.getElementById('chartsCardGrid').style.display = '';
   document.getElementById('chartsMeta').style.display = '';
@@ -366,7 +400,7 @@ function closeChartDetail() {
 var _divRecordsCache = [];  // 缓存当前用户的所有排盘记录
 var _divUserId = '';
 
-async function loadDivUsers() {
+export async function loadDivUsers() {
   var grid = document.getElementById('divCardGrid');
   var meta = document.getElementById('divMeta');
   grid.innerHTML = '<div class="adm-card-empty">加载中…</div>';
@@ -408,7 +442,7 @@ async function loadDivUsers() {
   }
 }
 
-async function openDivDetail(userId) {
+export async function openDivDetail(userId) {
   _divUserId = userId;
   _divRecordsCache = [];
 
@@ -441,7 +475,7 @@ async function openDivDetail(userId) {
   }
 }
 
-function switchDivSubtab(type) {
+export function switchDivSubtab(type) {
   // 更新子标签 active 样式
   document.querySelectorAll('.adm-subtab').forEach(function(btn) {
     btn.classList.toggle('active', btn.dataset.subtab === type);
@@ -478,7 +512,7 @@ function switchDivSubtab(type) {
   }).join('');
 }
 
-function closeDivDetail() {
+export function closeDivDetail() {
   document.getElementById('divDetailPanel').style.display = 'none';
   document.getElementById('divCardGrid').style.display = '';
   document.getElementById('divMeta').style.display = '';
@@ -486,7 +520,7 @@ function closeDivDetail() {
   _divUserId = '';
 }
 
-function confirmDeleteDivRecord(id, topic, recType) {
+export function confirmDeleteDivRecord(id, topic, recType) {
   _deleteTarget = { type: (recType === 'liuyao' ? 'liuyao_record' : 'mhys_record'), id: id };
   document.getElementById('confirmTitle').textContent = '删除排盘记录';
   document.getElementById('confirmMsg').textContent = '确定删除排盘记录「' + topic + '」吗？此操作不可恢复。';
@@ -496,7 +530,7 @@ function confirmDeleteDivRecord(id, topic, recType) {
 
 // ========================= 删除 =========================
 
-function confirmDeleteUser(phone) {
+export function confirmDeleteUser(phone) {
   _deleteTarget = { type: 'user', id: phone };
   document.getElementById('confirmTitle').textContent = '删除用户';
   document.getElementById('confirmMsg').textContent = '确定删除用户 ' + phone + ' 吗？该用户的所有命盘也将一并删除。此操作不可恢复。';
@@ -504,7 +538,7 @@ function confirmDeleteUser(phone) {
   showConfirm();
 }
 
-function confirmDeleteChart(id, name) {
+export function confirmDeleteChart(id, name) {
   _deleteTarget = { type: 'chart', id: id };
   document.getElementById('confirmTitle').textContent = '删除命盘';
   document.getElementById('confirmMsg').textContent = '确定删除命盘「' + name + '」吗？此操作不可恢复。';
@@ -512,7 +546,7 @@ function confirmDeleteChart(id, name) {
   showConfirm();
 }
 
-async function doConfirmDelete() {
+export async function doConfirmDelete() {
   if (!_deleteTarget) return;
   const { type, id } = _deleteTarget;
   try {
@@ -554,13 +588,12 @@ async function doConfirmDelete() {
   }
 }
 
-document.getElementById('confirmBtn').addEventListener('click', doConfirmDelete);
 
-function showConfirm() {
+export function showConfirm() {
   document.getElementById('admOverlay').style.display = 'block';
   document.getElementById('modalConfirm').style.display = 'block';
 }
-function closeConfirm() {
+export function closeConfirm() {
   document.getElementById('admOverlay').style.display = 'none';
   document.getElementById('modalConfirm').style.display = 'none';
   _deleteTarget = null;
@@ -570,7 +603,7 @@ function closeConfirm() {
 
 var _tokenEditUsername = '';
 
-function editToken(username, currentUsed) {
+export function editToken(username, currentUsed) {
   _tokenEditUsername = username;
   document.getElementById('tokenUserLabel').textContent = '用户：' + username;
   document.getElementById('tokenInput').value = currentUsed;
@@ -581,13 +614,13 @@ function editToken(username, currentUsed) {
   document.getElementById('tokenInput').focus();
 }
 
-function closeTokenModal() {
+export function closeTokenModal() {
   document.getElementById('admOverlay').style.display = 'none';
   document.getElementById('modalToken').style.display = 'none';
   _tokenEditUsername = '';
 }
 
-async function saveToken() {
+export async function saveToken() {
   var err = document.getElementById('tokenErr');
   var ok = document.getElementById('tokenOk');
   err.textContent = '';
@@ -622,7 +655,7 @@ async function saveToken() {
 
 // ========================= 密码 =========================
 
-function openPwdModal() {
+export function openPwdModal() {
   document.getElementById('pwdCurrent').value = '';
   document.getElementById('pwdNew').value = '';
   document.getElementById('pwdConfirm').value = '';
@@ -632,12 +665,12 @@ function openPwdModal() {
   document.getElementById('modalPwd').style.display = 'block';
 }
 
-function closePwdModal() {
+export function closePwdModal() {
   document.getElementById('admOverlay').style.display = 'none';
   document.getElementById('modalPwd').style.display = 'none';
 }
 
-async function doChangePwd(e) {
+export async function doChangePwd(e) {
   e.preventDefault();
   const err = document.getElementById('pwdErr');
   const ok = document.getElementById('pwdOk');
@@ -668,11 +701,11 @@ async function doChangePwd(e) {
 
 // ========================= 工具 =========================
 
-function esc(s) { if (s === null || s === undefined) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
-function escAttr(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
-function pad(n) { return String(n || 0).padStart(2, '0'); }
+export function esc(s) { if (s === null || s === undefined) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+export function escAttr(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+export function pad(n) { return String(n || 0).padStart(2, '0'); }
 
-function fmtDate(ts) {
+export function fmtDate(ts) {
   if (!ts) return '—';
   const d = new Date(ts);
   if (isNaN(d.getTime())) return '—';
@@ -680,7 +713,7 @@ function fmtDate(ts) {
     ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
 }
 
-function fmtToken(n) {
+export function fmtToken(n) {
   var num = (typeof n === 'string') ? parseInt(n, 10) : n;
   if (!num && num !== 0) return '0';
   if (num < 1000) return String(num);
@@ -688,7 +721,7 @@ function fmtToken(n) {
   return (num / 1000000).toFixed(1) + 'M';
 }
 
-function fmtRel(ts) {
+export function fmtRel(ts) {
   if (!ts) return '—';
   const diff = Date.now() - ts;
   if (diff < 0) return '未来';
@@ -702,7 +735,7 @@ function fmtRel(ts) {
   return fmtDate(ts);
 }
 
-function updateSettingTime() {
+export function updateSettingTime() {
   const el = document.getElementById('settingTime');
   if (el) {
     el.textContent = new Date().toLocaleString('zh-CN', { hour12: false });
@@ -721,7 +754,7 @@ const sugLabelMap = {
   accuracy: '解析内容丰富度',
 };
 
-async function loadSugUsers() {
+export async function loadSugUsers() {
   var grid = document.getElementById('sugCardGrid');
   var meta = document.getElementById('sugMeta');
   grid.innerHTML = '<div class="adm-card-empty">加载中…</div>';
@@ -757,7 +790,7 @@ async function loadSugUsers() {
   }
 }
 
-async function openSugDetail(userId) {
+export async function openSugDetail(userId) {
   var cards = document.getElementById('sugDetailCards');
   var title = document.getElementById('sugDetailTitle');
   var label = userId === 'anonymous' ? '匿名用户' : userId;
@@ -807,7 +840,7 @@ async function openSugDetail(userId) {
   }
 }
 
-function closeSugDetail() {
+export function closeSugDetail() {
   document.getElementById('sugDetailPanel').style.display = 'none';
   document.getElementById('sugCardGrid').style.display = '';
   document.getElementById('sugMeta').style.display = '';
@@ -819,7 +852,7 @@ const catNames = { bazi:'四柱八字', ziwei:'紫微斗数', meihua:'梅花易�
 const statusLabels = { pending:'待入库', ingested:'已入库', error:'入库失败' };
 const statusColors = { pending:'#f0a020', ingested:'#20a060', error:'#d04040' };
 
-async function loadBookFolders() {
+export async function loadBookFolders() {
   try {
     var res = await adminFetch('/book-folders');
     var folders = res.ok ? await res.json() : [];
@@ -833,7 +866,7 @@ async function loadBookFolders() {
   } catch(e) {}
 }
 
-async function loadBooks() {
+export async function loadBooks() {
   var tbody = document.getElementById('booksTbody');
   var meta = document.getElementById('booksMeta');
   tbody.innerHTML = '<tr><td colspan="8" class="adm-empty">加载中…</td></tr>';
@@ -886,7 +919,7 @@ async function loadBooks() {
   }
 }
 
-function openAddBook() {
+export function openAddBook() {
   document.getElementById('bookEditId').value = '';
   document.getElementById('bookEditTitle').value = '';
   document.getElementById('bookEditFolder').value = '';
@@ -903,7 +936,7 @@ function openAddBook() {
   document.getElementById('booksMeta').style.display = 'none';
 }
 
-async function openBookDetail(id) {
+export async function openBookDetail(id) {
   document.getElementById('bookEditErr').textContent = '';
   document.getElementById('bookEditOk').style.display = 'none';
   document.getElementById('booksDetailTitle').textContent = '加载中…';
@@ -930,7 +963,7 @@ async function openBookDetail(id) {
   }
 }
 
-function closeBooksDetail() {
+export function closeBooksDetail() {
   document.getElementById('booksDetailPanel').style.display = 'none';
   document.getElementById('booksTable').closest('.adm-table-wrap').style.display = '';
   document.querySelector('#tab-books .adm-books-toolbar').style.display = '';
@@ -938,17 +971,8 @@ function closeBooksDetail() {
 }
 
 // 保存书籍（添加/编辑）
-document.addEventListener('DOMContentLoaded', function() {
-  var form = document.getElementById('bookEditForm');
-  if (form) {
-    form.addEventListener('submit', function(e) {
-      e.preventDefault();
-      saveBook();
-    });
-  }
-});
 
-async function saveBook() {
+export async function saveBook() {
   var err = document.getElementById('bookEditErr');
   var ok = document.getElementById('bookEditOk');
   err.textContent = '';
@@ -996,7 +1020,7 @@ async function saveBook() {
   }
 }
 
-function confirmDeleteBook(id, title) {
+export function confirmDeleteBook(id, title) {
   _deleteTarget = { type: 'book', id: id };
   document.getElementById('confirmTitle').textContent = '删除书籍';
   document.getElementById('confirmMsg').textContent = '确定删除《' + title + '》吗？此书的所有知识库数据也会丢失。此操作不可恢复。';
@@ -1004,7 +1028,7 @@ function confirmDeleteBook(id, title) {
   showConfirm();
 }
 
-async function changeBookCategory(id, newCat) {
+export async function changeBookCategory(id, newCat) {
   try {
     var res = await adminFetch('/books/' + id, {
       method: 'PATCH',
@@ -1019,7 +1043,7 @@ async function changeBookCategory(id, newCat) {
 }
 
 // 单本入库
-async function ingestBook(id, btn) {
+export async function ingestBook(id, btn) {
   if (btn) { btn.disabled = true; btn.textContent = '入库中...'; }
   try {
     var res = await adminFetch('/books/ingest/' + id, { method: 'POST' });
@@ -1037,7 +1061,7 @@ async function ingestBook(id, btn) {
 }
 
 // 全部入库
-async function batchIngest() {
+export async function batchIngest() {
   if (!confirm('确定要将所有待入库的书籍导入向量知识库吗？\n\n这可能需要几分钟时间。')) return;
   var btn = document.getElementById('btnBatchIngest');
   btn.disabled = true; btn.textContent = '⏳ 入库中...';
@@ -1082,7 +1106,7 @@ var promptVarHints = {
   liuyao: '可用变量：{{topic}} {{gender}} {{benGuaName}} {{benGuaUpper}} {{benGuaLower}} {{bianGuaName}} {{bianGuaUpper}} {{bianGuaLower}} {{ragContext}} {{followUp}} {{context}}',
 };
 
-async function loadPrompts() {
+export async function loadPrompts() {
   var list = document.getElementById('promptsList');
   list.innerHTML = '<div class="adm-card-empty">加载中…</div>';
 
@@ -1131,7 +1155,7 @@ async function loadPrompts() {
   }
 }
 
-async function savePrompt(key) {
+export async function savePrompt(key) {
   var textarea = document.getElementById('promptText_' + key);
   var value = textarea.value;
   try {
@@ -1148,7 +1172,7 @@ async function savePrompt(key) {
   }
 }
 
-async function resetPrompt(key) {
+export async function resetPrompt(key) {
   if (!confirm('确定恢复「' + (promptLabelMap[key] || key) + '」为默认模板吗？')) return;
   try {
     var res = await adminFetch('/prompts/' + key, { method: 'DELETE' });

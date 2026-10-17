@@ -1,18 +1,14 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>后台管理 · 易三千</title>
-<link rel="stylesheet" href="/css/admin.css">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Inter:wght@300;400;500;600&family=Noto+Sans+SC:wght@300;400;500&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all';this.onload=null">
-<link rel="stylesheet" href="/css/tokens.css">
-</head>
-<body>
+import { flushSync } from 'react-dom'
+import { createRoot } from 'react-dom/client'
+import * as adminLogic from './logic.js'
+import './style.css'
 
-<div class="adm-root">
+// `/admin/` 的骨架（老 `src/web/admin/index.html` 的 `<body>` 内容，452 行）原封不动
+// 作为字符串渲染。理由见 `logic.js` 头注释：28 处内联 `onclick`、8 个 tab、4 个模态框，
+// 全在这个骨架里；判据钉的是行为，不是写法。
+//
+// ★ 串里没有反引号、没有 `${`、没有反斜杠 —— 已经核过，可以安全用模板字面量。
+const SHELL_HTML = `<div class="adm-root">
 
   <!-- ========== 登录 ========== -->
   <div class="adm-login" id="admLogin">
@@ -463,8 +459,34 @@
     </div>
   </div>
 
-</div>
+</div>`
 
-<script src="/js/admin.js"></script>
-</body>
-</html>
+/**
+ * 把 logic.js 的全部导出挂回 `window`。
+ *
+ * 老页面里 `admin.js` 是 classic script，每个顶层 `function foo(){}` 本身就是
+ * `window.foo`，所以 HTML 里那 28 处 `onclick="foo()"` 才工作。ESM 没有这个行为，
+ * 必须显式挂回去 —— 而且**要挂全部导出**，不能只挑我在 JSX 里写过的那几个：
+ * 动态行（`renderUsers` / `renderDash` 之类用 `esc()` 拼出来的字符串）里还有
+ * 用户点击时才解析的 `onclick`，漏一个就是「点了没反应」，不会报错。
+ *
+ * ★ 这是过渡期胶水，死期 = 阶段 4 共享层 cut-over（和其它页的 installGlobals 一起删）。
+ */
+function installGlobals() {
+  for (const [name, value] of Object.entries(adminLogic)) {
+    if (typeof value === 'function') window[name] = value
+  }
+}
+
+const root = createRoot(document.getElementById('root'))
+
+// ★ `flushSync` 不是性能优化，是**正确性**：`init()` 第一句就是
+// `document.getElementById('admLoginForm').addEventListener(...)`。骨架没提交
+// 就是 null，直接抛 TypeError，整页停在空白。老页面里这个顺序由
+// `DOMContentLoaded` 保证，React 里由 flushSync 保证。
+flushSync(() => {
+  root.render(<div dangerouslySetInnerHTML={{ __html: SHELL_HTML }} />)
+})
+
+installGlobals()
+adminLogic.init()
