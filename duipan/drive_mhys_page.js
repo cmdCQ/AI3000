@@ -249,6 +249,18 @@ async function reset(m) {
   // 不清的话下一条用例里自动打开的面板会改成弹登录引导。
   await js(m, `window.localStorage.removeItem('mhys_result');
     window.localStorage.removeItem('mhys_anon_used'); return true;`);
+  // ★ 有界等待「应用已启动」（2026-10-17，阶段 4 之后补）：这页现在是 ESM 包，
+  //   导航后还要多取一个共享 chunk，脚本求值比 classic script 晚。
+  //   `#timeDisplay` 由 init() → updateTimeDisplay() 填，它有字说明 init 跑过了；
+  //   在那之前点 `#methodDisplay` 只是点在没绑事件的 div 上，下拉不展开，
+  //   `selectMethod()` 返回 'NO_OPTION'，随后读 `#manualUpper.value` 就抛 null。
+  //   等不到就让后面的断言去红 —— 这里不替它判绿。
+  for (let i = 0; i < 60; i++) {
+    const t = await js(m, `var el = document.getElementById('timeDisplay');
+      return el ? (el.textContent || '').trim() : '';`);
+    if (t) break;
+    await new Promise((r) => setTimeout(r, 100));
+  }
 }
 async function captured() {
   return (await (await fetch(`${ORIGIN}/__captured`)).json()).captured;
