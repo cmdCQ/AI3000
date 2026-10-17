@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>我的命盘 · 易三千</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all';this.onload=null">
+</head>
+<body>
+<div id="root"></div>
+
+<!-- 下面这六个是**传统 script**，本次阶段 3 一个都不搬，照旧排在 module 之前：
+
+     · auth.js          window.openAuthModal（游客空态那颗「去登录」走它）+
+                        window.AUTH（本页的登录门禁读 isLoggedIn）
+     · charts-store.js  window.ChartsStore（getAll / get / remove）—— 列表与详情的数据源
+     · ui_common.js     escHtml / renderMarkdown / formatTime。**它必须排在
+                        ai_panel.js 之前**：那两个面板在模块级就用这些函数
+                        （ai_panel.js:196,490 / bazi_ai_panel.js:62,69,352），
+                        晚一步就是 ReferenceError。老页的顺序就是这样，别调。
+     · bazi_render.js   window.BaziRender.render(host, resp, meta, restHost)
+     · ai_panel.js      共用 AI 面板引擎；装载时自己往 body 挂面板（:104-106），
+                        与页面容器无关
+     · bazi_ai_panel.js window.BaziAI.mount(host, {chartId, birth})
+
+     传统 script 会立刻执行、module 是 defer 的，所以这个顺序等价于「依赖先于使用者」。
+     阶段 4 收口时它们整体搬进 src/app/，这几个 script 标签一起去掉；
+     在那之前 main.jsx 只经由 window 借它们，并写明了死期。 -->
+<script src="/js/auth.js"></script>
+<script src="/js/charts-store.js"></script>
+<script src="/js/ui_common.js"></script>
+<script src="/js/bazi_render.js"></script>
+<script src="/js/ai_panel.js"></script>
+<script src="/js/bazi_ai_panel.js"></script>
+<script type="module" src="./main.jsx"></script>
+</body>
+</html>

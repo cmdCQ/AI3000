@@ -1,0 +1,24 @@
+/* ⚠ **这四行的顺序就是外观**，别按"字母序/美观"重排。
+ *
+ * 老页 `src/web/my-charts/index.html` 把这四份 CSS 全放 <head>，所以**文档顺序
+ * 就是生效顺序**：
+ *     13 行  /css/mhys_result.css
+ *     14 行  /css/charts.css
+ *     17 行  /css/page-my-charts.css
+ *     18 行  /css/tokens.css
+ * `@import` 按同一顺序展开，生效顺序与老页一致。
+ *
+ * ⚠ 一句实话，省得后人照着老注释找半天：老 HTML 第 10-12 行写着「mhys_result.css
+ *   里的 :root 与 charts.css 的值不同，故 charts.css 必须放后面」——**那个理由现在
+ *   已经过期了**。品牌色那轮改造把这三个文件的 `:root` 块全删了：
+ *     $ grep -c '^:root' src/web/css/{mhys_result,charts,page-my-charts}.css  → 0 0 0
+ *     $ grep -rn -- '--text-dim[[:space:]]*:' src/web/css/                     → 只有 tokens.css:41
+ *   也就是说这一页的灰阶变量现在只来自 tokens.css。
+ *   顺序照旧保留，是因为：① 改成别的顺序没有任何收益；② 万一将来哪个文件又把
+ *   `:root` 加回来，老顺序是唯一被线上验证过的那个。**但别再引用那个过期理由。**
+ *
+ * 本次不搬任何 CSS 规则，只 @import 老文件 —— 复制粘贴等于立刻多出一份真相。 */
+@import '../../web/css/mhys_result.css';
+@import '../../web/css/charts.css';
+@import '../../web/css/page-my-charts.css';
+@import '../../web/css/tokens.css';
