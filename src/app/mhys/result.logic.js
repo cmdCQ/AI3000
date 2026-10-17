@@ -1,5 +1,26 @@
-// ===== 加载数据 =====
-async function load() {
+// 梅花易数结果页（`/mhys/result.html?id=<记录id>`）的命令式逻辑 —— 阶段 3 第 11 页。
+// 逐字搬运自 `src/web/js/page-mhys-result.js`（85 行）。
+// ==========================================================================
+//
+// 与六爻那一页（`src/app/liuyao/result.logic.js`）同一形态：老脚本是一条直线 ——
+// 取 id → 拉记录 → 填几个全局 → 渲染 → 摆 AI 块。所以本文件与老文件的函数体
+// **逐字节相同**（除 `export ` 与文件末尾那句被挪走的裸调 `load();`）。
+//
+// 本文件**不许 import 任何东西**（同 `liuyao/result.logic.js` 的规矩）：它要对拍老脚本，
+// import 进来的东西在老沙箱里没有对应物。依赖的全局（浏览器里由传统 script 提供）：
+//   · `AUTH`              `/js/auth.js`          —— `getToken()`
+//   · `renderResult`      `/js/mhys_render.js`   —— 结果区渲染层（与排盘页同一份）
+//   · `renderAnalysis`    `/js/mhys_render.js`   —— 解卦区
+//   · `refreshAIPanel`    `/js/ai_panel.js`      —— 盘已在 DOM 里之后把 AI 块摆出来
+//   · `currentResultMeta` / `currentAiPayload` / `currentRecordId` / `savedAnalysis`
+//                         `/js/mhys_render.js:54-57` 的 `var` 全局。
+//     ⚠ 这四个是**赋值**不是声明：ESM 是严格模式，只有「老脚本用 `var` 建过的全局」
+//       才能这样裸赋值；名字不存在会抛 ReferenceError（会被下面的 try 吞成
+//       「加载失败，请重试」—— 那种绿是假的，判据里专门有一条盯它）。
+/* global AUTH, renderResult, renderAnalysis, refreshAIPanel,
+          currentResultMeta, currentAiPayload, currentRecordId, savedAnalysis */
+
+export async function load() {
   var area = document.getElementById('contentArea');
   var urlParams = new URLSearchParams(window.location.search);
   var id = urlParams.get('id');
@@ -36,8 +57,8 @@ async function load() {
       area.innerHTML = renderResult(result);
       renderAnalysis();
       // ⚠ 这两项**必须在 renderResult() 之后**挂：那个函数会把与「上一卦」绑定的
-      //   状态清空（savedAnalysis / currentRecordId，理由写在它里面）。
-      //   顺序反过来 = 从记录点进来时既看不到已存的解读、解析也没法回写这条记录。
+      //   状态清空（savedAnalysis / currentRecordId）。顺序反过来 = 从记录点进来时
+      //   既看不到已存的解读、解析也没法回写这条记录。
       currentRecordId = id;
       savedAnalysis = data.ai_analysis || '';
       // 盘已经在了 → 把 AI 块摆出来（有存过的解读就直接展示，没有就是「开始解卦」）。
@@ -82,4 +103,6 @@ async function load() {
   }
 }
 
-load();
+// 老文件最后一行是裸调 `load();`。ESM 里没有「模块一求值就干活」的余地可控顺序，
+// 所以这句挪到 `./result.jsx` 的装载段末尾（那里 flushSync 已经把 `#contentArea`
+// 提交进 DOM，`load()` 第一句就 getElementById 它）。时序等价，见 result.jsx 注释。

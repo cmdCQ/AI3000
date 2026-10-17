@@ -1,0 +1,18 @@
+/* `/mhys/result.html` —— 阶段 3 第 11 页。
+   @import 顺序刻意与老页面 `src/web/mhys/result.html` 的文档顺序一致：
+       :12  /css/mhys_result.css
+       :13  /css/tokens.css
+   与 `./style.css`（排盘页）同理：**本页不复制任何规则**，两份文件就是真相。
+
+   为什么 tokens.css 排在最后：老 HTML 就是「页面自带样式在前、令牌在后」，
+   品牌色那轮改造已经把页面级 :root 块删干净了，令牌只来自 tokens.css；
+   顺序照旧保留是因为改成别的顺序没有收益，而万一将来有人把 :root 加回某个
+   页面样式，老顺序是唯一被线上验证过的那个。 */
+@import '../../web/css/mhys_result.css';
+@import '../../web/css/tokens.css';
+
+/* 老页的 `.mh-wrapper` 是 `<body>` 的直接子节点，新页多了一层 `#root`。
+   本页没有一条 CSS 依赖父子关系（`.mh-wrapper` 自己 max-width:420px + margin:auto；
+   `html,body{min-height:100vh}` 只加在 body 上），所以视觉上不需要补规则。
+   这行只是把 `#root` 声明成一个普通块级盒，免得以后有人给它加样式时以为它「本来就有」。 */
+#root { display: block; }

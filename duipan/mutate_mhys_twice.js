@@ -54,7 +54,13 @@ const F = {
   pageMhys: process.env.DRIVE_ROOT
     ? path.join(WEB, 'js', 'page-mhys.js')
     : path.join(ROOT, 'src', 'app', 'mhys', 'logic.js'),
-  pageMhysResult: path.join(WEB, 'js', 'page-mhys-result.js'),
+  // ⚠ 2026-10-17 `/mhys/result.html` 也搬进 `src/app/` 了（阶段 3 第 11 页），同 `pageMhys`
+  //   的处理：产物里没有这个文件了，M9 的变异点改成**改源码 → 重建 → 跑驱动**。
+  //   落点是 `src/app/mhys/result.logic.js`（老 `page-mhys-result.js` 的逐字搬家版，
+  //   为了能对拍老脚本，函数体一字未改，所以 M9 那两段 from/to 字符串原样有效）。
+  pageMhysResult: process.env.DRIVE_ROOT
+    ? path.join(WEB, 'js', 'page-mhys-result.js')
+    : path.join(ROOT, 'src', 'app', 'mhys', 'result.logic.js'),
 };
 // 改了源码的变异点要在跑驱动之前重建。`DRIVE_ROOT` 指到别处时按老办法直接改产物。
 const NEEDS_REBUILD = !process.env.DRIVE_ROOT;
@@ -68,6 +74,15 @@ function rebuild() {
   }
 }
 const sha = (p) => crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
+
+// 哪些变异点落在**源码**里（`src/app/**`）—— 改完必须重建，驱动读的是 `build/nginx`。
+// ⚠ 原先这里写死 `mu.file === 'pageMhys'`。M9 的落点从产物 `js/page-mhys-result.js`
+//   改成源码 `src/app/mhys/result.logic.js` 之后，那个写死的判断就只认得一个文件了：
+//   M9 改完源码**没重建**，驱动跑的还是上一次的产物，于是「变异没被抓住」——
+//   而真相是变异压根没生效（比「判据是橡皮章」更糟：它会让人去改一条本来有效的断言）。
+//   所以判断改成按**路径**来，将来再有页面搬进 src/app 不用再改这里。
+const isSource = (k) => F[k].startsWith(path.join(ROOT, 'src', 'app'));
+const needsRebuild = (k) => NEEDS_REBUILD && isSource(k);
 const before = {};
 for (const k of Object.keys(F)) before[k] = sha(F[k]);
 
@@ -171,10 +186,10 @@ for (const mu of MUT) {
   }
   fs.writeFileSync(p, src);
   // 改的是 `src/app/` 那侧就先重建 —— 驱动读的是 `build/nginx`，不重建等于没改。
-  if (NEEDS_REBUILD && mu.file === 'pageMhys') rebuild();
+  if (needsRebuild(mu.file)) rebuild();
   const r = run();
   fs.writeFileSync(p, orig);
-  if (NEEDS_REBUILD && mu.file === 'pageMhys') rebuild();
+  if (needsRebuild(mu.file)) rebuild();
   const caught = r.code !== 0 && r.out.indexOf(mu.expect) >= 0;
   console.log(`${caught ? '✓' : '✗'} ${mu.name}\n    抓到=${caught}（退出码 ${r.code}）期望失败项「${mu.expect}」`);
   if (!caught) { bad++; console.log('    —— 驱动输出尾部：\n' + r.out.split('\n').slice(-16).join('\n')); }

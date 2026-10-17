@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>排盘结果 · 梅花易数</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all';this.onload=null">
+</head>
+<body>
+<div id="root"></div>
+
+<!-- 六条**传统 script**，本次阶段 3 一个都不搬，顺序照抄老页 `src/web/mhys/result.html:43-53`：
+     auth → ui_common → hexagrams_data → mhys_render → ai_panel → mhys_ai_panel。
+     唯一的改动是老页第 47 行那条 `page-mhys-result.js` 换成了下面的 module
+     （`result.jsx` + `result.logic.js`）。
+
+     · auth.js            `window.AUTH.getToken()` —— 拉记录时带 Bearer；`admin=1` 时改读
+                          `localStorage.sqw_admin_token`。
+     · ui_common.js       共用渲染小工具（`mhys_render.js` 会用到）。
+     · hexagrams_data.js  全局 `TRIGRAMS`（`mhys_render.js` 按裸名读）。
+     · mhys_render.js     ★ `renderResult` / `renderAnalysis` 两个渲染入口，还提供
+                          `currentResultMeta` / `currentAiPayload` / `currentRecordId` /
+                          `savedAnalysis` 四个 `var` 全局 —— `result.logic.js` 直接裸赋值给
+                          它们（这就是它不能写成 ESM 局部变量的原因）。
+                          它写 `#contentArea` 与 `#analysisArea` 的 innerHTML，
+                          所以这两块留给它、别让 React 去管（见 result.jsx 顶部）。
+     · ai_panel.js        共用 AI 面板引擎，提供 `refreshAIPanel`（本页 load() 里调的就是
+                          它，**不是** mhys_ai_panel.js 里的）。装载时自己往 body 挂面板；
+                          `mountAIPanel()` 在 DOMContentLoaded 里要找 `#contentArea`
+                          才插得进 `#aiInlineHost` —— result.jsx 因此用 flushSync 做同步首提交。
+     · mhys_ai_panel.js   梅花这一户的面板配置（`window.AI_PANEL_CONF`）。
+                          它读的 `g` / `currentTopic` / `currentRecordId` 来自 mhys_render.js。
+
+     ★ 执行顺序（与 `mhys/index.html` 同一套论证，这里再简述）：
+       `vite build` 把 `<script type="module">` 搬进 `<head>`，文档顺序上排在六条之前；
+       但 module 自带 defer，要等 HTML 解析完（六条全跑完）才执行。真实顺序是
+           六条传统 script → result.jsx（使用者）→ DOMContentLoaded
+       ⚠ 别因为「module 被搬到前面」就以为它先跑 —— 那样 `renderResult` / `TRIGRAMS` /
+         `AUTH` 全都还不存在。defer 是这个顺序唯一的保障。
+       阶段 4 收口时这几条整体搬进 src/app/，script 标签一起去掉。 -->
+<script src="/js/auth.js"></script>
+<script src="/js/ui_common.js"></script>
+<script src="/js/hexagrams_data.js"></script>
+<script src="/js/mhys_render.js"></script>
+<script src="/js/ai_panel.js"></script>
+<script src="/js/mhys_ai_panel.js"></script>
+<script type="module" src="./result.jsx"></script>
+</body>
+</html>

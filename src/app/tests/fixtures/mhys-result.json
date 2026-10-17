@@ -1,0 +1,317 @@
+{
+ "method": "time",
+ "calc": {
+  "upper": 8,
+  "lower": 7,
+  "move": 1
+ },
+ "gua": {
+  "upper": 8,
+  "lower": 7,
+  "move": 1,
+  "benGua": {
+   "upper": 8,
+   "lower": 7,
+   "upperTri": {
+    "name": "坤",
+    "symbol": "☷",
+    "full": "坤为地",
+    "element": "土",
+    "nature": "地"
+   },
+   "lowerTri": {
+    "name": "艮",
+    "symbol": "☶",
+    "full": "艮为山",
+    "element": "土",
+    "nature": "山"
+   },
+   "name": "地山谦",
+   "lines": [
+    {
+     "yang": false,
+     "moving": false,
+     "pos": 6
+    },
+    {
+     "yang": false,
+     "moving": false,
+     "pos": 5
+    },
+    {
+     "yang": false,
+     "moving": false,
+     "pos": 4
+    },
+    {
+     "yang": true,
+     "moving": false,
+     "pos": 3
+    },
+    {
+     "yang": false,
+     "moving": false,
+     "pos": 2
+    },
+    {
+     "yang": false,
+     "moving": true,
+     "pos": 1
+    }
+   ],
+   "movingYao": [
+    1
+   ]
+  },
+  "huGua": {
+   "upper": 4,
+   "lower": 6,
+   "upperTri": {
+    "name": "震",
+    "symbol": "☳",
+    "full": "震为雷",
+    "element": "木",
+    "nature": "雷"
+   },
+   "lowerTri": {
+    "name": "坎",
+    "symbol": "☵",
+    "full": "坎为水",
+    "element": "水",
+    "nature": "水"
+   },
+   "name": "雷水解",
+   "lines": [
+    {
+     "yang": false,
+     "moving": false,
+     "pos": 6
+    },
+    {
+     "yang": false,
+     "moving": false,
+     "pos": 5
+    },
+    {
+     "yang": true,
+     "moving": false,
+     "pos": 4
+    },
+    {
+     "yang": false,
+     "moving": false,
+     "pos": 3
+    },
+    {
+     "yang": true,
+     "moving": false,
+     "pos": 2
+    },
+    {
+     "yang": false,
+     "moving": false,
+     "pos": 1
+    }
+   ]
+  },
+  "bianGua": {
+   "upper": 8,
+   "lower": 3,
+   "upperTri": {
+    "name": "坤",
+    "symbol": "☷",
+    "full": "坤为地",
+    "element": "土",
+    "nature": "地"
+   },
+   "lowerTri": {
+    "name": "离",
+    "symbol": "☲",
+    "full": "离为火",
+    "element": "火",
+    "nature": "火"
+   },
+   "name": "地火明夷",
+   "lines": [
+    {
+     "yang": false,
+     "moving": false,
+     "pos": 6
+    },
+    {
+     "yang": false,
+     "moving": false,
+     "pos": 5
+    },
+    {
+     "yang": false,
+     "moving": false,
+     "pos": 4
+    },
+    {
+     "yang": true,
+     "moving": false,
+     "pos": 3
+    },
+    {
+     "yang": false,
+     "moving": false,
+     "pos": 2
+    },
+    {
+     "yang": true,
+     "moving": false,
+     "pos": 1
+    }
+   ]
+  },
+  "cuoGua": {
+   "upper": 1,
+   "lower": 2,
+   "upperTri": {
+    "name": "乾",
+    "symbol": "☰",
+    "full": "乾为天",
+    "element": "金",
+    "nature": "天"
+   },
+   "lowerTri": {
+    "name": "兑",
+    "symbol": "☱",
+    "full": "兑为泽",
+    "element": "金",
+    "nature": "泽"
+   },
+   "name": "天泽履",
+   "lines": [
+    {
+     "yang": true,
+     "moving": false,
+     "pos": 6
+    },
+    {
+     "yang": true,
+     "moving": false,
+     "pos": 5
+    },
+    {
+     "yang": true,
+     "moving": false,
+     "pos": 4
+    },
+    {
+     "yang": false,
+     "moving": false,
+     "pos": 3
+    },
+    {
+     "yang": true,
+     "moving": false,
+     "pos": 2
+    },
+    {
+     "yang": true,
+     "moving": false,
+     "pos": 1
+    }
+   ]
+  },
+  "zongGua": {
+   "upper": 4,
+   "lower": 8,
+   "upperTri": {
+    "name": "震",
+    "symbol": "☳",
+    "full": "震为雷",
+    "element": "木",
+    "nature": "雷"
+   },
+   "lowerTri": {
+    "name": "坤",
+    "symbol": "☷",
+    "full": "坤为地",
+    "element": "土",
+    "nature": "地"
+   },
+   "name": "雷地豫",
+   "lines": [
+    {
+     "yang": false,
+     "moving": false,
+     "pos": 6
+    },
+    {
+     "yang": false,
+     "moving": false,
+     "pos": 5
+    },
+    {
+     "yang": true,
+     "moving": false,
+     "pos": 4
+    },
+    {
+     "yang": false,
+     "moving": false,
+     "pos": 3
+    },
+    {
+     "yang": false,
+     "moving": false,
+     "pos": 2
+    },
+    {
+     "yang": false,
+     "moving": false,
+     "pos": 1
+    }
+   ]
+  },
+  "ti": {
+   "num": 8,
+   "tri": {
+    "name": "坤",
+    "symbol": "☷",
+    "full": "坤为地",
+    "element": "土",
+    "nature": "地"
+   }
+  },
+  "yong": {
+   "num": 7,
+   "tri": {
+    "name": "艮",
+    "symbol": "☶",
+    "full": "艮为山",
+    "element": "土",
+    "nature": "山"
+   }
+  },
+  "relation": "比和",
+  "verdict": {
+   "text": "体用比和 · 吉",
+   "level": "吉",
+   "score": 1,
+   "cls": "v-ji",
+   "desc": "内外和谐、彼此不相克，和顺可成。守正持中，顺势而行。"
+  }
+ },
+ "topic": "",
+ "divinationTime": "2026-10-17T12:35:00",
+ "createdAt": "2026-10-17T04:35:05.853Z",
+ "lunarInfo": {
+  "lunarYear": "二〇二六",
+  "lunarMonth": "九",
+  "lunarDay": "初八",
+  "yearGZ": "丙午",
+  "monthGZ": "戊戌",
+  "hourGZ": "庚午",
+  "dayGZ": "甲子",
+  "xkYear": "寅卯",
+  "xkMonth": "辰巳",
+  "xkDay": "戌亥",
+  "xkHour": "戌亥",
+  "jieQi": "寒露 ~ 霜降",
+  "jieQiFull": "寒露 2026-10-08 ~ 霜降 2026-10-23"
+ }
+}
