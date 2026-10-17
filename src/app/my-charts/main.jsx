@@ -189,7 +189,10 @@ window.toggleMenu = function(chartId, chartName) {
 
   popup.innerHTML =
     '<button class="menu-item" onclick="closeMenu();location.href=\'/charts/?action=edit&id='+chartId+'\'">编辑命盘</button>' +
-    '<button class="menu-item danger" onclick="closeMenu();doDelete(\''+chartId+'\')">🗑 删除命盘</button>';
+    // §5.4（用户 2026-10-17）：菜单项前的 🗑 去掉 —— 同一份菜单里的「编辑命盘」没有
+    // 图标，只有这一项带 emoji，视觉上像两个来源拼起来的；`.menu-item.danger` 的
+    // 红色文字已经把「这是删操作」说清楚了，不需要再挂一个图标。
+    '<button class="menu-item danger" onclick="closeMenu();doDelete(\''+chartId+'\')">删除命盘</button>';
 
   overlay.appendChild(popup);
   document.body.appendChild(overlay);

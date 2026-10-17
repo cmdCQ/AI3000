@@ -287,6 +287,7 @@ async function main() {
         legacy: {
           search: '?id=c1', isLoggedIn: true,
           store: { get: async () => CHART_A },
+          trimDetailActions: true, // §5.4：页尾编辑/删除入口已删（见上面的说明）
         },
         shot: '01-详情骨架.png',
       },
@@ -324,6 +325,13 @@ async function main() {
 
       const got = await htmlOf(m, 'mc-content');
       const want = await legacy.renderLegacy(c.legacy);
+      // ★ §5.4（用户 2026-10-17）有意删掉了详细页页尾的「编辑此命盘 / 删除此命盘」，
+      //   而老快照里当然还有。这里只在**这一处**把老实现的页尾容器剪掉再逐字节比，
+      //   别的字节一个都不放过 —— 不许调成「允许差异数」那种糊弄法。
+      if (c.legacy.trimDetailActions) {
+        //   `.detail-actions` 里只有 <a> 与 <button>，没有嵌套 div —— 用最短匹配即可。
+        want.html = want.html.replace(/<div class="detail-actions">[\s\S]*?<\/div>/, '');
+      }
       // 老那份也要过一遍浏览器解析（见 roundTrip 的注释），否则名字里带 `"` 那几条会假红
       okHtml(`#mc-content 逐字节相同 · ${c.name}`, got, await roundTrip(m, want.html));
 
@@ -400,9 +408,10 @@ async function main() {
       var p=document.getElementById('card-menu');
       if(!p) return null;
       return { id:p.id, chartId:p.dataset.chartId, items:[].slice.call(p.querySelectorAll('.menu-item')).map(function(b){return b.textContent;}) };`);
-    ok('⋯ 弹出卡片菜单，挂在 c3 上，两项（编辑/删除）',
+    // §5.4（用户 2026-10-17）：菜单项前的 🗑 去掉了，其余两项与文案不变。
+    ok('⋯ 弹出卡片菜单，挂在 c3 上，两项（编辑/删除，删除项不再带 🗑）',
       !!menu && menu.chartId === 'c3' && menu.items.length === 2
-      && menu.items[0] === '编辑命盘' && menu.items[1] === '🗑 删除命盘', JSON.stringify(menu));
+      && menu.items[0] === '编辑命盘' && menu.items[1] === '删除命盘', JSON.stringify(menu));
     await L.shot(m, path.join(SHOT_DIR, '03-卡片菜单.png'));
     // ⚠ 裸写 `closeMenu()` 会 ReferenceError：`js()` 跑在 marionette 沙箱里（Xray 视角），
     //   看不见页面挂在 window 上的名字，必须走 `W.`（drive_lib.js:340-345 写明了这条）。

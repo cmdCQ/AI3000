@@ -133,11 +133,12 @@ test.describe('/my-charts/ 我的命盘', () => {
 
     const menu = page.locator('#card-menu')
     await expect(menu).toBeVisible()
-    // ★ §5.4 要删的是「删除命盘」前面那个 🗑。这条判据现在钉住**带 🗑 的现状**，
-    //   5.4 改完它必须跟着改 —— 那是重拍，不是回归。
+    // ★ §5.4（用户 2026-10-17）：菜单项前的 🗑 已经删了 —— 同一份菜单里「编辑命盘」
+    //   没有图标，只有这一项带 emoji，看着像两个来源拼的；`.menu-item.danger` 的
+    //   红色文字已经说明了这是删操作。这里钉「文案还在、图标不在」。
     await expect(menu).toContainText('编辑命盘')
     await expect(menu).toContainText('删除命盘')
-    await expect(page.locator('#card-menu .menu-item.danger')).toContainText('🗑')
+    await expect(page.locator('#card-menu .menu-item.danger')).toHaveText('删除命盘')
   })
 
   test('删除：走 DELETE 而不是 GET，删完跳回列表', async ({ page }) => {

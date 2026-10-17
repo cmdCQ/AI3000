@@ -190,15 +190,15 @@ export function renderDetailHTML(chart, { isAdminView }) {
   //   两块是**两次 innerHTML 写**（见 js/bazi_render.js 的 restHost），别合并回去。
   h += '<div id="baziAi"></div>';
   h += '<div id="baziRest"></div>';
-  h += '<div class="detail-actions">';
+  // §5.4（用户 2026-10-17）：页尾的「编辑此命盘 / 删除此命盘」两个入口删掉 ——
+  //   它们与列表卡右上角那颗 ⋯ 菜单里的同名两项完全重复，而详细页是「看盘」的地方，
+  //   不该在盘下面再放一排会改数据的按钮（手机上还容易被误触）。
+  //   删除入口因此**只保留在列表页的三点菜单**里（那里有二次确认）。
+  //   管理员视图的「← 返回后台」不是数据操作，保留。
   if (isAdminView) {
-    h += '<a href="/admin/" class="btn">← 返回后台</a>';
-  } else {
-    h += '<a href="/charts/?action=edit&id=' + chart.id + '" class="btn">编辑此命盘</a>';
-    // ⚠ 同样是内联 onclick，`doDelete` 也要挂 window（见 main.jsx）。
-    h += '<button class="btn btn-danger" onclick="doDelete(\'' + chart.id + '\')">删除此命盘</button>';
+    h += '<div class="detail-actions"><a href="/admin/" class="btn">← 返回后台</a></div>';
   }
-  h += '</div></div>';
+  h += '</div>';
   return h;
 }
 
