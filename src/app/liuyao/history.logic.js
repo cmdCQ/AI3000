@@ -31,9 +31,10 @@ export const CONFIG = {
 }
 
 // 一页一个实例：`state`（列表 / 管理模式 / 勾选表）收在闭包里，不再有模块级裸变量。
+// 本文件**不导出** `state` —— 页面里没人读它，导出一个「随时会被控制器整体改写」的
+// 对象只会诱使别人从外面改页面状态。要观察它请走 `duipan/diff_liuyao_result_history.mjs`
+// 的适配层（那里是判据，不是产品代码）。
 const page = createRecordsHistory(CONFIG)
-
-export const state = page.state
 
 // 下面这 8 个名字是给 `./history.jsx` 挂 window 用的（7 个行内 onclick + 1 个启动调用）。
 // 其余 5 个（`formatTime` / `escHtml` / `getFilteredRecords` / `updateSelectedCount` /
