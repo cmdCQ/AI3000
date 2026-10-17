@@ -99,6 +99,13 @@ run diff-pure  node diff_pure_functions.mjs
 # 梅花那 15 个纯函数的差分（820 例）。它盖的正是 ② 那 62 条断言**碰不到**的部分：
 # 驱动只能抽查几个卦，差分把 calcGua 按 403 组上下卦/动爻全铺开。两边互补，都别删。
 run diff-mhys  node diff_mhys.mjs
+# `src/app/lib/auth.js` 与 `src/web/js/auth.js` 的 cookie 读法对拍（104 项）。
+# 过渡期里**同一个语义有两份实现**（新树只搬了读 cookie，登录弹窗那 300 行还在老树里
+# 被当全局借用），两份不是逐字节一样（老文件带分号、新文件不带），所以「看起来一样」
+# 不能当证据。谁哪天只改了一份（给新文件补 try/catch、把锚从 `(^| )` 改成 `(^|; )`、
+# 换掉 `decodeURIComponent`），症状会是「新页认得我是登录的、老页认不得」这种极难查的
+# 不一致。这条差分对 AUTH.isLoggedIn / getToken / getUsername 逐个 cookie 串比返回值。
+run diff-auth  node diff_auth_cookie.mjs
 # 变异套件自己会把驱动跑九遍（每遍改坏一处再还原），故它最慢、放在最后。
 # `fast` 只跳过它 —— 但**发版前必须跑**：驱动里那些断言是写驱动的人自己写的，
 # 只有变异能证伪「这些断言是不是橡皮章」。
@@ -114,4 +121,4 @@ printf '\n═════ 汇总 ═════\n'
 if [ -n "$ENVFAIL" ]; then echo "⚠ 没测到东西：$ENVFAIL"; fi
 if [ -n "$FAIL" ]; then echo "✗ 未过：$FAIL"; exit 1; fi
 if [ -n "$ENVFAIL" ]; then exit 2; fi
-echo "✓ 六个页面驱动 + 两个纯函数差分（含变异套件）全部通过 $SKIPPED"
+echo "✓ 六个页面驱动 + 三个纯函数差分（含变异套件）全部通过 $SKIPPED"
