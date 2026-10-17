@@ -5,9 +5,11 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
-    "test": "playwright test",
+    "test": "vitest run && playwright test",
     "test:update": "playwright test --update-snapshots",
-    "test:report": "playwright show-report tests/.report"
+    "test:report": "playwright show-report tests/.report",
+    "test:unit": "vitest run",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "react": "^19.3.1",

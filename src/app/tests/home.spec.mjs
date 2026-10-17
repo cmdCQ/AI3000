@@ -44,8 +44,38 @@ test('视觉基线：关掉公告后的首页', async ({ page }) => {
   await page.locator('.announcement-modal-close').click()
   await expect(page.locator('#announcementOverlay')).toBeHidden()
 
+  // 「已稳定运行」那一行是**每秒重算**的计时器，截图像素永远不可能稳定。
+  // 所以：位置进基线、数字打码；数字本身另用一条功能断言焊住格式
+  // （见下面那条测试）—— 打码不等于不测，只是把「值」和「版面」分开测。
+  await expect(page.locator('#uptimeTimer')).toHaveText(/^\d+D \d+H \d+M \d+S$/)
+  await expect(page.locator('.uptime-line')).toContainText('已稳定运行')
+
   expect(errors).toEqual([])
   // 首次生成用 --update-snapshots；之后每次比对像素，
   // 基线 PNG 进仓库，git diff 里能看见「首页长什么样变了」
-  await expect(page).toHaveScreenshot('home.png', { fullPage: true })
+  await expect(page).toHaveScreenshot('home.png', {
+    fullPage: true,
+    // 打码的是**整行** `.uptime-line`，不是里面那个 `#uptimeTimer`：
+    // 打码框大小 = 元素的 bounding box，而 timer 的文字长度每秒都变
+    // （`133D 11H 43M 25S` vs `23D 4H 5M 9S`），框子跟着变 → 打码框自己的边缘
+    // 就成了差异（实测 471 像素，bbox 152×17，正好一行）。
+    // 换成定宽的父元素后打码框恒定。
+    mask: [page.locator('.uptime-line')],
+  })
+})
+
+test('底部导航：三项都在，且后两项是真跳页', async ({ page }) => {
+  const errors = trackErrors(page)
+  await page.goto('/', { waitUntil: 'networkidle' })
+  await page.locator('.announcement-modal-close').click()
+
+  // 三条：命理与术数（切 tab）/ 我的命盘（跳 /my-charts/）/ 我的（跳 /my/）
+  const items = page.locator('#bottomNav .nav-item')
+  await expect(items).toHaveCount(3)
+  await expect(items.nth(0)).toHaveClass(/active/)
+  await expect(items.nth(0)).toContainText('命理与术数')
+  await expect(items.nth(1)).toContainText('我的命盘')
+  await expect(items.nth(2)).toContainText('我的')
+
+  expect(errors).toEqual([])
 })

@@ -1,0 +1,20 @@
+/* @import 的顺序与老页面 `src/web/index.html` 一致：
+       :7  /css/tokens.css
+       :8  /css/home.css
+   两条都在 <head> 里，文档顺序就是生效顺序；`@import` 按同一顺序展开。
+
+   **本页不复制任何 CSS 规则**：复制粘贴等于立刻多出一份真相，改一处漏一处
+   就会悄悄对不上。整页的视觉验收在 `tests/home.spec.mjs` 的截图基线上 ——
+   基线是拿老页（提交 `0db7241` 时的 `src/web/index.html`）拍的，
+   所以「样式搬丢了」会直接变成一条红测试。 */
+@import '../../web/css/tokens.css';
+@import '../../web/css/home.css';
+
+/* 老页面的 `.home-wrapper` 是 `<body>` 的直接子节点；新页面它外面多了一层
+   `#root`。`home.css` 里 `.home-wrapper` 自己 max-width + margin:0 auto，
+   没有一条规则依赖父子关系，所以视觉上不需要补规则。这一行只是显式声明
+   `#root` 没有背景/边框，避免以后有人给它加样式时误以为「它本来就有」。
+   与 `mhys/style.css` 里那条同源。 */
+#root {
+  display: block;
+}

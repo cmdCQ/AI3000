@@ -38,6 +38,11 @@ const LEGACY = join(REPO, 'src', 'web')
 // 这里给 input 起名只是为了让 rollup 的 chunk 名与产物一一对应
 // （`assets/liuyao/result-<hash>.js`），不参与 URL 生成。
 const input = {}
+// ★ 首页是唯一一个**不在子目录里**的入口：它的线上地址是 `/`，产物必须是
+// `build/nginx/index.html`。而 Vite 的 HTML 输出路径 = 源文件相对 root 的路径，
+// 所以源文件只能是 `src/app/index.html`，放 `src/app/home/index.html` 会产出
+// `/home/index.html`（地址就错了）。页面自己的逻辑仍住在 `src/app/home/` 里。
+if (existsSync(join(HERE, 'index.html'))) input['index'] = join(HERE, 'index.html')
 for (const d of readdirSync(HERE, { withFileTypes: true })) {
   if (!d.isDirectory() || d.name === 'node_modules' || d.name === 'lib') continue
   const dir = join(HERE, d.name)

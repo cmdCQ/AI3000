@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>易三千</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all';this.onload=null">
+</head>
+<body>
+<div id="root"></div>
+
+<!-- 老页 `src/web/index.html` 第 7-8 行那两条 CSS 顺序搬进了 `./style.css` 的
+     `@import`（tokens.css → home.css），这里不再有 <link>。
+     ★ 注意老的 viewport 带 `maximum-scale=1.0, user-scalable=no`，与其它已迁页
+       不同 —— 照抄保留，这是首页在手机上「不许双指缩放」的既有行为。 -->
+
+<!-- 本页只剩**一条**传统 script，就是下面这条 auth.js：
+       · 提供 `window.AUTH`（`isLoggedIn()`，判断能不能进 AI 对话 / 四柱八字）
+         与 `window.openAuthModal`（登录弹窗本体，被 14 个页面共用，属阶段 4
+         一次性 cut-over 的共享层，见计划文档 §4.18）。
+       · 老页第 152 行还引了 charts-store.js，本页**一处都没用到它**
+         （`grep -cE 'ChartsStore|charts-store' src/web/js/page-home.js` = 0）。
+         这次不再引用，首屏少一个请求。若将来首页要显示「我的命盘」摘要，
+         应当走 `/my-charts/` 或后端接口，而不是把这个全局再挂回来。
+
+     ★ 执行顺序：`vite build` 会把 `<script type="module">` 搬进 `<head>`，文档
+       顺序上排在 auth.js 之前；但 module 自带 defer，要等 HTML 解析完（auth.js
+       已跑完）才执行。所以真实顺序仍是 auth.js → main.jsx，与老页一致。 -->
+<script src="/js/auth.js"></script>
+<script type="module" src="./home/main.jsx"></script>
+</body>
+</html>
