@@ -13,7 +13,10 @@
 <body>
 <div id="root"></div>
 
-<!-- ★ 老 `/my/index.html` 一条 script 都没有，只有 `<script src="/js/page-my.js">`。
+<!-- ★ 老 `/my/index.html` 一条 script 都没有，只有一条指向 `/js/page-my.js` 的引用（已删）。
+     ⚠ 这段注释里**故意不写出那个 script 标签的完整字样**：写成那样的话，
+        `grep 'src="/js/' src/app/*/index.html` 会把注释也算进去，
+        于是「这页还引老脚本吗」永远假阳性。`drive_my_page.js:497` 就踩过这个坑。
      本次搬进 `src/app/my/` 之后，这里只剩**一条**传统 script，下面写了它为什么在。
 
      · auth.js  —— 提供 `window.openAuthModal`（定义在 `src/web/js/auth.js:183`，

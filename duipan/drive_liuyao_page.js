@@ -788,8 +788,13 @@ async function main() {
     await setTime(m, 2026, 9, 25, 8, 30);
     await clickStart(m);
     // 块是**自己出现**的（不用点任何东西）
-    await L.until(m, `return document.getElementById('aiPanel').classList.contains('open');`,
+    // ★ null-safe：`aiPanel` 是 AI 面板注入的，注入前 `getElementById` 给 null，
+    //   直接 `.classList` 会在 until 的谓词里抛（同 ⑬ 的 `contentArea`，同一个坑）。
+    await L.until(m, `var p = document.getElementById('aiPanel'); return !!(p && p.classList.contains('open'));`,
       (t) => t === true, 8000);
+    if (!(await js(m, `var p = document.getElementById('aiPanel'); return !!(p && p.classList.contains('open'));`))) {
+      throw new Error('8 秒内 #aiPanel 没出现或没加上 open —— 面板没起来，后面的判据一条都没跑');
+    }
     const waiting = await js(m, `${W}
       var r = document.getElementById('aiResponse');
       return { loading: !!(r && r.querySelector('.ai-loading')),
@@ -906,6 +911,24 @@ async function main() {
     // 这一页此前**一条判据都没有**（`grep -n history.html drive_liuyao_page.js` 为空），
     // 而它一个月里被真实点了 41 次 —— 判据覆盖率为零的活页。搬它之前先把它钉住。
     console.log('\n⑬ 记录页：列表 / 搜索 / 管理 / 删除 / 点进详情');
+
+    // ★ 等元素出现要用「等不到就明确报错」的写法，不能把 `.innerText` 直接放进 `until` 的谓词里。
+    //   原来这一行是：
+    //       await L.until(m, `return document.getElementById('contentArea').innerText.length > 10;`, …)
+    //   而 `L.until()` 超时是**静默返回**（`drive_lib.js:417`），谓词里那句 `.innerText` 在元素
+    //   还不存在时会**抛**，于是 8 秒等待变成一条 `TypeError: can't access property "innerText",
+    //   document.getElementById(...) is null` —— 报在驱动身上，看不出是页面没起来。
+    //   实测这是**偶发**的：同一份代码连跑两遍，一遍全绿一遍崩（React 首帧与 goto 之间有时序），
+    //   所以它比一条稳定红更坏 —— 会把「这一轮没测到」伪装成「这一轮测过了」。
+    async function requireEl(id, timeout = 8000) {
+      const probe = `return !!document.getElementById(${JSON.stringify(id)});`;
+      await L.until(m, probe, (t) => t === true, timeout);
+      if (!(await js(m, probe))) {
+        throw new Error(`等了 ${timeout}ms 仍没有 #${id} —— 页面骨架没渲染出来。`
+          + '这不是断言红，是「测不了」：后面的判据一条都没跑。');
+      }
+    }
+
     await setStub(true);
     await reset(m);
 
@@ -913,7 +936,7 @@ async function main() {
     await js(m, `document.cookie = 'sqw_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
                  document.cookie = 'sqw_username=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/'; return true;`);
     await goto(m, `${ORIGIN}/liuyao/history.html`);
-    await L.until(m, `return document.getElementById('contentArea').innerText.length > 10;`, (t) => t, 8000);
+    await requireEl('contentArea');
     const guestText = await L.textOf(m, '#contentArea', 4000, 10);
     check('未登录时给的是登录引导（不是空列表、不是白屏）',
       /登录后查看排盘记录/.test(guestText), guestText.replace(/\s+/g, ' ').slice(0, 120));
@@ -965,6 +988,7 @@ async function main() {
     await L.sleep(300);
 
     // ④ 管理模式：点「管理」→ 复选框与操作条出现；全选；再点「完成」→ 复原
+    await requireEl('manageBtn');   // 后面全是 `getElementById(...).innerText`，先钉住它存在
     await js(m, `document.getElementById('manageBtn').click(); return true;`);
     await L.sleep(300);
     const mg = await js(m, `${W}
@@ -1023,7 +1047,7 @@ async function main() {
     await fetch(`${ORIGIN}/__records`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ records: [] }) });
     await goto(m, `${ORIGIN}/liuyao/history.html`);
-    await L.until(m, `return document.getElementById('contentArea').innerText.length > 5;`, (t) => t, 8000);
+    await requireEl('contentArea');   // ★ 同上：别把 `.innerText` 放进 until 的谓词（会抛）
     check('一条记录都没有时是「暂无排盘记录」',
       /暂无排盘记录/.test(await L.textOf(m, '#contentArea', 3000, 10)), '空态文案不对');
 
