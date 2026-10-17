@@ -1,5 +1,11 @@
 // 阶段 4 cut-over：由 `src/web/js/liuyao_render.js` 逐字搬来，只给顶层声明加了 `export `。
 import { escHtml } from './uiCommon.js';
+// §5.2c：卦象解析卡与梅花用**同一份**渲染函数（`renderHexDetail`）。复制一份改两处
+// 就必然慢慢分叉 —— 用户看到的是「同一种卡长两个样」。环依赖说明：mhysRender 也
+// import 本模块，但双方都只在**函数体内**用对方的绑定（不在模块顶层读值），
+// 函数声明提升后不会踩 TDZ。
+import { renderHexDetail } from './mhysRender.js';
+import { getHexagramByTrigrams } from './hexagramsData.js';
 // 六爻结果渲染层 —— 盘面**一律来自后端** `/api/liuyao/paipan` 的返回值。
 //
 // 本文件不含任何装卦逻辑（纳甲、六亲、六神、世应、旺衰、用神都在后端
@@ -215,74 +221,6 @@ export function lyPanCard(chart, display) {
   return h;
 }
 
-/**
- * 断卦要点 —— 用神那一条 + 后端算好的 `deep.summary`。
- *
- * 这一块**不是**给 AI 的替代品（AI 会展开讲），它解决的是「页面上一堆字，
- * 不知道该看哪个」：先告诉用户这一卦在拿哪一爻当「你」，再列那几句要点。
- * 文字全部来自后端，本页不另写断语。
- */
-export function lyKeyCard(chart) {
-  var ys = chart.yongShen;
-  var summary = (chart.deep && chart.deep.summary) || [];
-  if (!ys && !summary.length) return '';
-
-  var h = '<div class="card ly-key-card">';
-  h += '<div class="card-title">📌 断卦要点</div>';
-  if (ys && ys.yong) {
-    // 落在卦中的用神同时报出位置与干支（如「上爻 寅木」）—— 用神取的是「世爻」
-    // 这类位置名时，不写位置，用户根本不知道该看哪一爻
-    var pos = '';
-    if (ys.position) {
-      pos = LY_YAO_NAMES[ys.position - 1] || '';
-      if (ys.branch) pos += ' ' + ys.branch + (ys.wuxing || '');
-    }
-    h += '<div class="ly-key-yong">用神：<strong>' + escHtml(ys.yong) + '</strong>'
-      + (pos ? '<span class="ly-key-pos">' + escHtml(pos) + '</span>' : '')
-      + '</div>';
-    if (ys.why) h += '<div class="ly-key-why">' + escHtml(ys.why) + '</div>';
-  }
-  if (summary.length) {
-    h += '<ul class="ly-key-list">';
-    for (var i = 0; i < summary.length; i++) {
-      h += '<li>' + escHtml(summary[i]) + '</li>';
-    }
-    h += '</ul>';
-  }
-  if (ys && ys.shi_shen && ys.shi_shen.desc) {
-    h += '<div class="ly-key-shi">世身：' + escHtml(ys.shi_shen.desc) + '</div>';
-  }
-  h += lyLegend();
-  h += '</div>';
-  return h;
-}
-
-/**
- * 术语小抄（默认折叠）—— 网站在用户心里的问题从来不是「没有信息」，而是
- * 「这些字我不认识」。折起来，看的人自己决定要不要展开。
- * 只解释**字面含义**，不下断语：断语由 AI 那份三段式负责，此处多说一句都是两处口径。
- */
-export function lyLegend() {
-  return '<details class="ly-legend">'
-    + '<summary>这些字什么意思？</summary>'
-    + '<div class="ly-legend-body">'
-    + '<p><b>六亲</b>　这一爻与「你」的关系：父母（长辈/文书/房宅）、兄弟（同辈/竞争/花费）、'
-    + '子孙（晚辈/福气/免灾）、妻财（钱财/妻妾，男测感情看它）、官鬼（官职/疾病/丈夫，女测感情看它）。</p>'
-    + '<p><b>世、应</b>　世爻是「你自己」，应爻是「对方」或所问之事的那一头。</p>'
-    + '<p><b>六神</b>　青龙、朱雀、勾陈、腾蛇、白虎、玄武，按日干起，给这一爻添一层色彩（如白虎主凶急、青龙主喜庆）。</p>'
-    + '<p><b>动爻（○ / ×）</b>　摇卦时摇出的老阳、老阴会「变」，箭头右边就是它变成的那一爻。'
-    + '断卦主要看动的这几爻，静爻一般只作陪衬。</p>'
-    + '<p><b>旬空</b>　日辰所在那一旬里轮空的两个地支。落在空亡上的爻，'
-    + '事情当下「落不到实处」，须等出空才有分晓。</p>'
-    + '</div></details>';
-}
-
-/**
- * 一卦的全部页面内容。
- * @param {Object} chart   后端 `/api/liuyao/paipan` 的 `chart`
- * @param {Object} display 同上端点的 `display`（农历/节气/旬空/神煞/变卦整列）
- * @param {Object} meta    { topic, gender, method, divinationTime, createdAt, recordId, savedAnalysis, lunarInfo }
- */
 export function renderLiuyaoResult(chart, display, meta) {
   meta = meta || {};
   currentChart = chart;
@@ -305,8 +243,29 @@ export function renderLiuyaoResult(chart, display, meta) {
   var h = '';
   h += lyInfoCard(chart, display, meta);
   h += lyPanCard(chart, display);
-  h += lyKeyCard(chart);
   return h;
+}
+
+/**
+ * 卦象解析卡（§5.2c）—— 与梅花页那张**同构**：`renderHexDetail()` 摆核心要义、
+ * 卦辞、象传、爻辞详解、现代应用、相关卦象，外面套一张本页的 `.card`。
+ *
+ * 「本卦不显示变卦」是用户 2026-10-17 的原话：这张卡只讲**本卦**。变卦的卦象
+ * 解析在梅花页是另点一下「变卦」才看的；六爻这一屏上盘面已经把变卦那一列画出来了
+ * （`.ly-pan` 右侧），再叠一张变卦解析卡，等于同一件事说两遍、还把页面拉长。
+ *
+ * 卦号取自后端返回的 `chart.ben.upper/lower`（页面自己**不**从爻符反推 —— 那会
+ * 在动爻/错卦一类地方与后端分叉），与梅花页同一套查表函数。
+ */
+export function lyHexCard(chart) {
+  var ben = chart && chart.ben;
+  if (!ben || ben.upper == null || ben.lower == null) return '';
+  var hex = getHexagramByTrigrams(ben.upper, ben.lower);
+  if (!hex) return '';
+  return '<div class="card ly-hex-card">'
+    + '<div class="card-title">☯ 卦象解析 · 本卦</div>'
+    + '<div class="hex-detail-card">' + renderHexDetail(hex) + '</div>'
+    + '</div>';
 }
 
 /**

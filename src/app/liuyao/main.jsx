@@ -109,7 +109,8 @@ const SHELL_HTML = `
 
   <!-- 2. 性别（六爻用神取法依赖性别） -->
   <div class="card">
-    <div class="card-title">🧑 性别</div>
+    <!-- §5.2a（用户 2026-10-17）：标题里原来带 🧑 emoji，和其他卡的图标风格不统一，删掉。 -->
+    <div class="card-title">性别</div>
     <div class="gender-row" id="genderRow">
       <button type="button" class="gender-btn active" data-gender="male" onclick="selectGender('male')">
         <span class="gender-icon">♂</span> 男
@@ -160,6 +161,13 @@ const SHELL_HTML = `
   <!-- 盘面就渲染在本页下面（不再跳 result.html）—— 上面的表单保持原样，用户要改
        起卦方式/时间直接在原处改，不用从结果页退回来 -->
   <div id="resultArea"></div>
+
+  <!-- 5b. 卦象解析区（§5.2c）。**必须是结果区的下一个兄弟**：AI 面板的宿主
+       \`#aiInlineHost\` 由引擎插在「结果容器 nextSibling」上（\`aiPanel.js::aiInlineHost()\`），
+       所以顺序是 排盘信息 → 卦象盘 → ☯ AI 解读 → 『卦象解析』 → 排盘记录
+       —— 与 /mhys/ 的 DOM 顺序一致（那边是 resultArea → aiInlineHost → analysisArea）。
+       起卦前它是 hidden 的空框，showResultHere() 落内容时自己取消 hidden。 -->
+  <div class="analysis-card" id="analysisArea" hidden></div>
 
   <!-- 6. 排盘记录 -->
   <a href="/liuyao/history.html" class="record-entry">

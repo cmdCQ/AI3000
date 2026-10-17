@@ -498,8 +498,17 @@ async function main() {
       /火雷噬嗑/.test(realText), JSON.stringify(realText.replace(/\s+/g, ' ').slice(0, 220)));
     check('变卦名 火地晋（初爻动）',
       /火地晋/.test(realText), JSON.stringify(realText.replace(/\s+/g, ' ').slice(0, 220)));
-    check('断卦要点在场（用神那一条来自后端）',
-      /用神：/.test(realText), JSON.stringify(realText.slice(0, 200)));
+    // §5.2（用户 2026-10-17）：`📌 断卦要点` 整卡下线，换成「卦象解析 · 本卦」卡
+    //   （与梅花页同一份 `renderHexDetail`）。这条判据跟着改成钉新卡：卡名在、
+    //   卦辞那一段正文在（不是空壳），且**只讲本卦** —— 卡里不该出现变卦解析。
+    //   ⚠ 这张卡落在 `#analysisArea`（结果区的**下一个兄弟**，AI 宿主插在两者之间），
+    //   所以不能拿 `#resultArea` 的正文来判，得单独取那块。
+    const hexText = await L.textOf(m, '#analysisArea', 8000, 30);
+    check('卦象解析卡在场（本卦，正文来自卦辞）',
+      /卦象解析/.test(hexText) && /卦辞/.test(hexText) && /爻辞详解/.test(hexText),
+      JSON.stringify(hexText.slice(0, 200)));
+    check('卦象解析卡只讲本卦（不出现变卦解析）',
+      !/变卦解析/.test(hexText), JSON.stringify(hexText.slice(0, 200)));
     check('真端点这一屏没有 JS 报错',
       (await errsOf(m)).length === 0, JSON.stringify(await errsOf(m)).slice(0, 300));
 

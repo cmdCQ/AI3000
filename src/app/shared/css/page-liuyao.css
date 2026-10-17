@@ -263,3 +263,11 @@ html,body { background:var(--bg); color:var(--text); font-family:var(--sans); mi
   left: 0.3rem;
   color: var(--gold-line);
 }
+
+/* §5.2d（用户 2026-10-17）：点完「开始排盘」，结果区**贴着**上面的开始按钮，
+ * 而其余卡片之间统一是 0.8rem。原因是 `#resultArea` 的间距规则只按「空容器」写过
+ * —— 空的时候它连盒子都没有，有内容时它的上边距仍是 0（实测 gap=0px，同屏其它
+ * 卡片全是 12.8px）。`:not(:empty)` 让这条规则只作用于「起了卦」的那一屏。
+ * 梅花页（page-mhys.css）同一条规则、同一个理由：那一页的记录卡在结果区**上面**，
+ * 不补间距贴住的是「排盘记录」卡。 */
+#resultArea:not(:empty) { margin-top: 0.8rem; }

@@ -74,17 +74,24 @@ test.describe('/liuyao/ 六爻排盘', () => {
     expect(methods).toEqual(['coin', 'manual', 'auto'])
   })
 
-  test('自动起卦：三张卡都在，卦名与六爻都渲染出来', async ({ page }) => {
+  test('自动起卦：盘面两张卡 + 结果区后面的卦象解析卡，卦名与六爻都渲染出来', async ({ page }) => {
     const errors = collectErrors(page)
     await page.goto(PAGE)
     await loginAs(page)
     await page.reload()
     await divination(page)
 
-    // 三张卡：起卦信息 / 装卦 / 断卦要点（`lyInfoCard` / `lyPanCard` / `lyKeyCard`）
+    // 盘面两张卡：起卦信息 / 装卦（`lyInfoCard` / `lyPanCard`）
     await expect(page.locator('#resultArea .ly-info-card')).toBeVisible()
     await expect(page.locator('#resultArea .ly-pan-card')).toBeVisible()
-    await expect(page.locator('#resultArea .ly-key-card')).toBeVisible()
+    // §5.2：`📌 断卦要点` 整卡下线（用户 2026-10-17），换成一张与梅花同构的
+    //   「卦象解析 · 本卦」卡；它落在 `#resultArea` **后面**的 `#analysisArea` 里
+    //   （AI 宿主会被引擎插在两者之间）。
+    await expect(page.locator('#resultArea .ly-key-card')).toHaveCount(0)
+    await expect(page.locator('#analysisArea .ly-hex-card')).toBeVisible()
+    await expect(page.locator('#analysisArea')).toContainText('卦象解析')
+    // 「本卦不显示变卦」是用户的原话：这张卡只讲本卦，卡内不许出现变卦解析。
+    await expect(page.locator('#analysisArea')).not.toContainText('变卦解析')
     // 六爻 = 六个爻行（`lyPanCard` 用的是 div 表格，**不是** <table>：`.ly-row`）
     await expect(page.locator('#resultArea .ly-pan-card .ly-row')).toHaveCount(6)
     expect(await page.locator('#resultArea').innerText()).not.toHaveLength(0)
@@ -148,7 +155,7 @@ test.describe('/liuyao/ 六爻排盘', () => {
     //   拿 innerHTML 比较，红得毫无道理。
     await expect(page.locator('#resultArea .ly-info-card')).toHaveCount(1)
     await expect(page.locator('#resultArea .ly-pan-card')).toHaveCount(1)
-    await expect(page.locator('#resultArea .ly-key-card')).toHaveCount(1)
+    await expect(page.locator('#analysisArea .ly-hex-card')).toHaveCount(1)
     await expect(page.locator('#resultArea .ly-pan-card .ly-row')).toHaveCount(6)
     // AI 宿主只建一次（`ai_panel.js` 的契约），起第二卦不能长出第二个
     await expect(page.locator('#aiInlineHost')).toHaveCount(1)

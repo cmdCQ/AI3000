@@ -1,6 +1,5 @@
 // 阶段 4 cut-over：由 `src/web/js/mhys_render.js` 逐字搬来，只给顶层声明加了 `export `。
 import { formatTime, escHtml } from './uiCommon.js';
-import { renderLiuyaoResult } from './liuyaoRender.js';
 import { aiSaved, aiInlineHost } from './aiPanel.js';
 // ★ 阶段 4 收口：这两个函数原来是 classic script `/js/hexagrams_data.js` 的全局，
 //   本文件按裸名调用（5 处 `getHexagramByTrigrams`、`getHexagramByName`）。

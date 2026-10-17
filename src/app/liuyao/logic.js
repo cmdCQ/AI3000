@@ -1,6 +1,6 @@
 import { AUTH } from '../shared/auth.js';
 import { refreshAIPanel } from '../shared/aiPanel.js';
-import { currentChart, currentTopic, currentGender, currentRecordId, renderLiuyaoResult } from '../shared/liuyaoRender.js';
+import { currentChart, currentTopic, currentGender, currentRecordId, lyHexCard, renderLiuyaoResult } from '../shared/liuyaoRender.js';
 // ⚠ 两个 setter 都从**本页的**渲染层拿（`liuyaoRender.js`）。阶段 4 接线时
 // `setCurrentRecordId` 被写成了从 `mhysRender.js` 取 —— 那是梅花页的 state，
 // 于是六爻页的 `currentRecordId` 永远是 null：记录存下了、结果也渲染了，
@@ -682,6 +682,16 @@ export function showResultHere(card, pay) {
     recordId: currentRecordId,
     lunarInfo: card.lunarInfo
   });
+  // 卦象解析卡（§5.2c）：落在 #resultArea 的**下一个兄弟** `#analysisArea` 里 ——
+  // AI 宿主会被引擎插在两者之间，于是屏幕顺序是 盘面 → AI → 卦象解析，和梅花页一致。
+  // 只画本卦（`lyHexCard` 的注释写了为什么不要变卦那张）。
+  var analysis = document.getElementById('analysisArea');
+  if (analysis) {
+    var hexHtml = lyHexCard(pay.chart);
+    analysis.innerHTML = hexHtml;
+    analysis.hidden = !hexHtml;
+  }
+
   // 换卦了：让 AI 面板也按**这一卦**重画（数据层由 renderLiuyaoResult 的 meta 重设，
   // 但屏幕上的 DOM 还是上一卦的正文 —— 不叫这一声就会看到「第二卦的盘 + 第一卦的解读」）。
   // 面板关着时它是空操作；`typeof` 兜一下是为了「页面已更新、引擎还是旧的」那一瞬间。

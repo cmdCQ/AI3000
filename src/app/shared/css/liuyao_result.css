@@ -83,29 +83,3 @@
 .ly-pan-foot-bian .ly-tag-label { color: #a8a29a; }
 .ly-pan-foot-bian .ly-tag { color: #1a7d33; }
 
-/* ── 断卦要点 ───────────────────────────────────────────── */
-.ly-key-yong { font-size: 0.82rem; margin-bottom: 0.3rem; }
-.ly-key-yong strong { color: var(--accent); }
-.ly-key-pos { margin-left: 0.5rem; font-size: 0.74rem; color: #a8a29a; }
-.ly-key-why { font-size: 0.74rem; color: var(--text); line-height: 1.7; margin-bottom: 0.5rem; }
-.ly-key-list { list-style: none; }
-.ly-key-list li {
-  font-size: 0.76rem; line-height: 1.75; color: var(--text);
-  padding-left: 0.9rem; position: relative; margin-bottom: 0.2rem;
-}
-.ly-key-list li::before { content: '·'; position: absolute; left: 0.25rem; color: var(--accent); }
-.ly-key-shi {
-  margin-top: 0.5rem; font-size: 0.74rem; line-height: 1.7;
-  color: var(--text); background: var(--bg);
-  border-radius: var(--radius-sm); padding: 0.5rem 0.6rem;
-}
-
-/* 术语小抄：默认折起来 —— 需要的人自己展开，不需要的人不被它挡住 */
-.ly-legend { margin-top: 0.7rem; border-top: 1px solid var(--border); padding-top: 0.5rem; }
-.ly-legend summary {
-  cursor: pointer; font-size: 0.76rem; color: var(--accent);
-  font-family: var(--serif); letter-spacing: 0.04em; outline: none;
-}
-.ly-legend-body { margin-top: 0.5rem; }
-.ly-legend-body p { font-size: 0.74rem; line-height: 1.8; color: var(--text); margin-bottom: 0.4rem; }
-.ly-legend-body b { color: var(--accent); font-weight: 600; margin-right: 0.35rem; }

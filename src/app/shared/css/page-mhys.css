@@ -213,3 +213,7 @@ html,body { background:var(--bg); color:var(--text); font-family:var(--sans); mi
   left: 0.3rem;
   color: var(--gold-line);
 }
+
+/* §5.2d：同上一条（page-liuyao.css）。本页的记录卡在结果区**上面**，不补这一条，
+ * 起了卦之后「排盘记录」卡与「排盘信息」卡是贴着的（实测 gap=0px，其余 12.8px）。 */
+#resultArea:not(:empty) { margin-top: 0.8rem; }
