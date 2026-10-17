@@ -70,10 +70,11 @@ sync_dir() {
 
 # build_web — 构建前端到 build/nginx。
 #
-# 为什么不是 rsync: src/app/ 那棵新树（React/ESM）必须真的构建，rsync 做不到。
-# 两棵树各有归属，但**只有这一条命令写 build/nginx**：
-#   src/app/  → Vite 构建（哈希资源名、打包 ESM）
-#   src/web/  → vite.config.mjs 的 publicDir **逐字**拷贝（老页面还没搬完）
+# 为什么不是 rsync: src/app/ 那棵树（React/ESM）必须真的构建，rsync 做不到。
+# **只有这一条命令写 build/nginx**：
+#   src/app/         → Vite 构建（哈希资源名、打包 ESM）
+#   src/app/public/  → vite.config.mjs 的 publicDir 逐字拷贝（运行时绝对路径资源）
+# src/web/ 已经不存在（2026-10-17 清空），同步脚本不再有 web 那条 rsync。
 # Vite 的 emptyOutDir 干的就是 rsync --delete 的活：产物仍然严格等于源码。
 build_web() {
     [ -d "src/app" ] || { echo "错误: 找不到 src/app" >&2; exit 1; }
@@ -87,14 +88,14 @@ build_web() {
     fi
 
     if [ -n "$DRY" ]; then
-        echo "  [dry-run] src/app/ + src/web/ → build/nginx/   (vite build)"
+        echo "  [dry-run] src/app/ + src/app/public/ → build/nginx/   (vite build)"
         return
     fi
 
     ( cd src/app && ./node_modules/.bin/vite build ) || exit 1
 
-    legacy=$(find src/web -type f 2>/dev/null | wc -l)
-    echo "  src/app/ + src/web/（$legacy 个老页面文件） → build/nginx/   共 $(find build/nginx -type f | wc -l) 个文件"
+    pub=$(find src/app/public -type f 2>/dev/null | wc -l)
+    echo "  src/app/ + public/（$pub 个运行时资源文件） → build/nginx/   共 $(find build/nginx -type f | wc -l) 个文件"
 }
 
 echo "构建前端、同步后端到产物目录："

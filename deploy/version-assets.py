@@ -89,6 +89,23 @@ def build_map(root: Path) -> dict[str, str]:
     return out
 
 
+
+COMMENT_RE = re.compile(r"<!--.*?-->", re.S)
+
+
+def _scan_text(p: Path, txt: str) -> str:
+    """
+    返回用于**扫描引用**的文本。
+
+    `.html` 里大量注释在讲历史（「搬之前这里是一条 `<script src="/js/hexagrams_data.js">`」）。
+    那些路径早就删了，照着它们报「会 404」只会教人忽略警告 —— 所以扫描前先把
+    注释挖成等长空格：偏移不变，之后仍按原串替换。
+    """
+    if p.suffix.lower() != ".html":
+        return txt
+    return COMMENT_RE.sub(lambda m: " " * len(m.group(0)), txt)
+
+
 def rewrite_round(root: Path, vmap: dict[str, str]) -> tuple[int, set[str]]:
     """把所有文本文件里的资源引用改写成带哈希的形状。返回（改了几处，改了哪些文件）。"""
     changed = 0
@@ -101,20 +118,25 @@ def rewrite_round(root: Path, vmap: dict[str, str]) -> tuple[int, set[str]]:
         except UnicodeDecodeError:
             continue  # 二进制/非 UTF-8 不动
 
-        def sub(m: re.Match[str]) -> str:
-            nonlocal changed
+        scanned = _scan_text(p, txt)
+        out: list[str] = []
+        last = 0
+        for m in REF_RE.finditer(scanned):
             path = m.group("path") + "." + m.group("ext")
             if path not in vmap:
-                return m.group(0)  # 文件不存在 / 不是资源 → 原样留下
+                continue  # 文件不存在 / 不是资源 → 原样留下
             new = f"{m.group('q')}{path}?v={vmap[path]}{m.group('q')}"
-            if new != m.group(0):
-                changed += 1
-                touched.add(str(p.relative_to(root)))
-            return new
-
-        new_txt = REF_RE.sub(sub, txt)
-        if new_txt != txt:
-            p.write_text(new_txt, encoding="utf-8")
+            if new == m.group(0):
+                continue
+            out.append(txt[last:m.start()])
+            out.append(new)
+            last = m.end()
+            changed += 1
+            touched.add(str(p.relative_to(root)))
+        if not out:
+            continue
+        out.append(txt[last:])
+        p.write_text("".join(out), encoding="utf-8")
     return changed, touched
 
 
@@ -151,7 +173,7 @@ def dangling(root: Path) -> list[str]:
             txt = p.read_text(encoding="utf-8")
         except UnicodeDecodeError:
             continue
-        for m in REF_RE.finditer(txt):
+        for m in REF_RE.finditer(_scan_text(p, txt)):
             path = m.group("path") + "." + m.group("ext")
             if path in vmap or any(path.startswith(n) for n in NEVER):
                 continue
