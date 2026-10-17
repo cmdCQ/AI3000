@@ -554,6 +554,13 @@ async function main() {
     // mhys_result.css。上面那几条全走的是本页原地渲染，一条也覆盖不到它。
     console.log('\n⑨ 结果页（历史记录入口）仍照旧渲染');
     await goto(m, `${ORIGIN}/mhys/result.html?id=999`);
+    // ★ 等渲染，不要 goto 完就read。结果页用 `?id=` 进来时是**两段式**：
+    //   骨架先提交、`GET /api/mhys-records/999` 回来才 `renderResult()` 填正文。
+    //   （`src/app/mhys/result.logic.js` 与老 `page-mhys-result.js` 都是两段式，
+    //   差别只在 ESM 这一版求值更晚、并且多了一个共享 chunk 要拉。）
+    //   实测：不等就有 5 项全读成空串，而同一页稍后 ⑪/⑫ 又是好的 —— 典型的读太早。
+    //   这里最多等 8s，等到正文出现卦名；**断言本身一个字没改**。
+    await L.until(m, `return (document.body.innerText || '').indexOf('山雷颐') >= 0;`, (t) => t === true, 8000, 150);
     text = await js(m, `return document.body.innerText || '';`);  // 结果页没有 #resultArea，读正文
     check('结果页渲染出记录里的卦（山雷颐）',
       /山雷颐/.test(text), JSON.stringify(text).slice(0, 200));

@@ -661,7 +661,13 @@ async function main() {
       && !ch[0].cardData.hexagrams.gong && !ch[0].cardData.hexagrams.shiYao
       && !!ch[0].cardData.lunarInfo.dayGZ,
       JSON.stringify(ch[0] && ch[0].cardData).slice(0, 300));
-    const pt = await patched();
+    // ★ 等这一条打过来，不要「读完正文就立刻数请求」。正文是流式渲染完的，
+    //   而「存回记录」是**流结束后**才发的第二个请求；两者之间还有一次跨越
+    //   客户端→桩服务器的往返。实测：不等就有 `[]`，同一份代码 20 分钟前还是绿的
+    //   （`lib/auth.js` 进了共享 chunk 后每页多一次请求，把这段间隙挤大了）。
+    //   最多等 6s；**断言本身一个字没改**。
+    let pt = await patched();
+    for (let i = 0; i < 40 && pt.length < 1; i++) { await L.sleep(150); pt = await patched(); }
     check('解读存回了**这条记录**（记录 id 贯通；打不到就白花用户一次解读）',
       pt.length === 1 && pt[0].path === '/api/liuyao-records/999/ai' && !!pt[0].body,
       JSON.stringify(pt).slice(0, 200));
