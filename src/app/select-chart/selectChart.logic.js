@@ -1,15 +1,13 @@
-// `/select-chart/` 的纯函数层 —— 全部逐条对应老 `src/web/js/page-select-chart.js`
-// 的行号，期望值由 Playwright 在**老页**上先跑绿反推出来（`tests/select-chart.spec.mjs`）。
-//
-// 这一页真正需要「算」的只有六个派生值，其余都是状态切换：
-//   生肖 emoji / 时辰字 / 生日 / 创建日期 / 八字简写 / 性别字
+// 选盘页的派生字段、入口兼容说明与异常态文案。
+// 生肖统一取服务端年柱，其余字段保持现有展示。
+import { zodiacEmojiFromBazi } from '../shared/baziZodiac.js'
 
 /** 老 :7 —— 只有这三个 key 有名字，其它一律回落到四柱八字。 */
-export const MODULES = {
+export const MODULES = Object.assign(Object.create(null), {
   charts: { icon: '📜', name: '四柱八字' },
   ziwei: { icon: '🔮', name: '紫微斗数' },
   meihua: { icon: '🌸', name: '梅花易数' },
-}
+})
 
 export const DEFAULT_TYPE = 'charts'
 
@@ -29,15 +27,26 @@ export function resolveModule(type) {
   return MODULES[type] || MODULES[DEFAULT_TYPE]
 }
 
-/** 老 :13 —— 原样拼接，不做 encode（老实现就是裸拼）。 */
+/** 保留旧入口来源，但不能让 type 注入额外查询参数。 */
 export function createLinkHref(type) {
-  return '/charts/?action=create&from=' + type
+  return '/charts/?action=create&from=' + encodeURIComponent(type)
 }
 
-/** 老 :46 —— 空状态文案按 type 选词，未知 type 落到四柱八字。 */
-export function emptyDescription(type) {
-  const label = type === 'ziwei' ? '紫微斗数' : type === 'meihua' ? '梅花易数' : '四柱八字'
-  return '新建一份命盘，即可开始' + label + '排盘'
+export function emptyDescription() {
+  return '新建一份四柱八字命盘，即可查看排盘与解读'
+}
+
+/** 旧模块入口继续可用，但 from 尚未被建盘页消费，不能暗示已接通。 */
+export function compatibilityNotice(type) {
+  if (type === DEFAULT_TYPE) return ''
+  return '此入口暂仅支持查看和新建四柱八字命盘，尚未接通' +
+    (MODULES[type] ? MODULES[type].name : '所选模块') + '选盘流程。'
+}
+
+export function listError(status) {
+  return status === 401
+    ? { title: '登录已过期', description: '请重新登录后查看已有命盘。', action: '重新登录', reauthenticate: true }
+    : { title: '命盘加载失败', description: '加载失败，请稍后重试', action: '重试', reauthenticate: false }
 }
 
 export const SHICHEN = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥']
@@ -93,7 +102,7 @@ export function baziShort(bazi) {
 }
 
 export function detailUrl(id) {
-  return '/my-charts/?id=' + id
+  return '/my-charts/?id=' + encodeURIComponent(id)
 }
 
 /**
@@ -103,7 +112,7 @@ export function detailUrl(id) {
 export function cardFields(chart) {
   return {
     key: chart.id,
-    zodiac: zodiacEmoji(chart.birth.year),
+    zodiac: zodiacEmojiFromBazi(chart.bazi),
     name: chart.name,
     baziShort: baziShort(chart.bazi),
     gender: genderLabel(chart.gender),

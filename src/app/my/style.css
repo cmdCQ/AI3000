@@ -1,28 +1,36 @@
-/* @import 的顺序刻意与老页面 `src/web/my/index.html` **实际生效**的顺序一致：
-       第 6 行  /css/auth.css      ← 登录/注册弹窗（auth.js 生成的 DOM 用它）
-       第 9 行  /css/page-my.css   ← 本页卡片、游客态、底部导航
-       第 10 行 /css/tokens.css    ← 主题令牌
-   三份都在 <head> 里，所以文档顺序就是生效顺序；`@import` 按同一顺序展开，
-   生效顺序与老页一致。**这一页不复制任何 CSS 规则** —— 复制粘贴等于立刻多出
-   一份真相，改一处漏一处就会悄悄对不上。
-
-   为什么 `auth.css` 必须留着（老页本来就有它）：
-   老 `/my/index.html` 虽然**没引 `auth.js`**（所以游客态那两颗按钮是死的），
-   但它引了 `auth.css`。弹窗样式就靠这一份；新页把 `auth.js` 补上之后，弹窗
-   真的能开了，样式更不能少。
-
-   为什么 tokens.css 排在最后：品牌色那轮改造把 `page-my.css` 里的 `:root` 块
-   删了（`grep -c '^:root' src/web/css/page-my.css` → 0），令牌现在只来自
-   tokens.css。顺序照旧保留，是因为改成别的顺序没有任何收益，而万一将来哪个文件
-   又把 `:root` 加回来，老顺序是唯一被线上验证过的那个。 */
-@import '../shared/css/auth.css';
-@import '../shared/css/page-my.css';
 @import '../shared/css/tokens.css';
+@import '../shared/css/page-my-charts.css';
 
-/* 老页面的 `.my-wrapper` 是 `<body>` 的**直接子节点**（dom_stub / 驱页拿到的
-   那棵树的根），新页面它外面多了一层 `#root`。本页 CSS 没有一条依赖父子关系
-   （`.my-wrapper` 自己 max-width + margin:0 auto；`html,body{min-height:100vh}`
-   只加在 body 上，多一层普通 div 不影响），所以视觉上不需要补任何规则。
-   这一行纯粹是显式声明 `#root` 没有背景/边框，避免以后有人给它加样式时
-   误以为它「本来就有」。 */
-#root { display: block; }
+html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); }
+.account-page, .account-page * { box-sizing: border-box; }
+.account-page { min-height: 100dvh; padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px)); }
+.account-header { display: flex; align-items: center; gap: .6rem; padding: 1.2rem 0 .8rem; min-height: 4rem; }
+.account-header h1 { margin: 0; font: 600 1.15rem var(--serif); letter-spacing: .08em; }
+.account-back { border: 0; background: none; padding: .5rem 0; min-height: 44px; color: var(--text-dim); font: inherit; cursor: pointer; }
+.account-page .mc-empty { padding-top: 4rem; }
+.account-page .empty-title { margin-top: 0; }
+.account-page .empty-btn { min-height: 44px; font-family: inherit; }
+.account-card { margin: 0 0 .75rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-card); }
+.account-profile { display: flex; align-items: center; gap: .85rem; padding: 1rem; }
+.account-avatar { display: grid; place-items: center; flex-shrink: 0; width: 2.8rem; height: 2.8rem; border-radius: 50%; color: var(--gold); background: var(--gold-wash); font: 600 1.2rem var(--serif); }
+.account-profile > div { min-width: 0; }
+.account-name { margin: 0 0 .25rem; font-size: .95rem; font-weight: 600; overflow-wrap: anywhere; }
+.account-tier { margin: 0; color: var(--text-dim); font-size: .76rem; }
+.quota-card { padding: 1rem; }
+.quota-card h2 { margin: 0; color: var(--text-dim); font: 500 .82rem var(--sans); }
+.quota-balance { display: flex; align-items: baseline; flex-wrap: wrap; gap: .45rem; padding: .75rem 0 1rem; }
+.quota-balance strong { font-size: 1.9rem; font-weight: 600; color: var(--gold); line-height: 1.2; }
+.quota-balance > span { font-size: .76rem; color: var(--text-dim); }
+.quota-details { display: grid; grid-template-columns: 1fr 1fr; margin: 0; padding-top: .8rem; border-top: 1px solid var(--border); gap: .75rem; }
+.quota-details dt { color: var(--text-muted); font-size: .75rem; }
+.quota-details dd { margin: .3rem 0 0; font-size: .85rem; overflow-wrap: anywhere; }
+.quota-note { margin: .9rem 0 0; font-size: .72rem; color: var(--text-muted); }
+.account-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; width: 100%; min-height: 52px; padding: .85rem 1rem; border: 0; border-radius: inherit; color: var(--text); background: none; font: inherit; font-size: .85rem; text-align: left; cursor: pointer; }
+.account-row:hover { background: var(--bg-hover); }
+.account-row > span { color: var(--text-muted); }
+.logout-row { color: var(--danger); }
+.account-status { padding: 1.5rem 1rem; text-align: center; font-size: .82rem; color: var(--text-muted); }
+.account-error { padding: 1rem; color: var(--text-dim); font-size: .82rem; }
+.account-error p { margin: 0 0 .75rem; }
+.account-error button { min-height: 44px; padding: .45rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--gold); background: var(--bg-card); font: inherit; cursor: pointer; }
+.mc-bottom-nav .mc-nav-item { text-decoration: none; min-height: 44px; box-sizing: border-box; }

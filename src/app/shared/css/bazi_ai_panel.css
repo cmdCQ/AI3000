@@ -1,0 +1,18 @@
+/* 八字只扩展方面与历史；卡片、标题、折叠、正文与追问由公共 AI 面板负责。 */
+#baziAi .bz-aspects { display:flex; flex-wrap:wrap; gap:var(--space-2); padding-bottom:var(--space-2); }
+#baziAi .bz-aspect { font:inherit; font-size:var(--fs-sm); padding:var(--space-1) var(--space-3); border-radius:var(--r-full); border:1px solid var(--border); background:var(--bg-card); color:var(--text-dim); cursor:pointer; }
+#baziAi .bz-aspect.on { background:var(--gold); border-color:var(--gold); color:var(--text-on-gold); font-weight:var(--fw-semi); }
+#baziAi .bz-aspect:focus-visible, #baziAi summary:focus-visible { outline:2px solid var(--gold); outline-offset:3px; }
+#baziAi .bz-lock { font-size:var(--fs-micro); margin-left:var(--space-1); }
+#baziAi .bz-aspect-hint { font-size:var(--fs-xs); color:var(--text-dim); line-height:var(--lh-relaxed); padding-bottom:var(--space-3); }
+#baziAi .bz-hist { margin-top:var(--space-3); border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-card); overflow:hidden; }
+#baziAi .bz-hist > summary { font-size:var(--fs-sm); color:var(--gold-ink); padding:var(--space-3); cursor:pointer; }
+#baziAi .bz-hist-item { border-top:1px solid var(--border); }
+#baziAi .bz-hist-item > summary { font-size:var(--fs-xs); color:var(--text-dim); padding:var(--space-3); cursor:pointer; overflow-wrap:anywhere; }
+#baziAi .bz-hist-body { padding:0 var(--space-3) var(--space-3); font-size:var(--fs-sm); line-height:var(--lh-relaxed); color:var(--text); overflow-wrap:anywhere; }
+#baziAi .bz-hist-q { color:var(--gold-ink); margin-left:var(--space-2); }
+#baziAi .bz-login-prompt { text-align:center; padding:var(--space-5) var(--space-4); }
+#baziAi .bz-login-prompt strong { display:block; margin-top:var(--space-2); font-size:var(--fs-base); color:var(--text); }
+#baziAi .bz-login-prompt p { font-size:var(--fs-xs); line-height:var(--lh-relaxed); color:var(--text-dim); }
+#baziAi .bz-login-actions { display:flex; gap:var(--space-2); justify-content:center; flex-wrap:wrap; }
+#baziAi .bz-login-secondary { background:var(--bg-card); color:var(--gold); border:1px solid var(--gold); box-shadow:none; }

@@ -17,8 +17,8 @@ export function parseUserCookie(cookieStr) {
   }
 }
 
-// 公告取不到时的兜底。⚠ 正文只有一份，住在后端 `src/server/auth-server.js` 的
-// `ANNOUNCEMENT_MD`；这里**故意只写一句「取不到」**，不再抄一份正文 ——
+// 公告取不到时的兜底。正文只有一份，住在后端 `src/server/paipan/announcement.md`；
+// 这里只写一句「取不到」，不再抄一份正文 ——
 // 抄一份的下场是两边各改各的，用户看到哪个版本取决于这次请求成没成功。
 export var FALLBACK_MD =
   '# 公告\n\n' +

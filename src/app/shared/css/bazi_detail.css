@@ -1,0 +1,27 @@
+/* 独立四柱对照表：四柱始终等宽，内容逐项排列，不设最小总宽度和横滑。 */
+.bz-pillar-sheet { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: .78rem; line-height: 1.65; }
+.bz-pillar-sheet .bz-pillar-label { width: 14%; }
+.bz-pillar-sheet th, .bz-pillar-sheet td { padding: .65rem .25rem; text-align: center; vertical-align: top; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); }
+.bz-pillar-sheet tr > :last-child { border-right: 0; }
+.bz-pillar-sheet tbody tr:last-child > * { border-bottom: 0; }
+.bz-pillar-sheet thead th { background: var(--gold-wash); color: var(--gold); font-weight: 600; font-size: .8rem; }
+.bz-pillar-sheet tbody th { font-size: .7rem; font-weight: 400; background: var(--bg); }
+.bz-pillar-sheet tbody th .bz-term { color: var(--text-muted); }
+.bz-pillar-value { display: flex; flex-direction: column; align-items: center; gap: .2rem; min-width: 0; overflow-wrap: anywhere; }
+.bz-pillar-value small { font-size: .65rem; color: var(--text-muted); }
+.bz-pillar-character { font-family: var(--serif); font-size: 1.35rem; font-weight: 600; line-height: 1.3; }
+.bz-pillar-item { display: block; }
+@media (max-width: 360px) {
+  .bz-pillar-sheet th, .bz-pillar-sheet td { padding: .6rem .15rem; }
+  .bz-pillar-sheet { font-size: .75rem; }
+}
+.detail-page .bz-marker-heading { padding: .8rem .85rem 0; color: var(--text-dim); font-size: .75rem; font-weight: 500; }
+.detail-page .bz-chips { padding: .5rem .85rem .8rem; gap: .45rem; }
+.detail-page .bz-chip { background: var(--gold-wash); border-color: var(--border); color: var(--gold); line-height: 1.6; max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+.detail-page .bz-marker { display: inline-flex; flex-direction: column; gap: .15rem; border-radius: var(--r-sm); padding: .4rem .6rem; }
+.detail-page .bz-marker-name { font-size: .78rem; font-weight: 500; }
+.detail-page .bz-marker-position { font-size: .68rem; color: var(--text-muted); }
+@media (max-width: 380px) {
+  .detail-page .bz-row { padding: .55rem .7rem; }
+  .detail-page .bz-row .bz-k { min-width: 4.6em; }
+}

@@ -22,3 +22,18 @@
 @import '../shared/css/charts.css';
 @import '../shared/css/page-my-charts.css';
 @import '../shared/css/tokens.css';
+
+.detail-retry {
+  margin-top: .75rem;
+  padding: .5rem .9rem;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+.detail-retry:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}

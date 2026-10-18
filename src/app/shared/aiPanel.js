@@ -4,6 +4,8 @@ import { AUTH, handleApiUnauthorized, openAuthModal } from './auth.js';
 import { savedAnalysis as liuyaoSaved } from './liuyaoRender.js';
 import { savedAnalysis as mhysSaved, renderResult } from './mhysRender.js';
 import { BaziAI } from './baziAiPanel.js';
+import { splitPoints, pointsLabel } from '../lib/points.js';
+export { AI_POINTS_MARKS, pointsIdx } from '../lib/points.js';
 // AI 解析面板（那套浮层 DOM + 取流 + 追问）—— 梅花页与六爻页共用一份。
 //
 // 来源：2026-09-25 从 `js/mhys_ai_panel.js`（当日早些时候刚上线的版本）里
@@ -123,6 +125,16 @@ export function ensureAIPanelMounted() {
 //
 // 正在跑的那次解析只留**一个句柄**，而且就是 XHR 自己的句柄（见 `abortAIStream`）。
 // 形如 `{ xhr, respDiv, seq, aborted, timerId, elapsed }`。
+// Opt-in lifecycle for adapters whose aspect can change independently of the panel.
+var aiFollowUp = null;
+export function abortAIFollowUp() {
+  var request = aiFollowUp;
+  if (!request) return;
+  request.aborted = true;
+  aiFollowUp = null;
+  try { request.xhr.abort(); } catch (e) { /* already ended */ }
+}
+
 export var aiStream = null;
 export var aiStreamSeq = 0;
 export var aiPanelOpen = false;
@@ -155,7 +167,7 @@ export function abortAIStream() {
  * 后端拼在正文末尾的记账尾巴，**切出来单独显示**（不再一律抹掉）。
  *
  * 后端流式返回的是**裸文本 + 一行魔法尾巴**：
- *   `\n\n---\n消耗积分：输入 X + 输出 Y = Z ｜ 剩余：R`
+ *   `\n\n---\n消耗积分：Z`
  * 它不是正文，是记账信息。
  *
  * 演进史（别把中间那个坑再踩回去）：原实现只在「存进记录」那一处 `lastIndexOf`
@@ -174,38 +186,19 @@ export function abortAIStream() {
  * ⚠ 标记必须与后端 `POINTS_LABEL` 逐字一致。将来流式改真 SSE 事件时，删掉本段
  * 与后端 `pointsTrailer()` 即可（见 3.5.4 / 阶段 3 的计划）。
  */
-export var AI_POINTS_MARKS = ['\n消耗积分：', '\n消耗 Token：'];
-
-/** 尾巴在正文里的起点（取最靠后的那个标记）；没有尾巴回 -1。 */
-export function pointsIdx(t) {
-  var i = -1;
-  for (var k = 0; k < AI_POINTS_MARKS.length; k++) {
-    var j = t.lastIndexOf(AI_POINTS_MARKS[k]);
-    if (j > i) i = j;
-  }
-  return i;
-}
-
-/** 正文：抹掉记账尾巴与它前面那条 `---`。 */
+/** 共享尾账解析保留旧 Token 单位，新积分不再换算。 */
 export function stripTokenTrailer(t) {
-  if (!t) return t;
-  var i = pointsIdx(t);
-  if (i <= 0) return t;
-  return t.substring(0, i).replace(/\s*---\s*$/, '').replace(/\s+$/, '');
+  return t ? splitPoints(t).body : t;
 }
 
-/** 记账尾巴的文字（老记录的旧字统一改称「积分」）；没有则空串。 */
 export function pointsText(t) {
-  if (!t) return '';
-  var i = pointsIdx(t);
-  if (i <= 0) return '';
-  return t.substring(i + 1).replace(/\s+$/, '').replace(/^消耗 Token：/, '消耗积分：');
+  return splitPoints(t).points;
 }
 
 /** 记账行的小字 HTML；没尾巴时返回空串（不占位）。 */
 export function pointsHtml(t) {
   var p = pointsText(t);
-  return p ? '<div class="ai-points">' + escHtml(p) + '</div>' : '';
+  return p ? '<div class="ai-points">' + escHtml(pointsLabel(p)) + '</div>' : '';
 }
 
 /**
@@ -491,6 +484,8 @@ async function sendFollowUp() {
   if (token) headers['Authorization'] = 'Bearer '+token;
 
   var xhr = new XMLHttpRequest();
+  var request = AIC().scopedLifecycle ? { xhr: xhr, aborted: false } : null;
+  if (request) { abortAIFollowUp(); aiFollowUp = request; }
   xhr.open('POST', aiParsePath());
   for (var k in headers) xhr.setRequestHeader(k, headers[k]);
 
@@ -499,10 +494,13 @@ async function sendFollowUp() {
   // 不是卦理内容。所以这里先切掉。
   var prevAnswer = stripTokenTrailer(aiSaved() || '');
   var fullText = '';
+  var failed = false;
+  xhr.onerror = xhr.ontimeout = function() { failed = true; };
 
   xhr.onprogress = function() {
-    // 同主流程：非 2xx 的响应体是 JSON，不能当正文渲染（页面配了 onRefusal 时）
-    if (xhr.status >= 400 && aiHasRefusal()) return;
+    if (request && request.aborted) return;
+    // 所有调用方都拒绝把非 2xx 的错误体当作解读正文。
+    if (xhr.status < 200 || xhr.status >= 300) return;
     var newText = xhr.responseText.substring(fullText.length);
     if (newText) {
       fullText = xhr.responseText;
@@ -514,6 +512,8 @@ async function sendFollowUp() {
   };
 
   xhr.onloadend = function() {
+    if (request && request.aborted) return;
+    if (aiFollowUp === request) aiFollowUp = null;
     btn.disabled = false;
     btn.textContent = '发送';
     input.disabled = false;
@@ -522,17 +522,23 @@ async function sendFollowUp() {
     var spin = item.querySelector('.ai-loading');
     if (spin) spin.remove();
     showFollowBar();
-    // 非 2xx 交页面处置（八字：403 → 追问要登录）。没配 onRefusal 的页面原样继续。
+    if (failed || xhr.status < 200 || xhr.status >= 300 || !fullText) input.value = q;
+    // 优先保留页面自己的拒绝提示（八字：403 → 追问要登录）。
     if (aiOnRefusal(xhr, item)) return;
     // 401 → 清除错误内容并弹出登录窗口
     if (handleApiUnauthorized(xhr, item)) return;
+    if (failed || xhr.status < 200 || xhr.status >= 300 || !fullText) {
+      input.value = q;
+      showAIRequestFailure(xhr, item, false);
+      return;
+    }
     // 未登录用户标记已使用追问次数
     if (!AUTH.isLoggedIn() && anonFollowKey) {
       localStorage.setItem(anonFollowKey, '1');
     }
   };
 
-  var payload = aiPayload();
+  var payload = Object.assign({}, aiPayload());
   payload.followUp = q;
   payload.context = prevAnswer;
   xhr.send(JSON.stringify(aiBuildBody(q, payload)));
@@ -583,11 +589,22 @@ export function showAIHome() {
     '</div>';
 }
 
+function showAIRequestFailure(xhr, target, retryButton) {
+  var message = xhr.status === 429 ? '积分不足或请求受限，请稍后重试' : '请求失败，请重试';
+  try {
+    var error = JSON.parse(xhr.responseText || '{}');
+    if (typeof error.error === 'string' && error.error.trim()) message = error.error;
+  } catch (e) { /* 非 JSON 错误体不是解读正文。 */ }
+  target.innerHTML = '<div class="ai-error">' + escHtml(message) + '（未保存本次解读，可重试）</div>'
+    + (retryButton ? '<button class="ai-start-btn" onclick="startButtonClicked()">重试</button>' : '');
+}
+
 export function showLoginPrompt(respEl) {
+  if (AIC().loginPrompt) { AIC().loginPrompt(respEl); return; }
   respEl.innerHTML = '<div style="text-align:center;padding:1.5rem 1rem">' +
     '<div style="font-size:1.2rem;margin-bottom:0.5rem">🔒</div>' +
     '<div style="font-size:0.9rem;font-weight:600;color:var(--text);margin-bottom:0.3rem">免费解析次数已用完</div>' +
-    '<div style="font-size:0.75rem;color:var(--text-dim);line-height:1.7;margin-bottom:1rem">注册登录后即可使用全部功能<br>登录可享最少 <strong style="color:var(--accent)">100 次</strong> AI 解析</div>' +
+    '<div style="font-size:0.75rem;color:var(--text-dim);line-height:1.7;margin-bottom:1rem">注册登录后即可使用全部功能<br>游客可免费解析一次；注册登录后每天享 <strong style="color:var(--accent)">10 积分</strong>（北京时间每日重置）</div>' +
     '<div style="display:flex;gap:0.5rem;justify-content:center">' +
       '<a href="javascript:void(0)" onclick="openAuthModal(\'register\')" class="ai-start-btn" style="display:inline-block;text-decoration:none">注册</a>' +
       '<a href="javascript:void(0)" onclick="openAuthModal(\'login\')" class="ai-start-btn" style="display:inline-block;text-decoration:none;background:#fff;color:var(--accent);border:1px solid var(--accent);box-shadow:none">登录</a>' +
@@ -646,6 +663,7 @@ async function startAIStream() {
     for (var k in headers) xhr.setRequestHeader(k, headers[k]);
 
     var fullText = '';
+    var failed = false;
     var respDiv = document.createElement('div');
     s.respDiv = respDiv;
     respDiv.className = 'ai-result';
@@ -671,11 +689,8 @@ async function startAIStream() {
 
     xhr.onprogress = function() {
       if (s.aborted) return;
-      // 非 2xx 的响应体是 JSON（比如 403 那句「请先登录」），**不能当正文往 markdown 里灌**
-      // —— 会在屏幕上闪一下 `{"error":…}`。页面配了 `onRefusal` 就交给它处置。
-      // **没配的页面（六爻/梅花）保持原样**（老行为是那段 JSON 会闪一下，401 时由
-      // `handleApiUnauthorized` 覆盖掉）—— 引擎不为八字改这两条线的观感。
-      if (xhr.status >= 400 && aiHasRefusal()) return;
+      // 错误响应不能进入正文、缓存、记录或游客成功标记。
+      if (xhr.status < 200 || xhr.status >= 300) return;
       var newText = xhr.responseText.substring(fullText.length);
       if (newText) {
         fullText = xhr.responseText;
@@ -685,7 +700,8 @@ async function startAIStream() {
       }
     };
 
-    xhr.onerror = function() {
+    xhr.onerror = xhr.ontimeout = function() {
+      failed = true;
       if (s.aborted) return;
       if (fullText) {
         respDiv.innerHTML = renderMarkdown(stripTokenTrailer(fullText)) + pointsHtml(fullText)
@@ -701,7 +717,7 @@ async function startAIStream() {
       // —— 用户没看见的东西不该扣他的次数（原来这里一路往下跑，正好相反）。
       if (s.aborted) return;
       if (aiStream === s) aiStream = null;
-      showFollowBar();
+      if (!failed && xhr.status >= 200 && xhr.status < 300 && fullText) showFollowBar();
       var body = document.getElementById('aiPanelBody');
       if (body) setTimeout(function(){ body.scrollTop = body.scrollHeight; }, 100);
 
@@ -711,6 +727,11 @@ async function startAIStream() {
 
       // 401 → 清除错误内容并弹出登录窗口
       if (handleApiUnauthorized(xhr, respDiv)) return;
+
+      if (failed || xhr.status < 200 || xhr.status >= 300 || !fullText) {
+        showAIRequestFailure(xhr, respDiv, true);
+        return;
+      }
 
       // 正文与记账行一起入库存（见 `withPoints`：记录页也要看得到扣了多少积分）。
       // 老行为是「入库只留正文」—— 那时显示端统一抹尾巴，留着也没用；现在显示端

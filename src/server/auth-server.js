@@ -29,6 +29,8 @@ const paipanConst = require('./paipan/constants.js');
 // AI 对话的工具层（模型自己决定起卦/排盘/查记录）。与 `auth-server` 是单向依赖：
 // 它不认识本文件，排盘出口由下面的 `setDeps` 注入。
 const chatTools = require('./chat-tools.js');
+const baziConsultations = require('./paipan/bazi_consultations.js');
+const { createPointsBilling, lockName: pointsLockName } = require('./paipan/points-billing.js');
 
 // ===== 阿里云号码认证服务（PNVS）短信验证码 =====
 const DypnsapiClient = require('@alicloud/dypnsapi20170525').default;
@@ -157,61 +159,8 @@ function writeJSON(file, data) {
   fs.writeFileSync(file, JSON.stringify(data, null, 2));
 }
 
-// ===== 公告缓存（持久化 + 后台刷新） =====
-const ANN_CACHE_FILE = path.join(DATA_DIR, 'announcement_cache.json');
-let annCache = readJSON(ANN_CACHE_FILE, { ts: 0, text: '' });
-annCache.loading = false;
-
-async function refreshAnnCache() {
-  if (annCache.loading) return;
-  annCache.loading = true;
-  try {
-    const https = require('https');
-    const annData = await new Promise((resolve, reject) => {
-      https.get('https://share.weiyun.com/qo2KUkDw', {
-        headers: { 'User-Agent': 'Mozilla/5.0' },
-        timeout: 8000,
-      }, (resp) => {
-        let data = '';
-        resp.on('data', chunk => data += chunk);
-        resp.on('end', () => resolve(data));
-      }).on('error', reject);
-    });
-
-    const match = annData.match(/window\.syncData\s*=\s*(\{[\s\S]*?\});/);
-    if (!match) { annCache.loading = false; return; }
-
-    const syncData = JSON.parse(match[1]);
-    const notes = syncData?.shareInfo?.note_list || [];
-    const note = notes[0];
-    if (!note) { annCache.loading = false; return; }
-
-    const htmlContent = note.html_content || '';
-    const plainText = htmlContent
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<\/p>\s*<p>/gi, '\n\n')
-      .replace(/<\/?[^>]+(>|$)/g, '')
-      .replace(/&nbsp;/gi, ' ')
-      .replace(/&amp;/gi, '&')
-      .replace(/&lt;/gi, '<')
-      .replace(/&gt;/gi, '>')
-      .replace(/&quot;/gi, '"')
-      .replace(/&#x27;/g, "'")
-      .replace(/&#39;/g, "'")
-      .trim();
-
-    annCache.ts = Date.now();
-    annCache.text = plainText;
-    writeJSON(ANN_CACHE_FILE, { ts: annCache.ts, text: annCache.text });
-  } catch (e) {
-    console.error('Announcement refresh error:', e.message);
-  } finally {
-    annCache.loading = false;
-  }
-}
-
-// 启动时预加载（不阻塞）
-refreshAnnCache();
+// ===== 公告（项目内维护，不依赖外部笔记或缓存） =====
+const ANNOUNCEMENT_MD = fs.readFileSync(path.join(__dirname, 'paipan', 'announcement.md'), 'utf8');
 
 // ===== Crypto helpers =====
 function hashPassword(password) {
@@ -318,22 +267,18 @@ const BAZI_REPORT_TEMPERATURE = 0.3;
 const EMPTY_UPSTREAM_NOTICE = '抱歉，这次没能生成出内容。请再点一次；'
   + '如果还是不行，就把问题问得更具体一点（比如具体问哪一年、哪一方面）。';
 
-/**
- * 记账尾巴。**全站唯一一份**（`/api/chat/send` 与八字那条线各自拼过一次，是同一个
- * 字符串 —— 两处各写一遍，改一处就会有一处漏）。
- *
- * 2026-09-25 用户拍板：「现在系统是 token 消耗制的，把这个改称积分」。
- * 于是**只改用户看得见的标签**，底下的记账口径不动（仍然是上游回的真 token 数，
- * `users.token_used` 也照旧累加）—— 改的是叫法，不是算法。
- *
- * ⚠ 前端按 `'\n消耗积分：'` 切正文（`ai_panel.js::AI_POINTS_MARKS`），
- *   动这一行的**格式**会连着前端一起坏；老记录里存的是旧字「消耗 Token：」，
- *   前端两个标记都认，故这里不需要数据迁移。
- */
+// Bare-text clients split this marker; numbers are actual points, never relabelled tokens.
 const POINTS_LABEL = '消耗积分：';
-function pointsTrailer(inputTokens, outputTokens, totalTokens, remainText) {
-  return '\n\n---\n' + POINTS_LABEL + '输入 ' + inputTokens + ' + 输出 ' + outputTokens
-    + ' = ' + totalTokens + ' ｜ 剩余：' + remainText;
+function pointsTrailer(inputTokens, outputTokens, totalTokens, remaining) {
+  const fmt = tokens => Number((tokens / 10000).toFixed(4));
+  return '\n\n---\n' + POINTS_LABEL + fmt(totalTokens);
+}
+function requirePoints(quota, estimatedInput = 0) {
+  if (quota && quota.tokensRemaining !== null && quota.tokensRemaining <= estimatedInput) {
+    throw Object.assign(new Error('今日积分不足，北京时间零点刷新；可缩短问题或上下文后重试'), { status: 429 });
+  }
+  return quota?.tokensRemaining == null ? LLM_MAX_TOKENS
+    : Math.max(1, Math.min(LLM_MAX_TOKENS, Math.floor(quota.tokensRemaining - estimatedInput)));
 }
 
 // 后台「提示词管理」页面里逐个模板展示的**默认值**，也必须是运行时的真实回落。
@@ -413,14 +358,14 @@ async function getAdminStats() {
     const usersResult = await q(`SELECT COUNT(*) as cnt FROM users ${where}`);
     const todayResult = await q(`SELECT COUNT(*) as cnt FROM users ${todayClause} created_at >= ?`, [todayStart]);
     const activeResult = await q(`SELECT COUNT(*) as cnt FROM users ${todayClause} last_active >= ?`, [weekAgo]);
-    const tokensResult = await q(`SELECT COALESCE(SUM(token_used),0) as total FROM users ${where}`);
-    const tokens7dResult = await q(`SELECT COALESCE(SUM(token_used),0) as total FROM users ${todayClause} last_active >= ?`, [weekAgo]);
+    await pointsReady();
+    const usage = await pointsBilling.getAdminUsage(!condition ? 'all' : condition.includes('NOT LIKE') ? 'web' : 'wechat');
     return {
       users: usersResult[0]?.cnt || 0,
       todayUsers: todayResult[0]?.cnt || 0,
       active7d: activeResult[0]?.cnt || 0,
-      totalTokens: tokensResult[0]?.total || 0,
-      tokens7d: tokens7dResult[0]?.total || 0,
+      totalPoints: usage.totalPoints,
+      points7d: usage.points7d,
     };
   };
 
@@ -460,8 +405,8 @@ async function getAdminStats() {
 
   return {
     total: { ...total, charts, divinations },
-    web: { users: web.users, todayUsers: web.todayUsers, totalTokens: web.totalTokens, tokens7d: web.tokens7d },
-    wechat: { users: wechat.users, todayUsers: wechat.todayUsers, totalTokens: wechat.totalTokens, tokens7d: wechat.tokens7d },
+    web: { users: web.users, todayUsers: web.todayUsers, totalPoints: web.totalPoints, points7d: web.points7d },
+    wechat: { users: wechat.users, todayUsers: wechat.todayUsers, totalPoints: wechat.totalPoints, points7d: wechat.points7d },
     server,
     deepseek: {
       status: deepseekStatus,
@@ -477,7 +422,9 @@ async function getUsers() {
       '(SELECT COUNT(*) FROM charts WHERE user_id = u.phone) as chart_count ' +
       'FROM users u ORDER BY u.created_at DESC'
     );
-    return rows.map(r => ({
+    await pointsReady();
+    return Promise.all(rows.map(async r => ({
+      ...await pointsBilling.getQuota(r.username || r.phone),
       id: r.phone,
       username: r.username || r.phone,
       phone: r.phone,
@@ -485,30 +432,14 @@ async function getUsers() {
       tier: r.tier || 0,
       createdAt: r.created_at,
       aiCount: r.ai_count || 0,
-      tokenUsed: r.token_used || 0,
       lastActive: r.last_active,
       chartCount: r.chart_count || 0,
       userType: (r.username || '').startsWith('wx_') ? 'wechat' : 'web',
       openid: (r.username || '').startsWith('wx_') ? (r.username || '').substring(3) : '',
-    }));
+    })));
   } catch(e) {
     console.error('getUsers error:', e);
-    // 降级：读 JSON 文件
-    const users = readJSON(USERS_FILE, {});
-    return Object.entries(users).map(([key, u]) => ({
-      id: key,
-      username: u.username || key,
-      phone: u.phone || key,
-      nickName: u.nickName || '',
-      tier: u.tier || 0,
-      createdAt: u.createdAt,
-      aiCount: u.aiCount || 0,
-      tokenUsed: 0,
-      lastActive: u.lastActive,
-      chartCount: 0,
-      userType: (u.username || '').startsWith('wx_') ? 'wechat' : 'web',
-      openid: (u.username || '').startsWith('wx_') ? (u.username || '').substring(3) : '',
-    }));
+    throw e;
   }
 }
 async function deleteUser(id) {
@@ -552,6 +483,38 @@ function json(res, data, status = 200) {
   res.end(JSON.stringify(data));
 }
 
+// Metered endpoints fail closed if their additive billing migration is unavailable.
+const pointsBilling = createPointsBilling(db);
+let pointsInitError = null;
+const pointsInitialized = pointsBilling.initSchema().catch(error => {
+  pointsInitError = error;
+  console.error('[DB] points billing init failed:', error.message);
+});
+async function pointsReady() {
+  await pointsInitialized;
+  if (pointsInitError) throw Object.assign(new Error('积分服务暂不可用'), { status: 503 });
+}
+
+// A failed additive migration disables only the new API, explicitly with 503.
+let consultationInitError = null;
+const consultationReady = baziConsultations.initConsultations(db).catch(error => {
+  consultationInitError = error;
+  console.error('[DB] bazi consultations init failed:', error.message);
+});
+const handleConsultations = baziConsultations.createConsultationHandler({
+  db, ready: async () => { await pointsReady(); await consultationReady; if (consultationInitError) throw consultationInitError; },
+  checkAuth, json, buildChart: baziChartFromParams, lockNameForUser: pointsLockName,
+  checkQuota: async (username, connection) => {
+    const quota = await pointsBilling.getQuota(username, connection);
+    if (quota.pointsRemaining !== null && quota.pointsRemaining <= 0) {
+      throw Object.assign(new Error('今日积分已用完，北京时间零点刷新'), { status: 429 });
+    }
+    return quota;
+  },
+  checkBudget: (quota, messages) => requirePoints(quota, estimateTokens(messages.map(m => m.content).join('\n'))),
+  stream: streamBaziParse,
+});
+
 // ===== Handle =====
 async function handle(req, res) {
   setCORS(res);
@@ -560,6 +523,27 @@ async function handle(req, res) {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const body = await parseBody(req);
   const pathname = url.pathname;
+  const username = checkAuth(req)?.username;
+  const metered = req.method === 'POST' && username
+    && (pathname === '/api/chat/send' || pathname === '/api/bazi/parse');
+  try {
+    if (metered) {
+      await pointsReady();
+      return await pointsBilling.withUserLock(username, async (connection, quota) => {
+        req.pointsContext = { connection, quota, requestId: crypto.randomUUID() };
+        return handleRequest(req, res, pathname, body, url);
+      });
+    }
+    return await handleRequest(req, res, pathname, body, url);
+  } catch (error) {
+    console.error('[request]', error.message);
+    if (!res.headersSent) return json(res, { error: error.status ? error.message : '服务暂不可用，请稍后重试' }, error.status || 503);
+    if (!res.writableEnded) res.end();
+  }
+}
+
+async function handleRequest(req, res, pathname, body, url) {
+  if (await handleConsultations(req, res, pathname, body, url)) return;
 
   // ===== Auth APIs =====
 
@@ -801,9 +785,10 @@ async function handle(req, res) {
     const payload = checkAuth(req);
     if (!payload || payload.role !== 'admin') return json(res, { error: '未授权' }, 401);
     try {
-      const [rows] = await db.query('SELECT username, tier, token_used FROM users');
+      await pointsReady();
+      const [rows] = await db.query('SELECT username FROM users');
       const map = {};
-      rows.forEach(r => { map[r.username] = { tier: r.tier || 0, tokenUsed: r.token_used || 0 }; });
+      await Promise.all(rows.map(async r => { map[r.username] = await pointsBilling.getQuota(r.username); }));
       return json(res, map);
     } catch (e) {
       console.error('Admin user-tiers error:', e);
@@ -816,31 +801,32 @@ async function handle(req, res) {
     const payload = checkAuth(req);
     if (!payload || payload.role !== 'admin') return json(res, { error: '未授权' }, 401);
     const { username, tier } = body;
-    if (!username || tier === undefined || tier < 0 || tier > 2) return json(res, { error: '参数错误' }, 400);
+    if (typeof username !== 'string' || !username || !Number.isInteger(tier) || tier < 0 || tier > 2) return json(res, { error: '参数错误' }, 400);
     try {
-      // 确保用户在 MySQL 中存在
-      await ensureDbUser(username);
-      await db.query('UPDATE users SET tier = ? WHERE username = ?', [tier, username]);
-      return json(res, { ok: true });
+      await pointsReady();
+      const quota = await pointsBilling.withUserLock(username, async connection => {
+        await connection.query('UPDATE users SET tier = ? WHERE username = ?', [tier, username]);
+        return pointsBilling.getQuota(username, connection);
+      });
+      return json(res, { ok: true, ...quota });
     } catch (e) {
       console.error('Admin set tier error:', e);
-      return json(res, { error: '设置失败' }, 500);
+      return json(res, { error: e.status ? e.message : '设置失败' }, e.status || 503);
     }
   }
 
-  // PATCH /api/admin/user-tokens — 设置用户 token 用量
-  if (req.method === 'PATCH' && pathname === '/api/admin/user-tokens') {
+  // PATCH /api/admin/user-points — 调整今日已用积分，不改累计消费
+  if (req.method === 'PATCH' && pathname === '/api/admin/user-points') {
     const payload = checkAuth(req);
     if (!payload || payload.role !== 'admin') return json(res, { error: '未授权' }, 401);
-    const { username, tokenUsed } = body;
-    if (!username || tokenUsed === undefined || tokenUsed < 0) return json(res, { error: '参数错误' }, 400);
+    const { username, pointsUsed } = body;
+    if (typeof username !== 'string' || !username || typeof pointsUsed !== 'number' || !Number.isFinite(pointsUsed)) return json(res, { error: '参数错误' }, 400);
     try {
-      await ensureDbUser(username);
-      await db.query('UPDATE users SET token_used = ? WHERE username = ?', [tokenUsed, username]);
-      return json(res, { ok: true });
+      await pointsReady();
+      return json(res, { ok: true, ...await pointsBilling.setDailyPoints(username, pointsUsed) });
     } catch (e) {
-      console.error('Admin set token error:', e);
-      return json(res, { error: '设置失败' }, 500);
+      console.error('Admin set points error:', e.message);
+      return json(res, { error: e.status ? e.message : '设置失败' }, e.status || 503);
     }
   }
 
@@ -1358,20 +1344,15 @@ async function handle(req, res) {
     }
   }
 
-  if (req.method === 'GET' && pathname === '/api/user/tokens') {
+  if (req.method === 'GET' && pathname === '/api/user/points') {
     const payload = checkAuth(req);
     if (!payload) return json(res, { error: '请先登录' }, 401);
     try {
-      // 确保用户在 MySQL 中存在（首次查询时自动创建）
-      await ensureDbUser(payload.username);
-      const [rows] = await db.query('SELECT token_used, tier FROM users WHERE username = ?', [payload.username]);
-      if (rows.length === 0) return json(res, { tokenUsed: 0, tokenLimit: 100000, tier: 0 });
-      const tier = rows[0].tier || 0;
-      const tokenLimit = getTokenLimit(tier);
-      return json(res, { tokenUsed: rows[0].token_used, tokenLimit, tier });
+      await pointsReady();
+      return json(res, await pointsBilling.getQuota(payload.username));
     } catch (e) {
-      console.error('Token usage error:', e);
-      return json(res, { error: '查询失败' }, 500);
+      console.error('Points usage error:', e.message);
+      return json(res, { error: e.status ? e.message : '积分服务暂不可用' }, e.status || 503);
     }
   }
 
@@ -2123,19 +2104,7 @@ async function handle(req, res) {
 
     let guest = null;
     if (username) {
-      // 与 /api/chat/send 同一道额度闸（那边额满时也是回一句明说的正文，不是错误码）
-      try {
-        const [rows] = await db.query('SELECT token_used, tier FROM users WHERE username = ?', [username]);
-        if (rows.length > 0) {
-          const limit = getTokenLimit(rows[0].tier || 0);
-          if (limit !== null && rows[0].token_used >= limit) {
-            res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache' });
-            res.write('抱歉，你的AI解析次数已用完。\n如需继续使用，请联系管理员升级账户。');
-            res.end();
-            return;
-          }
-        }
-      } catch (e) { /* 静默，与聊天一致 */ }
+      requirePoints(req.pointsContext.quota);
     } else {
       if (aspect === '综合') {
         return json(res, {
@@ -2174,6 +2143,8 @@ async function handle(req, res) {
         noThinking: !followUp,
         userPrompt,
         username,
+        billingDb: req.pointsContext?.connection, pointsQuota: req.pointsContext?.quota,
+        requestId: req.pointsContext?.requestId,
         onFinish: async ({ fullText }) => {
           if (username) {
             // 追问不落库 —— 只跳过这一步，额度照记（见端点开头那段说明）
@@ -2220,21 +2191,7 @@ async function handle(req, res) {
     const username = payload ? payload.username : null;
     if (!username) return json(res, { error: '请先登录' }, 401);
 
-    // Token 限制检查
-    try {
-      const [rows] = await db.query('SELECT token_used, tier FROM users WHERE username = ?', [username]);
-      if (rows.length > 0) {
-        const tier = rows[0].tier || 0;
-        const limit = getTokenLimit(tier);
-        if (limit !== null && rows[0].token_used >= limit) {
-          res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache' });
-          res.write('抱歉，你的AI解析次数已用完。');
-          res.write('如需继续使用，请联系管理员升级账户。');
-          res.end();
-          return;
-        }
-      }
-    } catch (e) { /* 静默 */ }
+    requirePoints(req.pointsContext.quota);
 
     // 构建系统 prompt
     let systemPrompt = '你是一位精通中国传统命理学的AI助手，擅长梅花易数、六爻纳甲、八字命理等术数。回答风格清晰、理性、有启发性，避免绝对化断语，多用"可能""倾向"。能用**加粗**标出重点。\n\n【起卦规则】当用户询问命理问题（如感情、事业、财运、健康、出行等）但未提供数字时，请先自然询问对方三个任意数字（1-9），用于梅花易数起卦。示例回复："好的，那我先起一卦看看吧～请随意想三个数字（1-9）告诉我。"当用户给出三个数字后，系统会自动计算卦象并调用你进行解卦分析，届时你将收到完整的卦象数据。如果用户已经提供了三个数字，则直接等待系统起卦后为你提供卦象数据进行分析。';
@@ -2304,6 +2261,7 @@ userPrompt += '\n\n注意：参考古籍已在最上方提供，请在回答开�
     }
 
     const prompt = userPrompt;
+    const maxOutputTokens = requirePoints(req.pointsContext.quota, estimateTokens(systemPrompt + '\n' + prompt));
 
     res.writeHead(200, {
       'Content-Type': 'text/event-stream; charset=utf-8',
@@ -2347,7 +2305,7 @@ userPrompt += '\n\n注意：参考古籍已在最上方提供，请在回答开�
           { role: 'user', content: prompt },
         ],
         stream: true,
-        max_tokens: LLM_MAX_TOKENS,
+        max_tokens: maxOutputTokens,
         temperature: 0.7,
         reasoning_effort: LLM_REASONING_EFFORT,
         stream_options: { include_usage: true },
@@ -2408,21 +2366,16 @@ userPrompt += '\n\n注意：参考古籍已在最上方提供，请在回答开�
           console.error('[chat] 上游未回 usage，token 记账回落为估算值（'
             + inputTokens + '+' + outputTokens + '）');
         }
-        const totalTokens = realUsage ? realUsage.total_tokens
-                                      : inputTokens + outputTokens;
         try {
-          // 更新用户 token 用量
-          await db.query('UPDATE users SET token_used = token_used + ? WHERE username = ?', [totalTokens, username]);
-          const [updated] = await db.query('SELECT token_used, tier FROM users WHERE username = ?', [username]);
-          if (updated.length > 0) {
-            const used = updated[0].token_used;
-            const limit = getTokenLimit(updated[0].tier || 0);
-            const remainText = limit === null ? '无限' : (limit - used).toLocaleString();
-            const tokenLine = pointsTrailer(inputTokens, outputTokens, totalTokens, remainText);
-            fullText += tokenLine;
-            res.write(tokenLine);
-          }
-        } catch (e) { /* 静默失败 */ }
+          const charge = await pointsBilling.charge(username, { inputTokens, outputTokens,
+            requestId: req.pointsContext.requestId, billingDate: req.pointsContext.quota.billingDate }, req.pointsContext.connection);
+          const tokenLine = pointsTrailer(inputTokens, outputTokens, charge.totalTokens, charge.pointsRemaining);
+          fullText += tokenLine;
+          if (!res.writableEnded && !clientGone) res.write(tokenLine);
+        } catch (error) {
+          console.error('[chat] points settlement failed:', error.message);
+          if (!res.writableEnded && !clientGone) res.write('\n\n积分结算未确认，请联系管理员核查，勿重复提交。');
+        }
       }
 
       // 保存到对话历史
@@ -2481,22 +2434,9 @@ userPrompt += '\n\n注意：参考古籍已在最上方提供，请在回答开�
     return chatProxy.handleChat(req, res, body);
   }
 
-  // GET /api/announcement — 获取公告内容（从微云笔记同步）
+  // GET /api/announcement — 项目内维护的 Markdown 原文
   if (req.method === 'GET' && pathname === '/api/announcement') {
-    // 有缓存直接返回（即使过期也先用，后台会刷新）
-    if (annCache.text) {
-      // 缓存超过 5 分钟，后台静默刷新
-      if (Date.now() - annCache.ts > 300000) refreshAnnCache();
-      return json(res, { content: annCache.text });
-    }
-    // 首次无缓存，等待拉取
-    if (!annCache.loading) refreshAnnCache();
-    // 最多等 5 秒
-    const start = Date.now();
-    while (!annCache.text && Date.now() - start < 5000) {
-      await new Promise(r => setTimeout(r, 200));
-    }
-    return json(res, { content: annCache.text || '' });
+    return json(res, { content: ANNOUNCEMENT_MD });
   }
 
   // POST /api/wechat/login — 微信小程序授权登录
@@ -2957,6 +2897,11 @@ async function streamBaziParse(res, opts) {
   // 由调用处给：**首次解读给 true、追问给 false** —— 首次是那份结构化长报告，
   // 思考会抢走正文的预算（会截断）；追问是短问答，思考有助于质量，预算也够。
   const { systemPrompt, userPrompt, username, onFinish, noThinking } = opts;
+  const modelMessages = opts.messages || [
+    { role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt },
+  ];
+  const estInputTokens = estimateTokens(modelMessages.map(m => m.content).join('\n'));
+  const maxOutputTokens = requirePoints(opts.pointsQuota, estInputTokens);
   res.writeHead(200, {
     'Content-Type': 'text/event-stream; charset=utf-8',
     'Cache-Control': 'no-cache',
@@ -2965,11 +2910,8 @@ async function streamBaziParse(res, opts) {
     'X-Accel-Buffering': 'no',
   });
 
-  const estInputTokens = estimateTokens(systemPrompt + '\n' + userPrompt);
+  const consultationMode = opts.protocol === 'consultation-v1';
   let realUsage = null;
-  const OpenAI = require('openai');
-  const client = new OpenAI({ apiKey: config.deepseek.apiKey, baseURL: config.deepseek.baseURL });
-
   const controller = new AbortController();
   let clientGone = false;
   const onClose = () => {
@@ -2977,6 +2919,7 @@ async function streamBaziParse(res, opts) {
     try { controller.abort(); } catch (e) { /* 已结束 */ }
   };
   res.on('close', onClose);
+  if (consultationMode) baziConsultations.event(res, 'delta', { text: '', consultationId: opts.consultationId });
 
   let fullText = '';
   let stopped = false;
@@ -2984,7 +2927,10 @@ async function streamBaziParse(res, opts) {
   let reasoningChars = 0;
   let finishReason = null;
   let wroteFallback = false;
+  let streamError = null;
   try {
+    const OpenAI = require('openai');
+    const client = new OpenAI({ apiKey: config.deepseek.apiKey, baseURL: config.deepseek.baseURL });
     // `create` 也放进 try 里：它抛错时响应头**已经发出去了**（200 + text/event-stream），
     // 端点外面那个 catch 只能看到 `headersSent`，什么也补不回来 —— 用户拿到空白。
     // 放进来至少能补一句白话提示。（原来的写法就是把它放在 try 外面，这是个真缺口。）
@@ -2992,12 +2938,9 @@ async function streamBaziParse(res, opts) {
     //   两个都传是没意义的组合（一个是「别想」、一个是「想多少」），故按条件给，不硬拼。
     const params = {
       model: LLM_MODEL,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
+      messages: modelMessages,
       stream: true,
-      max_tokens: LLM_MAX_TOKENS,
+      max_tokens: maxOutputTokens,
       stream_options: { include_usage: true },
     };
     if (noThinking) {
@@ -3020,21 +2963,25 @@ async function streamBaziParse(res, opts) {
       const content = (ch0 && ch0.delta && ch0.delta.content) || '';
       if (content) {
         fullText += content;
-        try { res.write(content); } catch (e) { stopped = true; }
+        try {
+          if (consultationMode) baziConsultations.event(res, 'delta', { text: content, consultationId: opts.consultationId });
+          else res.write(content);
+        } catch (e) { stopped = true; controller.abort(); }
       }
     }
   } catch (e) {
+    streamError = e;
     if (!clientGone) console.error('[bazi] 解读流中断:', e && e.message);
-    if (!fullText && !clientGone && !res.writableEnded) {
+    if (!consultationMode && !fullText && !clientGone && !res.writableEnded) {
       try { res.write('抱歉，生成中断了，请重试一次。'); wroteFallback = true; } catch (e2) { /* 已断开 */ }
     }
   } finally {
-    res.removeListener('close', onClose);
+    if (!consultationMode) res.removeListener('close', onClose);
   }
 
   // 「流正常结束、但一个字正文都没有」不是异常，上面的 catch 抓不到 —— 这正是
   // 线上那个「HTTP 200 + 0 字节」的成因（见 LLM_MAX_TOKENS 那段注）。
-  if (!fullText && !wroteFallback && !clientGone && !res.writableEnded) {
+  if (!consultationMode && !fullText && !wroteFallback && !clientGone && !res.writableEnded) {
     console.error('[bazi] 上游没出正文：finish=' + finishReason + '，思考 ' + reasoningChars
       + ' 字，输出 token ' + (realUsage ? realUsage.completion_tokens : '（没收到 usage）')
       + '，上限 ' + LLM_MAX_TOKENS);
@@ -3042,26 +2989,44 @@ async function streamBaziParse(res, opts) {
   }
 
   const seen = !!fullText && !clientGone;
+  let billing = { status: 'not_charged' };
+  // Reuse the consultation's checked-out connection to avoid pool starvation
+  // while concurrent requests hold per-user locks. Legacy callers use the pool.
+  const billingDb = opts.billingDb || db;
   let trailer = '';
   if (seen) {
     // 与 /api/chat/send 同一算法、同一格式（游客不记 token，他的额度是「次数」）
     if (username) {
       const inputTokens = realUsage ? realUsage.prompt_tokens : estInputTokens;
       const outputTokens = realUsage ? realUsage.completion_tokens : estimateTokens(fullText);
-      const totalTokens = realUsage ? realUsage.total_tokens : inputTokens + outputTokens;
       try {
-        await db.query('UPDATE users SET token_used = token_used + ? WHERE username = ?',
-          [totalTokens, username]);
-        const [updated] = await db.query('SELECT token_used, tier FROM users WHERE username = ?', [username]);
-        if (updated.length > 0) {
-          const used = updated[0].token_used;
-          const limit = getTokenLimit(updated[0].tier || 0);
-          const remainText = limit === null ? '无限' : (limit - used).toLocaleString();
-          trailer = pointsTrailer(inputTokens, outputTokens, totalTokens, remainText);
-        }
-      } catch (e) { /* 静默失败 */ }
+        const charge = await pointsBilling.charge(username, { inputTokens, outputTokens,
+          requestId: consultationMode ? 'bzc_' + opts.requestId : opts.requestId,
+          billingDate: opts.pointsQuota.billingDate }, billingDb);
+        billing = { status: 'charged', inputTokens, outputTokens, totalTokens: charge.totalTokens,
+          pointsCharged: charge.pointsCharged, pointsRemaining: charge.pointsRemaining,
+          pointsLimit: charge.pointsLimit, billingDate: charge.chargeBillingDate };
+        trailer = pointsTrailer(inputTokens, outputTokens, charge.totalTokens, charge.pointsRemaining);
+      } catch (error) {
+        billing = { status: 'unknown', error: '积分结算结果需核查' };
+        console.error('[bazi] points settlement failed:', error.message);
+        if (!consultationMode) trailer = '\n\n积分结算未确认，请联系管理员核查，勿重复提交。';
+      }
     }
-    if (trailer && !res.writableEnded) { try { res.write(trailer); } catch (e) { /* 已断开 */ } }
+    if (!consultationMode && trailer && !res.writableEnded) { try { res.write(trailer); } catch (e) { /* 已断开 */ } }
+  }
+  if (consultationMode) {
+    const status = clientGone || stopped ? 'stopped'
+      : !fullText ? 'failed'
+      : streamError || finishReason !== 'stop' ? 'partial' : 'completed';
+    let outcome = { consultationId: opts.consultationId, requestId: opts.requestId, status, billing,
+      save: { status: 'failed' }, ...(streamError || !fullText ? { error: '生成未完成，请稍后重试' } : {}) };
+    try { outcome = await onFinish({ ...outcome, fullText, realUsage, estInputTokens }); }
+    catch (error) { console.error('[bazi] consultation save failed:', error.message); }
+    baziConsultations.event(res, 'done', outcome);
+    res.removeListener('close', onClose);
+    if (!res.writableEnded) res.end();
+    return outcome;
   }
   if (!res.writableEnded) res.end();
   if (seen && onFinish) {
@@ -3177,15 +3142,7 @@ function buildLiuyaoFollowUpPrompt(topic, followUp, context, cardData) {
   return renderPrompt(custom.liuyao_followup || promptLib.DEFAULT_LIUYAO_FOLLOWUP, vars);
 }
 
-function getTokenLimit(tier) {
-  // tier 0=普通用户 1=会员 2=SVIP
-  // null = 不限
-  switch (tier) {
-    case 1: return 5000000;
-    case 2: return null;
-    default: return 100000;
-  }
-}
+
 
 async function ensureDbUser(username) {
   if (!username || !db) return;

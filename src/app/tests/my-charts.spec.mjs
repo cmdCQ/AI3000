@@ -23,6 +23,7 @@ const CHARTS = [
   {
     id: 'c1',
     name: '张三',
+    bazi: '庚午 辛巳 壬午 丁未',
     gender: 'male',
     birth: { year: 1990, month: 5, day: 17, hour: 14, minute: 30 },
     longitude: 120,
@@ -31,6 +32,7 @@ const CHARTS = [
   {
     id: 'c2',
     name: '李四',
+    bazi: '甲子 丁丑 癸酉 丙辰',
     gender: 'female',
     birth: { year: 1985, month: 2, day: 3, hour: 8, minute: 0 },
     longitude: 120,
@@ -112,9 +114,9 @@ test.describe('/my-charts/ 我的命盘', () => {
     // 时辰是派生的：14:30 → 未时（13-15），08:00 → 辰时（7-9）
     await expect(page.locator('body')).toContainText('未时')
     await expect(page.locator('body')).toContainText('辰时')
-    // 生肖：1990 → 马，1985 → 牛（锚点 2020 鼠，(year-4)%12）
+    // 按保存的年柱：庚午为马；1985立春前甲子为鼠，不按公历年猜牛。
     await expect(page.locator('body')).toContainText('🐴')
-    await expect(page.locator('body')).toContainText('🐂')
+    await expect(page.locator('body')).toContainText('🐀')
     // 列表请求带 Bearer
     expect(seen.some((s) => s.method === 'GET' && s.auth.startsWith('Bearer '))).toBe(true)
     expect(errors).toEqual([])

@@ -271,7 +271,7 @@ async function sendMessage() {
             if (tokenInfo) {
               var tokDiv = document.createElement('div');
               tokDiv.className = 'msg-token';
-              tokDiv.textContent = tokenInfo;
+              tokDiv.textContent = pointsLabel(tokenInfo);
               streamDiv.parentNode.insertBefore(tokDiv, streamDiv.nextSibling);
             }
           }
@@ -855,7 +855,7 @@ function sendDivinationCard(cardData, userText) {
           if (tokenInfo) {
             var tokDiv = document.createElement('div');
             tokDiv.className = 'msg-token';
-            tokDiv.textContent = tokenInfo;
+            tokDiv.textContent = pointsLabel(tokenInfo);
             streamDiv.parentNode.insertBefore(tokDiv, streamDiv.nextSibling);
           }
         }

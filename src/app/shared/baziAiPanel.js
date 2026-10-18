@@ -1,7 +1,8 @@
-// 阶段 4 cut-over：由 `src/web/js/bazi_ai_panel.js` 逐字搬来，只给顶层声明加了 `export `。
+// 八字适配层：复用公共 AI 卡片，保留方面选择、历史与独立请求协议。
+import './css/bazi_ai_panel.css';
 import { formatTime, escHtml, renderMarkdown } from './uiCommon.js';
 import { AUTH, openAuthModal } from './auth.js';
-import { abortAIStream, aiInlineHost, openAIPanel, closeAIPanel, showAIHome, startButtonClicked } from './aiPanel.js';
+import { abortAIStream, abortAIFollowUp, setAIPanelFolded, openAIPanel, showAIHome, startButtonClicked } from './aiPanel.js';
 // 八字页的「AI 解读」：五方面切换 + 每方面一条 + 旧版可展开 + 游客引导登录。
 // ==========================================================================
 //
@@ -9,7 +10,7 @@ import { abortAIStream, aiInlineHost, openAIPanel, closeAIPanel, showAIHome, sta
 //   ① 给共用的面板引擎（`js/ai_panel.js`）一份配置 `window.AI_PANEL_CONF` ——
 //      八字这条线请求的是 `/api/bazi/parse`、请求体是**出生原始参数**，与六爻/梅花
 //      那套 `{message, cardType, cardData}` 不同，故用引擎新加的三个可选钩子接上。
-//      **引擎一个分支都没为八字改**（不给钩子时行为与从前逐字相同）。
+//      八字启用独立生命周期钩子；不给钩子的梅花、六爻保留默认协议。
 //   ② 页内那点八字独有的东西：五个方面的切换条、旧版的折叠列表、游客那两条规矩。
 //
 // 四条产品规矩（2026-09-25 用户拍板）就落在这里：
@@ -18,7 +19,7 @@ import { abortAIStream, aiInlineHost, openAIPanel, closeAIPanel, showAIHome, sta
 //   · **替换，不累积**：切到别的方面就是换一份内容，不把上一份留在屏幕上
 //   · **每方面一条 + 旧版可展开**：同一方面解多次时新的在最前，旧的收进「旧版」
 //   · **可折叠**（2026-09-25 加）：标题那行是开关，收起只把内容藏起来、**不中断正在跑的
-//     那次解读**（详见 `setCollapsed()` 上面那段）。块的位置在**排盘下面、其余信息上面**
+//     那次解读**（公共面板 setAIPanelFolded）。块的位置在**排盘下面、其余信息上面**
 //     （`my-charts/index.html` 的三块顺序：#baziChart → #baziAi → #baziRest）
 //   · **游客：只能解一次、不许解「综合」**；用完引导登录，**登录后回到刚才那个方面接着解**
 //   · **追问：要，但不落库**（2026-09-25 拍板）—— 追问接着**当前方面**那份解读问一句话，
@@ -35,7 +36,7 @@ import { abortAIStream, aiInlineHost, openAIPanel, closeAIPanel, showAIHome, sta
 //     birth: { y:1984, mo:2, d:4, h:12, mi:0, gender:'male' },
 //   });
 // 挂载后**不自动开始**解析：八字的解读要花掉游客唯一的一次（或扣 token），
-// 该由用户点一下 —— 「点方面」就是六爻那页「起卦」的对应动作。
+// 必须由用户点击开始按钮；切方面仅展示该方面的已有内容，不发起解读。
 
 export var BaziAI = (function () {
   'use strict';
@@ -52,7 +53,7 @@ export var BaziAI = (function () {
   };
   var PENDING_KEY = 'bazi_pending_aspect';
   var ANON_USED_KEY = 'bazi_anon_used';
-  var CSS_ID = 'bz-ai-style';
+  var generation = 0;
 
   var state = {
     info: null,
@@ -73,53 +74,6 @@ export var BaziAI = (function () {
     return typeof renderMarkdown === 'function' ? renderMarkdown(t || '') : esc(t || '');
   }
   function safeJson(t) { try { return JSON.parse(t); } catch (e) { return null; } }
-
-  var CSS = [
-    '.bz-aspects{display:flex;flex-wrap:wrap;gap:0.35rem;padding:0.15rem 0 0.6rem}',
-    '.bz-aspect{font-family:inherit;font-size:0.78rem;padding:0.34rem 0.75rem;border-radius:999px;',
-    'border:1px solid var(--border,#e8e3d8);background:transparent;color:var(--text-dim,#6b6b6b);cursor:pointer;transition:all .2s}',
-    '.bz-aspect.on{background:#b8960a;border-color:#b8960a;color:#fff;font-weight:500}',
-    '.bz-aspect .bz-lock{font-size:0.62rem;opacity:0.8;margin-left:0.2rem}',
-    '.bz-aspect-hint{font-size:0.7rem;color:var(--text-dim,#6b6b6b);line-height:1.7;padding:0 0.15rem 0.5rem}',
-    '.bz-hist{margin-top:0.7rem;border:1px solid var(--border,#e8e3d8);border-radius:12px;background:var(--bg-card,#fff);overflow:hidden}',
-    '.bz-hist > summary{font-size:0.76rem;color:#7a6208;padding:0.65rem 0.9rem;cursor:pointer;list-style:none}',
-    '.bz-hist > summary::-webkit-details-marker{display:none}',
-    '.bz-hist-item{border-top:1px solid var(--border,#e8e3d8)}',
-    '.bz-hist-item > summary{font-size:0.72rem;color:var(--text-dim,#6b6b6b);padding:0.55rem 0.9rem;cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:0.5rem}',
-    '.bz-hist-item > summary::-webkit-details-marker{display:none}',
-    '.bz-hist-body{padding:0.2rem 0.9rem 0.8rem;font-size:0.8rem;line-height:1.8;color:var(--text,#1a1a1a)}',
-    '.bz-hist-q{color:#7a6208}',
-    // ── 折叠开关（2026-09-25 用户要求：AI 块挪到排盘下面之后，要能收起来不挡着看盘）──
-    // 标题那行本身就是开关，不另加一行提示文字（用户嫌界面上字多）。
-    '.bz-ai-toggle{display:flex;align-items:center;gap:0.4rem;width:100%;box-sizing:border-box;',
-    'background:none;border:none;padding:0;cursor:pointer;text-align:left;',
-    'font-family:"Noto Serif SC",serif;font-size:0.86rem;font-weight:600;color:var(--text,#1a1a1a);',
-    'letter-spacing:0.1em;margin:0 0 0.45rem 0}',
-    '.bz-ai-toggle .bz-line{flex:1;height:1px;background:var(--border,#e8e3d8)}',
-    '.bz-ai-toggle .bz-caret{flex:none;font-size:0.7rem;font-weight:400;letter-spacing:0;color:var(--text-dim,#6b6b6b)}',
-    '#baziAiSec.collapsed #baziAiBody{display:none}',
-    '#baziAiSec.collapsed .bz-ai-toggle{margin-bottom:0}',
-    // ── 引擎那块面板的**表头行**在本页藏掉（2026-09-25）────────────────────
-    // 本页这块 AI 区自己就有一行标题（`#baziAiToggle`：「☯ AI 解读 ——— 收起 ▾」），
-    // 引擎插进来的面板又画一行「☯ AI 解读」——同一个标题叠两遍。原来只是难看；
-    // 引擎给表头加上折叠控件之后，屏幕上会并排出现**两颗「收起」**（本页这颗折
-    // `#baziAiBody`、引擎那颗折 `.ai-panel-body`），用户不知道该点哪颗。
-    // 一个 AI 块只能有一颗折叠控件 —— 留本页那颗（因为它折的范围更大，含方面条），
-    // 引擎那行整行藏掉（它承载的标题/「正在解读」在下面正文里本来就看得见）。
-    // ⚠ 别改成藏 `#baziAiArea`：那会把面板正文一起藏了。只藏表头这一行。
-    '#baziAiBody .ai-panel-header{display:none}',
-    // 表头本来还兼着正文的顶部留白（`.ai-panel-body` 只有左右下三边内边距），
-    // 藏了它正文会贴着面板上边，故补回来。
-    '#baziAiBody .ai-panel-body{padding-top:0.5rem}',
-  ].join('');
-
-  function injectCss() {
-    if (document.getElementById(CSS_ID)) return;
-    var st = document.createElement('style');
-    st.id = CSS_ID;
-    st.textContent = CSS;
-    document.head.appendChild(st);
-  }
 
   // ── 面板引擎要的配置 ────────────────────────────────────────────────
   function conf() {
@@ -166,6 +120,10 @@ export var BaziAI = (function () {
       anonFollowKey: '',
       recordsPath: '/api/bazi-analyses',   // recordId() 返回 null，故引擎不会去 PATCH 它
       cardType: 'bazi',
+      scopedLifecycle: true,
+      loginPrompt: function (host) {
+        promptLogin(host, '游客只能免费解读一次。', '登录后可继续解读，记录会替你留着。');
+      },
 
       hasChart: function () { return !!state.info; },
       topic: function () { return state.cur; },
@@ -176,9 +134,13 @@ export var BaziAI = (function () {
       },
       setSaved: function (v) {
         state.mem[state.cur] = v;
+        renderHistory();
         // 登录用户的解读由服务端落库；刚流完这一条去把记录取回来，
         // 「旧版」列表里立刻就有它（下次刷新也还在）。
-        if (loggedIn()) setTimeout(loadRecords, 200);
+        var completedGeneration = generation;
+        if (loggedIn()) setTimeout(function () {
+          if (completedGeneration === generation) loadRecords();
+        }, 200);
       },
       // 游客不许解「综合」：**先拦住，别等服务端 403** —— 用户点一下就被拒，
       // 他会以为是坏了；先说清「综合要看通盘、要登录」，他才明白为什么要注册。
@@ -218,11 +180,11 @@ export var BaziAI = (function () {
 
   // ── 状态 ────────────────────────────────────────────────────────────
 
-  /** 当前方面要显示的那份正文：优先服务端记录里最新的一条，其次本次刚拿到的（游客） */
+  /** 本次完整解读优先，防止服务端保存/历史刷新稍晚时退回旧版。 */
   function currentText() {
+    if (state.mem[state.cur]) return state.mem[state.cur];
     var rows = state.rows[state.cur];
-    if (rows && rows.length) return rows[0].analysis || '';
-    return state.mem[state.cur] || '';
+    return rows && rows.length ? rows[0].analysis || '' : '';
   }
 
   /** 记下「刚才想解哪个方面」—— 登录会整页刷新，回来时靠它接着解 */
@@ -238,55 +200,29 @@ export var BaziAI = (function () {
   function promptLogin(respEl, why, extra) {
     if (!respEl) return;
     respEl.classList.add('show');   // 不覆盖 className：追问那条容器的类要留着
-    respEl.innerHTML = '<div style="text-align:center;padding:1.5rem 1rem">'
-      + '<div style="font-size:1.2rem;margin-bottom:0.5rem">🔒</div>'
-      + '<div style="font-size:0.9rem;font-weight:600;color:var(--text);margin-bottom:0.35rem">'
-      + esc(why) + '</div>'
-      + '<div style="font-size:0.75rem;color:var(--text-dim);line-height:1.7;margin-bottom:1rem">'
-      + esc(extra || '') + '</div>'
-      + '<div style="display:flex;gap:0.5rem;justify-content:center">'
-      + '<a href="javascript:void(0)" onclick="BaziAI.beforeLogin();openAuthModal(\'register\')" class="ai-start-btn" '
-      + 'style="display:inline-block;text-decoration:none">注册</a>'
-      + '<a href="javascript:void(0)" onclick="BaziAI.beforeLogin();openAuthModal(\'login\')" class="ai-start-btn" '
-      + 'style="display:inline-block;text-decoration:none;background:#fff;color:var(--accent);border:1px solid var(--accent);box-shadow:none">登录</a>'
-      + '</div>'
-      + '<div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.7rem">'
-      + '登录后会自动回到「' + esc(state.cur) + '」接着解读</div>'
-      + '</div>';
+    respEl.innerHTML = '<div class="bz-login-prompt">'
+      + '<div aria-hidden="true">🔒</div><strong>' + esc(why) + '</strong>'
+      + '<p>' + esc(extra || '') + '</p><div class="bz-login-actions">'
+      + '<button type="button" class="ai-start-btn" data-auth="register">注册</button>'
+      + '<button type="button" class="ai-start-btn bz-login-secondary" data-auth="login">登录</button>'
+      + '</div><p>登录后会自动回到「' + esc(state.cur) + '」接着解读</p></div>';
+    respEl.querySelectorAll('[data-auth]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        rememberPending();
+        openAuthModal(button.dataset.auth);
+      });
+    });
   }
 
-  // ── 折叠 / 展开 ──────────────────────────────────────────────────────
-  /**
-   * 收起 = **只是藏起来，不停这次解读**（2026-09-25 用户拍板）。
-   *
-   * 用户原话：「（但可以选择折叠对话，所以不影响看下面的内容）」—— 折叠的用途是**腾地方
-   * 看下面的盘**，不是「不看了」。所以这里**只切一个 class**，绝不调 `closeAIPanel()`：
-   * 那个函数（`js/ai_panel.js`）会 `abortAIStream()` 把正在跑的那次请求掐掉，
-   * 用户展开回来会看到半截正文或空白，还会白扣额度。**本函数是这块最容易写错的地方。**
-   *
-   * 隐藏不会影响 XHR/流：正文照写进 DOM，展开即见，也不用重放。
-   */
-  function setCollapsed(c) {
-    var sec = document.getElementById('baziAiSec');
-    if (!sec) return;
-    sec.classList.toggle('collapsed', !!c);
-    var b = document.getElementById('baziAiToggle');
-    if (!b) return;
-    b.setAttribute('aria-expanded', c ? 'false' : 'true');
-    var g = b.querySelector('.bz-caret');
-    if (g) g.textContent = c ? '展开 ▸' : '收起 ▾';
-  }
-  /** 展开（`select()` 与登录回跳前都先调它：答案不许生成在一个收起的块里） */
-  function expand() { setCollapsed(false); }
-  function toggleCollapsed() {
-    var sec = document.getElementById('baziAiSec');
-    setCollapsed(sec ? !sec.classList.contains('collapsed') : false);
-  }
+  // 折叠由公共面板独占；切方面只需展开正文，不改变正在运行的流。
+  function expand() { setAIPanelFolded(false); }
 
   // ── 切换方面 ────────────────────────────────────────────────────────
   function select(aspect, opts) {
     var o = opts || {};
     if (ASPECTS.indexOf(aspect) < 0) return;
+    abortAIFollowUp();
+    resetFollowUp();
     if (typeof abortAIStream === 'function') abortAIStream();   // 换方面 = 上一次不看了
     expand();   // 折叠着点方面（或登录回跳自动接着解）→ 先把块展开，否则正文流进看不见的地方
     state.cur = aspect;
@@ -320,7 +256,7 @@ export var BaziAI = (function () {
     var isGuest = !loggedIn();
     var h = '';
     ASPECTS.forEach(function (a) {
-      h += '<button class="bz-aspect' + (a === state.cur ? ' on' : '') + '" data-aspect="' + esc(a) + '">'
+      h += '<button type="button" aria-pressed="' + (a === state.cur ? 'true' : 'false') + '" class="bz-aspect' + (a === state.cur ? ' on' : '') + '" data-aspect="' + esc(a) + '">'
         + esc(a) + (isGuest && a === '综合' ? '<span class="bz-lock">🔒</span>' : '') + '</button>';
     });
     bar.innerHTML = h;
@@ -336,7 +272,9 @@ export var BaziAI = (function () {
     var box = document.getElementById('baziAiHistory');
     if (!box) return;
     var rows = state.rows[state.cur] || [];
-    var older = rows.slice(1);
+    // 新报告尚未出现在服务端历史时，原最新记录也应完整保留在旧版中。
+    var pendingText = state.mem[state.cur];
+    var older = pendingText && (!rows.length || rows[0].analysis !== pendingText) ? rows : rows.slice(1);
     if (!older.length) { box.innerHTML = ''; return; }
     var h = '<details class="bz-hist"><summary>旧版记录（' + older.length + ' 份，点开看）</summary>';
     older.forEach(function (r) {
@@ -361,17 +299,22 @@ export var BaziAI = (function () {
   /** 取回这个命盘的全部解读记录（只有登录用户有；游客不落库） */
   async function loadRecords() {
     if (!loggedIn() || !state.info || !state.info.chartId) return;
+    var requestGeneration = generation;
+    var chartId = state.info.chartId;
     try {
       var token = AUTH.getToken();
-      var resp = await fetch('/api/bazi-analyses?chartId=' + encodeURIComponent(state.info.chartId),
+      var resp = await fetch('/api/bazi-analyses?chartId=' + encodeURIComponent(chartId),
         { headers: token ? { Authorization: 'Bearer ' + token } : {} });
       if (!resp.ok) return;
       var rows = await resp.json();
-      if (!Array.isArray(rows)) return;
+      if (requestGeneration !== generation || !Array.isArray(rows)) return;
       var byAspect = {};
       rows.forEach(function (r) {
         if (ASPECTS.indexOf(r.aspect) < 0) return;
         (byAspect[r.aspect] = byAspect[r.aspect] || []).push(r);
+      });
+      Object.keys(byAspect).forEach(function (aspect) {
+        byAspect[aspect].sort(function (a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
       });
       state.rows = byAspect;
       state.loaded = true;
@@ -392,30 +335,30 @@ export var BaziAI = (function () {
    */
   function mount(host, info) {
     if (!host || !info || !info.birth) return null;
-    injectCss();
+    abortAIStream();
+    abortAIFollowUp();
+    generation += 1;
     state.info = info;
     state.cur = ASPECTS[0];
     state.rows = {};
     state.mem = {};
 
-    host.innerHTML = '<div class="bz-sec" id="baziAiSec">'
-      // 标题行 = 折叠开关（默认展开：用户要「一眼就看到」）
-      + '<button type="button" class="bz-ai-toggle" id="baziAiToggle" aria-expanded="true"'
-      + ' aria-controls="baziAiBody"><span>☯ AI 解读</span><span class="bz-line"></span>'
-      + '<span class="bz-caret">收起 ▾</span></button>'
-      + '<div id="baziAiBody">'
-      + '<div class="bz-aspects" id="baziAspectBar"></div>'
-      + '<div class="bz-aspect-hint" id="baziAspectHint"></div>'
-      // 面板宿主：引擎的 aiInlineHost() 会把它建成这个容器的**兄弟**，
-      // 故这里给个稳定的、不会被整块重画的容器
-      + '<div id="baziAiArea"></div>'
-      + '<div id="baziAiHistory"></div>'
-      + '</div></div>';
-
-    var tg = document.getElementById('baziAiToggle');
-    if (tg) tg.addEventListener('click', toggleCollapsed);
-
+    // Preserve the shared panel across React/detail remounts; avoid duplicate overlays/IDs.
+    var panel = document.getElementById('aiPanel');
+    if (panel) document.body.appendChild(panel);
+    ['baziAspectBar', 'baziAspectHint', 'baziAiHistory'].forEach(function (id) {
+      var node = document.getElementById(id);
+      if (node) node.remove();
+    });
+    host.innerHTML = '<div id="baziAiArea"></div>';
     conf();
+    openAIPanel();
+    var panelBody = document.getElementById('aiPanelBody');
+    panelBody.insertAdjacentHTML('afterbegin', '<div class="bz-aspects" id="baziAspectBar" role="group" aria-label="解读方面"></div>'
+      + '<div class="bz-aspect-hint" id="baziAspectHint"></div>');
+    panelBody.insertAdjacentHTML('beforeend', '<div id="baziAiHistory"></div>');
+    resetFollowUp();
+    expand();
     renderBar();
 
     // 登录回来接着解：`auth.js` 登录成功是 `location.reload()`，
@@ -432,19 +375,21 @@ export var BaziAI = (function () {
     return { select: select, reload: loadRecords };
   }
 
+  function resetFollowUp() {
+    var hist = document.getElementById('aiFollowHist');
+    if (hist) hist.innerHTML = '';
+    var input = document.getElementById('aiFollowInput');
+    if (input) { input.value = ''; input.disabled = false; }
+    var button = document.getElementById('aiFollowBtn');
+    if (button) { button.disabled = false; button.textContent = '发送'; }
+    var bar = document.getElementById('aiFollowBar');
+    if (bar) bar.classList.remove('show');
+  }
+
   // 登录弹窗里的按钮点了之后（注册/登录都可能中途关掉弹窗）先把意图记下来
   function beforeLogin() { rememberPending(); }
 
   return { mount: mount, select: select, beforeLogin: beforeLogin, ASPECTS: ASPECTS };
 })();
 
-// 阶段 4：模块 A 的 state 由模块 B 写入，ESM 的 import 绑定不可赋值，所以给写方一对 setter。
-
-// ── 阶段 4 桥：本模块生成的 HTML 里还有内联 `onclick="BaziAI.beforeLogin()"` ──
-// （登录引导那两颗按钮：先记下想解的方面，再开登录弹窗）。classic script 时代顶层对象
-// 自动挂 window；ESM 不挂，内联处理器会抛 `BaziAI is not defined` —— 表现为
-// 「点『登录』没反应，登录回来后也不会接着解」。
-// 死期：阶段 5 把这两颗按钮换成真实事件监听，与其它模块的桥一起删。
-if (typeof window !== 'undefined') {
-  window.BaziAI = BaziAI;
-}
+if (typeof window !== 'undefined') window.BaziAI = BaziAI;

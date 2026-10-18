@@ -53,36 +53,6 @@ function writeLs(key, val) {
   }
 }
 
-// ── AI 对话入口 ───────────────────────────────────────────────────
-// 老实现是把 `/ai-chat/` 整个页面塞进 iframe 全屏盖住（page-home.js:98）。
-// 本轮照旧用 iframe：`/ai-chat/` 自己已经是 React 页，改成组件嵌进来会动它的
-// 路由与登录态，属于计划文档 §4.5 里明确推迟的事。iframe 与父页之间靠
-// `window.dispatchEvent(new Event('closeChatOverlay'))` 通信（老实现 page-home.js:116）。
-function ChatOverlay({ open, onClose }) {
-  return (
-    <div
-      className={'chat-overlay' + (open ? ' open' : '')}
-      id="chatOverlay"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose()
-      }}
-    >
-      <div className="chat-overlay-inner">
-        {/* 只有打开时才给 src：老实现一开始就挂着 src，导致首页一进来就预加载
-            整个 AI 对话（含它的 React 包）。改成打开时再挂，首屏少一次
-            ~88KB(gzip) 的请求；关闭时保留 DOM（与老实现一致，避免重开重新加载）。 */}
-        <iframe
-          className="chat-overlay-iframe"
-          id="chatIframe"
-          src={open ? '/ai-chat/' : undefined}
-          title="AI 对话"
-          frameBorder="0"
-        />
-      </div>
-    </div>
-  )
-}
-
 function AnnouncementModal({ open, md, onClose }) {
   return (
     <div
@@ -345,7 +315,6 @@ function App() {
   const [marquee, setMarquee] = useState(
     '欢迎来到易三千 · AI 命理解读平台已正式上线，八字排盘、梅花易数、六爻起卦，DeepSeek 智能解卦，点击查看详情'
   )
-  const [chatOpen, setChatOpen] = useState(false)
   const [profileView, setProfileView] = useState('main')
   const [uptime, setUptime] = useState(() => formatUptime(Date.now(), LAUNCH_TS))
 
@@ -390,25 +359,17 @@ function App() {
 
   // 打开任一浮层时锁滚动（老实现 page-home.js:106 / :248 各写了一次）
   useEffect(() => {
-    document.body.style.overflow = annOpen || chatOpen ? 'hidden' : ''
+    document.body.style.overflow = annOpen ? 'hidden' : ''
     return () => {
       document.body.style.overflow = ''
     }
-  }, [annOpen, chatOpen])
+  }, [annOpen])
 
-  // iframe 内发来的关闭事件（老实现 page-home.js:116）
-  useEffect(() => {
-    var handler = () => setChatOpen(false)
-    window.addEventListener('closeChatOverlay', handler)
-    return () => window.removeEventListener('closeChatOverlay', handler)
-  }, [])
-
-  // ESC：公告优先，其次对话（老实现 page-home.js:119 的同一优先级）
+  // ESC 关闭公告。
   useEffect(() => {
     var handler = (e) => {
       if (e.key !== 'Escape') return
       if (annOpen) setAnnOpen(false)
-      else setChatOpen(false)
     }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
@@ -438,11 +399,6 @@ function App() {
     else openAuthModal('login')
   }, [])
 
-  const onChat = useCallback(() => {
-    if (!isLoggedIn()) return openAuthModal('login')
-    setChatOpen(true)
-  }, [])
-
   const onLogout = useCallback(() => {
     if (!window.confirm('确定退出登录吗？')) return
     document.cookie = 'sqw_token=; path=/; max-age=0'
@@ -461,13 +417,6 @@ function App() {
           <div className="home-rule"></div>
         </header>
 
-        <div className="ai-chat-entrance" onClick={onChat}>
-          <span className="ai-ent-icon">💬</span>
-          <span className="ai-ent-text">AI 对话</span>
-          <span className="ai-ent-arrow">›</span>
-        </div>
-
-        <ChatOverlay open={chatOpen} onClose={() => setChatOpen(false)} />
         <AnnouncementModal open={annOpen} md={annMd} onClose={() => setAnnOpen(false)} />
 
         {/* Tab 2「我的命盘」已迁到独立页 `/my-charts/`，老实现留的是一个空的

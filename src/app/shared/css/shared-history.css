@@ -1,84 +1,46 @@
-/* ⚠ 本页原自带 :root（--accent: var(--gold) 等），已移除 ——
-   令牌统一由 /css/tokens.css 提供，否则旧金值会覆盖新主题。 */
-*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
-html,body { background:var(--bg); color:var(--text); font-family:var(--sans); min-height:100vh; -webkit-font-smoothing:antialiased; }
-
-/* ===== 悬浮菜单 ===== */
-.float-menu { position:sticky; top:0; z-index:100; background:rgba(250,248,245,0.92); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border-bottom:1px solid var(--border); padding:0.7rem 1.2rem; margin-bottom:0.8rem; }
-.fm-top { display:flex; align-items:center; justify-content:space-between; }
-.fm-left { display:flex; align-items:center; gap:0.5rem; }
-.fm-back { color:var(--text-dim); text-decoration:none; font-size:0.85rem; transition:color 0.2s; flex-shrink:0; }
-.fm-back:hover { color:var(--text); }
-.fm-title { font-family:var(--serif); font-size:1rem; font-weight:600; letter-spacing:0.05em; color:var(--text); }
-.fm-right { display:flex; align-items:center; gap:0.4rem; }
-.fm-btn { padding:0.35rem 0.75rem; font-size:0.78rem; font-family:inherit; border:1px solid var(--border); border-radius:8px; background:var(--card-bg); color:var(--text-dim); cursor:pointer; transition:all 0.2s; }
-.fm-btn:hover { border-color:var(--border-active); color:var(--text); }
-.fm-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
-.fm-btn.manage-btn { border-color:var(--accent-dim); color:var(--accent); font-weight:500; }
-.fm-btn.manage-btn:hover:not(.active) { background:var(--gold-wash); border-color:var(--accent); }
-/* §5.3（用户 2026-10-17：「管理」按钮的文字被主题色覆盖）。
- *
- * 原来的顺序是 `.fm-btn.active { background:var(--accent); color:#fff }` 在前、
- * `.fm-btn.manage-btn { color:var(--accent) }` 在后 —— 两者**特异性相同**（都是
- * 0,2,0），后写的赢，于是进入管理模式后那颗按钮变成了「主题色文字 + 主题色底」，
- * 实测 color 与 background 都是 rgb(31,107,94)，「完成」两个字完全看不见
- * （鼠标悬停时因为上面那条 hover 又把底色换成浅洗色，才显得能读 —— 这是掩体，
- * 不是修好）。所以这里显式补回 active 态：
- *   · 底与边框用主色，文字纯白（白字其上 6.32:1，见 tokens.css 的对比度表）；
- *   · hover 加 `:not(.active)`，免得它把 active 的底色又盖回浅洗色。 */
-.fm-btn.manage-btn.active { background:var(--accent); border-color:var(--accent); color:#fff; }
-
-/* 搜索框 */
-.fm-search { margin-top:0.5rem; display:flex; align-items:center; gap:0.4rem; }
-.fm-search input { flex:1; padding:0.45rem 0.7rem; font-size:0.8rem; font-family:inherit; border:1px solid var(--border); border-radius:8px; background:var(--card-bg); color:var(--text); outline:none; transition:border-color 0.2s; }
-.fm-search input:focus { border-color:var(--border-active); }
-.fm-search input::placeholder { color:var(--text-muted); }
-.fm-search-clear { background:none; border:none; color:var(--text-muted); font-size:1rem; cursor:pointer; padding:0.3rem 0.5rem; display:none; }
-.fm-search-clear.visible { display:block; }
-
-/* 管理操作栏 */
-.fm-actions { margin-top:0.5rem; display:none; align-items:center; justify-content:space-between; }
-.fm-actions.show { display:flex; }
-.fm-actions .fm-select-all { font-size:0.75rem; color:var(--text-dim); cursor:pointer; }
-.fm-actions .fm-delete-selected { padding:0.35rem 0.75rem; font-size:0.75rem; font-family:inherit; border:1px solid #c94a4a; border-radius:8px; background:var(--card-bg); color:#c94a4a; cursor:pointer; transition:all 0.2s; }
-.fm-actions .fm-delete-selected:hover { background:rgba(201,74,74,0.08); }
-.fm-actions .fm-delete-selected:disabled { opacity:0.4; cursor:default; }
-
-/* 主内容区 */
-.mh-wrapper { max-width:420px; margin:0 auto; padding:0 1.2rem 4rem; }
-
-/* 记录卡片 */
-.record-list { display:flex; flex-direction:column; gap:0.6rem; }
-.record-card { background:var(--card-bg); border:1px solid var(--border); border-radius:var(--radius); padding:0.85rem 1rem; cursor:pointer; transition:all 0.2s; box-shadow:0 1px 3px rgba(0,0,0,0.03); display:flex; align-items:center; gap:0.6rem; position:relative; }
-.record-card:hover { border-color:var(--border-active); box-shadow:0 3px 12px rgba(0,0,0,0.06); transform:translateY(-1px); }
-.record-card .rc-emoji { font-size:1.4rem; flex-shrink:0; }
-.record-card .rc-info { flex:1; min-width:0; }
-.record-card .rc-topic { font-size:0.88rem; font-weight:500; color:var(--text); margin-bottom:0.15rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.record-card .rc-meta { font-size:0.7rem; color:var(--text-dim); display:flex; gap:0.6rem; }
-.record-card .rc-arrow { font-size:1rem; color:var(--text-muted); flex-shrink:0; transition:transform 0.2s; }
-.record-card:hover .rc-arrow { transform:translateX(2px); }
-
-/* 管理模式 */
-.manage-mode .record-card { cursor:pointer; }
-.manage-mode .record-card:hover { border-color:rgba(201,74,74,0.3); }
-.manage-mode .record-card.selected { border-color:#c94a4a; background:rgba(201,74,74,0.03); box-shadow:0 2px 8px rgba(201,74,74,0.1); }
-.manage-mode .record-card.selected .rc-arrow { color:#c94a4a; }
-.manage-mode .rc-checkbox { width:20px; height:20px; border:2px solid var(--border); border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:all 0.2s; }
-.manage-mode .rc-checkbox::after { content:'✓'; font-size:0.7rem; color:#fff; opacity:0; }
-.manage-mode .record-card.selected .rc-checkbox { border-color:#c94a4a; background:#c94a4a; }
-.manage-mode .record-card.selected .rc-checkbox::after { opacity:1; }
-
-/* 空状态 */
-.empty-state { text-align:center; padding:3rem 0; color:var(--text-dim); }
-.empty-state .empty-icon { font-size:2.5rem; margin-bottom:0.6rem; }
-.empty-state p { font-size:0.85rem; }
-
-/* 加载 */
-.load-state { text-align:center; padding:3rem 0; color:var(--text-dim); }
-.spinner { width:32px; height:32px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 0.5rem; }
-@keyframes spin { to{transform:rotate(360deg);} }
-
-@media (max-width:400px) {
-  .float-menu { padding:0.6rem 1rem; }
-  .mh-wrapper { padding:0 1rem 4rem; }
-}
+/* Shared records surface only: importing this in consultation must not restyle chat. */
+.records-page { max-width: 500px; min-height: 100vh; margin: 0 auto; padding: 1rem 1rem 4rem; color: var(--text); background: var(--bg); font-family: var(--sans); line-height: var(--lh-normal, 1.6); }
+.records-page, .records-page *, .records-page *::before, .records-page *::after { box-sizing: border-box; }
+.records-page button, .records-page input { font: inherit; }
+.records-page button, .records-page a, .records-page input { -webkit-tap-highlight-color: transparent; }
+.records-page a:focus-visible, .records-page button:focus-visible, .records-page input:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.records-page .float-menu { position: sticky; top: 0; z-index: 10; padding: .25rem 0 .75rem; margin-bottom: .5rem; background: var(--bg); }
+.records-page .fm-top, .records-page .fm-left { display: flex; align-items: center; gap: .65rem; }
+.records-page .fm-top { justify-content: space-between; }
+.records-page .fm-left { flex-wrap: wrap; }
+.records-page .fm-back { display: inline-flex; align-items: center; min-height: var(--tap-min, 44px); color: var(--text-dim); font-size: .8rem; text-decoration: none; }
+.records-page .fm-title { margin: 0; font-family: var(--serif); font-size: 1.15rem; font-weight: 600; letter-spacing: .06em; }
+.records-page .fm-btn, .records-page .fm-delete-selected, .records-page .guest-btn { min-height: var(--tap-min, 44px); padding: .4rem .75rem; border: 1px solid var(--border); border-radius: var(--r-sm, 8px); background: var(--bg-card); color: var(--accent); font-size: .78rem; cursor: pointer; }
+.records-page .fm-btn:hover { border-color: var(--accent); background: var(--gold-wash); }
+.records-page .fm-btn.manage-btn.active, .records-page .guest-btn.primary { color: #fff; border-color: var(--accent); background: var(--accent); }
+.records-page button:disabled { opacity: .5; cursor: default; }
+.records-page .fm-search { display: flex; gap: .3rem; align-items: center; margin-top: .5rem; }
+.records-page .fm-search input { min-width: 0; flex: 1; min-height: var(--tap-min, 44px); padding: .5rem .7rem; border: 1px solid var(--border); border-radius: var(--r-sm, 8px); background: var(--bg-card); color: var(--text); font-size: .8rem; }
+.records-page .fm-search input::placeholder { color: var(--text-muted); }
+.records-page .fm-search-clear { min-width: 44px; min-height: 44px; border: 0; background: transparent; color: var(--text-dim); cursor: pointer; }
+.records-page .fm-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; margin-top: .5rem; color: var(--text-dim); font-size: .75rem; }
+.records-page .fm-select-all { display: inline-flex; align-items: center; gap: .4rem; min-height: 44px; cursor: pointer; }
+.records-page input[type=checkbox] { width: 20px; height: 20px; margin: 0; accent-color: var(--accent); flex-shrink: 0; }
+.records-page .fm-delete-selected { color: #ad3838; border-color: #ad3838; }
+.records-page .mh-wrapper { min-width: 0; }
+.records-page .record-list { display: flex; flex-direction: column; gap: .5rem; }
+.records-page .record-card { display: flex; align-items: center; gap: .55rem; min-height: 68px; padding: .7rem .75rem; border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--r-md, 12px); background: var(--bg-card); color: inherit; text-decoration: none; cursor: pointer; }
+.records-page .record-card:hover { border-color: var(--accent); }
+.records-page .record-card.selected { border-color: var(--accent); background: var(--gold-wash); }
+.records-page .rc-emoji { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 2.2rem; height: 2.2rem; border-radius: 50%; background: var(--gold-wash); font-size: 1.25rem; }
+.records-page .rc-info { display: block; min-width: 0; flex: 1; }
+.records-page .rc-topic { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .92rem; font-weight: 500; }
+.records-page .rc-meta { display: block; margin-top: .2rem; color: var(--text-dim); font-size: .72rem; overflow-wrap: anywhere; }
+.records-page .rc-arrow { flex-shrink: 0; color: var(--text-muted); font-size: 1.2rem; }
+.records-page .empty-state, .records-page .load-state { padding: 2rem .75rem; text-align: center; color: var(--text-dim); font-size: .85rem; }
+.records-page .empty-state p { margin: .4rem 0; }
+.records-page .empty-icon { font-size: 2rem; margin-bottom: .5rem; }
+.records-page .empty-state a { display: inline-flex; align-items: center; min-height: 44px; color: var(--accent); font-size: .8rem; text-underline-offset: .2em; }
+.records-page .state-description { font-size: .78rem; color: var(--text-muted); }
+.records-page .guest-btn, .records-page .retry-btn { margin-top: .75rem; }
+.records-page .records-error { padding: .75rem; color: #ad3838; background: var(--warm-wash); border: 1px solid currentColor; border-radius: var(--r-sm, 8px); font-size: .8rem; }
+.records-page .load-more { display: block; margin: 1rem auto; }
+.records-page .spinner { width: 28px; height: 28px; margin: 0 auto .6rem; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: records-spin .8s linear infinite; }
+@keyframes records-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .records-page .spinner { animation: none; } }
+@media (max-width: 360px) { .records-page .rc-emoji { display: none; } }

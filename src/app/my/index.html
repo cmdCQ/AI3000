@@ -12,30 +12,6 @@
 </head>
 <body>
 <div id="root"></div>
-
-<!-- ★ 老 `/my/index.html` 一条 script 都没有，只有一条指向 `/js/page-my.js` 的引用（已删）。
-     ⚠ 这段注释里**故意不写出那个 script 标签的完整字样**：写成那样的话，
-        `grep 'src="/js/' src/app/*/index.html` 会把注释也算进去，
-        于是「这页还引老脚本吗」永远假阳性。`drive_my_page.js:497` 就踩过这个坑。
-     本次搬进 `src/app/my/` 之后，这里只剩**一条**传统 script，下面写了它为什么在。
-
-     · auth.js  —— 提供 `window.openAuthModal`（定义在 `src/web/js/auth.js:183`，
-                   挂到 window 在 `:206`）与 `window.AUTH`。
-                   老页**没引它**，而 `page-my.js` 的游客态卡片里有两颗行内按钮
-                       onclick="openAuthModal('login')"  /  ('register')
-                   → 点下去没有任何反应，控制台只有 `openAuthModal is not defined`。
-                   这是搬迁时发现的老缺陷，不是行为变更：那两颗按钮本来就该弹登录框。
-                   `duipan/drive_my_page.js` 的 ② 有专门两条判据焊住它（点完要出现
-                   弹窗节点、且 `#authModal` 不再 hidden）。
-
-     ⚠ 本页**不需要** lunar / hexagrams_data / ai_panel 那一套：`/my/` 既不起卦也不
-       渲染盘面也不调 AI，`page-my.js` 里唯一的外部依赖就是 cookie 解析
-       （现在走 `../lib/auth.js`）。别顺手把它们引上 —— 那是纯白付的 300KB。
-
-     ★ 执行顺序：`vite build` 会把 `<script type="module">` 搬进 `<head>`，文档顺序上
-       排在 auth.js 之前；但 module 自带 defer，要等 HTML 解析完（auth.js 已跑完）
-       才执行。所以真实顺序是 auth.js → main.jsx。main.jsx 用 `flushSync` 同步提交
-       骨架，紧接着裸调 `loadMain()` —— 那时 `#myContent` 一定已在 DOM 里。 -->
 <script type="module" src="./main.jsx"></script>
 </body>
 </html>

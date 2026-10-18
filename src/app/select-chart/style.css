@@ -1,26 +1,45 @@
-/* 选盘页的样式壳。
- *
- * 一行 CSS 都没重写：`@import` 就是老 `src/web/select-chart/index.html`
- * 第 7/10/11 行那三条 `<link>` 的等价物，**顺序就是外观**：
- *
- *   auth.css              `.auth-wrapper` / `.auth-card` / `.auth-link` / `.auth-back`
- *                         / `.sub`（整页骨架，跟登录注册页共用）
- *   page-select-chart.css `.module-label` / `.empty-state` / `.es-icon` / `.es-title`
- *                         / `.es-desc` / `.add-btn` / `.chart-list` / `.mc-card`
- *                         / `.card-zodiac` / `.card-body` / `.card-name` / `.card-info`
- *                         / `.card-arrow`
- *   tokens.css            CSS 变量（`--gold` / `--gold-rgb` …）
- *
- * ★ 老页把 tokens.css 放在最后一条，这里照抄——变量在 CSS 里是最后写入者生效，
- *   顺序调换会让 `.add-btn` 的 `var(--gold)` 取到不同的值。
- *
- * ★ `.add-btn`（page-select-chart.css:52）写全了 `font-family:inherit` /
- *   `border:none` / `background` / `width:100%` / `text-align:center`，
- *   所以游客态的「登录」用 `<button>` 而不是老页的 `<a href="javascript:void(0)">`
- *   也能长得一模一样——视觉基线把这条断言掉了。
- */
-@import '../shared/css/auth.css';
-@import '../shared/css/page-select-chart.css';
+/* 与我的命盘保持 500px 紧凑列表尺度；不影响其他页面。 */
 @import '../shared/css/tokens.css';
 
-#root { display: block; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans); line-height: var(--lh-normal); }
+.select-page { max-width: 500px; margin: 0 auto; padding: 1rem 1rem 4rem; }
+.compatibility-notice { padding: .75rem; background: var(--warm-wash); border: 1px solid var(--border-gold); border-radius: var(--r-sm); color: var(--text-dim); font-size: .78rem; overflow-wrap: anywhere; }
+.select-header { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .6rem; margin-bottom: 1.2rem; }
+.select-back { color: var(--text-muted); text-decoration: none; font-size: .85rem; flex-shrink: 0; }
+.select-back:hover { color: var(--text-dim); }
+.select-title { margin: 0; font-family: var(--serif); font-size: 1.25rem; font-weight: 600; letter-spacing: .06em; flex-shrink: 0; }
+.select-content { min-width: 0; }
+.select-toolbar { display: flex; align-items: center; justify-content: flex-end; gap: .5rem; margin-bottom: .5rem; }
+.add-btn, .secondary-btn { display: inline-flex; justify-content: center; align-items: center; min-height: var(--tap-min); padding: .4rem .75rem; border-radius: var(--r-sm); font: inherit; font-size: .78rem; text-decoration: none; cursor: pointer; text-align: center; }
+.add-btn { background: var(--gold); color: var(--text-on-gold); border: 1px solid var(--gold); }
+.secondary-btn { background: var(--bg-card); color: var(--gold); border: 1px solid var(--border); }
+.add-btn:hover { background: var(--gold-ink); }
+.secondary-btn:hover { border-color: var(--gold); background: var(--gold-wash); }
+.select-page a:focus-visible, .select-page button:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+.empty-state { padding: 2rem .75rem; text-align: center; }
+.es-icon { font-size: 2rem; margin-bottom: .5rem; }
+.es-title { margin: 0; font-family: var(--serif); font-size: 1rem; font-weight: 500; }
+.es-desc { margin: .5rem 0 1rem; color: var(--text-dim); font-size: .78rem; }
+.state-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: .5rem; }
+.loading-msg { padding: 3rem 1rem; text-align: center; color: var(--text-muted); font-size: .82rem; }
+.chart-list { display: flex; flex-direction: column; gap: .5rem; }
+.mc-card { display: flex; align-items: center; gap: .5rem; padding: .7rem .75rem; border: 1px solid var(--border); border-left: 3px solid var(--gold); border-radius: var(--r-md); background: var(--bg-card); color: inherit; }
+.card-detail-link { display: flex; align-items: center; flex: 1; min-width: 0; color: inherit; text-decoration: none; min-height: var(--tap-min); }
+.card-detail-link:hover .card-name { color: var(--gold); }
+.card-consult-link { flex-shrink: 0; padding: .3rem .6rem; font-size: .75rem; }
+.consultation-records { margin-top: .75rem; }
+.consultation-record-card { display: flex; align-items: center; gap: .65rem; min-height: 72px; padding: .75rem; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-card); color: var(--text); text-decoration: none; }
+.consultation-record-card:hover { border-color: var(--gold); background: var(--gold-wash); }
+.records-entry-icon { display: grid; place-items: center; width: 2.2rem; height: 2.2rem; border-radius: 50%; color: var(--gold); background: var(--gold-wash); }
+.records-entry-copy { flex: 1; min-width: 0; }
+.records-entry-copy strong { display: block; font-size: .88rem; font-weight: 500; }
+.records-entry-copy small { display: block; margin-top: .2rem; color: var(--text-dim); font-size: .72rem; }
+.card-zodiac { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 2.2rem; height: 2.2rem; margin-right: .55rem; border-radius: 50%; background: linear-gradient(135deg, var(--gold-wash), transparent); font-size: 1.25rem; }
+.card-body { flex: 1; min-width: 0; }
+.card-name { font-size: .92rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-bazi { color: var(--text-muted); font-size: .65rem; font-weight: 400; }
+.card-info { display: flex; gap: .2rem .4rem; margin-top: .2rem; color: var(--text-dim); font-size: .72rem; flex-wrap: wrap; }
+.card-created { font-size: .65rem; color: var(--text-muted); }
+.card-arrow { flex-shrink: 0; padding: 0 .3rem; color: var(--text-muted); font-size: 1.2rem; }
+@media (max-width: 360px) { .card-zodiac { display: none; } .mc-card { gap: .25rem; } }

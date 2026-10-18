@@ -109,11 +109,11 @@ const SHELL_HTML = `<div class="adm-root">
             <div class="adm-stat"><span class="adm-stat-num" id="statActive">—</span><span class="adm-stat-label">7 天活跃</span></div>
             <div class="adm-stat"><span class="adm-stat-num" id="statCharts">—</span><span class="adm-stat-label">命盘总数</span></div>
             <div class="adm-stat"><span class="adm-stat-num" id="statDivination">—</span><span class="adm-stat-label">排卦总数</span></div>
-            <div class="adm-stat"><span class="adm-stat-num" id="statTokens">—</span><span class="adm-stat-label">总 Token 用量</span></div>
+            <div class="adm-stat"><span class="adm-stat-num" id="statTokens">—</span><span class="adm-stat-label">累计积分消耗</span></div>
           </div>
           <div class="adm-stat" style="margin-top:16px">
             <span class="adm-stat-num" id="statTokens7d">—</span>
-            <span class="adm-stat-label">近七天 Token 用量</span>
+            <span class="adm-stat-label">近七天积分消耗</span>
           </div>
           <div class="adm-stats" style="margin-top:16px">
             <div class="adm-stat">
@@ -145,7 +145,7 @@ const SHELL_HTML = `<div class="adm-root">
                   <th>注册时间</th>
                   <th>命盘数</th>
                   <th>AI 解析</th>
-                  <th>Token 消耗</th>
+                  <th>积分消耗</th>
                   <th>等级</th>
                   <th>最后活跃</th>
                   <th class="adm-th-right">操作</th>
@@ -445,12 +445,12 @@ const SHELL_HTML = `<div class="adm-root">
     </div>
   </div>
 
-  <!-- Token 编辑弹窗 -->
+  <!-- 今日积分编辑弹窗 -->
   <div class="adm-modal" id="modalToken" style="display:none">
-    <h3>编辑 Token 用量</h3>
+    <h3>编辑今日已用积分</h3>
     <div class="adm-field">
       <label id="tokenUserLabel">用户</label>
-      <input type="number" id="tokenInput" min="0" step="100" placeholder="输入新用量数值" required>
+      <input type="number" id="tokenInput" min="0" step="0.0001" placeholder="今日已用积分，最多4位小数" required>
     </div>
     <p class="adm-err" id="tokenErr"></p>
     <p class="adm-ok" id="tokenOk" style="display:none"></p>

@@ -1,25 +1,7 @@
 import '../shared/authModalStyles.js';
-import { BaziAI } from '../shared/baziAiPanel.js';
 import { BaziRender } from '../shared/baziRender.js';
-// 「我的命盘」页 —— 阶段 3 第 1 页。逐字搬运自
-// `src/web/js/page-my-charts.js`（快照见 `duipan/legacy_ref/page-my-charts.js`）。
-// ==========================================================================
-//
-// ─────────────────────────────────────────────────────────────
-// 架构：外壳是 React，内容区是**命令式**的（与 ai-chat 同一形态）
-// ─────────────────────────────────────────────────────────────
-// React 只负责静态外壳（`.mc-page > #mc-content` 与底部导航）；列表 / 详情 / 空态
-// 仍然是老代码那套 `document.getElementById('mc-content').innerHTML = h`。
-//
-// 为什么内容区不改成 React 列表渲染：这一页的 HTML 里有**内联 onclick**
-// （`toggleMenu` / `doDelete` / `location.href`），而 `BaziRender.render()` 与
-// `BaziAI.mount()` 是两个还没搬的 classic script，它们**自己往容器里写 DOM**。
-// 让 React 也去管那几块，就是两个写入者抢同一片 DOM —— 那是回归，不是重构。
-// 判定标准很简单：**等 bazi_render.js / bazi_ai_panel.js 搬完，再一起改成声明式。**
-//
-// 渲染字符串本身全在 `src/app/lib/myChartsView.js`（纯函数、与老实现逐字节对拍），
-// 本文件只做「取数 → 决定走哪条路 → 写进去」。
-// ─────────────────────────────────────────────────────────────
+// React owns the shell; the existing view helpers and shared Bazi adapters own
+// the content area. Keep chart calculations on the server.
 
 import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
@@ -109,13 +91,10 @@ function renderDetail(chart) {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(birthReq),
   }).then(function (r) {
-    return r.json().then(function (j) { return { ok: r.ok, j: j }; });
+    return r.json().catch(function () { return {}; }).then(function (j) {
+      return { ok: r.ok, status: r.status, j: j };
+    });
   }).then(function (r) {
-    // ⚠ 这里 **`r.status` 是 undefined** —— 老实现就是这个毛病，照搬没修：
-    //   上一个 then 只回传了 `{ok, j}`，没带 status，所以真出错时用户看到的是
-    //   「排盘失败（undefined）」。**要不要修是产品决定，不是搬运能顺手带的**；
-    //   差分里的退路用例是直接构造 `new Error('排盘失败（500）')` 喂进去比的，
-    //   所以它盖不住这段。父会话已把这个缺陷记进回报，等拍板。
     if (!r.ok) throw new Error((r.j && r.j.error) || ('排盘失败（' + r.status + '）'));
     var resp = r.j;
     // 阳年/阴年、乾造/坤造：从**服务端的年干**取，不从 birthYear 推
@@ -127,16 +106,15 @@ function renderDetail(chart) {
       meta.zao = (chart.gender === 'male') ? '乾造' : '坤造';
     }
     var zx = resp.display && resp.display.shengxiao;
-    if (zx) {
-      var zi = ZODIAC_NAMES.indexOf(zx);
-      if (zi >= 0) document.getElementById('baziZodiac').textContent = ZODIAC_EMOJI[zi];
+    var zodiac = document.getElementById('baziZodiac');
+    var zi = ZODIAC_NAMES.indexOf(zx);
+    if (zodiac) {
+      zodiac.textContent = zi >= 0 ? ZODIAC_EMOJI[zi] : '—';
+      zodiac.setAttribute('aria-label', zi >= 0 ? '属' + zx : '生肖暂无数据');
     }
-    // bazi_render.js / bazi_ai_panel.js 已搬进 `src/app/shared/`（阶段 4），直接调模块导出。
+    // 查看排盘只展示盘面事实；咨询从命盘列表独立进入。
     BaziRender.render(document.getElementById('baziChart'), resp, meta,
-      document.getElementById('baziRest'));
-    if (!isAdminView) {
-      BaziAI.mount(document.getElementById('baziAi'), { chartId: chart.id, birth: birthReq });
-    }
+      document.getElementById('baziRest'), { mode: 'neutral' });
   }).catch(function (e) {
     renderDetailFallback(chart, meta, e);
   });

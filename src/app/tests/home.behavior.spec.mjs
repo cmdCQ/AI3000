@@ -1,4 +1,7 @@
 import { test, expect } from '@playwright/test'
+import { readFileSync } from 'node:fs'
+
+const announcementMarkdown = readFileSync(new URL('../../server/paipan/announcement.md', import.meta.url), 'utf8')
 
 // 首页的行为判据（视觉基线在 `home.spec.mjs`）。
 //
@@ -98,12 +101,10 @@ test.describe('未登录', () => {
     expect(new URL(page.url()).pathname).toBe('/')
   })
 
-  test('AI 对话未登录 → 弹登录框，且对话弹窗不打开', async ({ page }) => {
+  test('首页不再提供通用AI入口或iframe', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' })
     await dismissAnnouncement(page)
-    await page.locator('.ai-chat-entrance').click()
-    await expect(page.locator(AUTH_OVERLAY)).toBeVisible()
-    await expect(page.locator('#chatOverlay')).not.toHaveClass(/\bopen\b/)
+    await expect(page.locator('.ai-chat-entrance, #chatOverlay, #chatIframe')).toHaveCount(0)
   })
 
   test('底部导航「我的命盘」是整页跳转 /my-charts/', async ({ page }) => {
@@ -155,31 +156,28 @@ test.describe('已登录', () => {
     expect(new URL(page.url()).pathname).toBe('/suggestion/')
   })
 
-  test('AI 对话 → 弹窗打开、iframe 指向 /ai-chat/、点遮罩能关', async ({ page }) => {
+  test('登录后仍从术数模块进入，不显示通用聊天浮层', async ({ page }) => {
     await withLogin(page)
-    await page.locator('.ai-chat-entrance').click()
-    await expect(page.locator('#chatOverlay')).toHaveClass(/\bopen\b/)
-    await expect(page.locator('#chatIframe')).toHaveAttribute('src', /\/ai-chat\//)
-    // 打开时锁住了页面滚动（老实现 page-home.js:106）
-    await expect(page.locator('body')).toHaveCSS('overflow', 'hidden')
-
-    // 点遮罩背景关闭（点内部不关）—— 老实现 page-home.js:131
-    //
-    // ★ 必须先拉宽视口。500px（本套件默认）下 `.chat-overlay-inner` 是
-    // `position:fixed; inset:0`，把遮罩全盖住了，elementFromPoint 在 (3,3)
-    // 拿到的是 `chatIframe` —— 那不是遮罩，点它当然不关。实测线上老页同样
-    // 不关（老页与 probe 新页在 500px 行为一致），所以这是**判据写错了**，
-    // 不是搬迁改坏了。900px 下遮罩两侧留出真实背景区，(6,400) 命中
-    // `#chatOverlay` 本身，线上老页与 probe 新页都会关。
-    await page.setViewportSize({ width: 900, height: 800 })
-    await page.locator('#chatOverlay').click({ position: { x: 6, y: 400 } })
-    await expect(page.locator('#chatOverlay')).not.toHaveClass(/\bopen\b/)
-    // 只断言「不再 hidden」：老实现把 inline 值清成空串，计算值随浏览器默认解析
-    await expect(page.locator('body')).not.toHaveCSS('overflow', 'hidden')
+    await expect(page.locator('.ai-chat-entrance, #chatOverlay')).toHaveCount(0)
+    await expect(card(page, '四柱八字')).toBeVisible()
   })
 })
 
 test.describe('公告', () => {
+  test('本地新版 Markdown 正常渲染功能与积分规则，不再展示旧预告', async ({ page }) => {
+    await page.route('**/api/announcement', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ content: announcementMarkdown }) }))
+    await page.goto('/')
+    await dismissAnnouncement(page)
+    await page.locator('#announcementBar').click()
+    const body = page.locator('#announcementModalBody')
+    await expect(body.getByRole('heading', { name: '现在可以做什么' })).toBeVisible()
+    await expect(body).not.toContainText('10000')
+    await expect(body).not.toContainText('token')
+    await expect(body).toContainText('每日 10 积分')
+    await expect(body).toContainText('每日 50 积分')
+    await expect(body).not.toContainText('即将上线')
+    await expect(body.locator('a[href*="weiyun"]')).toHaveCount(0)
+  })
   test('点公告栏打开弹窗，ESC 关闭', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' })
     await dismissAnnouncement(page)

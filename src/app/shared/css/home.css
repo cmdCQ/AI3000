@@ -7,7 +7,7 @@
    ⚠ 同时订正一处：品牌色改造时把上面那些强调色从 --accent 换成了 --warm-line（金色），
      于是首页成了全站唯一还是金色的页面，用户报「主页主题色没变」。
      现已把 6 处**结构性亮金线**换回 --accent（玉青）：.home-rule / .module-card /
-     .nav-item.active::after / .card / .ai-chat-entrance / .markdown-body blockquote。
+     .nav-item.active::after / .card / .markdown-body blockquote。
      暗金**文字**强调（--warm / --warm-ink：小标题、markdown strong、链接）保持不变。
    ═══════════════════════════════════════════ */
 
@@ -349,57 +349,6 @@ html, body {
 
 @media (max-width: 380px) {
   .home-title { font-size: 1.25rem; }
-}
-
-/* ===== AI 对话入口 ===== */
-.ai-chat-entrance {
-  display:flex; align-items:center; gap:0.5rem;
-  margin:0.4rem 0 0; padding:0.65rem 1rem;
-  background:var(--bg-card);
-  border:1px solid var(--border);
-  border-left:3px solid var(--accent);
-  border-radius:var(--radius-md);
-  box-shadow:var(--shadow-card);
-  cursor:pointer;
-  transition:all 0.25s var(--ease);
-}
-.ai-chat-entrance:hover {
-  border-color:var(--border-active);
-  box-shadow:0 2px 8px rgba(0,0,0,0.06);
-}
-.ai-chat-entrance:active { transform:scale(0.98); }
-.ai-chat-entrance .ai-ent-icon { font-size:1.1rem; flex-shrink:0; }
-.ai-chat-entrance .ai-ent-text { flex:1; font-size:0.88rem; font-weight:500; letter-spacing:0.03em; color:var(--text); }
-.ai-chat-entrance .ai-ent-arrow { font-size:1.2rem; color:var(--text-muted); transition:transform 0.2s; }
-.ai-chat-entrance:hover .ai-ent-arrow { transform:translateX(2px); }
-
-/* ===== 全屏 AI 对话弹窗 ===== */
-.chat-overlay {
-  position:fixed; top:0; left:0; right:0; bottom:0;
-  z-index:999;
-  display:none;
-  background:rgba(0,0,0,0.2);
-  animation:chatOverlayFadeIn 0.2s ease;
-}
-.chat-overlay.open { display:block; }
-@keyframes chatOverlayFadeIn { from{opacity:0} to{opacity:1} }
-
-.chat-overlay-inner {
-  position:fixed; top:0; left:0; right:0; bottom:0;
-  max-width:500px; margin:0 auto;
-  background:var(--bg-card);
-  display:flex; flex-direction:column;
-  animation:chatSlideIn 0.25s var(--ease);
-}
-@keyframes chatSlideIn {
-  from { transform:translateX(100%); opacity:0.5; }
-  to { transform:translateX(0); opacity:1; }
-}
-
-.chat-overlay-iframe {
-  width:100%; height:100%;
-  border:none;
-  background:var(--bg);
 }
 
 /* ===== 流动公告栏 ===== */

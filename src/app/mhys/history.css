@@ -1,24 +1,5 @@
-/* 梅花易数排盘记录页的样式壳。
- *
- * 样式一行都没重写：`@import` 就是老 `src/web/mhys/history.html` 第 12-13 行那两条
- * `<link>` 的等价物。**顺序就是外观**：
- *
- *   shared-history.css  记录页整套（`.float-menu` / `.fm-*` / `.record-card` /
- *                       `.rc-*` / `.empty-state` / `.guest-btn`）。★ 文件名带 shared-*
- *                       是因为六爻记录页与这一页**用的是同一份**——两份老 HTML 的
- *                       `<link>` 逐字相同，所以这里与 `src/app/liuyao/history.css`
- *                       的 `@import` 两行也逐字相同。
- *   tokens.css          CSS 变量（`--accent` / `--text-dim` / `--text-muted` /
- *                       `--gold-rgb` …）。老页也把它放在最后一条，这里照抄。
- *
- * 之所以走 `@import` 而不是在 HTML 里留 `<link>`：`src/app` 的页面由 Vite 打包，
- * CSS link 写在 HTML 里就绕过了打包。
- *
- * `#root` 自己补一条 `display:block`：Vite 的 React 模板给 `#root` 的样式不在这两份
- * 老 CSS 里，而 `.float-menu` 是 `position:fixed`、`.mh-wrapper` 要有个撑得开的父级
- * 才量得到高度。
- */
-@import '../shared/css/shared-history.css';
 @import '../shared/css/tokens.css';
 
+/* Document defaults belong to the standalone entry, not the reusable records UI. */
+body { margin: 0; background: var(--bg); }
 #root { display: block; }

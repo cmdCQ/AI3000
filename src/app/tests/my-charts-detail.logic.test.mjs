@@ -11,7 +11,7 @@
 // 而那两段与「页尾有没有按钮」毫无关系 —— 用纯函数直接断言更快、更不会抖。
 // 浏览器侧只留一条：三点菜单里没有 🗑（在 `my-charts.spec.mjs`）。
 import { describe, expect, it } from 'vitest'
-import { renderDetailHTML } from '../lib/myChartsView.js'
+import { renderDetailHTML, renderDetailFallbackHTML, detailMetaOf } from '../lib/myChartsView.js'
 
 const chart = {
   id: 'c1',
@@ -21,6 +21,24 @@ const chart = {
   longitude: 116.4,
   trueSolarTime: true,
 }
+
+describe('详情失败与原始参数契约', () => {
+  it('真太阳时仅显示，不隐式改变原始出生参数', () => {
+    expect(detailMetaOf(chart).birthReq).toEqual({
+      y: 1990, mo: 5, d: 17, h: 14, mi: 30, gender: 'male',
+    })
+  })
+
+  it('错误信息转义并提供原生键盘可用的重试按钮', () => {
+    const html = renderDetailFallbackHTML(chart, detailMetaOf(chart).meta, new Error('<script>bad</script>'))
+    const host = document.createElement('div')
+    host.innerHTML = html
+    expect(host.querySelector('script')).toBeNull()
+    expect(host.textContent).toContain('<script>bad</script>')
+    expect(host.querySelector('button[type="button"]').textContent).toBe('重试排盘')
+    expect(host.textContent).toContain('旧快照')
+  })
+})
 
 describe('renderDetailHTML 的页尾', () => {
   it('普通用户：页尾不再有「编辑此命盘 / 删除此命盘」', () => {

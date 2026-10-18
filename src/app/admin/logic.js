@@ -190,8 +190,8 @@ export function renderDash() {
   setText('statActive', t.active7d);
   setText('statCharts', t.charts);
   setText('statDivination', t.divinations);
-  setText('statTokens', fmtToken(d.totalTokens));
-  setText('statTokens7d', fmtToken(d.tokens7d));
+  setText('statTokens', fmtPoints(d.totalPoints));
+  setText('statTokens7d', fmtPoints(d.points7d));
 
   // 服务器状态
   var srv = _dashData.server;
@@ -217,7 +217,7 @@ export function setText(id, val) {
 
 // ========================= 用户 =========================
 
-var tierNames = { 0:'普通', 1:'普通会员', 2:'SVIP' };
+var tierNames = { 0:'普通用户 · 每日10积分', 1:'普通会员 · 每日50积分', 2:'SVIP · 无限' };
 var allUsers = [];
 var allTiers = {};
 
@@ -238,10 +238,22 @@ export function renderUsers(users) {
     return;
   }
   tbody.innerHTML = users.map(function(u) {
-    var phone = u.phone || u.username || '—';
-    var tierInfo = allTiers[phone] || {};
-    var currentTier = tierInfo.tier !== undefined ? tierInfo.tier : 0;
-    var tokenUsed = u.tokenUsed || 0;
+    var phone = u.phone || u.username || u.id || '—';
+    var actionUsername = u.username || u.phone || u.id || phone;
+    var tierKey = actionUsername;
+    var tierInfo = allTiers[tierKey] || {};
+    var currentTier = tierInfo.tier !== undefined ? tierInfo.tier : u.tier;
+    var pointsUsed = tierInfo.pointsUsed !== undefined ? tierInfo.pointsUsed : u.pointsUsed;
+    var totalPointsUsed = u.totalPointsUsed;
+    var pointsLimit = tierInfo.pointsLimit !== undefined ? tierInfo.pointsLimit : u.pointsLimit;
+    var pointsRemaining = tierInfo.pointsRemaining !== undefined ? tierInfo.pointsRemaining : u.pointsRemaining;
+    var hasPoints = Number.isFinite(pointsUsed) && Number.isFinite(totalPointsUsed) &&
+      (pointsLimit === null || Number.isFinite(pointsLimit)) &&
+      (pointsRemaining === null || Number.isFinite(pointsRemaining));
+    var tierLabel = currentTier === undefined ? '—' : renderTierSelect(actionUsername, currentTier);
+    var pointsHtml = hasPoints
+      ? '累计 ' + fmtPoints(totalPointsUsed) + '<br>今日 ' + fmtPoints(pointsUsed) + ' / ' + (pointsLimit === null ? '无限' : fmtPoints(pointsLimit)) + '<br><span class="dim">余额 ' + (pointsRemaining === null ? '无限' : fmtPoints(pointsRemaining)) + '</span>'
+      : '<span class="dim">积分数据不可用</span>';
     // Determine user source display
     var sourceHtml = u.userType === 'wechat'
       ? '<span style="color:#4caf50">🟢 微信小程序</span>'
@@ -253,11 +265,11 @@ export function renderUsers(users) {
       '<td class="dim">' + fmtDate(u.createdAt) + '</td>' +
       '<td>' + (u.chartCount || 0) + '</td>' +
       '<td>' + (u.aiCount || 0) + '</td>' +
-      '<td class="mono">' + fmtToken(tokenUsed) + '</td>' +
-      '<td>' + renderTierSelect(phone, currentTier) + '</td>' +
+      '<td class="mono">' + pointsHtml + '</td>' +
+      '<td>' + tierLabel + '</td>' +
       '<td class="dim">' + fmtRel(u.lastActive) + '</td>' +
       '<td class="adm-td-right">' +
-        '<button class="adm-btn-sm" onclick="editToken(\'' + escAttr(phone) + '\', ' + tokenUsed + ')" style="margin-right:0.3rem">Token</button>' +
+        '<button class="adm-btn-sm" onclick="editToken(\'' + escAttr(actionUsername) + '\', ' + (Number.isFinite(pointsUsed) ? pointsUsed : 'null') + ')" style="margin-right:0.3rem">今日积分</button>' +
         '<button class="adm-del-btn" onclick="confirmDeleteUser(\'' + escAttr(phone) + '\')">删除</button></td>' +
       '</tr>';
   }).join('');
@@ -306,9 +318,11 @@ export async function setUserTier(username, sel) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, tier }),
     });
-    if (!res.ok) { alert('设置失败'); return; }
+    if (!res.ok) { alert('设置失败'); await loadUsers(); return; }
+    await loadUsers();
   } catch(e) {
     alert('设置失败');
+    await loadUsers();
   } finally {
     sel.disabled = false;
   }
@@ -599,14 +613,14 @@ export function closeConfirm() {
   _deleteTarget = null;
 }
 
-// ========================= Token 编辑 =========================
+// ========================= 今日积分编辑 =========================
 
 var _tokenEditUsername = '';
 
 export function editToken(username, currentUsed) {
   _tokenEditUsername = username;
   document.getElementById('tokenUserLabel').textContent = '用户：' + username;
-  document.getElementById('tokenInput').value = currentUsed;
+  document.getElementById('tokenInput').value = Number.isFinite(currentUsed) ? currentUsed : '';
   document.getElementById('tokenErr').textContent = '';
   document.getElementById('tokenOk').style.display = 'none';
   document.getElementById('admOverlay').style.display = 'block';
@@ -626,17 +640,18 @@ export async function saveToken() {
   err.textContent = '';
   ok.style.display = 'none';
 
-  var val = parseInt(document.getElementById('tokenInput').value);
-  if (isNaN(val) || val < 0) {
-    err.textContent = '请输入有效的非负整数';
+  var raw = document.getElementById('tokenInput').value.trim();
+  var val = Number(raw);
+  if (!/^\d+(?:\.\d{1,4})?$/.test(raw) || !Number.isFinite(val) || val < 0) {
+    err.textContent = '请输入非负积分，最多4位小数';
     return;
   }
 
   try {
-    var res = await adminFetch('/user-tokens', {
+    var res = await adminFetch('/user-points', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: _tokenEditUsername, tokenUsed: val }),
+      body: JSON.stringify({ username: _tokenEditUsername, pointsUsed: val }),
     });
     if (!res.ok) {
       var data = await res.json();
@@ -713,12 +728,9 @@ export function fmtDate(ts) {
     ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
 }
 
-export function fmtToken(n) {
-  var num = (typeof n === 'string') ? parseInt(n, 10) : n;
-  if (!num && num !== 0) return '0';
-  if (num < 1000) return String(num);
-  if (num < 1000000) return (num / 1000).toFixed(1) + 'K';
-  return (num / 1000000).toFixed(1) + 'M';
+export function fmtPoints(n) {
+  if (typeof n !== 'number' || !Number.isFinite(n) || n < 0) return '—';
+  return n.toLocaleString('zh-CN', { maximumFractionDigits: 4 });
 }
 
 export function fmtRel(ts) {

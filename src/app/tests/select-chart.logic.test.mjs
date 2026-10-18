@@ -9,6 +9,9 @@ import {
   baziShort,
   birthDateStr,
   cardFields,
+  compatibilityNotice,
+  detailUrl,
+  listError,
   createLinkHref,
   emptyDescription,
   formatDate,
@@ -37,15 +40,31 @@ describe('resolveType / resolveModule', () => {
     expect(createLinkHref('nope')).toBe('/charts/?action=create&from=nope')
   })
 
-  it('链接原样拼接、不做 encode（老实现就是裸拼）', () => {
+  it('保留来源并编码额外查询字符', () => {
     expect(createLinkHref('ziwei')).toBe('/charts/?action=create&from=ziwei')
   })
 
-  it('空状态文案按 type 选词', () => {
-    expect(emptyDescription('ziwei')).toBe('新建一份命盘，即可开始紫微斗数排盘')
-    expect(emptyDescription('meihua')).toBe('新建一份命盘，即可开始梅花易数排盘')
-    expect(emptyDescription('charts')).toBe('新建一份命盘，即可开始四柱八字排盘')
-    expect(emptyDescription('nope')).toBe('新建一份命盘，即可开始四柱八字排盘')
+  it('空态不宣称其他模块已接通', () => {
+    for (const type of ['charts', 'ziwei', 'meihua', 'nope']) {
+      expect(emptyDescription(type)).toBe('新建一份四柱八字命盘，即可查看排盘与解读')
+    }
+    expect(compatibilityNotice('charts')).toBe('')
+    expect(compatibilityNotice('ziwei')).toContain('尚未接通紫微斗数')
+    expect(compatibilityNotice('meihua')).toContain('尚未接通梅花易数')
+    expect(compatibilityNotice('nope')).toContain('尚未接通所选模块')
+    expect(compatibilityNotice('toString')).toContain('尚未接通所选模块')
+  })
+
+  it('URL 参数不能注入其他参数或片段', () => {
+    expect(createLinkHref('x&action=edit#frag')).toBe('/charts/?action=create&from=x%26action%3Dedit%23frag')
+    expect(detailUrl('x&id=y#frag')).toBe('/my-charts/?id=x%26id%3Dy%23frag')
+  })
+
+  it('401 引导重新登录，其他请求错误允许重试', () => {
+    expect(listError(401)).toMatchObject({ action: '重新登录', reauthenticate: true })
+    for (const status of [500, 403, null]) {
+      expect(listError(status)).toMatchObject({ action: '重试', reauthenticate: false })
+    }
   })
 })
 

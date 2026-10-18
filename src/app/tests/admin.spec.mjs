@@ -35,9 +35,9 @@ const TABS = ['dashboard', 'users', 'charts', 'divination', 'settings', 'suggest
 /** 仪表盘那一坨要喂给 `/api/admin/stats` 的假数据。数字都是特意挑的、互不相同， */
 /** 这样「总计 / 网站 / 小程序」三档切起来能看出到底换了没。 */
 const STATS = {
-  total: { users: 128, todayUsers: 7, active7d: 41, charts: 96, divinations: 53, totalTokens: 1234567, tokens7d: 8901 },
-  web: { users: 100, todayUsers: 5, active7d: 30, charts: 80, divinations: 40, totalTokens: 1000000, tokens7d: 7000 },
-  wechat: { users: 28, todayUsers: 2, active7d: 11, charts: 16, divinations: 13, totalTokens: 234567, tokens7d: 1901 },
+  total: { users: 128, todayUsers: 7, active7d: 41, charts: 96, divinations: 53, totalPoints: 1234.5678, points7d: 89.01 },
+  web: { users: 100, todayUsers: 5, active7d: 30, charts: 80, divinations: 40, totalPoints: 1000, points7d: 70 },
+  wechat: { users: 28, todayUsers: 2, active7d: 11, charts: 16, divinations: 13, totalPoints: 234.567, points7d: 19.01 },
   server: { expiresAt: '2027-03-01T00:00:00Z', daysLeft: 133 },
   deepseek: { status: 'active', apiKeyPrefix: 'sk-abcd' },
 }
@@ -49,8 +49,8 @@ const PROMPTS = ['mhys_system', 'mhys_prompt', 'mhys_notopic', 'mhys_followup',
 }))
 
 const USERS = [
-  { phone: '13800138000', username: '13800138000', userType: 'web', createdAt: 1700000000000, chartCount: 3, aiCount: 2, tokenUsed: 4000, lastActive: 1700000600000 },
-  { phone: '13900139000', username: '13900139000', userType: 'wechat', openid: 'oABC123', createdAt: 1700000000000, chartCount: 1, aiCount: 0, tokenUsed: 1200, lastActive: 1700000600000 },
+  { phone: '13800138000', username: '13800138000', userType: 'web', createdAt: 1700000000000, chartCount: 3, aiCount: 2, pointsUsed: 4, totalPointsUsed: 40, pointsLimit: 10, pointsRemaining: 6, lastActive: 1700000600000 },
+  { phone: '13900139000', username: '13900139000', userType: 'wechat', openid: 'oABC123', createdAt: 1700000000000, chartCount: 1, aiCount: 0, pointsUsed: 12.5, totalPointsUsed: 125.5, pointsLimit: 50, pointsRemaining: 37.5, tier: 1, lastActive: 1700000600000 },
 ]
 
 /**
@@ -68,7 +68,11 @@ async function mockAdmin(page, overrides = {}) {
     if (path === '/verify') return ok({ ok: true })
     if (path === '/stats') return ok(STATS)
     if (path === '/users') return ok(USERS)
-    if (path === '/user-tiers') return ok({})
+    if (path === '/user-tiers') return ok({
+       '13800138000': { tier: 0, pointsUsed: 4, pointsLimit: 10, pointsRemaining: 6 },
+       '13900139000': { tier: 1, pointsUsed: 12.5, pointsLimit: 50, pointsRemaining: 37.5 },
+     })
+     if (path === '/user-points' && route.request().method() === 'PATCH') return ok({ ok: true })
     if (path === '/chart-users') return ok([])
     if (path === '/divination-users') return ok([])
     if (path === '/suggestion-users') return ok([])
@@ -102,6 +106,54 @@ function collectErrors(page) {
 }
 
 test.describe('/admin/', () => {
+  test('编辑今日积分：接受4位小数并发送新接口，拒绝负数', async ({ page, context }) => {
+    await withAdminToken(context)
+    let requestBody
+    await mockAdmin(page, { '/user-points': async route => {
+      if (route.request().method() === 'PATCH') { requestBody = JSON.parse(route.request().postData() || '{}'); return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) }) }
+      return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
+    } })
+    await page.goto(PAGE)
+    await page.locator('.adm-nav-item[data-tab="users"]').click()
+    await page.locator('button', { hasText: '今日积分' }).first().click()
+    await page.locator('#tokenInput').fill('1.2345')
+    await page.locator('#modalToken button', { hasText: '保存' }).click()
+    await expect.poll(() => requestBody).toEqual({ username: '13800138000', pointsUsed: 1.2345 })
+    await page.locator('.adm-nav-item[data-tab="users"]').click()
+    await page.locator('button', { hasText: '今日积分' }).first().click()
+    await page.locator('#tokenInput').fill('-1')
+    await page.locator('#modalToken button', { hasText: '保存' }).click()
+    await expect(page.locator('#tokenErr')).toContainText('非负积分')
+  })
+
+  test('手机号与用户名不同时，积分及等级操作使用用户名', async ({ page, context }) => {
+    await withAdminToken(context)
+    const bodies = {}
+    await mockAdmin(page, {
+      '/users': route => route.fulfill({ contentType: 'application/json', body: JSON.stringify([{ ...USERS[0], username: 'account-alice', tier: 0 }]) }),
+      '/user-points': route => { bodies.points = route.request().postDataJSON(); return route.fulfill({ contentType: 'application/json', body: '{"ok":true}' }) },
+      '/user-tier': route => { bodies.tier = route.request().postDataJSON(); return route.fulfill({ contentType: 'application/json', body: '{"ok":true}' }) },
+    })
+    await page.goto(PAGE)
+    await page.locator('.adm-nav-item[data-tab="users"]').click()
+    await expect(page.locator('#usersTbody')).toContainText('13800138000')
+    await page.locator('button', { hasText: '今日积分' }).click()
+    await page.locator('#tokenInput').fill('0.0123')
+    await page.locator('#modalToken button', { hasText: '保存' }).click()
+    await expect.poll(() => bodies.points).toEqual({ username: 'account-alice', pointsUsed: 0.0123 })
+    await page.locator('.adm-tier-select').selectOption('1')
+    await expect.poll(() => bodies.tier).toEqual({ username: 'account-alice', tier: 1 })
+  })
+
+  test('等级更新失败显示错误并恢复控件', async ({ page, context }) => {
+    await withAdminToken(context)
+    await mockAdmin(page, { '/user-tier': route => route.fulfill({ status: 403, contentType: 'application/json', body: JSON.stringify({ error: 'forbidden' }) }) })
+    await page.goto(PAGE)
+    await page.locator('.adm-nav-item[data-tab="users"]').click()
+    const select = page.locator('.adm-tier-select').first()
+    await select.selectOption('1')
+    await expect(page.locator('.adm-tier-select').first()).toBeEnabled()
+  })
   test('视觉基线：未登录（登录卡片）', async ({ page }) => {
     await page.goto(PAGE)
     await expect(page.locator('#admLogin')).toBeVisible()
@@ -173,7 +225,7 @@ test.describe('/admin/', () => {
     await expect(page.locator('#statCharts')).toHaveText('96')
     await expect(page.locator('#statDivination')).toHaveText('53')
     // fmtToken：<1000 原样、<1e6 用 K、否则 M，都 toFixed(1)
-    await expect(page.locator('#statTokens')).toHaveText('1.2M')
+    await expect(page.locator('#statTokens')).toHaveText('1,234.5678')
     // 顶栏时钟每秒跳 → 打码
     await expect(page).toHaveScreenshot('admin-dashboard.png', {
       fullPage: true, mask: [page.locator('#admClock')],
@@ -261,7 +313,7 @@ test.describe('/admin/', () => {
     await expect(page.locator('.adm-toggle-btn.active')).toHaveCount(1)
     await expect(page.locator('.adm-toggle-btn[data-dash="web"]')).toHaveClass(/active/)
     await expect(page.locator('#statUsers')).toHaveText('100')
-    await expect(page.locator('#statTokens7d')).toHaveText('7.0K')
+    await expect(page.locator('#statTokens7d')).toHaveText('70')
 
     await page.locator('.adm-toggle-btn[data-dash="wechat"]').click()
     await expect(page.locator('#statUsers')).toHaveText('28')

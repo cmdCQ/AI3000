@@ -27,7 +27,7 @@ const PAGES = [
   ['/mhys/result.html', '排盘结果'],
   ['/mhys/history.html', '排盘记录'],
   ['/liuyao/history.html', '排盘记录'],
-  ['/select-chart/', '选择命盘'],
+  ['/select-chart/', '四柱八字'],
   ['/suggestion/', '建议'],
   ['/login/', '登录'],
   ['/register/', '注册'],

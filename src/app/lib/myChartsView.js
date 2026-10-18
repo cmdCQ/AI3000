@@ -15,8 +15,9 @@
 // 由 `src/app/my-charts/main.jsx` 负责。本模块只回字符串 —— 只有这样它才能被差分脚本
 // 喂输入、比输出。
 
-export const ZODIAC_EMOJI = ['🐀','🐂','🐯','🐰','🐲','🐍','🐴','🐑','🐵','🐔','🐶','🐷'];
-export const ZODIAC_NAMES = ['鼠','牛','虎','兔','龙','蛇','马','羊','猴','鸡','狗','猪'];
+import { zodiacEmojiFromBazi } from '../shared/baziZodiac.js';
+import { ZODIAC_EMOJI } from '../shared/baziZodiac.js';
+export { ZODIAC_EMOJI, ZODIAC_NAMES } from '../shared/baziZodiac.js';
 export const SHICHEN = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
 
 // EoT 查表（366天）。
@@ -95,9 +96,7 @@ export function renderListHTML(charts) {
 
   charts.forEach(function(c){
     var birthYear = c.birth.year;
-    var zIdx = (birthYear - 4) % 12;
-    if (zIdx < 0) zIdx += 12;
-    var zodiacEmoji = ZODIAC_EMOJI[zIdx];
+    var zodiacEmoji = zodiacEmojiFromBazi(c.bazi);
     var genderLabel = c.gender==='male'?'男':'女';
     var scIdx = Math.floor(((c.birth.hour ?? 12) + 1) % 24 / 2);
     var dateStr = birthYear+'.'+pad(c.birth.month)+'.'+pad(c.birth.day);
@@ -166,29 +165,17 @@ export function detailMetaOf(chart) {
 
 // ===== 详情骨架（老 :129-158） =====
 export function renderDetailHTML(chart, { isAdminView }) {
-  var b = chart.birth || {};
-  var birthYear = b.year;
-
   var h = '';
   h += '<div class="detail-page">';
   h += isAdminView
     ? '<a href="/admin/" class="detail-back">← 返回后台</a>'
-    : '<a href="/my-charts/" class="detail-back">← 返回列表</a>';
+    : '<a href="/select-chart/?type=charts" class="detail-back">← 返回列表</a>';
   h += '<div class="detail-hero">';
-  h += '<div class="zodiac-frame" id="baziZodiac">' + zodiacEmojiOf(birthYear) + '</div>';
+  // 生肖只采用排盘接口的年柱口径；加载期间不按公历年份猜测。
+  h += '<div class="zodiac-frame" id="baziZodiac" aria-label="生肖待排盘">…</div>';
   h += '<div class="hero-name">' + esc(chart.name) + '</div>';
   h += '</div>';
   h += '<div id="baziChart"><div class="mc-loading" style="padding:2rem 1rem">正在排盘…</div></div>';
-  // 解读区（管理员视图不给 —— 后台看的不是自己的盘，那条端点认的是用户 token）
-  // ⚠ **顺序是用户点名要的**（2026-09-25，第一版做错了被骂过一次）：
-  //   「先把 ai 解析块移到上面一些，让用户一眼就能看到（但可以选择折叠对话，所以不影响看
-  //    下面的内容），除了排盘以外的不重要信息都给我放下面」。
-  //   用户认的「排盘」= **生肖姓名 + 四柱八个字**（就 #baziChart 里那一段，别的都不是）。
-  //   所以三块依次是：#baziChart（四柱）→ #baziAi（解读，标题那行可收起）
-  //   → #baziRest（基本信息 + 四柱细盘 + 命局提要 + 大运）。
-  //   ⚠ 手机上（390×844 实测）只要基本信息留在 AI 块上面，一屏就被它占满、AI 块只剩个标题。
-  //   两块是**两次 innerHTML 写**（见 js/bazi_render.js 的 restHost），别合并回去。
-  h += '<div id="baziAi"></div>';
   h += '<div id="baziRest"></div>';
   // §5.4（用户 2026-10-17）：页尾的「编辑此命盘 / 删除此命盘」两个入口删掉 ——
   //   它们与列表卡右上角那颗 ⋯ 菜单里的同名两项完全重复，而详细页是「看盘」的地方，
@@ -225,7 +212,7 @@ export function renderDetailFallbackHTML(chart, meta, err) {
   h += '</div>';
   h += '<div class="bz-note" style="border:none">⚠ 排盘没能取到（' + esc(err && err.message ? err.message : '网络不通')
     + '）。四柱若显示，是**存库时的旧快照**（按日粒度算的月柱，交节当天可能是错的）。'
-    + '<br><a href="javascript:void(0)" onclick="location.reload()" style="color:var(--gold)">重试</a></div>';
+    + '<br><button type="button" class="detail-retry" onclick="location.reload()">重试排盘</button></div>';
   h += '</div>';
   return h;
 }

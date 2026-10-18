@@ -1,226 +1,45 @@
-# AGENTS.md — 易三千（sqw.somtfly.com）
+# 项目准则 — 易三千
 
-给在这个仓库里干活的 AI 会话看的。人的话也一样适用。
+适用于本仓库所有改动。目标：源码只有一个事实来源，修改范围可控，结果能够验证。
 
-这个文件的存在理由：这个项目里出过的每一次事故，都不是因为谁不会写代码，而是因为
-**没有人记得住上一个会话定下的约束**。约束不写进文件、不被机器检查，就等于不存在。
-所以这里只写两类东西：①必须遵守的硬规则；②违反时会怎样（用真实事故说明）。
+## 1. 工作边界
 
----
+- 开工先读相关源码和当前 diff，保留用户及其他任务未提交的改动；不顺带清理无关文件。
+- 只做当前请求需要的工作。技术实现自行决定；未获授权的内容删除、权益/价格变化、数据保留和视觉取舍，用具体选项确认。已确认的决定不反复询问。
+- 产品代码在 `src/`，部署配置在 `deploy/` 和 `docker/`，说明在 `docs/`。`build/` 是生成产物，禁止手改或纳入版本控制。
+- 不改其他项目、凭据、运行时数据，不执行未经授权的破坏性操作；公开仓库不得写入密钥、令牌或用户隐私。
 
-## 0. 一句话规则
+## 2. 避免把代码写成屎山
 
-> **人只改 `src/`，`build/` 是生成出来的。改完跑 `./deploy/sync.sh`。**
+- **禁止重复造轮子**：开发前先检索仓库内实现及成熟开源方案，优先复用现有组件、库和标准协议；采用前核对许可证、维护状况、技术栈兼容性和接入成本。只有现有方案确实不满足当前需求时才自研，并说明不采用的具体原因；不为复用而引入不必要的整套平台。
+- 先找现有实现再新增：同一业务规则、计算逻辑、配置与状态各有一个明确来源，别复制出第二套。
+- 按职责拆分：展示、请求/状态、领域计算各归其位；不把新功能继续堆进已有大文件。边界以实际职责和可测试性判断，不靠行数指标。
+- 抽象只解决当前真实重复，不为假想扩展建框架。兼容代码必须有明确使用方，别长期保留两条新旧主路径。
+- 修根因，不用层叠补丁掩盖：禁止静默吞错、用成功态包装失败，或以默认值掩盖缺失的业务数据。
+- 改动涉及的废弃代码、样式和引用一并清理；不要无关重构，不留 `.bak`、`.old`、`.orig`，回退靠版本控制。
+- 注释写约束与原因，不复述代码；规则和文档只保留仍有效的信息，不追加事故流水账或重复总结。
+- 沿用现有组件、主题和接口契约；新增依赖、接口或数据结构须有当前需求依据。脚本和样式放在可构建的源码模块中，不堆大段内联代码；资源版本由构建/发布生成，不手写 `?v=xxx`。
 
-`build/` 在 `.gitignore` 里，`git ls-files build` 必须永远是 0。它随时可以被
-`rm -rf build/ && ./deploy/sync.sh` 完全重建 —— 这是这个仓库最重要的性质，
-也是所有其它规则成立的前提。
+## 3. 验证与验收
 
----
+- 修改行为时补对应测试，至少覆盖正常、失败和权限边界；共享代码还要回归调用方。测试不足或未运行须明说。
+- 前端测试使用隔离产物：Vite 默认输出是线上 `build/nginx/`，测试构建必须显式指定临时 `--outDir`。本地预览也不是天然安全环境：写接口和付费 AI 必须 mock，实调用需明确授权。
+- 等价重构对比改前/改后行为与页面指纹；产品改版按新需求核对预期差异。元素数、文字长度或截图相同不等于功能正确，也不能因设计变更就盲目更新所有基线。
+- 规划/文档任务不部署。产品改动先通过隔离验证，再发布；构建通过不能代替线上验证。
 
-## 1. 目录结构
+## 4. 发布与生产安全
 
-```
-src/web/        老前端源码（还没搬进 src/app/ 的页面）
-src/app/        新前端源码（Vite + React；每个 <页>/index.html 自动成为一个入口）
-src/server/     后端源码（auth-server.js、paipan/）
-src/rag/        RAG 服务
-src/upload/     上传服务
-deploy/
-  sync.sh                  唯一的部署入口
-  nginx-conf/default.conf  ★ 线上真正生效的 nginx 配置
-  version-assets.py        给静态资源算 ?v= 内容哈希
-  extract-inline.py        内联 CSS/JS 外提 + 检查
-  Dockerfile.nginx         nginx 镜像（只加 curl，不烘 webroot）
-docker/docker-compose.yml  容器编排
-data/                      运行时数据（users.json 等，已 gitignore）
-```
+- 唯一发布入口是 `./deploy/sync.sh`，可先用 `--dry-run` 检查。不要手动拼装或修改线上产物，不在验证期间运行默认 Vite 构建。
+- 发布后必须确认：脚本输出的产物/容器哈希一致、改动路径 HTTP 正常、浏览器关键流程可用且无新增控制台错误；前端改动用 `webprobe` 留下前后指纹并解释预期差异。
+- 后端目前有单文件挂载，发布依赖 `rsync --inplace` 保持 inode；不要直接替换挂载文件。文件哈希一致不代表运行进程已加载新代码，还须验证实际 API 行为，必要时按项目配置重载对应服务。
+- nginx 生效配置是 `deploy/nginx-conf/`，保留 443 的 `proxy_protocol`。绝不对 `text/event-stream` 启用 gzip，也不用 `gzip_types *`。不在故障处理中试探无关配置。
+- `src/rag/` 烤在镜像内，`sync.sh` 不发布它；涉及 RAG 时单独确认构建流程、依赖与回退方式，不盲目重装依赖或直接切换线上镜像。
+- 不重建/删除挂载目录、重启无关服务或读取可能阻塞的容器日志管道来“试试看”；先定位再处理。
 
-`build/nginx/` = `src/app/` 构建产物 + `src/web/` 的逐字拷贝（nginx 目录挂载）。
-写入者**只有 `vite build` 一个**（§4i）。`src/web/` 搬空之后就只剩 `src/app/`。
-`build/backend/` = `src/server/` 的产物（**单文件挂载，必须 `--inplace`**，见 §4）。
+## 5. 定位与交付
 
-`src/rag/` **没有产物目录**：它的代码烤在 `docker-rag` 镜像里，`sync.sh` 完全不管它（见 §4h）。
-
----
-
-## 2. 改完必须做的三件事
-
-```sh
-./deploy/sync.sh                    # 同步 + 版本化 + 自检（会自动重建需要的容器）
-```
-
-1. **看自检输出**：`产物 <md5> / 容器 <md5> ✓`。✗ 就说明容器读到的不是产物内容，
-   多半是挂载绑在旧 inode 上（§4 的坑）。
-2. **线上验证**（不是看日志，是发请求）：
-   ```sh
-   curl -skI https://sqw.somtfly.com/<改过的路径>
-   ```
-3. **页面等价性**（改前端时）：
-   ```sh
-   webprobe https://sqw.somtfly.com/<页面>/     # 元素数/样式表数/脚本数/文本长度/控制台报错
-   ```
-   改动前后各跑一次逐字段对比。**元素数和文本长度一致 = 等价替换**；
-   不一致就是改坏了，别靠肉眼。
-
-**不要说"应该没问题"。要么有上面三条里的输出，要么别说完成。**
-
----
-
-## 3. 硬规则
-
-| # | 规则 | 违反的后果（真实发生过） |
-|---|---|---|
-| 1 | 不直接编辑 `build/` 下的任何文件 | 下次 `sync.sh` 悄悄覆盖掉你的修改，或者更糟：git 里和线上不一致 |
-| 2 | 不在 `src/` 里手写 `?v=xxx` | `sync.sh` 每次按内容重算，手写的被覆盖；抄错哈希会把用户永远钉在旧缓存上 |
-| 3 | 不在仓库里放 `.bak`/`.old`/`.orig` | 曾经有 7 个 `.bak` 被 commit 进库，`.bak` 在替 git 干回滚 |
-| 4 | `gzip_types` 里**绝不加** `text/event-stream`，绝不用 `gzip_types *` | AI 对话是 SSE 流式（`auth-server.js` 的 `/api/chat/send` 与 `streamBaziParse`）。压缩它等于把逐字输出变成"憋很久来一大坨"，功能直接坏掉 |
-| 5 | 不给 `src/web/**/*.html` 里加 >=1KB 的内联 `<style>`/`<script>` | 内联代码没有独立 URL，无法单独缓存、无法被工具检查。曾经 ai-chat/index.html 80KB 里 71KB 是内联 |
-| 6 | 内联脚本外提时**不加 `defer`/`async`** | 内联脚本解析到就同步执行；加 defer 会推迟到文档解析完，DOMContentLoaded 次序改变 —— 是行为变更不是等价替换 |
-| 7 | 容器挂载**不挂单个文件**，挂目录 | 单文件 bind mount 钉在 inode 上。用编辑器或 `sed -i` 保存会产生新 inode，容器永远读旧的，`nginx -s reload` 加载的还是旧配置（§4） |
-| 8 | 改 nginx 配置后用 `deploy/nginx-conf/default.conf`，不用 `build/nginx/` 下的 | 曾经 webroot 里躺着一份"第二事实来源"，导致线上行为和仓库内容不一致 |
-| 9 | 别在 live 事故里试探索性配置改动 | 见 §4 的事故：我先错误地去掉了 `proxy_protocol`，把 3 分钟的中断拉长 |
-| 10 | 归档旧文件进库前先扫凭据 | 旧 `.bak` 最容易藏凭据：2026-10-16 归档的 16 个里有一个硬编码着**线上在用的阿里云 AccessKey**，push 被 GitHub 拦下 |
-
----
-
-## 4. 这个环境特有的坑（都踩过）
-
-**a) 单文件 bind mount 的 inode 陷阱**
-后端容器挂的是 `build/backend/auth-server.js` 这类单文件。宿主机用 `sed -i`/编辑器
-保存会生成新 inode，容器继续读旧 inode —— 改代码"不生效"且完全静默。
-所以 `sync.sh` 对后端用 `rsync --inplace`（写进原文件，inode 不变），并用 `-c`
-（校验和）而不是默认的"大小+时间"判断 —— 同秒同大小的改动会被默认快捷检查跳过。
-**验证方法不是数文件个数**（容器 `/app` 里还有镜像自带的 6361 个 node_modules 文件），
-是逐文件 md5 清单比对。
-
-**b) 443 上的 `proxy_protocol` 不能删**
-公网流量经外部中继（香港 149.88.95.206 的 frps）转发，中继会注入 PROXY v2 header，
-所以 `listen 443 ssl http2 proxy_protocol;` 是必需的。删掉 → 全站 HTTPS 直接 000。
-
-**c) `docker exec ai3000-nginx cat /var/log/nginx/access.log` 会挂住**
-不要用它读日志（会留下一个永不结束的后台作业）。统计访问量要换方式。
-
-**d) chromium 是 snap 包，有私有 `/tmp`**
-`--screenshot=/tmp/x.png` 实际落在 `/tmp/snap-private-tmp/snap.chromium/tmp/`；
-`file:///tmp/x.html` 它读不到。`--remote-debugging-port=0` 写的端口文件也在私有目录，
-宿主读不到 —— 要用固定端口并轮询 `http://127.0.0.1:PORT/json/version`。
-用现成的 `/usr/local/bin/shot2`（截图）和 `/usr/local/bin/webprobe`（页面指纹）。
-
-**e) 判断引用/压缩必须看内容，不能看计数**
-`grep -c` 会把注释、备份目录、自己的输出算进去（曾据此误报"10 个多余 `:root`"
-和"2 个孤儿文件还在被引用"）。**一律打印命中行**。
-测 gzip 必须 `curl --compressed` 或带 `-H 'Accept-Encoding: gzip'`，否则量到的是原始字节。
-
-**f) `pkill -f <模式>` 会匹配到自己的命令行**
-曾导致命令自杀（SIGTERM），什么都没执行还以为跑完了。
-
-**g) DNS 把 `github.com` 解析到被墙的 IP**
-本仓库已在 `.git/config` 钉住（没动系统 DNS）：
-```sh
-git config http.curloptResolve github.com:443:140.82.114.3
-```
-该 IP 失效就换一个（`140.82.112.3`、`20.27.177.113` 也可用）。凭据放
-`~/.git-credentials`(600)，不要写进 `.git/config` 或入库文件。
-
-**h) 改 `src/rag/` 跑 `sync.sh` 会静默不生效**
-`sync.sh` 只覆盖 web 和 backend，rag 没有产物目录，所以它会一路自检 ✓ 而线上仍是旧代码。
-rag 的代码是 `COPY src/ ./src/` 烤进镜像的，必须重建镜像。**但别直接 `docker build src/rag`**：
-`requirements.txt` 只锁顶层，传递依赖会漂（实测 tenacity 9.1.4→9.2.1、orjson 3.11.9→3.13.0、
-mmh3 4.1.0→5.3.1），且 pip 层无缓存挂载，PyPI 抖一次就废掉整轮 11 分钟。
-在现有已知可用镜像上覆盖源码层即可，5 秒、不联网：
-```sh
-printf 'FROM docker-rag:latest\nCOPY src/ ./src/\n' > /tmp/Dockerfile.rag
-docker build -f /tmp/Dockerfile.rag -t docker-rag:latest src/rag
-docker compose -f docker/docker-compose.yml up -d --force-recreate rag
-```
-新镜像要先 `docker run --rm --entrypoint sh <img> -c 'python -c "import chromadb,fastembed"'`
-确认依赖还在，再切 `latest`。
-
-**i) 老页面不能交给 Vite 构建 —— 它会静默丢掉全部 JS**
-`src/web/` 全是传统 `<script src>`（19 个页面无一是 `type="module"`）且靠跨文件全局变量
-互相调用。实测把 `src/web/` 当 Vite root 构建：`<link href="/css/x.css">` 会被改写成
-`/assets/x-<hash>.css`，而 `<script src="/js/x.js">` 原样留着、那些文件**根本不发出去** ——
-产物里连 `js/` 目录都没有，页面照样 200，只是所有交互都没了。
-所以 `src/app/vite.config.mjs` 里老树走 `publicDir` **逐字拷贝**，只有 `src/app/` 真的构建。
-搬迁方式：删掉 `src/web/<页>/`、建起 `src/app/<页>/`（入口表由目录自动生成）；
-`src/web/` 空了就把 `publicDir` 设成 `false`。
-
----
-
-## 5. 三条「干净」判据（验收标准）
-
-这个仓库的治理目标就是这三条，任何改动都不该让它们倒退：
-
-1. **一个文件要么是源码、要么是产物，不能同时是。**
-2. **任何文件删掉后都能从源码重建**；不能重建的就不是产物，是没归位的源码。
-3. **备份由版本控制承担**，不以文件形式存在。
-
-推论：`backups/` 目录、`.bak` 文件、webroot 里的第二份配置，全都是这三条的违反形态。
-发现即清理，并说明内容在哪个 commit 里可取回。
-
-自查命令：
-```sh
-git ls-files build | wc -l                      # 必须是 0
-find src/web -name '*.bak*' -o -name '*.old'    # 必须为空
-
-# 「删了还能不能取回」不要用 git log / git rev-list 判断：它们把「删除这次改动」
-# 也算作一次触碰，于是会给假的肯定答案（这个仓库里真的发生过：README 里写着的
-# 两条恢复命令全都是取不回来的）。要直接问 blob 在不在：
-p='deploy/nginx-stage1.conf'   # 换成要查的路径
-git rev-list --all | while read -r c; do
-  git cat-file -e "$c:$p" 2>/dev/null && { echo "可取回: git show $c:$p"; break; }
-done
-```
-
----
-
-## 6. 环境和服务的硬事实
-
-- 仓库根 `/var/www/sqw.somtfly.com`；分支 `main`，`git push` 直接可用。
-  remote = `https://github.com/cmdCQ/AI3000.git`（**公开**）。网络见 §4g。
-- 旧的对拍测试套件（`duipan/` 114 个、`tools/` 37 个）只在本地分支
-  `holdout/origin-main`（不推）里：`git checkout holdout/origin-main -- duipan/ tools/`
-- 容器：`ai3000-nginx`（8080→80、443→443）、`ai3000-backend`（pm2 跑 auth-server.js）、
-  `ai3000-mysql`、`ai3000-rag`(8800)、`ai3000-upload`(3401)。另有**别的项目**的容器
-  （`faker-nginx` 与 `halo` 属 `/var/www/faker.ren/`；还有 searxng / modscan 等）——
-  它们不在这个仓库里，别在这个仓库里改它们。
-- nginx 挂载：`build/nginx` → `/usr/share/nginx/html`（ro）、`deploy/nginx-conf` →
-  `/etc/nginx/conf.d`（ro，目录挂载）。改前端文件立即生效，不用重建容器。
-- 备份由 git 承担，所以**不要**用 `docker commit`、也不要往 webroot 里写副本。
-- 真在用的 vhost：`sqw` / `gh` / `know` / `scan` / `dsh.somtfly.com`、`somt.top`、
-  `freep.somt.top`。历史上还有一批已死域名（`somtfly.com`、`www.somtfly.com`、
-  `www.somt.top`、`faker.ren`）的配置，已删除 —— **不要照抄旧 commit 里的 server 块加回来**。
-
----
-
-## 7. 和用户打交道的规则
-
-- **每做完一个阶段（或一项能独立验收的改动），就先说一句再继续。** 哪怕只有一句
-  「X 改完了，门在跑」，也必须在同一轮里说出来。理由不是礼貌，是用户的焦虑：
-  2026-10-17 那次长活儿里，因为埋头改代码几十分钟不说话，用户连发了
-  「到底在干嘛啊能不能快点啊」「立刻回复我」「你准备什么时候回复我」——
-  他不知道后台在跑什么，就会以为卡住了。**沉默是这里最贵的错误。**
-  例外只有一个：一句话都来不及说的单步操作（比如只跑一条命令）。
-- 用户不是运维，**技术决定自己做，不要问**。
-- 但**属于他的所有权 / 产品决策，必须提问让他选**，并写清每个选项的代价：
-  删不删某块内容、某个域名/镜像/数据要不要留、文案和视觉怎么定。
-  用带选项的提问，不要用「你觉得呢」。
-- **一个问题的答案到手就回报，不要继续往深里钻**；不要把无关的探查留在后台跑。
-- 提交信息只写**为什么改**和**怎么验证的**。改动本身 `git show` 看得到，不复述过程。
-- **只留有把握必要的东西。** 一件事只有三成把握觉得该留，就不要加 —— 删掉。
-  文档、注释、提交信息、代码，一律如此。
-
----
-
-## 8. 常用命令
-
-```sh
-./deploy/sync.sh                       # 改完 src/ 唯一要跑的
-./deploy/sync.sh --dry-run             # 只看会改什么
-python3 deploy/extract-inline.py --check    # 内联块回归检查
-python3 deploy/version-assets.py --help
-docker exec ai3000-nginx md5sum /etc/nginx/conf.d/default.conf   # 确认容器读到新配置
-docker exec ai3000-nginx nginx -t && docker exec ai3000-nginx nginx -s reload
-git log --oneline | head -20
-```
+- 当前入口：`src/app/` 前端（React/ESM，`public/` 为静态资源），`src/server/` 后端，`src/rag/` 检索，`src/upload/` 上传。不要照旧文档重新建立 `src/web/` 源码树。
+- 发布流程以 `deploy/sync.sh`、构建配置以 `src/app/vite.config.mjs`、服务挂载以 `docker/docker-compose.yml` 为准；环境细节先查当前配置，不把历史描述当事实。
+- 每完成一个可独立验收的阶段先简短回报，再继续；遇到真实阻塞立即说明，不长时间沉默。
+- 最终交付说明改了什么、验证了什么、哪些未做及剩余风险。没有执行证据，不声称完成、已部署或已通过。
+- 每次完成一个可验收的改动并验证后，必须及时 commit，不得把多轮改动长期积压在工作区。提交前检查差异，排除凭据、隐私、运行数据与生成产物；提交信息写修改原因和验证结果。推送按用户授权执行，不夹带无关改动。
