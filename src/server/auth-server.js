@@ -595,6 +595,13 @@ async function handleRequest(req, res, pathname, body, url) {
   if (req.method === 'POST' && pathname === '/api/send-sms-code') {
     const { phone } = body;
     if (!phone || !/^1\d{10}$/.test(phone)) return json(res, { error: '请输入正确手机号' }, 400);
+    try {
+      const [existing] = await db.query('SELECT phone FROM users WHERE phone = ?', [phone]);
+      if (existing.length > 0) return json(res, { error: '该手机号已注册，请直接登录' }, 409);
+    } catch (e) {
+      console.error('SMS registration check failed:', e.message);
+      return json(res, { error: '注册服务暂不可用，请稍后重试' }, 503);
+    }
     const result = await sendSmsVerifyCode(phone);
     if (result.ok) return json(res, { ok: true });
     return json(res, { error: result.error, cooldown: result.cooldown || 0 }, 429);
