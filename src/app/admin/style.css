@@ -1,9 +1,19 @@
-/* `/admin/` 的样式入口。
- *
- * ★ `@import` 顺序必须与老 `src/web/admin/index.html` 的 `<link>` 顺序一致：
- *   `/css/admin.css` → `/css/tokens.css`。
- *   先 admin.css 后 tokens.css，是因为 admin.css 里的变量回退值要在 tokens.css
- *   定义的同名变量**之前**进文档流才不被覆盖 —— 反过来会让整页配色变一档。
- */
-@import '../shared/css/admin.css';
-@import '../shared/css/tokens.css';
+@import 'antd/dist/reset.css';
+:root { font-family: Inter, 'Noto Sans SC', sans-serif; color: #163a34; background: #f4f7f6; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; }
+.admin-shell { min-height: 100vh; }
+.admin-header { display:flex; align-items:center; gap:16px; background:#fff; border-bottom:1px solid #e6eeeb; padding:0 24px; position:sticky; top:0; z-index:5; }
+.admin-header h4 { margin:0; flex:1; }
+.admin-content { padding: 28px clamp(16px, 4vw, 48px); max-width: 1500px; width:100%; margin:0 auto; }
+.page-title { display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; gap:16px; }
+.page-title h3 { margin:0 0 4px; }
+.stat-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:16px; margin-bottom:20px; }
+.info-card { margin-top:20px; }
+.card-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:16px; }
+.prompt-list { display:grid; gap:16px; }
+.admin-login { min-height:100vh; display:grid; place-items:center; padding:24px; background:linear-gradient(145deg,#eff7f4,#f8faf9); }
+.login-card { width:min(420px,100%); text-align:center; box-shadow:0 18px 50px #1f6b5e16; }
+.login-form { margin-top:28px; text-align:left; }
+.back-home { display:inline-block; margin-top:20px; color:#1f6b5e; }
+@media (max-width: 600px) { .admin-header { padding:0 12px; gap:10px; } .account-label { display:none; } .admin-content { padding:20px 12px; } .page-title { align-items:flex-start; flex-direction:column; } .page-title .ant-input-search { width:100% !important; } }

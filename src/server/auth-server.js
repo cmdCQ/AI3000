@@ -340,14 +340,14 @@ async function getAdminStats() {
   const todayStart = new Date(new Date().toDateString()).getTime();
   const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
 
-  // 安全查询辅助
+  // 统计必须反映真实数据库状态；失败时由接口层返回 503，不能伪造为零。
   const q = async (sql, params) => {
     try {
       const [rows] = await db.query(sql, params);
       return rows;
     } catch(e) {
       console.error('Stats query error:', e.message);
-      return [{ cnt: 0, total: 0 }];
+      throw e;
     }
   };
 
@@ -369,31 +369,19 @@ async function getAdminStats() {
     };
   };
 
-  const [total, web, wechat] = await Promise.all([
-    statsFor(''),
-    statsFor("username NOT LIKE 'wx_%'"),
-    statsFor("username LIKE 'wx_%'"),
-  ]);
+  const [total] = await Promise.all([statsFor('')]);
 
   // 全局计数
   let charts = 0, divinations = 0;
   try {
     const [[{cnt: c}]] = await db.query('SELECT COUNT(*) as cnt FROM charts');
     charts = c;
-  } catch(e) {}
+  } catch(e) { throw e; }
   try {
     const [[{cnt: m}]] = await db.query('SELECT COUNT(*) as cnt FROM mhys_records');
     const [[{cnt: l}]] = await db.query('SELECT COUNT(*) as cnt FROM liuyao_records');
     divinations = m + l;
-  } catch(e) {}
-
-  // 服务器信息（硬编码，到期前可手动更新）
-  const server = {
-    createdAt: '2026-06-04T23:20:00+08:00',
-    expiresAt: '2026-08-04T23:20:00+08:00',
-  };
-  const expiresMs = new Date(server.expiresAt).getTime();
-  server.daysLeft = Math.max(0, Math.ceil((expiresMs - Date.now()) / (24 * 60 * 60 * 1000)));
+  } catch(e) { throw e; }
 
   // DeepSeek 信息
   let deepseekStatus = 'inactive';
@@ -405,9 +393,6 @@ async function getAdminStats() {
 
   return {
     total: { ...total, charts, divinations },
-    web: { users: web.users, todayUsers: web.todayUsers, totalPoints: web.totalPoints, points7d: web.points7d },
-    wechat: { users: wechat.users, todayUsers: wechat.todayUsers, totalPoints: wechat.totalPoints, points7d: wechat.points7d },
-    server,
     deepseek: {
       status: deepseekStatus,
       apiKeyPrefix,
@@ -441,14 +426,6 @@ async function getUsers() {
     console.error('getUsers error:', e);
     throw e;
   }
-}
-async function deleteUser(id) {
-  // 从 MySQL 删除（按 username，兼容微信用户 phone 为空的情况）
-  try { await db.query('DELETE FROM users WHERE username = ?', [id]); } catch(e) { console.error('deleteUser MySQL error:', e); }
-  // 同时清理 JSON 备份
-  const users = readJSON(USERS_FILE, {});
-  delete users[id];
-  writeJSON(USERS_FILE, users);
 }
 
 // ===== MySQL Connection =====
@@ -754,7 +731,12 @@ async function handleRequest(req, res, pathname, body, url) {
   if (req.method === 'GET' && pathname === '/api/admin/stats') {
     const payload = checkAuth(req);
     if (!payload || payload.role !== 'admin') return json(res, { error: '未授权' }, 401);
-    return json(res, await getAdminStats());
+    try {
+       return json(res, await getAdminStats());
+     } catch (e) {
+       console.error('Admin stats error:', e);
+       return json(res, { error: '统计暂不可用' }, 503);
+     }
   }
 
   // GET /api/admin/users
@@ -764,20 +746,11 @@ async function handleRequest(req, res, pathname, body, url) {
     return json(res, await getUsers());
   }
 
-  // DELETE /api/admin/users/:id
+  // DELETE /api/admin/users/:id — 暂停，数据保留范围待确认
   if (req.method === 'DELETE' && pathname.startsWith('/api/admin/users/')) {
     const payload = checkAuth(req);
     if (!payload || payload.role !== 'admin') return json(res, { error: '未授权' }, 401);
-    const id = pathname.split('/').pop();
-    try {
-      // 同时删除该用户的所有命盘
-      await db.query('DELETE FROM charts WHERE user_id = ?', [id]);
-      deleteUser(id);
-      return json(res, { ok: true });
-    } catch (e) {
-      console.error('Delete user error:', e);
-      return json(res, { error: '删除失败' }, 500);
-    }
+    return json(res, { error: '账号删除暂不可用，数据保留范围待确认' }, 409);
   }
 
   // GET /api/admin/user-tiers — 获取所有用户的等级信息（MySQL）
@@ -1722,7 +1695,7 @@ async function handleRequest(req, res, pathname, body, url) {
       const url = new URL(req.url, 'http://localhost');
       const cat = url.searchParams.get('category') || '';
       const folder = url.searchParams.get('folder') || '';
-      let query = 'SELECT id, title, category, folder, author, description, status, chunks_count, created_at, updated_at FROM reference_books WHERE 1=1';
+      let query = "SELECT id, title, category, folder, author, description, status, chunks_count, created_at, updated_at, (content IS NOT NULL AND content != '') AS has_content FROM reference_books WHERE 1=1";
       let params = [];
       if (cat) { query += ' AND category = ?'; params.push(cat); }
       if (folder) { query += ' AND folder = ?'; params.push(folder); }
@@ -1739,6 +1712,7 @@ async function handleRequest(req, res, pathname, body, url) {
         chunksCount: r.chunks_count || 0,
         createdAt: r.created_at,
         updatedAt: r.updated_at,
+        hasContent: !!r.has_content,
       })));
     } catch (e) {
       console.error('Admin books list error:', e);

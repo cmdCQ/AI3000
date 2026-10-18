@@ -1,495 +1,74 @@
-import '../shared/authModalStyles.js';
-import { flushSync } from 'react-dom'
-import { createRoot } from 'react-dom/client'
-import * as adminLogic from './logic.js'
-import './style.css'
+import React, {useEffect,useState} from 'react';
+import {createRoot} from 'react-dom/client';
+import {Alert,App,Button,Card,ConfigProvider,Drawer,Form,Input,Layout,Menu,Space,Spin,Statistic,Typography} from 'antd';
+import {MenuOutlined,LogoutOutlined} from '@ant-design/icons';
+import {api,clearToken,isAuthenticated,login,verify} from './api.js';
+import Books from './Books.jsx';
+import Users from './Users.jsx';
+import Prompts from './Prompts.jsx';
+import Records from './Records.jsx';
+import './style.css';
 
-// `/admin/` 的骨架（老 `src/web/admin/index.html` 的 `<body>` 内容，452 行）原封不动
-// 作为字符串渲染。理由见 `logic.js` 头注释：28 处内联 `onclick`、8 个 tab、4 个模态框，
-// 全在这个骨架里；判据钉的是行为，不是写法。
-//
-// ★ 串里没有反引号、没有 `${`、没有反斜杠 —— 已经核过，可以安全用模板字面量。
-const SHELL_HTML = `<div class="adm-root">
+const menuItems=[['dashboard','仪表盘'],['users','用户管理'],['charts','命盘管理'],['divination','占卜管理'],['suggestions','建议管理'],['books','参考书籍'],['prompts','Prompt管理'],['settings','系统设置']];
+const labels=Object.fromEntries(menuItems);
+function readRoute(){const value=location.hash.slice(1);return labels[value]?value:'dashboard'}
 
-  <!-- ========== 登录 ========== -->
-  <div class="adm-login" id="admLogin">
-    <div class="adm-login-card">
-      <div class="adm-login-brand">
-        <span class="adm-login-logo">易三千</span>
-        <span class="adm-login-dot"></span>
-        <span class="adm-login-sub">后台管理</span>
-      </div>
-      <form id="admLoginForm">
-        <div class="adm-field">
-          <label>用户名</label>
-          <input type="text" id="admUsername" placeholder="管理员用户名" autocomplete="username" required>
-        </div>
-        <div class="adm-field">
-          <label>密码</label>
-          <input type="password" id="admPassword" placeholder="输入管理密码" autocomplete="current-password" required>
-        </div>
-        <p class="adm-err" id="admLoginErr"></p>
-        <button type="submit" class="adm-btn-primary">进入后台</button>
-      </form>
-      <a href="/" class="adm-back-link">← 返回首页</a>
-    </div>
-  </div>
-
-  <!-- ========== 控制台 ========== -->
-  <div class="adm-dash" id="admDash" style="display:none">
-
-    <!-- 顶栏 -->
-    <header class="adm-topbar">
-      <div class="adm-topbar-left">
-        <span class="adm-logo">易三千</span>
-        <span class="adm-tag">admin</span>
-      </div>
-      <div class="adm-topbar-right">
-        <span class="adm-clock" id="admClock"></span>
-        <span class="adm-sep">|</span>
-        <a href="/" class="adm-toplink">前台</a>
-        <span class="adm-sep">|</span>
-        <button class="adm-toplink" id="admLogout">退出</button>
-      </div>
-    </header>
-
-    <div class="adm-body">
-      <!-- 侧栏 -->
-      <nav class="adm-sidebar">
-        <a href="#" class="adm-nav-item active" data-tab="dashboard">
-          <span class="adm-nav-icon">◇</span>
-          <span>仪表盘</span>
-        </a>
-        <a href="#" class="adm-nav-item" data-tab="users">
-          <span class="adm-nav-icon">○</span>
-          <span>用户</span>
-        </a>
-        <a href="#" class="adm-nav-item" data-tab="charts">
-          <span class="adm-nav-icon">◎</span>
-          <span>命盘</span>
-        </a>
-        <a href="#" class="adm-nav-item" data-tab="divination">
-          <span class="adm-nav-icon">☯</span>
-          <span>占卜</span>
-        </a>
-        <a href="#" class="adm-nav-item" data-tab="settings">
-          <span class="adm-nav-icon">⦿</span>
-          <span>设置</span>
-        </a>
-        <a href="#" class="adm-nav-item" data-tab="suggestions">
-          <span class="adm-nav-icon">✎</span>
-          <span>建议</span>
-        </a>
-        <a href="#" class="adm-nav-item" data-tab="books">
-          <span class="adm-nav-icon">📖</span>
-          <span>参考书籍</span>
-        </a>
-        <a href="#" class="adm-nav-item" data-tab="prompts">
-          <span class="adm-nav-icon">⚙</span>
-          <span>Prompt</span>
-        </a>
-      </nav>
-
-      <!-- 主内容 -->
-      <main class="adm-main">
-
-        <!-- ===== 仪表盘 ===== -->
-        <section class="adm-tab active" id="tab-dashboard">
-          <div class="adm-sec-head">
-            <h2 class="adm-sec-title">仪表盘</h2>
-            <div class="adm-dash-toggle">
-              <button class="adm-toggle-btn active" data-dash="total" onclick="switchDash('total')">总计</button>
-              <button class="adm-toggle-btn" data-dash="web" onclick="switchDash('web')">网站</button>
-              <button class="adm-toggle-btn" data-dash="wechat" onclick="switchDash('wechat')">小程序</button>
-            </div>
-          </div>
-          <div class="adm-stats">
-            <div class="adm-stat"><span class="adm-stat-num" id="statUsers">—</span><span class="adm-stat-label">总用户</span></div>
-            <div class="adm-stat"><span class="adm-stat-num" id="statToday">—</span><span class="adm-stat-label">今日新增</span></div>
-            <div class="adm-stat"><span class="adm-stat-num" id="statActive">—</span><span class="adm-stat-label">7 天活跃</span></div>
-            <div class="adm-stat"><span class="adm-stat-num" id="statCharts">—</span><span class="adm-stat-label">命盘总数</span></div>
-            <div class="adm-stat"><span class="adm-stat-num" id="statDivination">—</span><span class="adm-stat-label">排卦总数</span></div>
-            <div class="adm-stat"><span class="adm-stat-num" id="statTokens">—</span><span class="adm-stat-label">累计积分消耗</span></div>
-          </div>
-          <div class="adm-stat" style="margin-top:16px">
-            <span class="adm-stat-num" id="statTokens7d">—</span>
-            <span class="adm-stat-label">近七天积分消耗</span>
-          </div>
-          <div class="adm-stats" style="margin-top:16px">
-            <div class="adm-stat">
-              <span class="adm-stat-label">🖥️ 服务器状态</span>
-              <span class="adm-stat-num" style="font-size:0.9rem" id="statServerExpiry">—</span>
-              <span class="adm-stat-sub" id="statServerDays"></span>
-            </div>
-            <div class="adm-stat">
-              <span class="adm-stat-label">🤖 DeepSeek API</span>
-              <span class="adm-stat-num" style="font-size:0.9rem" id="statDeepseekStatus">—</span>
-              <span class="adm-stat-sub" id="statDeepseekKey"></span>
-            </div>
-          </div>
-        </section>
-
-        <!-- ===== 用户管理 ===== -->
-        <section class="adm-tab" id="tab-users">
-          <div class="adm-sec-head">
-            <h2 class="adm-sec-title">用户管理</h2>
-            <div class="adm-sec-meta" id="usersMeta"></div>
-            <input type="search" id="usersSearch" class="adm-search-input" placeholder="搜索手机号…" oninput="filterUsers()">
-          </div>
-          <div class="adm-table-wrap">
-            <table class="adm-table" id="usersTable">
-              <thead>
-                <tr>
-                  <th>手机号</th>
-                  <th>来源</th>
-                  <th>注册时间</th>
-                  <th>命盘数</th>
-                  <th>AI 解析</th>
-                  <th>积分消耗</th>
-                  <th>等级</th>
-                  <th>最后活跃</th>
-                  <th class="adm-th-right">操作</th>
-                </tr>
-              </thead>
-              <tbody id="usersTbody">
-                <tr><td colspan="8" class="adm-empty">加载中…</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <!-- ===== 命盘管理（卡片视图） ===== -->
-        <section class="adm-tab" id="tab-charts">
-          <div class="adm-sec-head">
-            <h2 class="adm-sec-title">命盘管理</h2>
-            <div class="adm-sec-meta" id="chartsMeta"></div>
-          </div>
-          <div class="adm-card-grid" id="chartsCardGrid">
-            <div class="adm-card-empty">加载中…</div>
-          </div>
-
-          <!-- 用户命盘详情面板 -->
-          <div class="adm-detail-panel" id="chartsDetailPanel" style="display:none">
-            <div class="adm-detail-head">
-              <button class="adm-back-btn" onclick="closeChartDetail()">← 返回</button>
-              <span class="adm-detail-title" id="chartsDetailTitle"></span>
-            </div>
-            <div class="adm-table-wrap" style="margin-top:0.5rem">
-              <table class="adm-table">
-                <thead>
-                  <tr>
-                    <th>命盘名称</th>
-                    <th>性别</th>
-                    <th>出生日期</th>
-                    <th>出生地</th>
-                    <th>创建时间</th>
-                    <th class="adm-th-right">操作</th>
-                  </tr>
-                </thead>
-                <tbody id="chartsDetailTbody"></tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-
-        <!-- ===== 占卜管理（梅花易数排盘记录） ===== -->
-        <section class="adm-tab" id="tab-divination">
-          <div class="adm-sec-head">
-            <h2 class="adm-sec-title">占卜管理</h2>
-            <div class="adm-sec-meta" id="divMeta"></div>
-          </div>
-          <div class="adm-card-grid" id="divCardGrid">
-            <div class="adm-card-empty">加载中…</div>
-          </div>
-
-          <!-- 用户排盘记录详情面板 -->
-          <div class="adm-detail-panel" id="divDetailPanel" style="display:none">
-            <div class="adm-detail-head">
-              <button class="adm-back-btn" onclick="closeDivDetail()">← 返回</button>
-              <span class="adm-detail-title" id="divDetailTitle"></span>
-            </div>
-            <!-- 子标签：梅花易数 / 六爻 -->
-            <div class="adm-subtabs" id="divSubtabs" style="display:flex;gap:0;margin-bottom:0.8rem;border-bottom:2px solid var(--border);">
-              <button class="adm-subtab active" data-subtab="mhys" onclick="switchDivSubtab('mhys')">
-                🌸 梅花易数 <span class="adm-subtab-cnt" id="divCntMhys">0</span>
-              </button>
-              <button class="adm-subtab" data-subtab="liuyao" onclick="switchDivSubtab('liuyao')">
-                ⚡ 六爻 <span class="adm-subtab-cnt" id="divCntLiuyao">0</span>
-              </button>
-            </div>
-            <!-- 梅花易数表格 -->
-            <div class="adm-table-wrap" id="divTableMhys" style="margin-top:0.3rem">
-              <table class="adm-table">
-                <thead>
-                  <tr>
-                    <th>占卜事项</th>
-                    <th>起卦方式</th>
-                    <th>起卦时间</th>
-                    <th class="adm-th-right">操作</th>
-                  </tr>
-                </thead>
-                <tbody id="divDetailTbodyMhys"></tbody>
-              </table>
-            </div>
-            <!-- 六爻表格 -->
-            <div class="adm-table-wrap" id="divTableLiuyao" style="display:none;margin-top:0.3rem">
-              <table class="adm-table">
-                <thead>
-                  <tr>
-                    <th>占卜事项</th>
-                    <th>起卦方式</th>
-                    <th>起卦时间</th>
-                    <th class="adm-th-right">操作</th>
-                  </tr>
-                </thead>
-                <tbody id="divDetailTbodyLiuyao"></tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-
-        <!-- ===== 建议管理 ===== -->
-        <section class="adm-tab" id="tab-suggestions">
-          <div class="adm-sec-head">
-            <h2 class="adm-sec-title">用户建议</h2>
-            <div class="adm-sec-meta" id="sugMeta"></div>
-          </div>
-          <div class="adm-card-grid" id="sugCardGrid">
-            <div class="adm-card-empty">加载中…</div>
-          </div>
-
-          <!-- 用户建议详情面板 -->
-          <div class="adm-detail-panel" id="sugDetailPanel" style="display:none">
-            <div class="adm-detail-head">
-              <button class="adm-back-btn" onclick="closeSugDetail()">← 返回</button>
-              <span class="adm-detail-title" id="sugDetailTitle"></span>
-            </div>
-            <div id="sugDetailCards" style="margin-top:0.5rem"></div>
-          </div>
-        </section>
-
-        <!-- ===== 参考书籍 ===== -->
-        <section class="adm-tab" id="tab-books">
-          <div class="adm-sec-head">
-            <h2 class="adm-sec-title">参考书籍</h2>
-            <div class="adm-sec-meta" id="booksMeta"></div>
-          </div>
-          <div class="adm-books-toolbar">
-            <select id="booksFolderFilter" class="adm-select-sm" onchange="loadBooks()">
-              <option value="">全部文件夹</option>
-            </select>
-            <select id="booksCatFilter" class="adm-select-sm" onchange="loadBooks()">
-              <option value="">全部分类</option>
-              <option value="bazi">四柱八字</option>
-              <option value="ziwei">紫微斗数</option>
-              <option value="meihua">梅花易数</option>
-              <option value="liuyao">六爻</option>
-              <option value="qimen">奇门遁甲</option>
-              <option value="yijing">易经（通用）</option>
-              <option value="liuren">六壬</option>
-              <option value="fengshui">风水</option>
-              <option value="xiangshu">相术</option>
-              <option value="general">通用术数</option>
-            </select>
-            <button class="adm-btn-primary adm-btn-sm" onclick="openAddBook()">+ 添加书籍</button>
-            <button class="adm-btn-sm" onclick="batchIngest()" id="btnBatchIngest" style="margin-left:8px;background:#b8960a;color:#fff;border:none;border-radius:14px;padding:0.4rem 1rem;cursor:pointer">📥 全部入库</button>
-          </div>
-          <div class="adm-table-wrap">
-            <table class="adm-table" id="booksTable">
-              <thead>
-                <tr>
-                  <th>书名</th>
-                  <th>文件夹</th>
-                  <th>分类</th>
-                  <th>作者</th>
-                  <th>状态</th>
-                  <th>分块数</th>
-                  <th>添加时间</th>
-                  <th class="adm-th-right">操作</th>
-                </tr>
-              </thead>
-              <tbody id="booksTbody">
-                <tr><td colspan="8" class="adm-empty">加载中…</td></tr>
-              </tbody>
-            </table>
-          </div>
-
-          <!-- 书籍详情/编辑面板 -->
-          <div class="adm-detail-panel" id="booksDetailPanel" style="display:none">
-            <div class="adm-detail-head">
-              <button class="adm-back-btn" onclick="closeBooksDetail()">← 返回列表</button>
-              <span class="adm-detail-title" id="booksDetailTitle"></span>
-            </div>
-            <form id="bookEditForm" style="margin-top:0.8rem">
-              <input type="hidden" id="bookEditId">
-              <div class="adm-field">
-                <label>书名</label>
-                <input type="text" id="bookEditTitle" class="adm-input" required>
-              </div>
-              <div class="adm-field">
-                <label>文件夹</label>
-                <input type="text" id="bookEditFolder" class="adm-input" placeholder="如：术数、易经">
-              </div>
-              <div class="adm-field">
-                <label>分类</label>
-                <select id="bookEditCat" class="adm-select-sm">
-                  <option value="bazi">四柱八字</option>
-                  <option value="ziwei">紫微斗数</option>
-                  <option value="meihua">梅花易数</option>
-                  <option value="liuyao">六爻</option>
-                  <option value="qimen">奇门遁甲</option>
-                  <option value="yijing">易经（通用）</option>
-                  <option value="general">通用术数</option>
-                </select>
-              </div>
-              <div class="adm-field">
-                <label>作者</label>
-                <input type="text" id="bookEditAuthor" class="adm-input" placeholder="如：徐子平">
-              </div>
-              <div class="adm-field">
-                <label>简介</label>
-                <textarea id="bookEditDesc" class="adm-textarea" rows="3" placeholder="书籍简介…"></textarea>
-              </div>
-              <div class="adm-field">
-                <label>全文内容 <span class="adm-field-hint">（用于向量知识库入库）</span></label>
-                <textarea id="bookEditContent" class="adm-textarea" rows="12" placeholder="粘贴书籍全文…"></textarea>
-              </div>
-              <p class="adm-err" id="bookEditErr"></p>
-              <p class="adm-ok" id="bookEditOk" style="display:none"></p>
-              <div class="adm-modal-actions" style="padding:0">
-                <button type="submit" class="adm-btn-primary">保存</button>
-                <button type="button" class="adm-btn-ghost" onclick="closeBooksDetail()">取消</button>
-              </div>
-            </form>
-          </div>
-        </section>
-
-        <!-- ===== Prompt 管理 ===== -->
-        <section class="adm-tab" id="tab-prompts">
-          <div class="adm-sec-head">
-            <h2 class="adm-sec-title">Prompt 管理</h2>
-            <span class="adm-sec-meta" id="promptsMeta">修改梅花易数和六爻的 AI 提示词模板</span>
-          </div>
-          <div class="adm-prompts-list" id="promptsList">
-            <div class="adm-card-empty">加载中…</div>
-          </div>
-        </section>
-
-        <!-- ===== 系统设置 ===== -->
-        <section class="adm-tab" id="tab-settings">
-          <h2 class="adm-sec-title">系统设置</h2>
-          <div class="adm-settings-list">
-            <div class="adm-setting-row">
-              <div class="adm-setting-info">
-                <span class="adm-setting-name">AI 模型</span>
-                <span class="adm-setting-desc" id="settingModel">deepseek-v4-flash</span>
-              </div>
-              <span class="adm-setting-muted">当前配置</span>
-            </div>
-            <div class="adm-setting-row">
-              <div class="adm-setting-info">
-                <span class="adm-setting-name">管理密码</span>
-                <span class="adm-setting-desc">••••••</span>
-              </div>
-              <button class="adm-btn-sm" id="btnChangePwd">修改密码</button>
-            </div>
-            <div class="adm-setting-row">
-              <div class="adm-setting-info">
-                <span class="adm-setting-name">服务器时间</span>
-                <span class="adm-setting-desc" id="settingTime"></span>
-              </div>
-              <span class="adm-setting-muted">系统</span>
-            </div>
-          </div>
-        </section>
-
-      </main>
-    </div>
-  </div>
-
-  <!-- ========== 模态弹窗 ========== -->
-  <div class="adm-overlay" id="admOverlay" style="display:none"></div>
-
-  <!-- 修改密码 -->
-  <div class="adm-modal" id="modalPwd" style="display:none">
-    <h3>修改管理密码</h3>
-    <form id="pwdForm">
-      <div class="adm-field">
-        <label>当前密码</label>
-        <input type="password" id="pwdCurrent" placeholder="输入当前密码" required>
-      </div>
-      <div class="adm-field">
-        <label>新密码</label>
-        <input type="password" id="pwdNew" placeholder="输入新密码（至少6位）" required>
-      </div>
-      <div class="adm-field">
-        <label>确认新密码</label>
-        <input type="password" id="pwdConfirm" placeholder="再次输入新密码" required>
-      </div>
-      <p class="adm-err" id="pwdErr"></p>
-      <p class="adm-ok" id="pwdOk" style="display:none"></p>
-      <div class="adm-modal-actions">
-        <button type="submit" class="adm-btn-primary">确认修改</button>
-        <button type="button" class="adm-btn-ghost" onclick="closePwdModal()">取消</button>
-      </div>
-    </form>
-  </div>
-
-  <!-- 删除确认 -->
-  <div class="adm-modal" id="modalConfirm" style="display:none">
-    <h3 id="confirmTitle">确认操作</h3>
-    <p id="confirmMsg"></p>
-    <div class="adm-modal-actions">
-      <button class="adm-btn-danger" id="confirmBtn">确认删除</button>
-      <button class="adm-btn-ghost" onclick="closeConfirm()">取消</button>
-    </div>
-  </div>
-
-  <!-- 今日积分编辑弹窗 -->
-  <div class="adm-modal" id="modalToken" style="display:none">
-    <h3>编辑今日已用积分</h3>
-    <div class="adm-field">
-      <label id="tokenUserLabel">用户</label>
-      <input type="number" id="tokenInput" min="0" step="0.0001" placeholder="今日已用积分，最多4位小数" required>
-    </div>
-    <p class="adm-err" id="tokenErr"></p>
-    <p class="adm-ok" id="tokenOk" style="display:none"></p>
-    <div class="adm-modal-actions">
-      <button class="adm-btn-primary" onclick="saveToken()">保存</button>
-      <button class="adm-btn-ghost" onclick="closeTokenModal()">取消</button>
-    </div>
-  </div>
-
-</div>`
-
-/**
- * 把 logic.js 的全部导出挂回 `window`。
- *
- * 老页面里 `admin.js` 是 classic script，每个顶层 `function foo(){}` 本身就是
- * `window.foo`，所以 HTML 里那 28 处 `onclick="foo()"` 才工作。ESM 没有这个行为，
- * 必须显式挂回去 —— 而且**要挂全部导出**，不能只挑我在 JSX 里写过的那几个：
- * 动态行（`renderUsers` / `renderDash` 之类用 `esc()` 拼出来的字符串）里还有
- * 用户点击时才解析的 `onclick`，漏一个就是「点了没反应」，不会报错。
- *
- * ★ 这是过渡期胶水。**死期改判为阶段 5.5（HTML 里的内联 on* 换成真实监听）**：
- *   阶段 4 只搬共享层，没动本页 HTML，`admin/index.html` 与下面那些模板串里
- *   仍有 17 处内联 `onclick=`，删了它就等于把按钮点成死的。
- */
-function installGlobals() {
-  for (const [name, value] of Object.entries(adminLogic)) {
-    if (typeof value === 'function') window[name] = value
-  }
+function Login({onSuccess}) {
+  const [loading,setLoading]=useState(false),[error,setError]=useState('');
+  async function submit(values){setLoading(true);setError('');try{await login(values.username.trim(),values.password);onSuccess()}catch(e){setError(e.message)}finally{setLoading(false)}}
+  return <main className="admin-login"><Card className="login-card"><Typography.Title level={2}>易三千</Typography.Title><Typography.Text type="secondary">后台管理</Typography.Text>
+    <Form layout="vertical" onFinish={submit} className="login-form">
+      <Form.Item name="username" label="用户名" rules={[{required:true,message:'请输入用户名'}]}><Input autoComplete="username"/></Form.Item>
+      <Form.Item name="password" label="密码" rules={[{required:true,message:'请输入密码'}]}><Input.Password autoComplete="current-password"/></Form.Item>
+      {error&&<Alert type="error" title={error}/>}
+      <Button type="primary" htmlType="submit" loading={loading} block>进入后台</Button>
+    </Form><a href="/" className="back-home">返回首页</a></Card></main>;
 }
-
-const root = createRoot(document.getElementById('root'))
-
-// ★ `flushSync` 不是性能优化，是**正确性**：`init()` 第一句就是
-// `document.getElementById('admLoginForm').addEventListener(...)`。骨架没提交
-// 就是 null，直接抛 TypeError，整页停在空白。老页面里这个顺序由
-// `DOMContentLoaded` 保证，React 里由 flushSync 保证。
-flushSync(() => {
-  root.render(<div dangerouslySetInnerHTML={{ __html: SHELL_HTML }} />)
-})
-
-installGlobals()
-adminLogic.init()
+function Dashboard(){
+  const [data,setData]=useState(null),[error,setError]=useState(''),[loading,setLoading]=useState(true);
+  async function load(){setLoading(true);setError('');try{setData(await api.stats())}catch(e){setError(e.message)}finally{setLoading(false)}}
+  useEffect(()=>{let active=true;api.stats().then(d=>{if(active)setData(d)}).catch(e=>{if(active)setError(e.message)}).finally(()=>{if(active)setLoading(false)});return()=>{active=false}},[]);
+  if(error)return <Alert type="error" title={error} action={<Button onClick={load}>重试</Button>}/>;
+  const d=data?.total||{};
+  return <><Typography.Title level={3}>仪表盘</Typography.Title><Spin spinning={loading}><div className="stat-grid">
+    {[['users','总用户'],['todayUsers','今日新增'],['active7d','7 天活跃'],['charts','命盘总数'],['divinations','排卦总数'],['totalPoints','累计积分消耗'],['points7d','近七天积分消耗']].map(([key,title])=><Card key={key}><Statistic title={title} value={d[key]??'—'} precision={key.includes('Points')||key==='points7d'?4:0}/></Card>)}
+  </div></Spin></>;
+}
+function Settings(){
+  const [form]=Form.useForm();const {message}=App.useApp();
+  const [loading,setLoading]=useState(false),[error,setError]=useState('');
+  async function save(v){setLoading(true);setError('');try{await api.password({currentPassword:v.currentPassword,newPassword:v.newPassword});message.success('密码已更新');form.resetFields()}catch(e){setError(e.message)}finally{setLoading(false)}}
+  return <><Typography.Title level={3}>系统设置</Typography.Title><Card title="修改管理员密码"><Form form={form} layout="vertical" onFinish={save} style={{maxWidth:480}}>
+    <Form.Item name="currentPassword" label="当前密码" rules={[{required:true}]}><Input.Password autoComplete="current-password"/></Form.Item>
+    <Form.Item name="newPassword" label="新密码" rules={[{required:true,min:8,message:'新密码至少 8 位'}]}><Input.Password autoComplete="new-password"/></Form.Item>
+    <Form.Item name="confirmation" label="确认新密码" dependencies={['newPassword']} rules={[{required:true},{validator:(_,v)=>!v||v===form.getFieldValue('newPassword')?Promise.resolve():Promise.reject(new Error('两次输入不一致'))}]}><Input.Password autoComplete="new-password"/></Form.Item>
+    {error&&<Alert type="error" title={error}/>}<Button type="primary" htmlType="submit" loading={loading}>保存</Button>
+  </Form></Card></>;
+}
+function Shell({onLogout}){
+  const [open,setOpen]=useState(false),[active,setActive]=useState(readRoute);
+  useEffect(()=>{const fn=()=>setActive(readRoute());addEventListener('hashchange',fn);return()=>removeEventListener('hashchange',fn)},[]);
+  function navigate(key){
+    const event=new Event('admin:before-navigate',{cancelable:true});
+    if(key!==active&&!window.dispatchEvent(event))return;
+    location.hash=key;setActive(key);setOpen(false);
+  }
+  let page;
+  if(['charts','divination','suggestions'].includes(active))page=<Records key={active} kind={active}/>;
+  else{const Page={dashboard:Dashboard,users:Users,books:Books,prompts:Prompts,settings:Settings}[active]||Dashboard;page=<Page/>}
+  return <Layout className="admin-shell"><Layout.Header className="admin-header">
+    <Button aria-label="打开菜单" icon={<MenuOutlined/>} onClick={()=>setOpen(true)}/><Typography.Title level={4}>易三千 · {labels[active]}</Typography.Title>
+    <Space><Typography.Text className="account-label">管理员</Typography.Text><Button aria-label="退出" type="text" icon={<LogoutOutlined/>} onClick={onLogout}>退出</Button></Space>
+    </Layout.Header><Layout.Content className="admin-content">{page}</Layout.Content>
+    <Drawer title="导航" placement="left" open={open} onClose={()=>setOpen(false)} className="admin-drawer"><Menu mode="inline" selectedKeys={[active]} items={menuItems.map(([key,label])=>({key,label}))} onClick={({key})=>navigate(key)}/></Drawer>
+  </Layout>;
+}
+function Root(){
+  const [authed,setAuthed]=useState(false),[checking,setChecking]=useState(true),[error,setError]=useState('');
+  async function check(){setChecking(true);setError('');try{if(isAuthenticated()){await verify();setAuthed(true)}}catch(e){setError(e.message)}finally{setChecking(false)}}
+  useEffect(()=>{const fn=()=>setAuthed(false);addEventListener('admin:unauthorized',fn);check();return()=>removeEventListener('admin:unauthorized',fn)},[]);
+  return <ConfigProvider button={{autoInsertSpace:false}} theme={{token:{colorPrimary:'#1f6b5e',borderRadius:10,colorBgLayout:'#f4f7f6'}}}><App>
+    {checking?<div className="admin-login"><Spin tip="验证会话中…"/></div>:authed?<Shell onLogout={()=>{clearToken();setAuthed(false)}}/>:<>{error&&<Alert type="error" title={error} action={<Button onClick={check}>重试验证</Button>}/>}<Login onSuccess={()=>{setAuthed(true);setError('')}}/></>}
+  </App></ConfigProvider>;
+}
+createRoot(document.getElementById('root')).render(<Root/>);

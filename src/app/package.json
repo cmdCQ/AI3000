@@ -12,7 +12,9 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@ant-design/icons": "6.0.2",
     "@assistant-ui/react": "0.15.29",
+    "antd": "6.0.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },

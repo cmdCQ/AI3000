@@ -68,6 +68,14 @@ export default function Prompts() {
   const dirty = dirtyKeys.length > 0;
 
   useEffect(() => {
+    const beforeNavigate = event => {
+      if ((dirty || Object.values(saving).some(Boolean)) && !window.confirm('有未保存或正在保存的 Prompt，确定离开？')) event.preventDefault();
+    };
+    window.addEventListener('admin:before-navigate', beforeNavigate);
+    return () => window.removeEventListener('admin:before-navigate', beforeNavigate);
+  }, [dirty, saving]);
+
+  useEffect(() => {
     const beforeUnload = event => {
       if (!dirty) return;
       event.preventDefault();
@@ -130,14 +138,14 @@ export default function Prompts() {
     <div className="page-title"><div><Typography.Title level={3}>Prompt管理</Typography.Title><Typography.Text type="secondary">易三千管理后台</Typography.Text></div>{dirty && <Tag color="orange">有未保存修改</Tag>}</div>
     <Card loading={resource.loading} title="Prompt模板">
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-        <Select aria-label="选择 Prompt 模板" value={selectedKey || undefined} onChange={setSelectedKey} placeholder="请选择模板" style={{ width: '100%' }} options={groups.map(group => ({ label: group.label, options: resource.rows.filter(row => row.key.startsWith(`${group.prefix}_`)).map(row => ({ value: row.key, label: rowLabel(row.key) })) })).filter(group => group.options.length)} />
+        <Select virtual={false} aria-label="选择 Prompt 模板" value={selectedKey || undefined} onChange={setSelectedKey} placeholder="请选择模板" style={{ width: '100%' }} options={groups.map(group => ({ label: group.label, options: resource.rows.filter(row => row.key.startsWith(`${group.prefix}_`)).map(row => ({ value: row.key, label: rowLabel(row.key) })) })).filter(group => group.options.length)} />
         {selected && <>
           <Space wrap><Typography.Text strong>{rowLabel(selected.key)}</Typography.Text><Tag color={selected.isCustom ? 'blue' : 'default'}>{selected.isCustom ? '已自定义' : '默认模板'}</Tag>{dirtyKeys.includes(selected.key) && <Tag color="orange">未保存</Tag>}</Space>
-          <Input.TextArea aria-label="Prompt内容" rows={selected.key.endsWith('_prompt') ? 14 : 8} value={value} onChange={event => updateDraft(event.target.value)} />
+          <Input.TextArea aria-label="Prompt内容" rows={selected.key.endsWith('_prompt') ? 14 : 8} value={value} disabled={Boolean(saving[selected.key])} onChange={event => updateDraft(event.target.value)} />
           <Typography.Text type="secondary">{promptVarHints[selected.key.startsWith('mhys') ? 'mhys' : 'liuyao']}</Typography.Text>
           <Space>
-            <Button type="primary" icon={<SaveOutlined />} loading={Boolean(saving[selected.key])} disabled={!dirtyKeys.includes(selected.key)} onClick={() => save(selected)}>保存</Button>
-            {selected.isCustom && <Button danger icon={<DeleteOutlined />} loading={Boolean(saving[selected.key])} onClick={() => reset(selected)}>恢复默认</Button>}
+            <Button aria-label="保存" type="primary" icon={<SaveOutlined />} loading={Boolean(saving[selected.key])} disabled={!dirtyKeys.includes(selected.key)} onClick={() => save(selected)}>保存</Button>
+            {selected.isCustom && <Button aria-label="恢复默认" danger icon={<DeleteOutlined />} loading={Boolean(saving[selected.key])} onClick={() => reset(selected)}>恢复默认</Button>}
           </Space>
         </>}
       </Space>
