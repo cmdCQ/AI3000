@@ -35,7 +35,7 @@ function runRoute(route, { payload = { role: 'admin' }, query, url } = {}) {
   };
   const execute = new AsyncFunction(
     'req', 'res', 'pathname', 'checkAuth', 'json', 'db', 'console',
-    'pointsReady', 'pointsBilling', 'config',
+    'pointsReady', 'pointsBilling', 'config', 'admin', 'deleteAccount',
     `${route === 'stats' ? statsFunction : ''}\n${routes[route]}`,
   );
   const result = execute(
@@ -48,6 +48,8 @@ function runRoute(route, { payload = { role: 'admin' }, query, url } = {}) {
       return { totalPoints: 12.5, points7d: 3.25 };
     } },
     { deepseek: { apiKey: '' } },
+    { username: 'CQA' },
+    async target => ({ ok: true, username: target }),
   );
   return { result, calls };
 }
@@ -59,13 +61,11 @@ for (const payload of [null, { role: 'user' }]) {
     assert.equal(calls.length, 0);
   });
 }
-test('DELETE users is suspended for admins with 409 and zero database calls', async () => {
+test('DELETE users allows admin deletion through the account deletion service', async () => {
   const { result, calls } = runRoute('delete');
   const response = await result;
-  assert.equal(response.status, 409);
-  assert.match(response.body.error, /数据保留范围待确认/);
+  assert.deepEqual(response, { status: 200, body: { ok: true, username: 'test-user' } });
   assert.equal(calls.length, 0);
-  assert.equal(Object.hasOwn(response.body, 'ok'), false);
 });
 
 for (const payload of [null, { role: 'user' }]) {

@@ -31,6 +31,7 @@ const paipanConst = require('./paipan/constants.js');
 const chatTools = require('./chat-tools.js');
 const baziConsultations = require('./paipan/bazi_consultations.js');
 const { createPointsBilling, lockName: pointsLockName } = require('./paipan/points-billing.js');
+const { createAccountDeletion } = require('./paipan/account-deletion.js');
 
 // ===== 阿里云号码认证服务（PNVS）短信验证码 =====
 const DypnsapiClient = require('@alicloud/dypnsapi20170525').default;
@@ -142,7 +143,6 @@ function calcBazi(year, month, day, hour, minute) {
 }
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
-const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const ADMIN_FILE = path.join(DATA_DIR, 'admin.json');
 const STATS_FILE = path.join(DATA_DIR, 'stats.json');
 const SECRET_FILE = path.join(DATA_DIR, '.jwt_secret');
@@ -438,6 +438,62 @@ const db = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0,
 });
+const deleteAccount = createAccountDeletion(db, { database: config.mysql.database, verifyPassword, lockName: pointsLockName });
+
+// Every authenticated user-owned mutation shares the billing/deletion advisory lock.
+// Keep the lock on a dedicated connection for the entire handler, including delayed
+// model callbacks, so a delete cannot race a write that already passed auth.
+async function withUserWriteLock(username, callback, payload) {
+  const connection = await db.getConnection();
+  const name = pointsLockName(username);
+  let acquired = false, destroyed = false;
+  try {
+    const [rows] = await connection.query('SELECT GET_LOCK(?, 0) AS acquired', [name]);
+    if (rows[0]?.acquired == null) throw Object.assign(new Error('锁服务暂不可用'), { status: 503 });
+    if (Number(rows[0].acquired) !== 1) throw Object.assign(new Error('已有请求正在处理，请稍后重试'), { status: 409 });
+    acquired = true;
+    if (payload) {
+      const current = await verifyUserTokenExists(payload, connection);
+      if (!current) throw Object.assign(new Error('未登录或登录已过期'), { status: 401 });
+    }
+    return await callback(connection);
+  } finally {
+    if (acquired) {
+      try {
+        const [released] = await connection.query('SELECT RELEASE_LOCK(?) AS released', [name]);
+        if (Number(released[0]?.released) !== 1) throw new Error('User write lock release failed');
+      } catch (error) {
+        console.error('[auth] user write lock release failed:', error.message);
+        connection.destroy(); destroyed = true;
+      }
+    }
+    if (!destroyed) connection.release();
+  }
+}
+
+function needsUserWriteLock(req, pathname, username) {
+  if (!username || !['POST', 'PATCH', 'DELETE'].includes(req.method)) return false;
+  if (pathname.startsWith('/api/admin/') || pathname === '/api/user/account') return false;
+  if (pathname === '/api/chat/send' || pathname === '/api/bazi/parse') return false;
+  if (pathname === '/api/login' || pathname === '/api/register' || pathname === '/api/reset-password'
+      || pathname === '/api/send-sms-code' || pathname === '/api/wechat/login') return false;
+  return true;
+}
+
+async function verifyUserTokenExists(payload, connection = db) {
+  if (!payload || payload.role === 'admin') return payload;
+  if (!payload.username || !Number.isFinite(Number(payload.iat))) return null;
+  try {
+    const [rows] = await connection.query('SELECT username, created_at FROM users WHERE username = ? OR phone = ?', [payload.username, payload.username]);
+    if (rows.length !== 1) return null;
+    // A deleted account may later reuse the same phone/name: legacy JWTs must not carry over.
+    if (!Number.isFinite(Number(rows[0].created_at)) || Number(rows[0].created_at) >= Number(payload.iat)) return null;
+    return payload;
+  } catch (error) {
+    console.error('[auth] user existence check failed:', error.message);
+    throw Object.assign(new Error('认证服务暂不可用'), { status: 503 });
+  }
+}
 
 // ===== Schema Migration: add avatar_url if not exists =====
 db.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS `avatar_url` varchar(512) NOT NULL DEFAULT \'\' AFTER `nick_name`').catch(function (err) {
@@ -480,7 +536,7 @@ const consultationReady = baziConsultations.initConsultations(db).catch(error =>
 });
 const handleConsultations = baziConsultations.createConsultationHandler({
   db, ready: async () => { await pointsReady(); await consultationReady; if (consultationInitError) throw consultationInitError; },
-  checkAuth, json, buildChart: baziChartFromParams, lockNameForUser: pointsLockName,
+  checkAuth, verifyAuth: verifyUserTokenExists, json, buildChart: baziChartFromParams, lockNameForUser: pointsLockName,
   checkQuota: async (username, connection) => {
     const quota = await pointsBilling.getQuota(username, connection);
     if (quota.pointsRemaining !== null && quota.pointsRemaining <= 0) {
@@ -500,17 +556,27 @@ async function handle(req, res) {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const body = await parseBody(req);
   const pathname = url.pathname;
-  const username = checkAuth(req)?.username;
+  const rawPayload = checkAuth(req);
+  const authPayload = await verifyUserTokenExists(rawPayload);
+  if (rawPayload && !authPayload) return json(res, { error: '未登录或登录已过期' }, 401);
+  req.authPayload = authPayload;
+  const username = authPayload?.username;
   const metered = req.method === 'POST' && username
     && (pathname === '/api/chat/send' || pathname === '/api/bazi/parse');
   try {
     if (metered) {
       await pointsReady();
       return await pointsBilling.withUserLock(username, async (connection, quota) => {
+        const current = await verifyUserTokenExists(authPayload, connection);
+        if (!current) return json(res, { error: '未登录或登录已过期' }, 401);
+        req.authPayload = current;
         req.pointsContext = { connection, quota, requestId: crypto.randomUUID() };
         return handleRequest(req, res, pathname, body, url);
       });
     }
+    const writeLocked = needsUserWriteLock(req, pathname, username)
+      && !pathname.startsWith('/api/bazi/consultations');
+    if (writeLocked) return await withUserWriteLock(username, connection => handleRequest(req, res, pathname, body, url), authPayload);
     return await handleRequest(req, res, pathname, body, url);
   } catch (error) {
     console.error('[request]', error.message);
@@ -548,9 +614,9 @@ async function handleRequest(req, res, pathname, body, url) {
     try {
       const [existing] = await db.query('SELECT phone FROM users WHERE phone = ?', [phone]);
       if (existing.length > 0) return json(res, { error: '该手机号已注册，请直接登录' }, 409);
-    } catch(e) { /* 降级到 JSON */ 
-      const users = readJSON(USERS_FILE, {});
-      if (users[phone]) return json(res, { error: '该手机号已注册，请直接登录' }, 409);
+    } catch(e) {
+      console.error('Register existence check failed:', e.message);
+      return json(res, { error: '注册服务暂不可用，请稍后重试' }, 503);
     }
 
     const passwordHash = hashPassword(password);
@@ -567,17 +633,8 @@ async function handleRequest(req, res, pathname, body, url) {
       return json(res, { error: '注册失败，请稍后重试' }, 500);
     }
 
-    // 同步写入 JSON 备份
-    const users = readJSON(USERS_FILE, {});
-    users[phone] = {
-      phone,
-      passwordHash,
-      createdAt: now,
-      aiCount: 0,
-      lastActive: now,
-    };
-    writeJSON(USERS_FILE, users);
-
+    // Keep issuance strictly after account creation, including same-millisecond registration.
+    await new Promise(resolve => setTimeout(resolve, 2));
     const token = createToken({ username: phone, exp: Date.now() + USER_TOKEN_EXPIRY });
     return json(res, { token, username: phone });
   }
@@ -598,29 +655,12 @@ async function handleRequest(req, res, pathname, body, url) {
     try {
       const [rows] = await db.query('SELECT phone, password_hash FROM users WHERE phone = ?', [phone]);
       if (rows.length > 0) user = rows[0];
-    } catch(e) { /* 降级到 JSON */ }
-    
-    // MySQL 未找到，降级到 JSON
-    if (!user) {
-      const users = readJSON(USERS_FILE, {});
-      const jsonUser = users[phone];
-      if (!jsonUser) return json(res, { error: '登录凭证无效' }, 401);
-      if (!verifyPassword(password, jsonUser.passwordHash)) {
-        // 记录失败尝试
-        const fails = (loginAttempts.get(phone) || 0) + 1;
-        if (fails >= 10) {
-          loginAttempts.set(phone, Date.now() + 5 * 60 * 1000); // 锁定5分钟
-        } else {
-          loginAttempts.set(phone, fails);
-        }
-        return json(res, { error: '登录凭证无效' }, 401);
-      }
-      // 登录成功，清除失败记录
-      loginAttempts.delete(phone);
-      // 恢复到 MySQL
-      ensureDbUser(phone).catch(()=>{});
-    } else {
-      if (!verifyPassword(password, user.password_hash)) {
+    } catch(e) {
+      console.error('Login database lookup failed:', e.message);
+      return json(res, { error: '登录服务暂不可用，请稍后重试' }, 503);
+    }
+    if (!user) return json(res, { error: '登录凭证无效' }, 401);
+    if (!verifyPassword(password, user.password_hash)) {
         const fails = (loginAttempts.get(phone) || 0) + 1;
         if (fails >= 10) {
           loginAttempts.set(phone, Date.now() + 5 * 60 * 1000);
@@ -629,14 +669,12 @@ async function handleRequest(req, res, pathname, body, url) {
         }
         return json(res, { error: '登录凭证无效' }, 401);
       }
-      loginAttempts.delete(phone);
-    }
+    loginAttempts.delete(phone);
 
     // 更新最后活跃时间
     db.query('UPDATE users SET last_active = ? WHERE phone = ?', [Date.now(), phone]).catch(()=>{});
-    const users = readJSON(USERS_FILE, {});
-    if (users[phone]) { users[phone].lastActive = Date.now(); writeJSON(USERS_FILE, users); }
-
+    // Keep issuance strictly after account creation, including same-millisecond registration.
+    await new Promise(resolve => setTimeout(resolve, 2));
     const token = createToken({ username: phone, exp: Date.now() + USER_TOKEN_EXPIRY });
     return json(res, { token, username: phone });
   }
@@ -648,29 +686,35 @@ async function handleRequest(req, res, pathname, body, url) {
     if (!code) return json(res, { error: '请输入短信验证码' }, 400);
     if (!newPassword || newPassword.length < 6) return json(res, { error: '密码至少 6 位' }, 400);
 
-    // 检查用户是否存在（MySQL）
-    let exists = false;
+    // MySQL is authoritative; never resurrect accounts from the legacy JSON backup.
+    let account;
     try {
-      const [rows] = await db.query('SELECT phone FROM users WHERE phone = ?', [phone]);
-      exists = rows.length > 0;
-    } catch(e) { /* 降级 */ }
-    if (!exists) {
-      const users = readJSON(USERS_FILE, {});
-      if (!users[phone]) return json(res, { error: '手机号或验证码无效' }, 404);
+      const [rows] = await db.query('SELECT username, phone, created_at FROM users WHERE phone = ?', [phone]);
+      if (rows.length === 1) account = rows[0];
+    } catch(e) {
+      return json(res, { error: '重置服务暂不可用，请稍后重试' }, 503);
     }
+    if (!account) return json(res, { error: '手机号或验证码无效' }, 404);
 
     // 校验验证码
     const codeCheck = verifySmsCode(phone, code);
     if (!codeCheck.ok) return json(res, { error: codeCheck.error }, 400);
 
     const newHash = hashPassword(newPassword);
-    // 更新 MySQL（主存储）
-    db.query('UPDATE users SET password_hash = ? WHERE phone = ?', [newHash, phone]).catch(()=>{});
-    // 同步更新 JSON 备份
-    const users = readJSON(USERS_FILE, {});
-    if (users[phone]) { users[phone].passwordHash = newHash; writeJSON(USERS_FILE, users); }
-
-    return json(res, { ok: true });
+    try {
+      await pointsReady();
+      return await withUserWriteLock(account.username, async connection => {
+        const [rows] = await connection.query('SELECT username, phone, created_at FROM users WHERE phone = ?', [phone]);
+        if (rows.length !== 1 || rows[0].username !== account.username || Number(rows[0].created_at) !== Number(account.created_at)) {
+          return json(res, { error: '手机号或验证码无效' }, 404);
+        }
+        const [updated] = await connection.query('UPDATE users SET password_hash = ? WHERE phone = ? AND username = ? AND created_at = ?', [newHash, phone, account.username, account.created_at]);
+        if (updated.affectedRows !== 1) return json(res, { error: '重置失败，请重试' }, 503);
+        return json(res, { ok: true });
+      });
+    } catch (e) {
+      return json(res, { error: e.status ? e.message : '重置服务暂不可用，请稍后重试' }, e.status || 503);
+    }
   }
 
   // GET /api/me
@@ -746,11 +790,46 @@ async function handleRequest(req, res, pathname, body, url) {
     return json(res, await getUsers());
   }
 
-  // DELETE /api/admin/users/:id — 暂停，数据保留范围待确认
+  // DELETE /api/admin/users/:username — 永久删除账号及其全部业务数据
   if (req.method === 'DELETE' && pathname.startsWith('/api/admin/users/')) {
     const payload = checkAuth(req);
     if (!payload || payload.role !== 'admin') return json(res, { error: '未授权' }, 401);
-    return json(res, { error: '账号删除暂不可用，数据保留范围待确认' }, 409);
+    const target = decodeURIComponent(pathname.slice('/api/admin/users/'.length));
+    if (!target || target === admin.username) return json(res, { error: '不能删除管理员账号' }, 403);
+    try {
+      return json(res, await deleteAccount(target));
+    } catch (e) {
+      console.error('Admin account deletion error:', e);
+      return json(res, { error: e.status ? e.message : '删除失败' }, e.status || 503);
+    }
+  }
+
+  // GET /api/user/account — 告知注销所需验证方式，不泄露密码
+  if (req.method === 'GET' && pathname === '/api/user/account') {
+    const payload = req.authPayload || checkAuth(req);
+    if (!payload || payload.role === 'admin' || !payload.username) return json(res, { error: '未登录或登录已过期' }, 401);
+    try {
+      const [rows] = await db.query('SELECT username, phone, password_hash FROM users WHERE username = ? OR phone = ?', [payload.username, payload.username]);
+      if (rows.length !== 1) return json(res, { error: '未登录或登录已过期' }, 401);
+      const hasPassword = typeof rows[0].password_hash === 'string' && rows[0].password_hash.length > 0;
+      return json(res, { username: rows[0].username, verificationMethod: hasPassword ? 'password' : 'unsupported' });
+    } catch (e) {
+      return json(res, { error: '注销信息暂不可用' }, 503);
+    }
+  }
+
+  // DELETE /api/user/account — 用户确认密码后永久删除自身账号
+  if (req.method === 'DELETE' && pathname === '/api/user/account') {
+    const payload = req.authPayload || checkAuth(req);
+    if (!payload || payload.role === 'admin' || !payload.username) return json(res, { error: '未登录或登录已过期' }, 401);
+    const userBody = body || {};
+    try {
+      if (userBody.confirmation !== payload.username) return json(res, { error: '请输入正确的账号确认文字' }, 400);
+      return json(res, await deleteAccount(payload.username, { password: userBody.password, requirePassword: true }));
+    } catch (e) {
+      console.error('Self account deletion error:', e);
+      return json(res, { error: e.status ? e.message : '注销失败' }, e.status || 503);
+    }
   }
 
   // GET /api/admin/user-tiers — 获取所有用户的等级信息（MySQL）
@@ -1887,7 +1966,6 @@ async function handleRequest(req, res, pathname, body, url) {
     const payload = checkAuth(req);
     if (!payload) return json(res, { messages: [] });
     try {
-      await ensureDbUser(payload.username);
       const [rows] = await db.query('SELECT messages FROM chat_history WHERE user_id = ?', [payload.username]);
       if (rows.length === 0) return json(res, { messages: [] });
       let msgs;
@@ -2454,6 +2532,7 @@ userPrompt += '\n\n注意：参考古籍已在最上方提供，请在回答开�
       }
 
       // 3. Generate JWT
+      await new Promise(resolve => setTimeout(resolve, 2));
       const token = createToken({ username: username, exp: Date.now() + USER_TOKEN_EXPIRY });
       let nick_name = '微信用户';
       let avatar_url = '';
@@ -3117,23 +3196,6 @@ function buildLiuyaoFollowUpPrompt(topic, followUp, context, cardData) {
 }
 
 
-
-async function ensureDbUser(username) {
-  if (!username || !db) return;
-  try {
-    const [rows] = await db.query('SELECT username FROM users WHERE username = ?', [username]);
-    if (rows.length === 0) {
-      // 微信用户 openid 较长，phone 列只存手机号；username 存完整标识
-      const phone = (username.startsWith('wx_')) ? '' : username;
-      await db.query(
-        'INSERT INTO users (phone, username, password_hash, nick_name, ai_count, token_used, tier, created_at, last_active) VALUES (?, ?, ?, ?, 0, 0, 0, ?, ?)',
-        [phone, username, '', username, Date.now(), Date.now()]
-      );
-    }
-  } catch (e) {
-    // 并发重复插入可能冲突，忽略
-  }
-}
 
 function estimateTokens(text) {
   if (!text) return 0;

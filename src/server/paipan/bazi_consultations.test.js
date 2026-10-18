@@ -133,7 +133,7 @@ test('actual registered quota callback uses checked-out points service and propa
     vm.runInNewContext(registration, {
       baziConsultations: { createConsultationHandler: value => { options = value; } }, db: {},
       consultationReady: Promise.resolve(), consultationInitError: null, pointsReady: async () => {},
-      checkAuth() {}, json() {}, baziChartFromParams() {}, streamBaziParse() {},
+      checkAuth() {}, verifyUserTokenExists: async payload => payload, json() {}, baziChartFromParams() {}, streamBaziParse() {},
       pointsLockName: username => 'points:' + username, requirePoints: () => 1,
       pointsBilling: { getQuota: async (username, connection) => {
         checked = true; assert.equal(username, 'alice'); assert.equal(typeof connection.query, 'function');

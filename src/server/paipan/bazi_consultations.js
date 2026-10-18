@@ -77,7 +77,7 @@ function pageSize(url) {
   return limit;
 }
 
-function createConsultationHandler({ db, ready, checkAuth, json, buildChart, checkQuota, stream, lockNameForUser, checkBudget }) {
+function createConsultationHandler({ db, ready, checkAuth, verifyAuth, json, buildChart, checkQuota, stream, lockNameForUser, checkBudget }) {
   return async function handleConsultations(req, res, pathname, body, url) {
     if (pathname !== '/api/bazi/consultations' && !pathname.startsWith('/api/bazi/consultations/')) return false;
     const auth = checkAuth(req);
@@ -99,6 +99,10 @@ function createConsultationHandler({ db, ready, checkAuth, json, buildChart, che
     try {
       await (typeof ready === 'function' ? ready() : ready);
       const username = auth.username;
+      if (typeof verifyAuth === 'function') {
+        const current = await verifyAuth(auth, connection || db);
+        if (!current) throw bad(401, '请先登录');
+      }
       if (req.method === 'GET' && pathname === '/api/bazi/consultations') {
         const limit = pageSize(url);
         const before = url.searchParams.get('before');
