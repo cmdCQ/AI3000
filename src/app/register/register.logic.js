@@ -49,12 +49,12 @@ export async function requestSmsCode(phone, fetchImpl) {
 }
 
 /** 老 `:76-85`：`/api/register`，非 2xx 抛 `new Error(data.error)`。 */
-export async function requestRegister(phone, code, password, fetchImpl) {
+export async function requestRegister(phone, code, password, fetchImpl, agreed = true) {
   const doFetch = fetchImpl || fetch
   const res = await doFetch('/api/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phone, code, password }),
+    body: JSON.stringify({ phone, code, password, agreed }),
   })
   const data = await res.json()
   if (!res.ok) throw new Error(data.error)

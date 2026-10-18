@@ -61,7 +61,7 @@ describe('注册页 · 发码前的手机号校验', () => {
 })
 
 describe('注册页 · 提交前的四道校验（顺序就是优先级）', () => {
-  const ok = ['13800138000', '123456', 'secret123', 'secret123']
+  const ok = ['13800138000', '123456', 'secret123', 'secret123', true]
   it('全合法返回 null', () => {
     expect(validateRegister(...ok)).toBeNull()
   })

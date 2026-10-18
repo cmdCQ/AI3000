@@ -38,6 +38,7 @@ async function fillAll(page, values) {
   await page.locator('#smsCode').fill(values.code)
   await page.locator('#password').fill(values.password)
   await page.locator('#confirm').fill(values.confirm)
+  if (values.agreed !== false) await page.locator('.legal-consent input').check()
 }
 
 test.describe('/register/', () => {
@@ -142,6 +143,32 @@ test.describe('/register/', () => {
     await expect(err).toHaveText('两次密码不一致')
 
     expect(requested).toBe(0)
+  })
+
+  test('未同意法律文档：不发送注册请求并显示提示', async ({ page }) => {
+    let requested = 0
+    await page.route('**/api/register', (route) => {
+      requested += 1
+      return route.fulfill({ status: 500, contentType: 'application/json', body: '{}' })
+    })
+    await page.goto(PAGE)
+    await fillAll(page, { ...VALID, agreed: false })
+    await page.locator('button[type=submit]').click()
+    await expect(page.locator('#registerError')).toHaveText('请先阅读并同意用户协议、隐私政策和 AI 使用与风险说明')
+    expect(requested).toBe(0)
+  })
+
+  test('注册请求携带 agreed=true', async ({ page }) => {
+    let body = null
+    await page.route('**/api/register', async (route) => {
+      body = JSON.parse(route.request().postData() || '{}')
+      await route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: '测试结束' }) })
+    })
+    await page.goto(PAGE)
+    await fillAll(page, VALID)
+    await page.locator('button[type=submit]').click()
+    await expect(page.locator('#registerError')).toHaveText('测试结束')
+    expect(body).toMatchObject({ phone: VALID.phone, code: VALID.code, password: VALID.password, agreed: true })
   })
 
   test('注册成功：种两个 cookie 并跳回首页', async ({ page }) => {

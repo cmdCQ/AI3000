@@ -13,3 +13,29 @@
 @import '../shared/css/tokens.css';
 
 #root { display: block; }
+
+.legal-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 0.65rem !important;
+  font-size: 0.76rem !important;
+  line-height: 1.55;
+  color: var(--text-dim) !important;
+  cursor: pointer;
+}
+
+.legal-consent input {
+  width: 1rem !important;
+  height: 1rem;
+  flex: 0 0 auto;
+  margin-top: 0.15rem;
+  accent-color: var(--gold);
+  box-shadow: none !important;
+}
+
+.legal-consent a {
+  color: var(--gold);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}

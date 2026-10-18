@@ -609,7 +609,8 @@ async function handleRequest(req, res, pathname, body, url) {
 
   // POST /api/register — 手机号+验证码+密码注册
   if (req.method === 'POST' && pathname === '/api/register') {
-    const { phone, code, password } = body;
+    const { phone, code, password, agreed } = body;
+    if (!agreed) return json(res, { error: '请先同意法律文档后再注册' }, 400);
     if (!phone || !/^1\d{10}$/.test(phone)) return json(res, { error: '请输入正确手机号' }, 400);
     if (!code) return json(res, { error: '请输入短信验证码' }, 400);
     if (!password || password.length < 6) return json(res, { error: '密码至少 6 位' }, 400);

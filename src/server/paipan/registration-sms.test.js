@@ -7,7 +7,8 @@ const vm = require('node:vm');
 const source = fs.readFileSync(path.join(__dirname, '../auth-server.js'), 'utf8');
 const start = source.indexOf("  // POST /api/send-sms-code");
 const end = source.indexOf('  // POST /api/register', start);
-assert.ok(start >= 0 && end > start);
+const registerEnd = source.indexOf('  // POST /api/login', end);
+assert.ok(start >= 0 && end > start && registerEnd > end);
 function route(query, send) {
   return vm.runInNewContext('(async function(body) { const req = {method:"POST"}; const pathname="/api/send-sms-code"; const res={};' + source.slice(start, end) + '})', {
     db: { query }, sendSmsVerifyCode: send,
@@ -47,4 +48,43 @@ test('new phone uses existing SMS success and cooldown contract', async () => {
 test('invalid phone never queries database or sends SMS', async () => {
   const handle = route(async () => { throw new Error('unexpected database'); }, async () => { throw new Error('unexpected SMS'); });
   assert.equal((await handle({ phone: 'bad' })).status, 400);
+});
+
+function registerRoute(body, overrides = {}) {
+  return vm.runInNewContext('(async function(body) { const req = {method:"POST"}; const pathname="/api/register"; const res={};' + source.slice(end, registerEnd) + '})', {
+    db: overrides.db || { query: async () => [[]] },
+    verifySmsCode: overrides.verifySmsCode || (() => ({ ok: true })),
+    hashPassword: () => 'hash',
+    createToken: () => 'token',
+    USER_TOKEN_EXPIRY: 3600000,
+    json: (_res, data, status = 200) => ({ data, status }),
+    console: { error() {} },
+    Date: { now: () => 1700000000000 },
+    setTimeout,
+  });
+}
+
+test('registration rejects without legal consent before database or code verification', async () => {
+  let queried = false;
+  let verified = false;
+  const handle = registerRoute({}, {
+    db: { query: async () => { queried = true; } },
+    verifySmsCode: () => { verified = true; return { ok: true }; },
+  });
+  const result = await handle({ phone: '13800000000', code: '123456', password: 'secret123', agreed: false });
+  assert.equal(result.status, 400);
+  assert.equal(result.data.error, '请先同意法律文档后再注册');
+  assert.equal(queried, false);
+  assert.equal(verified, false);
+});
+
+test('registration accepts explicit legal consent and preserves account creation contract', async () => {
+  const queries = [];
+  const handle = registerRoute({}, {
+    db: { query: async (sql, args) => { queries.push([sql, args]); return [[]]; } },
+  });
+  const result = await handle({ phone: '13800000000', code: '123456', password: 'secret123', agreed: true });
+  assert.equal(result.status, 200);
+  assert.equal(result.data.token, 'token');
+  assert.equal(queries.length, 2);
 });

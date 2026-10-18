@@ -22,6 +22,7 @@ function RegisterPage() {
   const [code, setCode] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
+  const [agreed, setAgreed] = useState(false)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [smsSending, setSmsSending] = useState(false)
@@ -73,6 +74,10 @@ function RegisterPage() {
     e.preventDefault()
     const phoneValue = phone.trim()
     const codeValue = code.trim()
+    if (!agreed) {
+      setError('请先阅读并同意用户协议、隐私政策和 AI 使用与风险说明')
+      return
+    }
     const message = validateRegister(phoneValue, codeValue, password, confirm)
     if (message) {
       setError(message)
@@ -81,7 +86,7 @@ function RegisterPage() {
     setSubmitting(true)
     setError('')
     try {
-      const data = await requestRegister(phoneValue, codeValue, password)
+      const data = await requestRegister(phoneValue, codeValue, password, undefined, agreed)
       for (const cookie of sessionCookies(data.token, data.username)) {
         document.cookie = cookie
       }
@@ -156,6 +161,15 @@ function RegisterPage() {
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
           />
+
+          <label className="legal-consent">
+            <input
+              type="checkbox"
+              checked={agreed}
+              onChange={(e) => setAgreed(e.target.checked)}
+            />
+            <span>我已阅读并同意 <a href="/legal/#agreement">用户协议</a>、<a href="/legal/#privacy">隐私政策</a>和 <a href="/legal/#ai">AI 使用与风险说明</a></span>
+          </label>
 
           <p className="auth-error" id="registerError">
             {error}
