@@ -1,0 +1,30 @@
+@import '../shared/css/tokens.css';
+
+html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); }
+.legal-page, .legal-page * { box-sizing: border-box; }
+.legal-page { width: min(680px, calc(100% - 2rem)); margin: 0 auto; padding: 1rem 0 3rem; }
+.legal-header { display: flex; align-items: center; gap: .8rem; min-height: 4rem; }
+.legal-back { color: var(--text-dim); text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; }
+.legal-back:hover { color: var(--gold); }
+.legal-kicker { margin: 0; color: var(--text-muted); font-size: .72rem; }
+.legal-header h1 { margin: .1rem 0 0; font: 600 1.2rem var(--serif); letter-spacing: .08em; }
+.legal-tabs { display: flex; flex-wrap: wrap; gap: .45rem; padding: .4rem 0 1rem; border-bottom: 1px solid var(--border); }
+.legal-tabs button { min-height: 44px; padding: .55rem .8rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-card); color: var(--text-dim); font: inherit; cursor: pointer; }
+.legal-tabs button.active { border-color: var(--gold); color: var(--gold); background: var(--gold-wash); }
+.legal-card { margin-top: 1rem; padding: clamp(1rem, 4vw, 1.6rem); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-card); overflow-wrap: anywhere; }
+.legal-status { margin: 1.5rem 0; color: var(--text-dim); text-align: center; }
+.legal-status button { min-height: 44px; padding: .5rem 1rem; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--bg-card); color: var(--gold); font: inherit; cursor: pointer; }
+.legal-document { font-size: .88rem; line-height: 1.8; }
+.legal-document h1 { margin: 0 0 1rem; font: 600 1.35rem/1.4 var(--serif); }
+.legal-document h2 { margin: 1.6rem 0 .55rem; padding-bottom: .25rem; border-bottom: 1px solid var(--border); font: 600 1.05rem/1.5 var(--serif); }
+.legal-document h3 { margin: 1.1rem 0 .35rem; font: 600 .95rem/1.5 var(--serif); }
+.legal-document p { margin: .65rem 0; }
+.legal-document blockquote { margin: .8rem 0; padding: .5rem .8rem; border-left: 3px solid var(--gold); color: var(--text-dim); }
+.legal-document ul, .legal-document ol { padding-left: 1.35rem; }
+.legal-document li { margin: .35rem 0; }
+.legal-document table { width: 100%; border-collapse: collapse; display: block; overflow-x: auto; }
+.legal-document th, .legal-document td { min-width: 9rem; padding: .5rem; border: 1px solid var(--border); text-align: left; vertical-align: top; }
+.legal-document th { color: var(--text-dim); background: var(--gold-wash); }
+.legal-document code, .legal-document pre { font-family: var(--mono, monospace); }
+.legal-document pre { padding: .7rem; overflow-x: auto; background: var(--bg); }
+@media (max-width: 380px) { .legal-page { width: calc(100% - 1rem); } .legal-tabs button { flex: 1 1 100%; text-align: left; } }
