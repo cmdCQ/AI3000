@@ -21,42 +21,57 @@ body { margin: 0; min-width: 320px; }
   .admin-header { padding:0 12px; gap:10px; min-height:56px; }
   .admin-header h4 { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .account-label { display:none; }
-  .admin-content { padding:16px 12px 28px; }
-  .page-title { align-items:stretch; flex-direction:column; gap:12px; margin-bottom:16px; }
-  .page-title h3 { font-size:22px; }
+  .admin-content { padding:10px 10px 20px; }
+  .page-title { align-items:stretch; flex-direction:column; gap:8px; margin-bottom:10px; }
+  .page-title h3 { font-size:18px; }
   .page-title > .admin-toolbar, .admin-toolbar { width:100%; align-items:stretch; }
   .admin-toolbar > * { min-width:0; }
   .admin-toolbar .ant-input-search, .admin-toolbar .ant-input { flex:1; width:auto !important; }
-  .admin-toolbar .ant-btn { min-height:44px; }
+  .admin-toolbar .ant-btn { min-height:34px; }
   .admin-content > .ant-card, .admin-content .ant-card { border-radius:10px; }
   .admin-mobile-list { width:100%; }
-  .admin-mobile-card { display:block; padding:16px 0; border-bottom:1px solid #e6eeeb; }
+  .admin-mobile-card { display:block; padding:10px 0; border-bottom:1px solid #e6eeeb; }
   .admin-mobile-card:first-child { padding-top:4px; }
-  .mobile-card-header { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:12px; }
+  .mobile-card-header { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:6px; }
   .mobile-card-header > :first-child { min-width:0; overflow-wrap:anywhere; }
-  .mobile-fields { display:grid; gap:8px; margin:0 0 14px; }
+  .mobile-fields { display:grid; gap:3px; margin:0 0 8px; }
   .mobile-fields > div { display:grid; grid-template-columns:minmax(76px,30%) 1fr; gap:10px; align-items:start; }
   .mobile-fields dt { color:#61736e; font-size:13px; }
   .mobile-fields dd { margin:0; overflow-wrap:anywhere; line-height:1.45; }
   .mobile-card-actions { width:100%; }
-  .mobile-card-actions .ant-btn, .mobile-card-primary { min-height:44px; }
+  .mobile-card-actions .ant-btn, .mobile-card-primary { min-height:34px; }
   .mobile-card-primary { width:100%; }
   .mobile-record-link, .mobile-record-content { display:block; min-width:0; max-width:100%; overflow-wrap:anywhere; line-height:1.45; }
   :is(.admin-drawer, .admin-book-editor) .ant-drawer-content-wrapper { max-width:calc(100vw - 24px) !important; }
   :is(.admin-drawer, .admin-book-editor) .ant-drawer-content { max-width:100%; }
-  .admin-content .ant-card-body { padding:16px; }
-  .admin-content .ant-card-head { padding:0 16px; }
-  .admin-content .ant-btn, .admin-header .ant-btn, .admin-book-editor .ant-btn, .admin-mobile-modal .ant-btn { min-height:44px; }
-  .admin-content .ant-input:not(textarea), .admin-book-editor .ant-input:not(textarea), .admin-mobile-modal .ant-input:not(textarea) { min-height:44px; }
-  .admin-content .ant-select, .admin-book-editor .ant-select, .admin-mobile-modal .ant-select { min-height:44px; max-width:100%; }
+  .admin-content .ant-card-body { padding:10px 12px; }
+  .admin-content .ant-card-head { padding:0 12px; }
+  .admin-content .ant-btn, .admin-header .ant-btn, .admin-book-editor .ant-btn, .admin-mobile-modal .ant-btn { min-height:34px; }
+  .admin-content .ant-input:not(textarea), .admin-book-editor .ant-input:not(textarea), .admin-mobile-modal .ant-input:not(textarea) { min-height:34px; }
+  .admin-content .ant-select, .admin-book-editor .ant-select, .admin-mobile-modal .ant-select { min-height:34px; max-width:100%; }
   .admin-content .ant-space { max-width:100%; }
-  .admin-content .ant-input-search .ant-input { min-height:42px; }
-  .admin-content .ant-input-search .ant-input-search-button { min-height:44px; }
-  .admin-content .ant-pagination-item, .admin-content .ant-pagination-prev, .admin-content .ant-pagination-next { min-width:44px; height:44px; line-height:42px; }
+  .admin-content .ant-input-search .ant-input { min-height:32px; }
+  .admin-content .ant-input-search .ant-input-search-button { min-height:34px; }
+  .admin-content .ant-pagination-item, .admin-content .ant-pagination-prev, .admin-content .ant-pagination-next { min-width:32px; height:32px; line-height:30px; }
   .mobile-record-content { white-space:pre-wrap; }
-  .mobile-record-link { padding:8px 0; min-height:44px; }
+  .mobile-record-link { padding:8px 0; min-height:34px; }
   .admin-content .ant-typography { overflow-wrap:anywhere; }
-  .admin-drawer .ant-menu-item { min-height:44px; line-height:44px; }
-  .admin-header h4 { font-size:16px; }
+  .admin-drawer .ant-menu-item { min-height:34px; line-height:36px; }
+  .admin-header h4 { font-size:15px; }
+  .admin-header.ant-layout-header { height:52px; min-height:52px; line-height:52px; }
+  .admin-mobile-card { font-size:13px; }
+  .mobile-fields > div { grid-template-columns:minmax(68px,27%) 1fr; gap:6px; }
+  .mobile-fields dd { font-size:13px; }
+  .mobile-card-header .ant-typography { font-size:14px; }
+  .mobile-card-actions { gap:6px !important; }
+  .stat-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-bottom:10px; }
+  .admin-dashboard-panels, .card-grid, .prompt-list { gap:10px; }
+  .admin-content .ant-statistic-title { font-size:12px; margin-bottom:2px; }
+  .admin-content .ant-statistic-content { font-size:22px; }
+  .admin-content .ant-card-head { min-height:38px; font-size:14px; }
+  .admin-drawer .ant-drawer-header { padding:12px 14px; }
+  .admin-drawer .ant-drawer-body { padding:8px; }
+  .admin-drawer .ant-menu-item { height:36px; min-height:36px; margin-block:3px; }
+
 
 }

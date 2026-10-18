@@ -51,7 +51,7 @@ function Shell({onLogout}){
     <Button aria-label="打开菜单" icon={<MenuOutlined/>} onClick={()=>setOpen(true)}/><Typography.Title level={4}>易三千 · {labels[active]}</Typography.Title>
     <Space><Typography.Text className="account-label">管理员</Typography.Text><Button aria-label="退出" type="text" icon={<LogoutOutlined/>} onClick={onLogout}>退出</Button></Space>
     </Layout.Header><Layout.Content className="admin-content">{page}</Layout.Content>
-    <Drawer title="导航" placement="left" open={open} onClose={()=>setOpen(false)} className="admin-drawer"><Menu mode="inline" selectedKeys={[active]} items={menuItems.map(([key,label])=>({key,label}))} onClick={({key})=>navigate(key)}/></Drawer>
+    <Drawer title="导航" placement="left" width="min(256px, 76vw)" open={open} onClose={()=>setOpen(false)} className="admin-drawer"><Menu mode="inline" selectedKeys={[active]} items={menuItems.map(([key,label])=>({key,label}))} onClick={({key})=>navigate(key)}/></Drawer>
   </Layout>;
 }
 function Root(){
