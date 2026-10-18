@@ -46,6 +46,10 @@ test('加载失败可重试，设置返回与取消退出正常', async ({ page 
   await page.getByRole('button', { name: '重试', exact: true }).click();
   await expect(page.locator('.quota-card .quota-balance')).toContainText('7.5');
   await page.getByRole('button', { name: '设置', exact: true }).click();
+  await expect(page.locator('.account-menu .account-row')).toHaveText(['查看法律文档›', '退出账号›', '注销账号›']);
+  const colors = await page.locator('.account-menu').evaluate(menu => [...menu.children].map(row => getComputedStyle(row).color));
+  expect(colors[1]).toBe(colors[0]);
+  expect(colors[2]).toBe(colors[0]);
   page.once('dialog', dialog => dialog.dismiss());
   await page.getByRole('button', { name: /退出账号/ }).click();
   await expect(page).toHaveURL(/\/my\//);

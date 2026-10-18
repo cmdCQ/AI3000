@@ -77,8 +77,8 @@ function MyPage() {
         {!authorized ? <LoginPrompt expired={phase === 'expired'} /> : settings ?
           <section className="account-card account-menu" aria-label="账号管理">
             <a className="account-row" href="/legal/">查看法律文档<span aria-hidden="true">›</span></a>
-             <button className="account-row" onClick={() => setCancellation(true)}>注销账号<span aria-hidden="true">›</span></button>
-            <button className="account-row logout-row" onClick={logout}>退出账号<span aria-hidden="true">›</span></button>
+            <button className="account-row" onClick={logout}>退出账号<span aria-hidden="true">›</span></button>
+            <button className="account-row" onClick={() => setCancellation(true)}>注销账号<span aria-hidden="true">›</span></button>
           </section> : <>
             <section className="account-card account-profile" aria-label="账户信息">
               <span className="account-avatar" aria-hidden="true">👤</span>
