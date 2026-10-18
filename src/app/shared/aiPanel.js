@@ -604,7 +604,7 @@ export function showLoginPrompt(respEl) {
   respEl.innerHTML = '<div style="text-align:center;padding:1.5rem 1rem">' +
     '<div style="font-size:1.2rem;margin-bottom:0.5rem">🔒</div>' +
     '<div style="font-size:0.9rem;font-weight:600;color:var(--text);margin-bottom:0.3rem">免费解析次数已用完</div>' +
-    '<div style="font-size:0.75rem;color:var(--text-dim);line-height:1.7;margin-bottom:1rem">注册登录后即可使用全部功能<br>游客可免费解析一次；注册登录后每天享 <strong style="color:var(--accent)">10 积分</strong>（北京时间每日重置）</div>' +
+    '<div style="font-size:0.75rem;color:var(--text-dim);line-height:1.7;margin-bottom:1rem">注册登录后即可使用全部功能<br>游客可免费解析一次；注册登录后每周享 <strong style="color:var(--accent)">10 积分</strong>（北京时间周一零点刷新）</div>' +
     '<div style="display:flex;gap:0.5rem;justify-content:center">' +
       '<a href="javascript:void(0)" onclick="openAuthModal(\'register\')" class="ai-start-btn" style="display:inline-block;text-decoration:none">注册</a>' +
       '<a href="javascript:void(0)" onclick="openAuthModal(\'login\')" class="ai-start-btn" style="display:inline-block;text-decoration:none;background:#fff;color:var(--accent);border:1px solid var(--accent);box-shadow:none">登录</a>' +

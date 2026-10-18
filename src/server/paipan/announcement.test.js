@@ -19,8 +19,8 @@ test('announcement route returns the single local Markdown source without extern
   assert.equal(result.content, markdown);
   assert.match(source, /fs\.readFileSync\(path\.join\(__dirname, 'paipan', 'announcement\.md'\), 'utf8'\)/);
   assert.doesNotMatch(source, /share\.weiyun\.com|refreshAnnCache|ANN_CACHE_FILE|annCache/);
-  assert.match(markdown, /每日 10 积分/);
-  assert.match(markdown, /每日 50 积分/);
+  assert.match(markdown, /每周 10 积分/);
+  assert.match(markdown, /每周 50 积分/);
   assert.doesNotMatch(markdown, /token|10000|小数点|取整/i);
   assert.doesNotMatch(markdown, /即将上线|AI 对话|微云/);
 });

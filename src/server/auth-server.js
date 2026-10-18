@@ -275,7 +275,7 @@ function pointsTrailer(inputTokens, outputTokens, totalTokens, remaining) {
 }
 function requirePoints(quota, estimatedInput = 0) {
   if (quota && quota.tokensRemaining !== null && quota.tokensRemaining <= estimatedInput) {
-    throw Object.assign(new Error('今日积分不足，北京时间零点刷新；可缩短问题或上下文后重试'), { status: 429 });
+    throw Object.assign(new Error('积分不足，北京时间周一零点刷新；可缩短问题或上下文后重试'), { status: 429 });
   }
   return quota?.tokensRemaining == null ? LLM_MAX_TOKENS
     : Math.max(1, Math.min(LLM_MAX_TOKENS, Math.floor(quota.tokensRemaining - estimatedInput)));
@@ -539,8 +539,9 @@ const handleConsultations = baziConsultations.createConsultationHandler({
   checkAuth, verifyAuth: verifyUserTokenExists, json, buildChart: baziChartFromParams, lockNameForUser: pointsLockName,
   checkQuota: async (username, connection) => {
     const quota = await pointsBilling.getQuota(username, connection);
-    if (quota.pointsRemaining !== null && quota.pointsRemaining <= 0) {
-      throw Object.assign(new Error('今日积分已用完，北京时间零点刷新'), { status: 429 });
+    const remainingTokens = quota.tokensRemaining;
+    if (remainingTokens !== null && remainingTokens <= 0) {
+      throw Object.assign(new Error('积分已用完，北京时间周一零点刷新'), { status: 429 });
     }
     return quota;
   },
@@ -760,7 +761,7 @@ async function handleRequest(req, res, pathname, body, url) {
     admin.lockedUntil = 0;
     writeJSON(ADMIN_FILE, admin);
 
-    const token = createToken({ role: 'admin', exp: Date.now() + ADMIN_TOKEN_EXPIRY });
+    const token = createToken({ role: 'admin', username: admin.username, exp: Date.now() + ADMIN_TOKEN_EXPIRY });
     return json(res, { token });
   }
 
@@ -867,17 +868,22 @@ async function handleRequest(req, res, pathname, body, url) {
     }
   }
 
-  // PATCH /api/admin/user-points — 调整今日已用积分，不改累计消费
-  if (req.method === 'PATCH' && pathname === '/api/admin/user-points') {
+  // POST /api/admin/permanent-points — append-only permanent grant ledger.
+  if (req.method === 'POST' && pathname === '/api/admin/permanent-points') {
     const payload = checkAuth(req);
     if (!payload || payload.role !== 'admin') return json(res, { error: '未授权' }, 401);
-    const { username, pointsUsed } = body;
-    if (typeof username !== 'string' || !username || typeof pointsUsed !== 'number' || !Number.isFinite(pointsUsed)) return json(res, { error: '参数错误' }, 400);
+    const { username, points, reason, requestId } = body || {};
+    if (typeof username !== 'string' || typeof points !== 'number' || !Number.isFinite(points)
+        || points <= 0 || typeof reason !== 'string' || !reason.trim() || typeof requestId !== 'string') {
+      return json(res, { error: '参数错误' }, 400);
+    }
     try {
       await pointsReady();
-      return json(res, { ok: true, ...await pointsBilling.setDailyPoints(username, pointsUsed) });
+      const actor = payload.username || readJSON(ADMIN_FILE)?.username;
+      if (typeof actor !== 'string' || !actor) return json(res, { error: '管理员身份不可用，请重新登录' }, 401);
+      return json(res, { ok: true, ...await pointsBilling.grantPermanentPoints(username, points, reason, actor, requestId) });
     } catch (e) {
-      console.error('Admin set points error:', e.message);
+      console.error('Admin permanent points error:', e.message);
       return json(res, { error: e.status ? e.message : '设置失败' }, e.status || 503);
     }
   }

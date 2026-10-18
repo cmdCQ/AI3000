@@ -15,7 +15,7 @@ function fixture({ users = [{ username: 'alice', phone: '13800000000', password_
       if (sql.startsWith('SELECT username, phone FROM users WHERE username IN')) return [users.filter(u => params.includes(u.username) || params.includes(u.phone))];
       if (sql.startsWith('SELECT TABLE_NAME, COLUMN_NAME')) return [[
         ...['bazi_consultation_turns', 'bazi_consultations', 'bazi_analyses', 'chat_history',
-          'mhys_records', 'liuyao_records', 'charts', 'suggestions', 'points_usage', 'points_daily']
+          'mhys_records', 'liuyao_records', 'charts', 'suggestions', 'points_usage', 'points_daily', 'points_permanent_ledger']
           .map(TABLE_NAME => ({ TABLE_NAME, COLUMN_NAME: 'user_id' })), 
         { TABLE_NAME: 'unrelated', COLUMN_NAME: 'user_id' },
       ]];
@@ -49,7 +49,8 @@ test('deletes owned rows transactionally and retains unrelated owner rows', asyn
   assert.equal(f.state().committed, true);
   assert.equal(f.state().rolledBack, false);
   const deletes = f.calls.filter(c => c.sql.startsWith('DELETE FROM'));
-  assert.equal(deletes.length, 11); // All ten business tables then users; unrelated is untouched.
+  assert.equal(deletes.length, 12); // All owned business tables plus users; unrelated is untouched.
+  assert.ok(deletes.some(c => c.sql.includes('`points_permanent_ledger`')));
   assert.ok(deletes.at(-1).sql.startsWith('DELETE FROM users'));
   assert.ok(deletes.every(c => !c.sql.includes('`unrelated`')));
   assert.ok(deletes.every(c => c.params.includes('alice') || c.params.includes('13800000000')));

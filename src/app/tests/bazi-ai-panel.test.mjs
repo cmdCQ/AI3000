@@ -164,12 +164,13 @@ describe.each(['mhys', 'liuyao'])('公共引擎默认 %s 回归', cardType => {
     expect(el('aiFollowBar').classList.contains('show')).toBe(true)
     expect(el('aiFollowHist').textContent).toContain('积分不足')
   })
-  it('游客引导是每日10积分而非次数，历史Token仍是Token', () => {
+  it('游客引导是每周10积分而非次数，历史Token仍是Token', () => {
     AUTH.isLoggedIn.mockReturnValue(false)
     document.body.innerHTML = '<div id="resultArea"></div>'
     window.AI_PANEL_CONF = { cardType, anonUsedKey:'used' }
     localStorage.setItem('used', '1'); refreshAIPanel()
-    expect(el('aiResponse').textContent).toContain('10 积分')
+    expect(el('aiResponse').textContent).toContain('每周享 10 积分')
+    expect(el('aiResponse').textContent).toContain('北京时间周一零点刷新')
     expect(el('aiResponse').textContent).toContain('免费解析一次')
     expect(el('aiResponse').textContent).not.toContain('100 次')
     window.AI_PANEL_CONF.saved = () => '历史\n消耗 Token：10000'

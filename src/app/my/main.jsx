@@ -21,15 +21,31 @@ function LoginPrompt({ expired = false }) {
 
 function QuotaCard({ data }) {
   const unlimited = data.pointsLimit === null;
-  return <section className="account-card quota-card" aria-labelledby="quotaTitle">
-    <h2 id="quotaTitle">今日额度</h2>
-    <div className="quota-balance"><strong>{unlimited ? '不限量' : formatPoints(data.pointsRemaining)}</strong>{!unlimited && <span>积分可用</span>}</div>
-    <dl className="quota-details">
-      <div><dt>今日已用</dt><dd>{formatPoints(data.pointsUsed)} 积分</dd></div>
-      <div><dt>每日额度</dt><dd>{unlimited ? '不限量' : formatPoints(data.pointsLimit) + ' 积分'}</dd></div>
-    </dl>
-    {!unlimited && <p className="quota-note">北京时间每日 0 点刷新额度</p>}
-  </section>;
+  return <>
+    <section className="account-card quota-card" aria-labelledby="quotaTitle">
+      <h2 id="quotaTitle">本周额度</h2>
+      <div className="quota-balance"><strong>{unlimited ? '不限量' : formatPoints(data.pointsRemaining)}</strong>{!unlimited && <span>积分可用</span>}</div>
+      <dl className="quota-details">
+        <div><dt>本周已用</dt><dd>{formatPoints(data.pointsUsed)} 积分</dd></div>
+        <div><dt>每周额度</dt><dd>{unlimited ? '不限量' : formatPoints(data.pointsLimit) + ' 积分'}</dd></div>
+      </dl>
+      {!unlimited && <p className="quota-note">北京时间每周一 0 点刷新额度</p>}
+    </section>
+    <section className="account-card permanent-card" aria-labelledby="permanentTitle">
+      <h2 id="permanentTitle">永久积分</h2>
+      <div className="quota-balance"><strong>{formatPoints(data.permanentPoints)}</strong><span>积分可用</span></div>
+    </section>
+    <section className="account-card points-help" aria-label="积分说明">
+      <details>
+        <summary>如何获取永久积分</summary>
+        <p>永久积分不会随每周额度刷新。如需获取，请添加微信 <strong>cqsomt</strong> 联系我们了解详情。</p>
+      </details>
+      <details>
+        <summary>如何升级用户</summary>
+        <p>如需了解用户等级和升级方式，请添加微信 <strong>cqsomt</strong> 联系我们。</p>
+      </details>
+    </section>
+  </>;
 }
 
 function MyPage() {
@@ -67,8 +83,8 @@ function MyPage() {
               <span className="account-avatar" aria-hidden="true">👤</span>
               <div><p className="account-name">{username}</p><p className="account-tier">{data && phase === 'ready' ? tierNames[data.tier] : '我的账户'}</p></div>
             </section>
-            {phase === 'loading' && <div className="account-status" role="status">正在加载今日额度…</div>}
-            {phase === 'error' && <section className="account-card account-error" role="alert"><p>额度加载失败，请稍后重试</p><button onClick={() => setRevision(value => value + 1)}>重试</button></section>}
+            {phase === 'loading' && <div className="account-status" role="status">正在加载积分额度…</div>}
+            {phase === 'error' && <section className="account-card account-error" role="alert"><p>积分额度加载失败，请稍后重试</p><button onClick={() => setRevision(value => value + 1)}>重试</button></section>}
             {phase === 'ready' && <QuotaCard data={data} />}
             <section className="account-card account-menu" aria-label="账户设置"><button className="account-row" onClick={() => setSettings(true)}>设置<span aria-hidden="true">›</span></button></section>
           </>}

@@ -25,6 +25,14 @@ html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--te
 .quota-details dt { color: var(--text-muted); font-size: .75rem; }
 .quota-details dd { margin: .3rem 0 0; font-size: .85rem; overflow-wrap: anywhere; }
 .quota-note { margin: .9rem 0 0; font-size: .72rem; color: var(--text-muted); }
+.permanent-card { padding: 1rem; }
+.permanent-card h2 { margin: 0; color: var(--text-dim); font: 500 .82rem var(--sans); }
+.points-help { overflow: hidden; }
+.points-help details + details { border-top: 1px solid var(--border); }
+.points-help details { padding: 0 1rem; }
+.points-help summary { min-height: 52px; display: flex; align-items: center; cursor: pointer; color: var(--text); font-size: .85rem; font-weight: 500; }
+.points-help p { margin: 0 0 1rem; color: var(--text-dim); font-size: .8rem; line-height: 1.7; }
+.points-help strong { color: var(--gold); font-weight: 600; }
 .account-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; width: 100%; min-height: 52px; padding: .85rem 1rem; border: 0; border-radius: inherit; color: var(--text); background: none; font: inherit; font-size: .85rem; text-align: left; cursor: pointer; }
 .account-row:hover { background: var(--bg-hover); }
 .account-row > span { color: var(--text-muted); }

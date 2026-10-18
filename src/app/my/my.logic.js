@@ -1,6 +1,6 @@
 import { getToken } from '../lib/auth.js';
 
-/** Display only the server's current daily quota; never derive it in the browser. */
+/** Display only the server's current weekly quota and permanent balance; never derive them in the browser. */
 export async function loadPointsUsage(signal) {
   const token = getToken();
   if (!token) throw Object.assign(new Error('请重新登录'), { status: 401 });
@@ -11,8 +11,10 @@ export async function loadPointsUsage(signal) {
   const data = await response.json();
   const nonnegative = value => typeof value === 'number' && Number.isFinite(value) && value >= 0;
   if (!nonnegative(data.pointsUsed) || ![0, 1, 2].includes(data.tier) ||
+      !nonnegative(data.permanentPoints) ||
       !(data.pointsLimit === null ? data.pointsRemaining === null :
-        nonnegative(data.pointsLimit) && nonnegative(data.pointsRemaining))) {
+        nonnegative(data.pointsLimit) && nonnegative(data.pointsRemaining)) ||
+      (data.resetAt !== undefined && data.resetAt !== null && (typeof data.resetAt !== 'string' || !data.resetAt))) {
     throw new Error('额度数据格式错误');
   }
   return data;

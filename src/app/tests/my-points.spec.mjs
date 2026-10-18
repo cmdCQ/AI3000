@@ -2,22 +2,26 @@ import { test, expect } from '@playwright/test'
 
 // /my/ 的额度契约测试：只 mock 新 points 接口，不访问真实用户数据。
 test.describe('/my/ 积分额度', () => {
-  test('展示普通用户今日用量、余额和北京时间刷新提示', async ({ page }) => {
+  test('展示普通用户本周用量、余额、永久积分和北京时间刷新提示', async ({ page }) => {
     await page.addInitScript(() => {
       document.cookie = 'sqw_username=普通用户; path=/'
       document.cookie = 'sqw_token=test-token; path=/'
     })
     await page.route('**/api/user/points', route => route.fulfill({
       status: 200, contentType: 'application/json',
-      body: JSON.stringify({ pointsUsed: 2.5, pointsLimit: 10, pointsRemaining: 7.5, totalPointsUsed: 20, tier: 0, resetAt: '2027-01-01T00:00:00+08:00', billingDate: '2026-12-31' }),
+      body: JSON.stringify({ pointsUsed: 2.5, pointsLimit: 10, pointsRemaining: 7.5, permanentPoints: 12, totalPointsUsed: 20, tier: 0, resetAt: '2027-01-01T00:00:00+08:00', billingDate: '2026-12-31' }),
     }))
     await page.goto('/my/')
-    await expect(page.locator('#myContent')).toContainText('今日额度')
+    await expect(page.locator('#myContent')).toContainText('本周额度')
     await expect(page.locator('#myContent')).toContainText('2.5')
-    await expect(page.locator('.quota-balance')).toContainText('7.5')
+    await expect(page.locator('.quota-card .quota-balance')).toContainText('7.5')
     await expect(page.locator('#myContent')).not.toContainText('Token')
     await expect(page.locator('#myContent')).not.toContainText('10000')
-    await expect(page.locator('#myContent')).toContainText('北京时间每日 0 点刷新额度')
+    await expect(page.locator('#myContent')).toContainText('北京时间每周一 0 点刷新额度')
+    await expect(page.locator('#myContent')).toContainText('永久积分')
+    await expect(page.locator('.permanent-card')).toContainText('12')
+    await expect(page.locator('#myContent')).toContainText('如何获取永久积分')
+    await expect(page.locator('#myContent')).toContainText('如何升级用户')
     await expect(page.locator('#myContent')).not.toContainText('解析次数')
   })
 
@@ -26,7 +30,7 @@ test.describe('/my/ 积分额度', () => {
       document.cookie = 'sqw_username=member; path=/'
       document.cookie = 'sqw_token=test-token; path=/'
     })
-    await page.route('**/api/user/points', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ pointsUsed: 12.5, pointsLimit: 50, pointsRemaining: 37.5, totalPointsUsed: 125.5, tier: 1, resetAt: '2027-01-01T00:00:00+08:00', billingDate: '2026-12-31' }) }))
+    await page.route('**/api/user/points', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ pointsUsed: 12.5, pointsLimit: 50, pointsRemaining: 37.5, permanentPoints: 0, totalPointsUsed: 125.5, tier: 1, resetAt: '2027-01-01T00:00:00+08:00', billingDate: '2026-12-31' }) }))
     await page.goto('/my/')
     await expect(page.locator('#myContent')).toContainText('普通会员')
     await expect(page.locator('#myContent')).toContainText('12.5')
@@ -48,10 +52,10 @@ test.describe('/my/ 积分额度', () => {
     })
     await page.route('**/api/user/points', route => route.fulfill({
       status: 200, contentType: 'application/json',
-      body: JSON.stringify({ pointsUsed: 100, pointsLimit: null, pointsRemaining: null, totalPointsUsed: 100, tier: 2, resetAt: null, billingDate: '2026-12-31' }),
+      body: JSON.stringify({ pointsUsed: 100, pointsLimit: null, pointsRemaining: null, permanentPoints: 0, totalPointsUsed: 100, tier: 2, resetAt: null, billingDate: '2026-12-31' }),
     }))
     await page.goto('/my/')
     await expect(page.locator('#myContent')).toContainText('SVIP')
-    await expect(page.locator('.quota-balance')).toContainText('不限量')
+    await expect(page.locator('.quota-card .quota-balance')).toContainText('不限量')
   })
 })

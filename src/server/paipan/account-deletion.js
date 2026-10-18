@@ -9,7 +9,7 @@ function lockName(username) { return 'account-delete:' + crypto.createHash('sha2
  */
 const OWNED_TABLES = [
   'bazi_consultation_turns', 'bazi_consultations', 'bazi_analyses', 'chat_history',
-  'mhys_records', 'liuyao_records', 'charts', 'suggestions', 'points_usage', 'points_daily',
+  'mhys_records', 'liuyao_records', 'charts', 'suggestions', 'points_usage', 'points_daily', 'points_permanent_ledger',
 ];
 function createAccountDeletion(db, options = {}) {
   const database = options.database;

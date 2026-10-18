@@ -12,11 +12,11 @@ function respond(body,status=200){vi.stubGlobal('fetch',vi.fn(async()=>new Respo
 describe('admin transport',()=>{
   it('uses bearer and exact write methods instead of assuming CRUD conventions',async()=>{
     respond({ok:true})
-    await transport.api.updatePoints('account-alice',0.0123)
+    await transport.api.grantPermanentPoints('account-alice',0.0123,'测试赠送','request-id')
     let [url,options]=fetch.mock.calls.at(-1)
-    expect(url).toBe('/api/admin/user-points');expect(options.method).toBe('PATCH')
+    expect(url).toBe('/api/admin/permanent-points');expect(options.method).toBe('POST')
     expect(options.headers.get('Authorization')).toBe('Bearer fixture-token')
-    expect(JSON.parse(options.body)).toEqual({username:'account-alice',pointsUsed:0.0123})
+    expect(JSON.parse(options.body)).toEqual({username:'account-alice',points:0.0123,reason:'测试赠送',requestId:'request-id'})
     await transport.api.updateTier('account-alice',1)
     expect(fetch.mock.calls.at(-1)[1].method).toBe('PATCH')
     await transport.api.updatePrompt('mhys_system','draft')

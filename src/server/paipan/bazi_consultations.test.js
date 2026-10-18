@@ -127,6 +127,7 @@ test('actual registered quota callback uses checked-out points service and propa
   const start = source.indexOf('const handleConsultations = baziConsultations.createConsultationHandler(');
   const registration = source.slice(start, source.indexOf('\n});', start) + 4);
   for (const sample of [{ remaining: 1, status: 200 }, { remaining: 0, status: 429 },
+      { remaining: 0, permanentTokens: 3, status: 200 },
       { remaining: null, status: 200 }, { error: Object.assign(new Error('user missing'), { status: 401 }), status: 401 },
       { error: new Error('DB unavailable'), status: 503 }]) {
     let options, checked = false;
@@ -138,7 +139,7 @@ test('actual registered quota callback uses checked-out points service and propa
       pointsBilling: { getQuota: async (username, connection) => {
         checked = true; assert.equal(username, 'alice'); assert.equal(typeof connection.query, 'function');
         if (sample.error) throw sample.error;
-        return { pointsRemaining: sample.remaining, tokensRemaining: sample.remaining === null ? null : 10000 };
+        return { pointsRemaining: sample.remaining, tokensRemaining: sample.remaining === null ? null : sample.remaining * 10000 + (sample.permanentTokens || 0) };
       } },
     });
     const f = fixture({ checkQuota: options.checkQuota });

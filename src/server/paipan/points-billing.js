@@ -3,7 +3,8 @@
 const crypto = require('node:crypto');
 const TOKENS_PER_POINT = 10000;
 const TIME_ZONE = 'Asia/Shanghai';
-const DAILY_TOKENS = Object.freeze({ 0: 100000, 1: 500000, 2: null });
+// Existing dated usage rows are retained; allowances are evaluated over the current week.
+const WEEKLY_TOKENS = Object.freeze({ 0: 100000, 1: 500000, 2: null });
 const dayFormatter = new Intl.DateTimeFormat('en-CA', {
   timeZone: TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit',
 });
@@ -11,6 +12,13 @@ function billingDateAt(now = Date.now()) {
   const parts = Object.fromEntries(dayFormatter.formatToParts(new Date(now)).map(p => [p.type, p.value]));
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
+function weekStartAt(now = Date.now()) {
+  const date = billingDateAt(now);
+  const weekday = new Intl.DateTimeFormat('en-US', { timeZone: TIME_ZONE, weekday: 'short' }).format(new Date(now));
+  const offset = ({ Sun: 6, Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5 })[weekday];
+  return billingDateAt(Date.parse(date + 'T00:00:00+08:00') - offset * 86400000);
+}
+function resetAtForWeek(start) { return new Date(Date.parse(start + 'T00:00:00+08:00') + 7 * 86400000).toISOString(); }
 function problem(status, message, code) { return Object.assign(new Error(message), { status, code }); }
 function dateValue(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)
@@ -39,18 +47,23 @@ function requestValue(requestId) {
   }
   return requestId;
 }
-function quotaOf(user, used, date) {
+function quotaOf(user, used, date, permanent = 0) {
   const tier = integer(user.tier, '等级');
-  if (!Object.hasOwn(DAILY_TOKENS, tier)) throw problem(503, '账户等级无效', 'INVALID_TIER');
-  const tokensUsed = integer(used, '当日用量');
+  if (!Object.hasOwn(WEEKLY_TOKENS, tier)) throw problem(503, '账户等级无效', 'INVALID_TIER');
+  const tokensUsed = integer(used, '本周用量');
   const totalTokensUsed = integer(user.token_used, '累计用量');
-  const tokensLimit = DAILY_TOKENS[tier];
-  const tokensRemaining = tokensLimit === null ? null : Math.max(0, tokensLimit - tokensUsed);
-  return { username: user.username, tier, billingDate: date,
-    resetAt: new Date(Date.parse(date + 'T00:00:00+08:00') + 86400000).toISOString(),
+  const tokensLimit = WEEKLY_TOKENS[tier];
+  const weeklyRemaining = tokensLimit === null ? null : Math.max(0, tokensLimit - tokensUsed);
+  const permanentTokens = integer(permanent, '永久积分');
+  const availableTokens = weeklyRemaining === null ? null : weeklyRemaining + permanentTokens;
+  return { username: user.username, tier, billingDate: date, weekStart: weekStartAt(Date.parse(date + 'T00:00:00+08:00')),
+    resetAt: resetAtForWeek(weekStartAt(Date.parse(date + 'T00:00:00+08:00'))),
     pointsUsed: points(tokensUsed), pointsLimit: tokensLimit === null ? null : points(tokensLimit),
-    pointsRemaining: tokensRemaining === null ? null : points(tokensRemaining),
-    totalPointsUsed: points(totalTokensUsed), tokensUsed, tokensLimit, tokensRemaining, totalTokensUsed };
+    pointsRemaining: weeklyRemaining === null ? null : points(weeklyRemaining),
+    weeklyUsed: points(tokensUsed), weeklyLimit: tokensLimit === null ? null : points(tokensLimit),
+    weeklyRemaining: weeklyRemaining === null ? null : points(weeklyRemaining), weeklyTokensRemaining: weeklyRemaining,
+    permanentTokens, permanentPoints: points(permanentTokens), totalAvailablePoints: availableTokens === null ? null : points(availableTokens),
+    totalPointsUsed: points(totalTokensUsed), tokensUsed, tokensLimit, tokensRemaining: availableTokens, totalTokensUsed };
 }
 
 function createPointsBilling(db) {
@@ -70,6 +83,12 @@ function createPointsBilling(db) {
       UNIQUE KEY idx_points_request (username, request_id),
       KEY idx_points_date (billing_date, username)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin`);
+    await db.query(`CREATE TABLE IF NOT EXISTS points_permanent_ledger (
+      id bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY, username varchar(64) NOT NULL,
+      request_id varchar(128) NOT NULL, kind varchar(16) NOT NULL, points_tokens bigint NOT NULL,
+      reason varchar(255) NOT NULL, admin_username varchar(64) NOT NULL, created_at bigint NOT NULL,
+      UNIQUE KEY idx_permanent_request (username, request_id), KEY idx_permanent_user (username)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin`);
   }
   async function readUser(username, connection, forUpdate = false) {
     const [users] = await connection.query('SELECT username, tier, token_used FROM users WHERE username = ?' + (forUpdate ? ' FOR UPDATE' : ''), [username]);
@@ -79,8 +98,10 @@ function createPointsBilling(db) {
   }
   async function quotaAt(username, date, connection) {
     const user = await readUser(username, connection);
-    const [daily] = await connection.query('SELECT used_tokens FROM points_daily WHERE username = ? AND billing_date = ?', [username, date]);
-    return quotaOf(user, daily[0]?.used_tokens ?? 0, date);
+    const start = weekStartAt(Date.parse(date + 'T00:00:00+08:00'));
+    const [weekly] = await connection.query('SELECT COALESCE(SUM(used_tokens),0) AS used_tokens FROM points_daily WHERE username = ? AND billing_date >= ? AND billing_date < DATE_ADD(?, INTERVAL 7 DAY)', [username, start, start]);
+    const [permanent] = await connection.query("SELECT COALESCE(SUM(points_tokens),0) AS points_tokens FROM points_permanent_ledger WHERE username = ?", [username]);
+    return quotaOf(user, weekly[0]?.used_tokens ?? 0, date, permanent[0]?.points_tokens ?? 0);
   }
   async function getQuota(username, connection = db, date = billingDateAt()) {
     return quotaAt(userValue(username), dateValue(date), connection);
@@ -127,6 +148,11 @@ function createPointsBilling(db) {
       }
       const [daily] = await conn.query('SELECT used_tokens FROM points_daily WHERE username = ? AND billing_date = ?', [username, date]);
       const nextUsed = integer(integer(daily[0]?.used_tokens ?? 0, '当日用量') + totalTokens, '当日用量');
+      const currentQuota = await quotaAt(username, date, conn);
+      const weeklyLeft = currentQuota.weeklyTokensRemaining;
+      const uncovered = weeklyLeft === null ? 0 : Math.max(0, totalTokens - weeklyLeft);
+      // Usage has already occurred; never discard it if the upstream exceeded estimates.
+      const permanentSpend = Math.min(uncovered, currentQuota.permanentTokens);
       integer(integer(user.token_used, '累计用量') + totalTokens, '累计用量');
       // Quota admission belongs before model invocation. Never discard incurred usage here.
       const now = Date.now();
@@ -134,6 +160,7 @@ function createPointsBilling(db) {
         [username, requestId, 'charge', date, inputTokens, outputTokens, totalTokens, now]);
       await conn.query('INSERT INTO points_daily (username,billing_date,used_tokens,updated_at) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE used_tokens = VALUES(used_tokens), updated_at = VALUES(updated_at)',
         [username, date, nextUsed, now]);
+      if (permanentSpend > 0) await conn.query('INSERT INTO points_permanent_ledger (username,request_id,kind,points_tokens,reason,admin_username,created_at) VALUES (?,?,?,?,?,?,?)', [username, 'spend:' + crypto.createHash('sha256').update(requestId).digest('hex'), 'spend', -permanentSpend, 'AI usage', 'system', now]);
       const [updated] = await conn.query('UPDATE users SET token_used = token_used + ? WHERE username = ?', [totalTokens, username]);
       if (updated.affectedRows !== 1) throw problem(503, '累计用量结算异常', 'SETTLEMENT_FAILED');
       return { ...await quotaAt(username, billingDateAt(), conn), charged: true, replayed: false,
@@ -162,23 +189,27 @@ function createPointsBilling(db) {
       if (!destroyed) connection.release();
     }
   }
-  async function setDailyPoints(username, pointsUsed) {
-    // Accept decimal syntax, not floating multiplication, so 0.0001 is exactly one token.
-    const text = String(pointsUsed);
-    if (!/^\d+(?:\.\d{1,4})?$/.test(text)) throw problem(400, '积分必须为非负且最多四位小数', 'INVALID_POINTS');
+  async function grantPermanentPoints(username, grantPoints, reason, adminUsername, requestId) {
+    userValue(username); userValue(adminUsername); requestValue(requestId);
+    const ledgerRequestId = 'grant:' + crypto.createHash('sha256').update(requestId).digest('hex');
+    if (typeof reason !== 'string' || !reason.trim() || reason.length > 255) throw problem(400, '请填写积分原因', 'INVALID_REASON');
+    const text = String(grantPoints);
+    if (!/^\d+(?:\.\d{1,4})?$/.test(text) || Number(text) <= 0) throw problem(400, '永久积分必须为正数', 'INVALID_POINTS');
     const [whole, fraction = ''] = text.split('.');
-    const used = Number(BigInt(whole) * 10000n + BigInt(fraction.padEnd(4, '0')));
-    if (!Number.isSafeInteger(used)) throw problem(400, '积分超出有效范围', 'INVALID_POINTS');
-    return withUserLock(username, (conn, quota) => transaction(conn, async connection => {
+    const tokens = Number(BigInt(whole) * 10000n + BigInt(fraction.padEnd(4, '0')));
+    if (!Number.isSafeInteger(tokens)) throw problem(400, '积分超出有效范围', 'INVALID_POINTS');
+    return withUserLock(username, (conn) => transaction(conn, async connection => {
       await readUser(username, connection, true);
-      const [daily] = await connection.query('SELECT used_tokens FROM points_daily WHERE username = ? AND billing_date = ?', [username, quota.billingDate]);
-      const delta = used - integer(daily[0]?.used_tokens ?? 0, '当日用量');
-      const now = Date.now();
-      await connection.query('INSERT INTO points_usage (username,request_id,kind,billing_date,input_tokens,output_tokens,total_tokens,created_at) VALUES (?,?,?,?,?,?,?,?)',
-        [username, 'adjust:' + crypto.randomUUID(), 'adjustment', quota.billingDate, 0, 0, delta, now]);
-      await connection.query('INSERT INTO points_daily (username,billing_date,used_tokens,updated_at) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE used_tokens = VALUES(used_tokens), updated_at = VALUES(updated_at)',
-        [username, quota.billingDate, used, now]);
-      return quotaAt(username, quota.billingDate, connection);
+      const [existing] = await connection.query('SELECT * FROM points_permanent_ledger WHERE username = ? AND request_id = ?', [username, ledgerRequestId]);
+      if (existing.length) {
+        const row = existing[0];
+        if (row.kind !== 'grant' || Number(row.points_tokens) !== tokens || row.reason !== reason.trim() || row.admin_username !== adminUsername) {
+          throw problem(409, '请求标识已用于不同发放操作', 'REQUEST_CONFLICT');
+        }
+        return { ...await quotaAt(username, billingDateAt(), connection), granted: false, replayed: true };
+      }
+      await connection.query('INSERT INTO points_permanent_ledger (username,request_id,kind,points_tokens,reason,admin_username,created_at) VALUES (?,?,?,?,?,?,?)', [username, ledgerRequestId, 'grant', tokens, reason.trim(), adminUsername, Date.now()]);
+      return { ...await quotaAt(username, billingDateAt(), connection), granted: true, replayed: false, pointsGranted: points(tokens) };
     }));
   }
   async function getAdminUsage(scope) {
@@ -194,7 +225,7 @@ function createPointsBilling(db) {
     return { totalPoints: points(integer(rows[0]?.total_tokens ?? 0, '总用量')),
       points7d: points(integer(rows[0]?.tokens_7d ?? 0, '七日用量')), billingDate: date, scope: scope || 'all' };
   }
-  return { initSchema, getQuota, charge, setDailyPoints, withUserLock, getAdminUsage, lockName };
+  return { initSchema, getQuota, charge, grantPermanentPoints, withUserLock, getAdminUsage, lockName };
 }
 
-module.exports = { createPointsBilling, billingDateAt, lockName, TOKENS_PER_POINT, TIME_ZONE, DAILY_TOKENS };
+module.exports = { createPointsBilling, billingDateAt, weekStartAt, lockName, TOKENS_PER_POINT, TIME_ZONE, WEEKLY_TOKENS };

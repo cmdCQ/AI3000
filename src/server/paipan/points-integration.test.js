@@ -54,6 +54,36 @@ test('admin tier endpoint validates strict integer tiers and uses points quota',
   assert.match(endpoint, /pointsBilling\.withUserLock/);
 });
 
+test('actual permanent grant route enforces admin, validates input and propagates ledger conflicts', async () => {
+  const start = source.indexOf('  // POST /api/admin/permanent-points');
+  const end = source.indexOf('  // GET /api/admin/charts', start);
+  const code = '(async () => {' + source.slice(start, end) + '})()';
+  const valid = { username: 'alice', points: 0.0001, reason: 'manual grant', requestId: 'grant-1' };
+  for (const sample of [
+    { payload: null, status: 401 }, { payload: { role: 'user' }, status: 401 },
+    { body: { ...valid, points: 0 }, status: 400 },
+    { status: 200 }, { payload: { role: 'admin' }, status: 200 }, { failure: Object.assign(new Error('conflict'), { status: 409 }), status: 409 },
+    { failure: new Error('DB unavailable'), status: 503 },
+  ]) {
+    let result, calls = 0;
+    await vm.runInNewContext(code, {
+      req: { method: 'POST' }, pathname: '/api/admin/permanent-points', res: {},
+      body: sample.body || valid, checkAuth: () => Object.hasOwn(sample, 'payload') ? sample.payload : { role: 'admin', username: 'operator' },
+      pointsReady: async () => {}, console: { error() {} }, ADMIN_FILE: '/mock-admin.json', readJSON: () => ({ username: 'operator' }),
+      json: (_res, data, status = 200) => { result = { data, status }; },
+      pointsBilling: { grantPermanentPoints: async (...args) => {
+        calls++; assert.deepEqual(args, ['alice', 0.0001, 'manual grant', 'operator', 'grant-1']);
+        if (sample.failure) throw sample.failure;
+        return { permanentPoints: 1.0001 };
+      } },
+    });
+    assert.equal(result.status, sample.status);
+    assert.equal(calls, sample.status === 401 || sample.status === 400 ? 0 : 1);
+    if (sample.status === 200) assert.equal(result.data.ok, true);
+  }
+  assert.doesNotMatch(source, /pointsBilling\.setDailyPoints/);
+});
+
 test('chat and bazi preflight require points before model invocation', () => {
   const chatStart = source.indexOf("if (req.method === 'POST' && pathname === '/api/chat/send')");
   const chatEnd = source.indexOf("// POST /api/personal/chat", chatStart);

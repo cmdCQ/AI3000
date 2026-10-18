@@ -21,7 +21,8 @@ async function mock(page, overrides = {}) {
     if (!url.pathname.startsWith('/api/admin/')) return route.fulfill({status: 404, body:'{}'})
     const json = (value, status=200) => route.fulfill({status,contentType:'application/json',body:JSON.stringify(value)})
     const method = route.request().method()
-    if (['/user-points','/user-tier'].includes(path) && method !== 'PATCH') return json({error:'method mismatch'},405)
+    if (['/user-tier'].includes(path) && method !== 'PATCH') return json({error:'method mismatch'},405)
+    if (path === '/permanent-points' && method !== 'POST') return json({error:'method mismatch'},405)
     if (path.startsWith('/prompts/') && !['POST','DELETE'].includes(method)) return json({error:'method mismatch'},405)
     if (overrides[path]) return overrides[path](route, json)
     if (path === '/login') return json({token:'logged-in'})
@@ -85,22 +86,38 @@ for (const width of [390,768,1280]) test(`${width}px 左上菜单抽屉切换全
 })
 
 test('积分和等级使用稳定账号标识；失败保留表单', async ({page,context}) => {
-  const bodies={}; let fail=true
+  const bodies={}; const grants=[]; let fail=true
   await auth(context)
   await mock(page,{
-    '/user-points':(r,json)=>{bodies.points=r.request().postDataJSON();return fail?json({error:'暂不可用'},503):json({ok:true})},
+    '/permanent-points':(r,json)=>{bodies.points=r.request().postDataJSON();grants.push(bodies.points);return fail?json({error:'暂不可用'},503):json({ok:true})},
     '/user-tier':(r,json)=>{bodies.tier=r.request().postDataJSON();return json({ok:true})},
   })
   await goto(page);await open(page,'用户管理')
-  await page.getByRole('button',{name:'今日积分',exact:true}).first().click()
-  await page.getByLabel('今日已用积分',{exact:true}).fill('0.0123')
-  await page.getByRole('dialog').getByRole('button',{name:/保存/}).click()
+  await page.getByRole('button',{name:'添加永久积分',exact:true}).first().click()
+  await page.getByLabel('添加积分',{exact:true}).fill('0.0123')
+  await page.getByLabel('添加原因',{exact:true}).fill('测试赠送')
+  await page.getByRole('dialog').getByRole('button',{name:/添加/}).click()
   await expect(page.getByText('暂不可用',{exact:true})).toBeVisible()
-  await expect(page.getByLabel('今日已用积分',{exact:true})).toHaveValue('0.0123')
+  await expect(page.getByLabel('添加积分',{exact:true})).toHaveValue('0.0123')
   fail=false
-  await page.getByRole('dialog').getByRole('button',{name:/保存/}).click()
+  await page.getByRole('dialog').getByRole('button',{name:/添加/}).click()
   await expect(page.getByRole('dialog')).toBeHidden()
-  expect(bodies.points).toEqual({username:'account-alice',pointsUsed:0.0123})
+  expect(bodies.points).toEqual({username:'account-alice',points:0.0123,reason:'测试赠送',requestId:expect.stringMatching(/^[0-9a-f-]{36}$/)})
+  expect(grants[1]).toEqual(grants[0])
+  await page.getByRole('button',{name:'添加永久积分',exact:true}).first().click()
+  await expect(page.getByLabel('添加积分',{exact:true})).toHaveValue('')
+  await expect(page.getByLabel('添加原因',{exact:true})).toHaveValue('')
+  await page.getByLabel('添加积分',{exact:true}).fill('0.0123')
+  await page.getByLabel('添加原因',{exact:true}).fill('测试赠送')
+  fail=true
+  await page.getByRole('dialog').getByRole('button',{name:/添加/}).click()
+  await expect(page.getByText('暂不可用',{exact:true})).toBeVisible()
+  expect(grants[2].requestId).not.toBe(grants[1].requestId)
+  await page.getByLabel('添加原因',{exact:true}).fill('修改原因')
+  await page.getByRole('dialog').getByRole('button',{name:/添加/}).click()
+  await expect.poll(()=>grants.length).toBe(4)
+  expect(grants[3].requestId).not.toBe(grants[2].requestId)
+  await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click()
   await page.getByRole('button',{name:'调整等级',exact:true}).first().click()
   await page.getByLabel('会员等级',{exact:true}).click()
   await page.getByRole('combobox',{name:/会员等级/}).press('ArrowDown')

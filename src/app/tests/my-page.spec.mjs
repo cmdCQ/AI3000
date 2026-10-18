@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const quota = { pointsUsed: 2.5, pointsRemaining: 7.5, pointsLimit: 10, tier: 0 };
+const quota = { pointsUsed: 2.5, pointsRemaining: 7.5, pointsLimit: 10, permanentPoints: 12, tier: 0 };
 async function login(page) {
   await page.context().addCookies([
     { name: 'sqw_username', value: 'test-user', url: test.info().project.use.baseURL || 'http://127.0.0.1:8269' },
@@ -42,15 +42,15 @@ test('加载失败可重试，设置返回与取消退出正常', async ({ page 
   let calls = 0;
   await page.route('**/api/user/points', route => route.fulfill(++calls === 1 ? { status: 503, json: {} } : { json: quota }));
   await page.goto('/my/');
-  await expect(page.getByRole('alert')).toContainText('额度加载失败');
+  await expect(page.getByRole('alert')).toContainText('积分额度加载失败');
   await page.getByRole('button', { name: '重试', exact: true }).click();
-  await expect(page.locator('.quota-balance')).toContainText('7.5');
+  await expect(page.locator('.quota-card .quota-balance')).toContainText('7.5');
   await page.getByRole('button', { name: '设置', exact: true }).click();
   page.once('dialog', dialog => dialog.dismiss());
   await page.getByRole('button', { name: /退出账号/ }).click();
   await expect(page).toHaveURL(/\/my\//);
   await page.getByRole('button', { name: '← 返回' }).click();
-  await expect(page.locator('.quota-balance')).toContainText('7.5');
+  await expect(page.locator('.quota-card .quota-balance')).toContainText('7.5');
   expect(calls).toBe(2);
 });
 

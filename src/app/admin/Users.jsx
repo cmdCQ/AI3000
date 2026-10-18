@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, App, Button, Card, Form, Grid, Input, List, Modal, Select, Space, Table, Tag, Typography } from 'antd';
 import { EditOutlined } from '@ant-design/icons';
 import { api } from './api.js';
@@ -13,9 +13,9 @@ const numberText = value => value === null || value === undefined || value === '
 const quotaFor = (user, tiers) => tiers[canonicalUsername(user)] || user || {};
 
 function pointsRule(_, value) {
-  if (value === undefined || value === null || value === '') return Promise.reject(new Error('请输入今日已用积分'));
+  if (value === undefined || value === null || value === '') return Promise.reject(new Error('请输入添加积分'));
   const raw = String(value).trim();
-  if (!/^\d+(?:\.\d{1,4})?$/.test(raw)) return Promise.reject(new Error('请输入非负数，最多 4 位小数'));
+  if (!/^\d+(?:\.\d{1,4})?$/.test(raw) || !Number.isFinite(Number(raw)) || Number(raw) <= 0) return Promise.reject(new Error('请输入正数，最多 4 位小数'));
   return Promise.resolve();
 }
 
@@ -30,6 +30,7 @@ export default function Users() {
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(null);
   const [pointsOpen, setPointsOpen] = useState(false);
+  const pointsRequest = useRef(null);
   const [tierOpen, setTierOpen] = useState(false);
   const [pointsPending, setPointsPending] = useState(false);
   const [tierPending, setTierPending] = useState(false);
@@ -77,10 +78,10 @@ export default function Users() {
   }, [query, rows]);
 
   function openPoints(user) {
-    const quota = quotaFor(user, tiers);
     setSelected(user);
     setPointsError('');
-    pointsForm.setFieldsValue({ pointsUsed: quota.pointsUsed === null || quota.pointsUsed === undefined ? '' : String(quota.pointsUsed) });
+    pointsRequest.current = { requestId: crypto.randomUUID(), signature: null };
+    pointsForm.resetFields();
     setPointsOpen(true);
   }
   function openTier(user) {
@@ -91,10 +92,21 @@ export default function Users() {
     setTierOpen(true);
   }
   async function savePoints(values) {
+    if (pointsPending || !selected || !pointsRequest.current) return;
+    const username = canonicalUsername(selected);
+    const points = Number(values.points);
+    const reason = values.reason.trim();
+    const signature = JSON.stringify({ username, points, reason });
+    // Retry the same operation after an ambiguous failure; edited grants are new operations.
+    if (pointsRequest.current.signature !== null && pointsRequest.current.signature !== signature) {
+      pointsRequest.current.requestId = crypto.randomUUID();
+    }
+    pointsRequest.current.signature = signature;
     setPointsPending(true); setPointsError('');
     try {
-      await api.updatePoints(canonicalUsername(selected), Number(values.pointsUsed));
-      message.success('今日积分已更新');
+      const result = await api.grantPermanentPoints(username, points, reason, pointsRequest.current.requestId);
+      if (result?.ok !== true) throw new Error('添加结果未确认，请保留表单重试或刷新核实');
+      message.success('永久积分已添加');
       setPointsOpen(false);
       await load();
     } catch (error) {
@@ -116,11 +128,12 @@ export default function Users() {
   const columns = [
     { title: '账号', key: 'account', render: (_, user) => <Space direction="vertical" size={0}><Typography.Text strong>{text(canonicalUsername(user))}</Typography.Text><Typography.Text type="secondary">手机：{text(user.phone)}</Typography.Text></Space> },
     { title: '会员等级', key: 'tier', render: (_, user) => <Tag color={tierOf(quotaFor(user, tiers)) === 2 ? 'gold' : 'default'}>{TIER_LABELS[tierOf(quotaFor(user, tiers))] || TIER_LABELS[0]}</Tag> },
-    { title: '今日积分', key: 'today', render: (_, user) => { const q = quotaFor(user, tiers); return <Space direction="vertical" size={0}><span>已用：{numberText(q.pointsUsed)}</span><span>上限：{q.tier === 2 && q.pointsLimit === null ? '无限' : numberText(q.pointsLimit)}</span><span>剩余：{q.tier === 2 && q.pointsRemaining === null ? '无限' : numberText(q.pointsRemaining)}</span></Space>; } },
+    { title: '本周积分', key: 'weekly', render: (_, user) => { const q = quotaFor(user, tiers); return <Space direction="vertical" size={0}><span>已用：{numberText(q.pointsUsed)}</span><span>上限：{q.tier === 2 && q.pointsLimit === null ? '无限' : numberText(q.pointsLimit)}</span><span>剩余：{q.tier === 2 && q.pointsRemaining === null ? '无限' : numberText(q.pointsRemaining)}</span></Space>; } },
+    { title: '永久积分', key: 'permanent', render: (_, user) => numberText(quotaFor(user, tiers).permanentPoints) },
     { title: '累计积分', key: 'total', render: (_, user) => numberText(quotaFor(user, tiers).totalPointsUsed) },
     { title: '注册时间', dataIndex: 'createdAt', render: text },
     { title: '最后活跃', dataIndex: 'lastActive', render: text },
-    { title: '操作', key: 'actions', fixed: 'right', render: (_, user) => <Space wrap><Button size="small" onClick={() => openPoints(user)}>今日积分</Button><Button aria-label="调整等级" size="small" icon={<EditOutlined />} onClick={() => openTier(user)}>调整等级</Button><Button size="small" danger onClick={() => openDelete(user)}>删除用户</Button></Space> },
+    { title: '操作', key: 'actions', fixed: 'right', render: (_, user) => <Space wrap><Button size="small" onClick={() => openPoints(user)}>添加永久积分</Button><Button aria-label="调整等级" size="small" icon={<EditOutlined />} onClick={() => openTier(user)}>调整等级</Button><Button size="small" danger onClick={() => openDelete(user)}>删除用户</Button></Space> },
   ];
 
   const renderMobileUser = user => {
@@ -130,12 +143,13 @@ export default function Users() {
       <div className="mobile-card-header"><Typography.Text strong>{text(canonicalUsername(user))}</Typography.Text><Tag color={tier === 2 ? 'gold' : 'default'}>{TIER_LABELS[tier] || TIER_LABELS[0]}</Tag></div>
       <dl className="mobile-fields">
         <div><dt>手机</dt><dd>{text(user.phone)}</dd></div>
-        <div><dt>今日积分</dt><dd>已用 {numberText(quota.pointsUsed)} / 上限 {quota.tier === 2 && quota.pointsLimit === null ? '无限' : numberText(quota.pointsLimit)} / 剩余 {quota.tier === 2 && quota.pointsRemaining === null ? '无限' : numberText(quota.pointsRemaining)}</dd></div>
+        <div><dt>本周积分</dt><dd>已用 {numberText(quota.pointsUsed)} / 上限 {quota.tier === 2 && quota.pointsLimit === null ? '无限' : numberText(quota.pointsLimit)} / 剩余 {quota.tier === 2 && quota.pointsRemaining === null ? '无限' : numberText(quota.pointsRemaining)}</dd></div>
+        <div><dt>永久积分</dt><dd>{numberText(quota.permanentPoints)}</dd></div>
         <div><dt>累计积分</dt><dd>{numberText(quota.totalPointsUsed)}</dd></div>
         <div><dt>注册时间</dt><dd>{text(user.createdAt)}</dd></div>
         <div><dt>最后活跃</dt><dd>{text(user.lastActive)}</dd></div>
       </dl>
-      <Space wrap className="mobile-card-actions"><Button onClick={() => openPoints(user)}>今日积分</Button><Button aria-label="调整等级" icon={<EditOutlined />} onClick={() => openTier(user)}>调整等级</Button><Button danger onClick={() => openDelete(user)}>删除用户</Button></Space>
+      <Space wrap className="mobile-card-actions"><Button onClick={() => openPoints(user)}>添加永久积分</Button><Button aria-label="调整等级" icon={<EditOutlined />} onClick={() => openTier(user)}>调整等级</Button><Button danger onClick={() => openDelete(user)}>删除用户</Button></Space>
     </List.Item>;
   };
 
@@ -148,9 +162,9 @@ export default function Users() {
       <Input aria-label="确认删除账号" value={deleteConfirmation} disabled={deletePending} onChange={event => setDeleteConfirmation(event.target.value)} autoComplete="off" />
       {deleteError && <Alert type="error" title={deleteError} />}
     </Modal>
-    <Modal className="admin-mobile-modal" title="调整今日积分" open={pointsOpen} onCancel={() => !pointsPending && setPointsOpen(false)} footer={null} destroyOnHidden>
+    <Modal className="admin-mobile-modal" title="添加永久积分" open={pointsOpen} onCancel={() => !pointsPending && setPointsOpen(false)} footer={null} closable={!pointsPending} maskClosable={!pointsPending} keyboard={!pointsPending} destroyOnHidden>
       {pointsError && <Alert type="error" title={pointsError} style={{ marginBottom: 16 }} />}
-      <Form form={pointsForm} layout="vertical" onFinish={savePoints}><Form.Item name="pointsUsed" label="今日已用积分" rules={[{ validator: pointsRule }]}><Input inputMode="decimal" /></Form.Item><Button type="primary" htmlType="submit" loading={pointsPending}>确认保存</Button></Form>
+      <Form form={pointsForm} layout="vertical" onFinish={savePoints} disabled={pointsPending}><Form.Item name="points" label="添加积分" rules={[{ validator: pointsRule }]}><Input inputMode="decimal" /></Form.Item><Form.Item name="reason" label="添加原因" rules={[{ required: true, whitespace: true, message: '请输入添加原因' }]}><Input.TextArea rows={2} /></Form.Item><Button type="primary" htmlType="submit" loading={pointsPending}>确认添加</Button></Form>
     </Modal>
     <Modal className="admin-mobile-modal" title="调整等级" open={tierOpen} onCancel={() => !tierPending && setTierOpen(false)} footer={null} destroyOnHidden>
       {tierError && <Alert type="error" title={tierError} style={{ marginBottom: 16 }} />}

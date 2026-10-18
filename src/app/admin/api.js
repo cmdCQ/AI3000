@@ -36,6 +36,6 @@ export const api = {
   folders: () => request('/book-folders'), books: query => request(`/books${query || ''}`), book: id => request(`/books/${id}`),
   prompts: () => request('/prompts'), updatePrompt: (key, value) => request(`/prompts/${encodeURIComponent(key)}`, { method: 'POST', body: JSON.stringify({ value }) }),
   updateTier: (username, tier) => request('/user-tier', { method: 'PATCH', body: JSON.stringify({ username, tier }) }),
-  updatePoints: (username, pointsUsed) => request('/user-points', { method: 'PATCH', body: JSON.stringify({ username, pointsUsed }) }),
+  grantPermanentPoints: (username, points, reason, requestId) => request('/permanent-points', { method: 'POST', body: JSON.stringify({ username, points, reason, requestId }) }),
   password: body => request('/password', { method: 'POST', body: JSON.stringify(body) }),
 };
