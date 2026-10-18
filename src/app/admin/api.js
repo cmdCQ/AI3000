@@ -29,6 +29,7 @@ export function isAuthenticated() {
 export async function verify() { await request('/verify'); return true; }
 export const api = {
   stats: () => request('/stats'), users: () => request('/users'), tiers: () => request('/user-tiers'),
+  deleteUser: username => request(`/users/${encodeURIComponent(username)}`, { method: 'DELETE' }),
   charts: () => request('/chart-users'), chartRecords: id => request(`/charts?userId=${encodeURIComponent(id)}`),
   divination: () => request('/divination-users'), divinationRecords: id => request(`/divination-records/${encodeURIComponent(id)}`),
   suggestions: () => request('/suggestion-users'), suggestionDetail: id => request(`/suggestion-detail/${encodeURIComponent(id)}`),

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Button, Card, Drawer, Form, Input, Modal, Select, Space, Table, Tag, Typography, App } from 'antd';
+import { Alert, Button, Card, Drawer, Form, Grid, Input, List, Modal, Select, Space, Table, Tag, Typography, App } from 'antd';
 import { api, request } from './api.js';
 
 const categories = Object.entries({bazi:'四柱八字',ziwei:'紫微斗数',meihua:'梅花易数',liuyao:'六爻',qimen:'奇门遁甲',yijing:'易经（通用）',liuren:'六壬',fengshui:'风水',xiangshu:'相术',general:'通用术数'}).map(([value,label])=>({value,label}));
@@ -7,6 +7,8 @@ const statuses = {pending:'待入库', ingested:'已入库', error:'入库失败
 
 export default function Books() {
   const { message } = App.useApp();
+  const screens = Grid.useBreakpoint();
+  const mobile = screens.sm === false;
   const [rows,setRows]=useState([]), [loading,setLoading]=useState(false), [error,setError]=useState('');
   const [category,setCategory]=useState(), [folder,setFolder]=useState(''), [folders,setFolders]=useState([]);
   const [editor,setEditor]=useState(null), [editorError,setEditorError]=useState(''), [saving,setSaving]=useState(false);
@@ -70,6 +72,11 @@ export default function Books() {
       <Button danger onClick={()=>{setDeleting(b);setDeleteError('')}}>删除</Button>
     </Space>},
   ];
+  const mobileItem = book => <List.Item className="admin-mobile-card">
+    <div className="mobile-card-header"><Typography.Text strong>{book.title || '未命名'}</Typography.Text><Tag color={book.status === 'ingested' ? 'success' : book.status === 'error' ? 'error' : 'default'}>{statuses[book.status] || book.status || '未知'}</Tag></div>
+    <dl className="mobile-fields"><div><dt>分类</dt><dd>{categories.find(c => c.value === book.category)?.label || book.category || '—'}</dd></div><div><dt>文件夹</dt><dd>{book.folder || '—'}</dd></div><div><dt>作者</dt><dd>{book.author || '—'}</dd></div><div><dt>分块数</dt><dd>{book.chunksCount ?? '—'}</dd></div></dl>
+    <Space wrap className="mobile-card-actions"><Button onClick={() => edit(book)}>编辑</Button>{book.hasContent && book.status !== 'ingested' && <Button loading={ingesting === book.id} disabled={ingesting !== null && ingesting !== book.id} onClick={() => ingest(book)}>入库</Button>}<Button danger onClick={() => { setDeleting(book); setDeleteError(''); }}>删除</Button></Space>
+  </List.Item>;
   return <>
     <div className="page-title"><Typography.Title level={3}>参考书籍</Typography.Title><Space wrap>
       <Button onClick={()=>load()} loading={loading}>刷新</Button><Button onClick={()=>setBatchOpen(true)}>批量入库</Button><Button type="primary" onClick={()=>edit(null)}>添加书籍</Button>
@@ -78,8 +85,8 @@ export default function Books() {
       <Select aria-label="筛选分类" placeholder="全部分类" allowClear value={category} onChange={setCategory} options={categories} style={{width:160}} />
       <Select aria-label="筛选文件夹" placeholder="全部文件夹" allowClear value={folder||undefined} onChange={v=>setFolder(v||'')} options={folders.map(f=>({value:f.name,label:f.name}))} style={{width:180}} />
     </Space>
-    {error?<Alert type="error" title={error} action={<Button onClick={load}>重试</Button>}/>:<Table rowKey="id" dataSource={rows} columns={columns} loading={loading} scroll={{x:'max-content'}} pagination={{pageSize:20}}/>}</Card>
-    <Drawer title={editor?.id?'编辑书籍':'添加书籍'} width={640} open={editor!==null} onClose={()=>{if(!saving){editVersion.current++;setEditor(null)}}} destroyOnHidden>
+    {error?<Alert type="error" title={error} action={<Button onClick={load}>重试</Button>}/>:mobile?<List className="admin-mobile-list" loading={loading} dataSource={rows} renderItem={mobileItem} locale={{emptyText:'暂无书籍'}} pagination={{pageSize:20,size:'small',showSizeChanger:false,hideOnSinglePage:true}}/>:<Table rowKey="id" dataSource={rows} columns={columns} loading={loading} scroll={{x:'max-content'}} pagination={{pageSize:20}}/>}</Card>
+    <Drawer className="admin-book-editor" title={editor?.id?'编辑书籍':'添加书籍'} width={640} open={editor!==null} onClose={()=>{if(!saving){editVersion.current++;setEditor(null)}}} destroyOnHidden>
       {editorError&&<Alert type="error" title={editorError} style={{marginBottom:16}}/>}
       {editor?.loading?<Typography.Text>加载中…</Typography.Text>:!editor?.failed&&<Form form={form} layout="vertical" onFinish={save}>
         <Form.Item name="title" label="书名" rules={[{required:true,whitespace:true,message:'请输入书名'}]}><Input/></Form.Item>

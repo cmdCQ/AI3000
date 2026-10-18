@@ -84,7 +84,7 @@ for (const width of [390,768,1280]) test(`${width}px 左上菜单抽屉切换全
   await page.screenshot({path:test.info().outputPath(`admin-${width}.png`),fullPage:true})
 })
 
-test('积分和等级使用稳定账号标识；失败保留表单且用户删除禁用', async ({page,context}) => {
+test('积分和等级使用稳定账号标识；失败保留表单', async ({page,context}) => {
   const bodies={}; let fail=true
   await auth(context)
   await mock(page,{
@@ -107,14 +107,13 @@ test('积分和等级使用稳定账号标识；失败保留表单且用户删�
   await page.getByRole('combobox',{name:/会员等级/}).press('Enter')
   await page.getByRole('dialog').getByRole('button',{name:/保存/}).click()
   await expect.poll(()=>bodies.tier).toEqual({username:'account-alice',tier:1})
-  const deletes=page.getByRole('button',{name:'删除用户',exact:true})
-  if (await deletes.count()) await expect(deletes.first()).toBeDisabled()
+  await expect(page.getByRole('button',{name:'删除用户',exact:true}).first()).toBeEnabled()
 })
 
 test('会话中途401回登录，不把失败显示成空列表', async ({page,context}) => {
   await auth(context)
   await mock(page,{'/users':(_r,json)=>json({error:'登录已过期'},401)})
-  await goto(page);await open(page,'用户管理')
+  await goto(page,'#users')
   await expect(page.getByRole('button',{name:'进入后台'})).toBeVisible()
 })
 

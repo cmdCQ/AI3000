@@ -34,3 +34,22 @@ html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--te
 .account-error p { margin: 0 0 .75rem; }
 .account-error button { min-height: 44px; padding: .45rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--gold); background: var(--bg-card); font: inherit; cursor: pointer; }
 .mc-bottom-nav .mc-nav-item { text-decoration: none; min-height: 44px; box-sizing: border-box; }
+.account-menu .account-row + .account-row { border-top: 1px solid var(--border); }
+.cancellation-dialog, .cancellation-dialog * { box-sizing: border-box; }
+.cancellation-dialog { width: min(30rem, calc(100% - 2rem)); max-height: calc(100dvh - 2rem); overflow-y: auto; overscroll-behavior: contain; padding: 1.25rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-card); color: var(--text); font: .875rem/1.65 var(--sans); }
+.cancellation-dialog::backdrop { background: rgb(0 0 0 / .5); }
+.cancellation-dialog h2 { margin: 0 0 .75rem; font: 600 1.2rem var(--serif); }
+.cancellation-warning { padding: .75rem; background: var(--danger-wash); color: var(--danger); border-radius: var(--radius-sm); font-weight: 600; }
+.cancellation-data { padding-left: 1.25rem; color: var(--text-dim); }
+.cancellation-help { margin: .35rem 0 .9rem; color: var(--text-muted); font-size: .78rem; }
+.cancellation-dialog fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+.cancellation-dialog label { display: block; margin: .75rem 0 .4rem; overflow-wrap: anywhere; }
+.cancellation-dialog input:not([type=checkbox]) { width: 100%; min-width: 0; min-height: 44px; padding: .6rem .7rem; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); font: 1rem var(--sans); }
+.cancellation-dialog .cancellation-ack { display: flex; align-items: flex-start; gap: .6rem; padding: .5rem 0; }
+.cancellation-ack input { width: 1.15rem; height: 1.15rem; flex-shrink: 0; margin: .15rem 0 0; accent-color: var(--danger); }
+.cancellation-actions { display: flex; flex-wrap: wrap; gap: .65rem; margin-top: 1rem; }
+.cancellation-actions button { flex: 1 1 9rem; min-height: 44px; padding: .65rem .8rem; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); font: inherit; cursor: pointer; }
+.cancellation-actions .cancellation-submit { background: var(--danger); border-color: var(--danger); color: white; }
+.cancellation-dialog button:disabled { opacity: .55; cursor: not-allowed; }
+.cancellation-dialog :focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+.cancellation-error { color: var(--danger); overflow-wrap: anywhere; }

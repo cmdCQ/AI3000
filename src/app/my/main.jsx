@@ -4,6 +4,7 @@ import '../shared/authModalStyles.js';
 import { openAuthModal } from '../shared/auth.js';
 import { getUsername } from '../lib/auth.js';
 import { loadPointsUsage, logout } from './my.logic.js';
+import AccountCancellation from './AccountCancellation.jsx';
 import './style.css';
 
 const formatPoints = value => value.toLocaleString('zh-CN', { maximumFractionDigits: 4 });
@@ -37,6 +38,7 @@ function MyPage() {
   const [data, setData] = useState(null);
   const [revision, setRevision] = useState(0);
   const [settings, setSettings] = useState(false);
+  const [cancellation, setCancellation] = useState(false);
   useEffect(() => {
     if (!username) return;
     const controller = new AbortController();
@@ -57,7 +59,10 @@ function MyPage() {
       </header>}
       <div id="myContent" aria-busy={phase === 'loading'}>
         {!authorized ? <LoginPrompt expired={phase === 'expired'} /> : settings ?
-          <section className="account-card account-menu"><button className="account-row logout-row" onClick={logout}>退出账号<span aria-hidden="true">›</span></button></section> : <>
+          <section className="account-card account-menu" aria-label="账号管理">
+            <button className="account-row" onClick={() => setCancellation(true)}>注销账号<span aria-hidden="true">›</span></button>
+            <button className="account-row logout-row" onClick={logout}>退出账号<span aria-hidden="true">›</span></button>
+          </section> : <>
             <section className="account-card account-profile" aria-label="账户信息">
               <span className="account-avatar" aria-hidden="true">👤</span>
               <div><p className="account-name">{username}</p><p className="account-tier">{data && phase === 'ready' ? tierNames[data.tier] : '我的账户'}</p></div>
@@ -69,6 +74,7 @@ function MyPage() {
           </>}
       </div>
     </main>
+    {authorized && cancellation && <AccountCancellation username={username} onClose={() => setCancellation(false)} />}
     <nav className="mc-bottom-nav" aria-label="主导航">
       <a className="mc-nav-item" href="/">命理与术数</a>
       <a className="mc-nav-item" href="/my-charts/">我的命盘</a>

@@ -1,12 +1,13 @@
 import React, {useEffect,useState} from 'react';
 import {createRoot} from 'react-dom/client';
-import {Alert,App,Button,Card,ConfigProvider,Drawer,Form,Input,Layout,Menu,Space,Spin,Statistic,Typography} from 'antd';
+import {Alert,App,Button,Card,ConfigProvider,Drawer,Form,Input,Layout,Menu,Space,Spin,Typography} from 'antd';
 import {MenuOutlined,LogoutOutlined} from '@ant-design/icons';
 import {api,clearToken,isAuthenticated,login,verify} from './api.js';
 import Books from './Books.jsx';
 import Users from './Users.jsx';
 import Prompts from './Prompts.jsx';
 import Records from './Records.jsx';
+import Dashboard from './Dashboard.jsx';
 import './style.css';
 
 const menuItems=[['dashboard','仪表盘'],['users','用户管理'],['charts','命盘管理'],['divination','占卜管理'],['suggestions','建议管理'],['books','参考书籍'],['prompts','Prompt管理'],['settings','系统设置']];
@@ -23,16 +24,6 @@ function Login({onSuccess}) {
       {error&&<Alert type="error" title={error}/>}
       <Button type="primary" htmlType="submit" loading={loading} block>进入后台</Button>
     </Form><a href="/" className="back-home">返回首页</a></Card></main>;
-}
-function Dashboard(){
-  const [data,setData]=useState(null),[error,setError]=useState(''),[loading,setLoading]=useState(true);
-  async function load(){setLoading(true);setError('');try{setData(await api.stats())}catch(e){setError(e.message)}finally{setLoading(false)}}
-  useEffect(()=>{let active=true;api.stats().then(d=>{if(active)setData(d)}).catch(e=>{if(active)setError(e.message)}).finally(()=>{if(active)setLoading(false)});return()=>{active=false}},[]);
-  if(error)return <Alert type="error" title={error} action={<Button onClick={load}>重试</Button>}/>;
-  const d=data?.total||{};
-  return <><Typography.Title level={3}>仪表盘</Typography.Title><Spin spinning={loading}><div className="stat-grid">
-    {[['users','总用户'],['todayUsers','今日新增'],['active7d','7 天活跃'],['charts','命盘总数'],['divinations','排卦总数'],['totalPoints','累计积分消耗'],['points7d','近七天积分消耗']].map(([key,title])=><Card key={key}><Statistic title={title} value={d[key]??'—'} precision={key.includes('Points')||key==='points7d'?4:0}/></Card>)}
-  </div></Spin></>;
 }
 function Settings(){
   const [form]=Form.useForm();const {message}=App.useApp();
@@ -67,7 +58,7 @@ function Root(){
   const [authed,setAuthed]=useState(false),[checking,setChecking]=useState(true),[error,setError]=useState('');
   async function check(){setChecking(true);setError('');try{if(isAuthenticated()){await verify();setAuthed(true)}}catch(e){setError(e.message)}finally{setChecking(false)}}
   useEffect(()=>{const fn=()=>setAuthed(false);addEventListener('admin:unauthorized',fn);check();return()=>removeEventListener('admin:unauthorized',fn)},[]);
-  return <ConfigProvider button={{autoInsertSpace:false}} theme={{token:{colorPrimary:'#1f6b5e',borderRadius:10,colorBgLayout:'#f4f7f6'}}}><App>
+  return <ConfigProvider button={{autoInsertSpace:false}} theme={{token:{colorPrimary:'#1f6b5e',borderRadius:10,colorBgLayout:'#f4f7f6',screenXSMax:600,screenSM:601,screenSMMin:601}}}><App>
     {checking?<div className="admin-login"><Spin tip="验证会话中…"/></div>:authed?<Shell onLogout={()=>{clearToken();setAuthed(false)}}/>:<>{error&&<Alert type="error" title={error} action={<Button onClick={check}>重试验证</Button>}/>}<Login onSuccess={()=>{setAuthed(true);setError('')}}/></>}
   </App></ConfigProvider>;
 }
