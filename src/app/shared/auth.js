@@ -126,6 +126,14 @@ export function _injectAuthModalHTML() {
   html += '        <input type="password" id="authPwReg" placeholder="至少 6 位密码" autocomplete="new-password">';
   html += '        <label>确认密码</label>';
   html += '        <input type="password" id="authPwConfirm" placeholder="再次输入密码" autocomplete="new-password">';
+  // 同意法律文档：后端 `/api/register` 第一句就是取 `agreed`、`if (!agreed) return 400`
+  // 「请先同意法律文档后再注册」（`src/server/auth-server.js`）。这一段原来漏了，于是从
+  // 弹窗注册 **100% 失败**：手机号/验证码/密码全填对，点注册也只弹那句错误，用户会以为
+  // 是验证码坏了。默认**不勾**（预勾等于没让用户同意），链接与 `/register/` 页同一组锚点。
+  html += '        <label class="auth-modal-consent" for="authAgreed">';
+  html += '          <input type="checkbox" id="authAgreed">';
+  html += '          <span>我已阅读并同意 <a href="/legal/#agreement" target="_blank" rel="noopener">用户协议</a>、<a href="/legal/#privacy" target="_blank" rel="noopener">隐私政策</a>和 <a href="/legal/#ai" target="_blank" rel="noopener">AI 使用与风险说明</a></span>';
+  html += '        </label>';
   html += '        <p class="auth-modal-error" id="authRegError"></p>';
   html += '        <button type="button" class="auth-modal-btn" id="authRegBtn" onclick="submitAuthRegister()">注册</button>';
   html += '      </div>';
@@ -181,6 +189,11 @@ export function openAuthModal(tab) {
       }
       switchAuthTab(tab);
       overlay.hidden = false;
+      // 弹窗初始是 `aria-hidden="true"`（藏起来时对读屏软件不可见）。打开时必须自己改回来，
+      // 否则**整个弹窗对辅助技术仍是隐藏的** —— 读屏用户听到的是一片空白，`getByRole`
+      // 这类按无障碍树取元素的查询也一律找不到里面的输入框和链接（2026-10-19 查注册
+      // tab 的「用户协议」链接时才发现，链接明明在 DOM 里）。
+      overlay.setAttribute('aria-hidden', 'false');
       overlay.classList.add('open');
       document.body.style.overflow = 'hidden';
       setTimeout(function() {
@@ -210,6 +223,7 @@ export function hideAuthModal() {
     if (overlay) {
       overlay.classList.remove('open');
       overlay.hidden = true;
+      overlay.setAttribute('aria-hidden', 'true');
     }
     document.body.style.overflow = '';
   } catch(e) {}
@@ -323,7 +337,12 @@ export function submitAuthRegister() {
   var code = document.getElementById('authSmsCode').value.trim();
   var pw = document.getElementById('authPwReg').value;
   var cpw = document.getElementById('authPwConfirm').value;
+  var agreedEl = document.getElementById('authAgreed');
+  var agreed = !!(agreedEl && agreedEl.checked);
 
+  // 先判同意：后端 `if (!agreed) return 400`，本地先拦可省一次必然失败的请求，
+  // 也让「为什么注册不了」当场有答案（提示语与 `/register/` 页一致）。
+  if (!agreed) { err.textContent = '请先阅读并同意用户协议、隐私政策和 AI 使用与风险说明'; return; }
   if (!phone) { err.textContent = '请输入手机号'; return; }
   if (!code) { err.textContent = '请输入短信验证码'; return; }
   if (pw.length < 6) { err.textContent = '密码至少需要 6 位'; return; }
@@ -334,7 +353,7 @@ export function submitAuthRegister() {
   fetch('/api/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phone: phone, code: code, password: pw }),
+    body: JSON.stringify({ phone: phone, code: code, password: pw, agreed: agreed }),
   })
   .then(function(res) { return res.json().then(function(data) { return { ok: res.ok, data: data }; }); })
   .then(function(r) {

@@ -261,6 +261,41 @@
   border-bottom-color: var(--warm-line);
 }
 
+/* ===== 同意法律文档（注册 tab）=====
+   选择器写成 `.auth-modal-form .auth-modal-consent`（0,2,0）而不是 `.auth-modal-consent`：
+   上面 `.auth-modal-form label`（0,1,1）会把字号/字重/颜色一起套过来，用它压不住。
+   勾选框也是：`.auth-modal-form input` 那条给了 `width:100%`，不单独收回来会占满一行。 */
+.auth-modal-form .auth-modal-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  margin-top: 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 400;
+  line-height: 1.55;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.auth-modal-form .auth-modal-consent input[type="checkbox"] {
+  width: auto;
+  flex: 0 0 auto;
+  margin: 0.2rem 0 0;
+  padding: 0;
+  border-radius: 4px;
+  accent-color: var(--gold);
+}
+
+.auth-modal-form .auth-modal-consent a {
+  color: var(--gold);
+  text-decoration: none;
+  border-bottom: 1px solid var(--warm-line);
+}
+
+.auth-modal-form .auth-modal-consent a:hover {
+  border-bottom-color: var(--gold);
+}
+
 /* ===== Mobile: full width ===== */
 @media (max-width: 500px) {
   .auth-modal-overlay {
