@@ -248,6 +248,9 @@ done
 `src/rag/` 没有产物目录，代码是烤进镜像的：改完要重建 `docker-rag:latest` 并重建 rag
 容器，`sync.sh` 不会替你更新它。
 
+模型密钥（DeepSeek API key）只在部署机的 `.env` 里，换 key 的完整步骤、验证命令和
+已知的坑见 [deploy/运维-换模型密钥.md](deploy/运维-换模型密钥.md)。
+
 ## 常见问题
 
 **改了 `src/` 线上没变化？** `build/` 是生成物，先跑 `./deploy/sync.sh`。后端挂的是
