@@ -257,7 +257,7 @@ async function main() {
         legacy: { search: '', isLoggedIn: true, store: { getAll: async () => [] } },
       },
       {
-        name: '登录 + 三份命盘（特殊字符/缺省/边界）',
+        name: '登录 + 三份命盘（特殊字符/缺省/边界）', expectText: '张三',
         url: '/my-charts/', user: 'alice',
         stub: { charts: [CHART_A, CHART_B, CHART_C] },
         legacy: {
@@ -282,7 +282,7 @@ async function main() {
         },
       },
       {
-        name: '详情骨架（排盘接口挂住 → 骨架必须留在「正在排盘…」）',
+        name: '详情骨架（排盘接口挂住 → 骨架必须留在「正在排盘…」）', expectText: '正在排盘',
         url: '/my-charts/?id=c1', user: 'alice', stub: { chart: CHART_A, paipan: 'hang' },
         legacy: {
           search: '?id=c1', isLoggedIn: true,
@@ -297,7 +297,7 @@ async function main() {
         legacy: { search: '?id=nope', isLoggedIn: true, store: { get: async () => null } },
       },
       {
-        name: '后台详情骨架（?admin=1，走 admin 端点 + localStorage 里的 admin token）',
+        name: '后台详情骨架（?admin=1，走 admin 端点 + localStorage 里的 admin token）', expectText: '正在排盘',
         url: '/my-charts/?admin=1&id=c1', user: null,
         localStorage: { sqw_admin_token: 'admin-tok' },
         stub: { adminChart: CHART_A, paipan: 'hang' },
@@ -323,17 +323,22 @@ async function main() {
       await untilRendered(m, c.url).catch(() => {});
       await L.sleep(250);
 
+      // ★ 这里原来是「和老快照逐字节相同」。按用户 2026-10-19 的决定，逐字节对比
+      //   这类判据**整体退役**：这一页已经重写成 React（src/app/my-charts/main.jsx +
+      //   src/app/lib/myChartsView.js），DOM 结构必然是新的，逐字节比永远红。
+      //   换成行为断言：该出来的东西出来、该清空的清空、该走的端点走。
       const got = await htmlOf(m, 'mc-content');
-      const want = await legacy.renderLegacy(c.legacy);
-      // ★ §5.4（用户 2026-10-17）有意删掉了详细页页尾的「编辑此命盘 / 删除此命盘」，
-      //   而老快照里当然还有。这里只在**这一处**把老实现的页尾容器剪掉再逐字节比，
-      //   别的字节一个都不放过 —— 不许调成「允许差异数」那种糊弄法。
-      if (c.legacy.trimDetailActions) {
-        //   `.detail-actions` 里只有 <a> 与 <button>，没有嵌套 div —— 用最短匹配即可。
-        want.html = want.html.replace(/<div class="detail-actions">[\s\S]*?<\/div>/, '');
+      ok(`#mc-content 渲染出了内容 · ${c.name}`, !!got && got.replace(/\s+/g, '').length > 40,
+        JSON.stringify(String(got).slice(0, 120)));
+      if (c.expectText) {
+        const plain = String(got || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+        ok(`  正文里有「${c.expectText}」 · ${c.name}`, plain.indexOf(c.expectText) >= 0,
+          JSON.stringify(plain.slice(0, 160)));
       }
-      // 老那份也要过一遍浏览器解析（见 roundTrip 的注释），否则名字里带 `"` 那几条会假红
-      okHtml(`#mc-content 逐字节相同 · ${c.name}`, got, await roundTrip(m, want.html));
+      if (c.expectNoDetailActions) {
+        ok(`  页尾不再有「编辑此命盘 / 删除此命盘」 · ${c.name}`,
+          !/编辑此命盘|删除此命盘|doDelete/.test(String(got || '')), JSON.stringify(String(got || '').slice(-160)));
+      }
 
       // 后台那次：顺带确认 admin 端点真被打了，且带上了 Bearer
       if (c.legacy.adminChart) {
@@ -356,14 +361,15 @@ async function main() {
       (v) => v === true, 15000);
     await L.sleep(200);
 
-    const fbLegacy = await legacy.renderLegacy({
-      search: '?id=c1', isLoggedIn: true,
-      store: { get: async () => CHART_A },
-      paipanFail: { status: 500, error: '排盘失败（500）' },
-    });
-    okHtml('#baziChart 逐字节相同', await htmlOf(m, 'baziChart'), await roundTrip(m, fbLegacy.els.baziChart));
-    okHtml('#baziAi 被清空', await htmlOf(m, 'baziAi'), await roundTrip(m, fbLegacy.els.baziAi));
-    okHtml('#baziRest 被清空', await htmlOf(m, 'baziRest'), await roundTrip(m, fbLegacy.els.baziRest));
+    // 逐字节对比退役（见上），这里只验退路的**行为**：错误文案进 #baziChart，
+    // 而且上一份盘的 AI 正文与细盘不许留在 #baziAi / #baziRest 里（那是最容易骗人的残留）。
+    const fbChart = String(await htmlOf(m, 'baziChart') || '');
+    const fbAi = String(await htmlOf(m, 'baziAi') || '');
+    const fbRest = String(await htmlOf(m, 'baziRest') || '');
+    ok('退路：错误文案写在 #baziChart 里', /排盘没能取到/.test(fbChart), JSON.stringify(fbChart.slice(0, 120)));
+    ok('退路：上一份盘的 AI 正文没留在 #baziAi', !/【一、|AI 解读/.test(fbAi), JSON.stringify(fbAi.slice(0, 120)));
+    ok('退路：上一份盘的细盘没留在 #baziRest', fbRest.replace(/<[^>]+>/g, '').trim().length < 80,
+      JSON.stringify(fbRest.slice(0, 120)));
     await L.shot(m, path.join(SHOT_DIR, '02-退路.png'));
 
     // ── 4.3 列表页的交互 ────────────────────────────────────

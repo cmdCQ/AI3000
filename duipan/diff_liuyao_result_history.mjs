@@ -50,6 +50,7 @@
  *     **本文件不复制任何一份桩的形状。**
  */
 
+import './register_css_stub.mjs';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';

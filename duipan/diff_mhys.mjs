@@ -18,6 +18,7 @@
  * 红了的处理顺序（用户明说）：**先怀疑用例，不要先怀疑实现**。每一处红都要给出
  * 「为什么是用例错」的证据；只有证据站不住才动实现。
  */
+import './register_css_stub.mjs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';

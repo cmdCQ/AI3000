@@ -673,7 +673,6 @@ async function main() {
           function (e) { return e.textContent.indexOf('【一、结论】') >= 0; });`),
       '没找到区块标题');
     const ch = await chat();
-    console.log('   · DEBUG chat：' + JSON.stringify(ch).slice(0, 600));
     check('cardData 是**起卦结果**形态（卦号 + 四柱），不再送前端装的六亲六神世应',
       ch.length === 1 && ch[0].cardType === 'liuyao' && !!ch[0].cardData
       && ch[0].cardData.hexagrams.benGua.upper === A_GUA.upper
@@ -995,9 +994,17 @@ async function main() {
       /手动指定/.test(cards[1].meta) && /2026-09-21 15:30/.test(cards[1].meta),
       JSON.stringify(cards[1].meta));
 
+    // React 的受控输入：直接 `el.value = 'x'` 再 dispatch 'input' 会被 React 的值追踪器
+    // 当成「没变化」而忽略（onChange 不触发），页面看起来毫无反应。必须走原型上的原生
+    // setter 再派发冒泡的 input 事件 —— 这是处理 React 受控输入的通行做法。
+    const typeInto = (sel, text) => js(m, `var el = document.getElementById(${JSON.stringify(sel)});
+      var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+      setter.call(el, ${JSON.stringify(text)});
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      return el.value;`);
+
     // ③ 搜索：按事项过滤，大小写不敏感；清空后恢复
-    await js(m, `var i = document.getElementById('searchInput'); i.value = '下午';
-                 i.dispatchEvent(new Event('input')); return true;`);
+    await typeInto('searchInput', '下午');
     await L.sleep(300);
     check('搜索「下午」只剩一条', (await js(m, `return document.querySelectorAll('.record-card').length;`)) === 1,
       await L.textOf(m, '#contentArea', 2000, 5));
@@ -1006,8 +1013,7 @@ async function main() {
     check('点清除搜索后三条都回来',
       (await js(m, `return document.querySelectorAll('.record-card').length;`)) === 3,
       '清除后没恢复');
-    await js(m, `var i = document.getElementById('searchInput'); i.value = '不存在的卦';
-                 i.dispatchEvent(new Event('input')); return true;`);
+    await typeInto('searchInput', '不存在的卦');
     await L.sleep(300);
     check('搜不到时给的是「没有匹配的卦例」而不是「暂无排盘记录」',
       /没有匹配的卦例/.test(await L.textOf(m, '#contentArea', 2000, 5)), '空态文案不对');
@@ -1032,10 +1038,14 @@ async function main() {
                  && document.getElementById('deleteSelectedBtn').disabled === false;`), '全选没生效');
     await js(m, `document.getElementById('manageBtn').click(); return true;`);
     await L.sleep(300);
+    // React 版退出管理时整条操作条（#fmActions / #selectedCount / 「删除选中」）是**卸掉**的，
+    // 不是留一个「已选 0」的壳。所以两种形态都算过：整条没了，或文字是「已选 0」。
+    // 这条测的是「选中态被清空、复选框消失」，不是「DOM 里必须留着某个节点」。
     check('再点「完成」→ 退出管理、复选框消失、计数清零',
-      await js(m, `return document.getElementById('manageBtn').innerText === '管理'
+      await js(m, `var c = document.getElementById('selectedCount');
+                 return document.getElementById('manageBtn').innerText === '管理'
                  && !document.querySelector('.record-card .rc-checkbox')
-                 && document.getElementById('selectedCount').innerText === '已选 0';`), '退出管理没复原');
+                 && (c === null || c.innerText === '已选 0');`), '退出管理没复原');
 
     // ⑤ 删除：真打 DELETE，路径里是记录自己的 id
     await js(m, `document.getElementById('manageBtn').click(); return true;`);
@@ -1056,12 +1066,27 @@ async function main() {
     check('「删除选中」真删掉了那一条（列表从 3 条变 2 条，不是只清了个勾）',
       (await js(m, `return document.querySelectorAll('.record-card').length;`)) === 2,
       JSON.stringify(await fetch(`${ORIGIN}/__deleted`).then((r) => r.json()).catch(() => ({}))));
-    check('删完计数清零', /已选 0/.test(await js(m, `return document.getElementById('selectedCount').innerText;`)),
+    // 同「退出管理」那条：删完之后操作条可能整条卸掉，`#selectedCount` 就不存在了 ——
+    // 那等于计数已经清零。只有「还在、且不是已选 0」才算没清零。
+    check('删完计数清零',
+      await js(m, `var c = document.getElementById('selectedCount');
+                 return c === null || /已选 0/.test(c.innerText);`),
       '删除后计数没清零');
 
     // ⑥ 点卡片 → 跳 result.html?id=<那条记录的 id>
-    await js(m, `document.getElementById('manageBtn').click(); return true;`);
-    await L.sleep(300);
+    // 删除请求没回来时「完成」是 disabled 的，点它等于没点；而卡片在管理态下是 <label>
+    // （点=勾选），退出后才变回 <a href>。所以先等按钮可用，再按当前文案决定要不要点一次，
+    // 然后等卡片真的变回链接 —— 不要只靠 until（它超时只是不再等，不会替你判失败）。
+    await L.until(m, `var b = document.getElementById('manageBtn'); return !!b && !b.disabled;`, (t) => t === true, 6000);
+    if (await js(m, `return document.getElementById('manageBtn').innerText === '完成';`)) {
+      await js(m, `document.getElementById('manageBtn').click(); return true;`);
+    }
+    await L.until(m, `var c = document.querySelector('.record-card'); return !!c && c.tagName === 'A';`, (t) => t === true, 6000);
+    check('退出管理后卡片变回链接（<a href>，不是勾选框的 <label>）',
+      await js(m, `var c = document.querySelector('.record-card');
+                 return !!c && c.tagName === 'A' && !!c.getAttribute('href');`),
+      await js(m, `var c = document.querySelector('.record-card'); return c ? c.tagName : 'NO_CARD';`));
+
     await js(m, `document.querySelectorAll('.record-card')[0].click(); return true;`);
     await L.until(m, `return /result\.html\?id=/.test(window.location.href);`, (t) => t, 6000);
     const href = await js(m, `return String(location.href);`);

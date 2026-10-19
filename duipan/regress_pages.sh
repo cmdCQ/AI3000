@@ -92,7 +92,17 @@ run liuyao     node drive_liuyao_page.js
 run bazi       node drive_bazi_page.js
 run ai-chat    node drive_ai_chat_page.js
 run my-charts  node drive_my_charts_page.js
-run my-page    node drive_my_page.js
+# 「我的」页的驱动也**退役**了，理由同上：那 500 行断言全是对着「IIFE 渲染 #myContent」
+# 的老 DOM 写的（`.my-guest` / `.my-card` / 「Token 用量」/「还剩约 16 次」/
+# `window.loadMain()` 这类行内 onclick 全局）。0879d1d 之后这一页是 React
+# （src/app/my/main.jsx + my.logic.js + AccountCancellation.jsx）：引导卡变成
+# `.mc-empty`、额度变成「本周额度 / 永久积分」两张卡、菜单是 `.account-row` 按钮。
+# 逐条改写等于把 e2e 抄一遍，而这一页的覆盖本来就比驱动更全：
+#   · src/app/tests/my-page.spec.mjs（游客引导、401、加载失败重试、设置返回、取消退出、四种宽度不溢出）
+#   · src/app/tests/my-points.spec.mjs（额度卡与「北京时间每周一 0 点刷新」）
+#   · src/app/tests/account-cancellation.spec.mjs（注销全流程）
+#   · src/app/tests/my-account.logic.test.mjs（loadPointsUsage / logout 的纯函数行为）
+# 这些都在 232 条全量 e2e 里每条真跑。
 # 纯函数差分：不开浏览器，但它是 ai-chat 那条断言链的**判据来源** ——
 # 期望值不是手抄的常量，是当场从 duipan/legacy_ref/ 里那份冻结的老实现算出来的。
 # 快照被改动 = 判据被换成新实现自己 = 差分退化成橡皮章，所以它必须每次都跑。
@@ -113,13 +123,17 @@ run diff-auth  node diff_auth_cookie.mjs
 # 判据读的是冻结快照 `duipan/legacy_ref/page-liuyao-{result,history}.js`：
 # 老文件已经 `git rm`（7ec4fda），读活文件会 ENOENT，且读活文件 = 判据跟着实现漂。
 run diff-liuyao-rh node diff_liuyao_result_history.mjs
-# 「我的」页的差分（16 种输入 × innerHTML 逐字节 + 4 个函数体逐字比对 + 重复代码审计）。
-# 这一页的输出**全部**是 `#myContent.innerHTML`，所以比字符串比比 DOM 树更严。
-# 三个归一化规则写在 `stripCode()` 里，只有那条注释列出的三条 —— 谁要往那儿加
-# 「大致等价」的规则（比如把 `var` 抹成 `const`），这一层就不是逐字比了。
-# 附带证明的重复代码事实：老页自己写了两份正则读 cookie（`getUser` / `getToken`），
-# 新页把 `getToken` 换成 `../lib/auth.js`，差分里那条断言就是钉这个的。
-run diff-my node diff_my_functions.mjs
+# 「我的」页的逐字节差分（diff_my_functions.mjs）已**退役**，不是跳过、也不是换成放水判据：
+#   那一页在 0879d1d 里从「IIFE 渲染 #myContent.innerHTML」重写成 React
+#   （src/app/my/main.jsx + my.logic.js）。老的四件套 loadMain / loadTokenUsage /
+#   goSettings / doLogout 在实现里已经不存在（现在是 loadPointsUsage /
+#   loadCancellationCapability / cancelAccount / completeAccountCancellation），
+#   差分对新侧只剩 undefined，永远「装载失败（测不出来）」= 把门焊死在红。
+#   该页现在的覆盖在别处，且都是行为断言、不是字节：
+#     · src/app/tests/my-page.spec.mjs / my-points.spec.mjs / account-cancellation.spec.mjs
+#     · src/app/tests/my-account.logic.test.mjs —— 在 232 条全量 e2e 与 vitest 里
+#   变异套件 mutate_my_functions.js 同步退役：它靠改坏 my.logic.js 让差分红来证明判据有牙，
+#   差分没了，它只会「改坏了也没人抓」。
 # 变异套件自己会把驱动跑九遍（每遍改坏一处再还原），故它最慢、放在最后。
 # `fast` 只跳过它 —— 但**发版前必须跑**：驱动里那些断言是写驱动的人自己写的，
 # 只有变异能证伪「这些断言是不是橡皮章」。
@@ -129,11 +143,10 @@ if [ "$1" = "fast" ]; then
   printf '\n───── mutate-mhys-twice ─────\n（fast：跳过）\n'
 else
   run mutate-mhys-twice node mutate_mhys_twice.js
-  run mutate-my node mutate_my_functions.js
 fi
 
 printf '\n═════ 汇总 ═════\n'
 if [ -n "$ENVFAIL" ]; then echo "⚠ 没测到东西：$ENVFAIL"; fi
 if [ -n "$FAIL" ]; then echo "✗ 未过：$FAIL"; exit 1; fi
 if [ -n "$ENVFAIL" ]; then exit 2; fi
-echo "✓ 七个页面驱动 + 五个纯函数差分（含两个变异套件）全部通过 $SKIPPED"
+echo "✓ 六个页面驱动 + 四个纯函数差分（含一个变异套件）全部通过 $SKIPPED"

@@ -89,6 +89,12 @@ const RECORDS = slice(src, R1, R2, '八字解析记录端点');
 // 端点切片里也不再引用它，所以这里留空串，而不是去别的文件里找一个「替代函数」凑上。
 const TOKEN_LIMIT = '';
 const ESTIMATE = slice(src, 'function estimateTokens(text) {', '// ══════ Prompt 模板引擎', 'estimateTokens');
+// 点数/额度重构（e39da53）之后，端点里改成先 `requirePoints(quota, 估算输入)` 再发请求：
+// 额度不够抛 429、够就返回本次可用的 max_tokens。它的定义还在 auth-server.js 里（不是
+// 从别的模块引入的），所以照老办法切片即可 —— 不要在本脚本里另写一份「大概长这样」的
+// 替身，那样端点改了额度算法，冒烟照样绿。
+const REQUIRE_POINTS = slice(src, 'function requirePoints(quota, estimatedInput = 0) {',
+  '// 后台「提示词管理」页面里逐个模板展示的', 'requirePoints');
 
 // 两个**模块级常量**：`LLM_MAX_TOKENS`（上游 token 上限）与 `EMPTY_UPSTREAM_NOTICE`
 // （一个字正文都没出来时给用户看的那句白话）。
@@ -270,7 +276,11 @@ function makeRes() {
 }
 
 /** 造一份被测实现（每个用例一份新的库与记录器）。 */
+// 端点交给记账层的每一次调用（每个 harness 建立时清空）
+const chargeCalls = [];
+
 function makeHarness(opts) {
+  chargeCalls.length = 0;
   const o = opts || {};
   const db = makeDb(o);
   const llm = { calls: [], cfg: null };
@@ -307,11 +317,18 @@ function makeHarness(opts) {
     'const { db, json, checkAuth, fetch, config, RAG_URL, crypto, JWT_SECRET, LLM_MODEL,\n'
     + '  LLM_MAX_TOKENS, LLM_REASONING_EFFORT, EMPTY_UPSTREAM_NOTICE,\n'
     + '  BAZI_REPORT_TEMPERATURE,\n'
-    + '  baziFull, baziPromptLib, baziFortuneLib, baziReportLib, ganzhiLib, paipanConst, chatTools, require } = D;\n'
-    + TOKEN_LIMIT + '\n' + ESTIMATE + '\n'
+    + '  baziFull, baziPromptLib, baziFortuneLib, baziReportLib, ganzhiLib, paipanConst, chatTools, require,\n'
+    + '  pointsBilling } = D;\n'
+    + TOKEN_LIMIT + '\n' + ESTIMATE + '\n' + REQUIRE_POINTS + '\n'
     + "const POINTS_LABEL = '" + POINTS_LABEL + "';\n" + POINTS_TRAILER_SRC + '\n'
     + HELPERS + '\n'
     + 'async function handle(req, res, body, pathname) {\n'
+    // 真服务在处理登记者请求前会先过 `pointsBilling.withUserLock`，把 connection + quota
+    // 挂到 `req.pointsContext` 上；端点里 `requirePoints(req.pointsContext.quota)` 直接读。
+    // 这个冒烟只切了端点、没有那层包裹，所以在这里补上同样形状的上下文 —— 额度给足，
+    // 让 requirePoints 走「不限量 → LLM_MAX_TOKENS」那条分支（额度耗尽的 429 由别的用例管）。
+    + "req.pointsContext = { connection: D.db, quota: D.quota || { username: req.authPayload && req.authPayload.username,\n"
+    + "  tokensRemaining: null, pointsRemaining: null, billingDate: '2026-10-19' }, requestId: 'smoke' };\n"
     // ⚠ `url` 要**每次请求现取**（放在工厂体里就只算一次，第二次请求读到的是旧值）
     + "const url = new URL((D.reqUrl ? D.reqUrl() : '/'), 'http://localhost');\n"
     + ENDPOINT + RECORDS
@@ -332,6 +349,21 @@ function makeHarness(opts) {
     config: { deepseek: { apiKey: 'sk-test-not-a-real-key', baseURL: 'http://stub' } },
     RAG_URL: 'http://rag',
     crypto: require('crypto'),
+    // 记账：真实现是 `src/server/paipan/points-billing.js`（写 points_usage / points_daily /
+    // points_permanent_ledger 三张表 + users.token_used）。账本正确性由
+    // `src/server/paipan/points-billing.test.js` 管；这里要验的是**端点把什么交给了它**
+    // （上游真数，不是本地估算），所以用会记账的替身：收下 usage、按同一口径算合计、
+    // 把调用留档给下面的断言。⚠ 别改成「永远返回 33」——那样「取上游真数」就成了橡皮章。
+    // `charge()` 抛错时端点会写「积分结算未确认」并吞掉，所以替身必须成功返回。
+    quota: o.quota || null,
+    pointsBilling: {
+      charge: async (username, usage) => {
+        chargeCalls.push(Object.assign({ username }, usage));
+        return { totalTokens: usage.inputTokens + usage.outputTokens, pointsRemaining: null };
+      },
+      getQuota: async () => ({ username: 'stub', tokensRemaining: null, pointsRemaining: null, billingDate: '2026-10-19', tier: 0 }),
+      withUserLock: async (username, fn) => fn(db, { username, tokensRemaining: null, pointsRemaining: null, billingDate: '2026-10-19' }),
+    },
     JWT_SECRET: 'smoke-secret',
     estimateTokens: null,   // 由下面 ESTIMATE 段定义，此处占位不用
     LLM_MODEL: 'stub-model',
@@ -550,10 +582,13 @@ console.log('\n④ 登录用户解析「婚姻」：落库 + 记账取真数');
   // 「消耗 Token：」改成「消耗积分：」—— 写死旧字的断言在此之后是**永远为真**的橡皮章。
   // 三个数字必须满足「33 = 11 + 22」，因为那才是「记账取上游真数、不是本地估的」这条
   // 承诺：桩给的 usage 帧就是 11/22/33，本地估的话绝不可能正好凑成这个关系。
-  check('登录用户的正文末尾有记账尾巴，且取的是上游真数（输入 11 + 输出 22 = 33）',
+  // 尾巴的形状（e39da53 起）：`---` + `消耗积分：<合计/10000 保留四位>`，例如 33 token → 0.0033。
+  // 老形状「输入 11 + 输出 22 = 33」已经不写了 —— 判据跟着**当前实现**走，但仍有牙：
+  // 数字必须等于「上游 usage 帧的 11 + 22 = 33 token ÷ 10000」，本地估算凑不出来。
+  check('登录用户的正文末尾有记账尾巴，且取的是上游真数（33 token → 0.0033 积分）',
     r.res.body.indexOf(POINTS_LABEL) >= 0
-    && /输入 11 \+ 输出 22 = 33/.test(r.res.body)
-    && /剩余：/.test(r.res.body), JSON.stringify(r.res.body.slice(-110)));
+    && r.res.body.indexOf(POINTS_LABEL + '0.0033') >= 0
+    && /\n\n---\n/.test(r.res.body), JSON.stringify(r.res.body.slice(-110)));
   const a = h.db._t.analyses[0];
   check('写进解析记录：用户/命盘/方面/提问都对',
     h.db._t.analyses.length === 1 && a.user_id === 'alice' && a.chart_id === 'chart_7'
@@ -563,9 +598,14 @@ console.log('\n④ 登录用户解析「婚姻」：落库 + 记账取真数');
     a && a.analysis.indexOf(POINTS_LABEL) < 0 && a.analysis.indexOf('消耗 Token') < 0
     && a.analysis.indexOf('【二、你的现状】') >= 0,
     JSON.stringify(a && a.analysis.slice(-60)));
+  // 记账从「端点自己 UPDATE users」改成了「交给 pointsBilling.charge」（e39da53 起），
+  // 所以这里验的是**交给记账层的那份 usage**：输入/输出必须是上游 usage 帧的真数（11/22），
+  // 合计 33 由记账层算。本地估算的话凑不出这个关系，这条照样有牙。
+  const charged = chargeCalls[chargeCalls.length - 1];
   check('记账用的是**上游真数** 33（不是本地估的）',
-    h.db._t.updates.length === 1 && h.db._t.updates[0][0] === 33 && h.db._t.updates[0][1] === 'alice',
-    JSON.stringify(h.db._t.updates));
+    chargeCalls.length === 1 && charged.inputTokens === 11 && charged.outputTokens === 22
+    && charged.username === 'alice',
+    JSON.stringify(chargeCalls));
   check('登录用户不发游客 cookie', !r.res.headers['set-cookie'],
     JSON.stringify(r.res.headers['set-cookie']));
 }
@@ -573,12 +613,18 @@ console.log('\n④ 登录用户解析「婚姻」：落库 + 记账取真数');
 // ── ⑤ 额度用完的登录用户：回一句明说的，不报错码 ───────────────────
 console.log('\n⑤ 登录用户额度已满：回一句明说的正文（与聊天同一条路）');
 {
-  const h = makeHarness({ tokenUsed: 999999999, tier: 0 });
+  // 额度闸门在 e39da53 之后挪到了接入层：真服务在进端点**之前**就
+  // `pointsBilling.withUserLock` → `checkQuota`（额度 ≤0 抛 429「积分已用完…」），
+  // 端点里另有一道 `requirePoints(req.pointsContext.quota)` 兜底。这个冒烟只切了端点，
+  // 所以这里直接把「额度已耗尽」的 quota 交给端点，验的是**端点那道兜底**：
+  // 抛 429 带「积分」字样、不问模型、不落库。接入层那道由 points-billing.test.js 与
+  // points-integration.test.js 覆盖。
+  const h = makeHarness({ quota: { username: 'bob', tokensRemaining: 0, pointsRemaining: 0, billingDate: '2026-10-19' } });
   h.ctx.tokens = { 'tok-bob': { username: 'bob' } };
   h.db._t.users.bob = { token_used: 999999999, tier: 0 };
   const r = await h.callParse({ body: { ...BIRTH, tab: '健康' }, token: 'tok-bob' });
-  check('200 + 正文说明（不是 4xx）', r.res.statusCode === 200 && /已用完/.test(r.res.body),
-    JSON.stringify(r.res.body.slice(0, 60)));
+  check('额度耗尽 → 端点抛 429 且说「积分不足」（不是 200 空正文、也不是 500）',
+    /积分/.test(String(r.res.throwMsg || '')), JSON.stringify(r.res.throwMsg || r.res.body.slice(0, 60)));
   check('没问模型', h.llm.calls.length === 0, String(h.llm.calls.length));
   check('没落库', h.db._t.analyses.length === 0, JSON.stringify(h.db._t.analyses));
 }
@@ -703,8 +749,14 @@ console.log('\n⑫ 文件级不变量：两条 AI 线不许分叉');
   const hardcoded = src.match(/max_tokens:\s*\d+/g) || [];
   check('没有哪条 AI 线自己写死 token 上限（都得走 LLM_MAX_TOKENS）',
     hardcoded.length === 0, JSON.stringify(hardcoded));
-  const usesConst = (src.match(/max_tokens: LLM_MAX_TOKENS/g) || []).length;
-  check('两条 AI 线都用了这个共用常量（解读 + 聊天）', usesConst === 2, String(usesConst));
+  // 上限不再直接写 `LLM_MAX_TOKENS`：e39da53 之后两条线都先过 `requirePoints(quota, 估算)`
+  // 得到一个「本次可用的 maxOutputTokens」（有额度时被 Math.min 夹到 LLM_MAX_TOKENS，
+  // 没额度时抛 429）。所以要钉的是**两处都传这个变量**，且它的上限确实来自那个常量。
+  const usesVar = (src.match(/max_tokens: maxOutputTokens/g) || []).length;
+  check('两条 AI 线都传 maxOutputTokens（解读 + 聊天），不再各写各的', usesVar === 2, String(usesVar));
+  check('maxOutputTokens 的上限就是 LLM_MAX_TOKENS（不是另起一个数）',
+    /Math\.min\(LLM_MAX_TOKENS/.test(src)
+    && /tokensRemaining == null \? LLM_MAX_TOKENS/.test(src), '没找到夹取');
   // 思考强度这一项**两条线写法不同**，别再用同一个字面模式去数：
   //   · 聊天线（`/api/chat/send`）整份 params 一次写死 → `reasoning_effort: LLM_REASONING_EFFORT`
   //   · 八字线按 `noThinking` 分支 → `params.reasoning_effort = LLM_REASONING_EFFORT`（追问那支）
@@ -720,8 +772,11 @@ console.log('\n⑫ 文件级不变量：两条 AI 线不许分叉');
     thinkingOff === 1, String(thinkingOff));
   check('思考强度是官方文档里的取值之一',
     ['low', 'high', 'max'].indexOf(LLM_REASONING_EFFORT) >= 0, LLM_REASONING_EFFORT);
-  const guards = (src.match(/if \(!fullText && !wroteFallback/g) || []).length;
-  check('两条 AI 线都有「空正文 → 补一句白话」的守卫', guards === 2, String(guards));
+  // 守卫的名字在两条线上不同（聊天线叫 wroteFallback，八字线叫别的），所以数的不是
+  // 「同一个变量名出现两次」，而是「两处都在 `!fullText` 上兜了一句」。
+  const guards = (src.match(/!fullText[^\n]{0,40}\)/g) || []).length;
+  check('两条 AI 线都在「正文为空」时兜了一句白话（不是 200 + 0 字节）',
+    guards >= 2, JSON.stringify(src.match(/!fullText[^\n]{0,60}/g) || []));
   const notices = (src.match(/res\.write\(EMPTY_UPSTREAM_NOTICE\)/g) || []).length;
   check('两条 AI 线用的是同一句提示（不是各写一句）', notices === 2, String(notices));
 }
@@ -829,9 +884,12 @@ console.log('\n⑭ 追问：换模板、带上下文、不落库');
       JSON.stringify(r.res.body.slice(0, 80)));
     check('**不落库**（追问不是一份独立解读）', h.db._t.analyses.length === 0,
       JSON.stringify(h.db._t.analyses));
+    // 记账同样从「端点 UPDATE users」换成了「交给 pointsBilling.charge」（见上面第 ④ 段），
+    // 所以这里验交给记账层的那份 usage 仍是上游真数（11 + 22）。
+    const followCharged = chargeCalls[chargeCalls.length - 1];
     check('token 照记（33，用的还是上游真数）—— 「只跳过落库这一步」',
-      h.db._t.updates.length === 1 && h.db._t.updates[0][0] === 33
-      && h.db._t.updates[0][1] === 'alice', JSON.stringify(h.db._t.updates));
+      chargeCalls.length === 1 && followCharged.inputTokens === 11 && followCharged.outputTokens === 22
+      && followCharged.username === 'alice', JSON.stringify(chargeCalls));
 
     const user = h.llm.calls[0].messages[1].content;
     check('走的是**追问模板**：有【追问】【之前解读】',

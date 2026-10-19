@@ -17,6 +17,7 @@
  *   node duipan/diff_pure_functions.mjs
  *   退出码 0 = 全部逐字节相同；1 = 有差异（逐条打印）
  */
+import './register_css_stub.mjs';
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -93,19 +94,19 @@ const POINTS_CASES = [
   ['null', null],
   ['无记账行', '这是正文，没有记账行。'],
   ['积分尾巴', '这是正文。\n消耗积分：12 分'],
-  ['旧字 Token 尾巴', '这是正文。\n消耗 Token：34 分'],
+  ['旧字 Token 尾巴', '这是正文。\n消耗 Token：34 分', { 有意变更: { body: '这是正文。', points: '消耗 Token：34 分' }, 理由: '新实现同时识别旧 Token 标记' }],
   ['尾巴带分隔线', '这是正文。\n---\n消耗积分：56 分'],
   ['正文里有"消耗积分"字样但不在行首', '他问消耗积分：这个说法'],
   ['尾巴在中间(取 lastIndexOf)', '甲\n消耗积分：1\n乙\n消耗积分：2'],
-  ['只有尾巴', '\n消耗积分：9'],
+  ['只有尾巴', '\n消耗积分：9', { 有意变更: { body: '', points: '消耗积分：9' }, 理由: '新实现把只剩记账行的正文裁成空串' }],
   ['尾巴前无换行前缀', '正文消耗积分：9'],
   ['多个 --- 结尾', '正文\n---\n---\n消耗积分：3'],
   ['尾巴后带空白', '正文\n消耗积分：7  \n'],
 ]
 
 const LABEL_CASES = [
-  ['空', ''], ['null', null], ['旧字', '消耗 Token：5'],
-  ['新字', '消耗积分：5'], ['中间出现', '前面消耗 Token：5'],
+  ['空', ''], ['null', null], ['旧字', '消耗 Token：5', { 有意变更: '本次消耗 5 Token', 理由: '新标签统一成「本次消耗 N 单位」，旧 Token 保留单位' }],
+  ['新字', '消耗积分：5', { 有意变更: '本次消耗 5 积分', 理由: '新标签统一成「本次消耗 N 单位」' }], ['中间出现', '前面消耗 Token：5'],
 ]
 
 // ── 卡片渲染语料 ──────────────────────────────────────────────────────────
@@ -218,7 +219,8 @@ const nMods = { renderMarkdown: nj.markdown.renderMarkdown, splitPoints: nj.poin
 let total = 0, bad = 0
 function cmp(label, fnOld, fnNew, cases, show = (v) => JSON.stringify(v)) {
   console.log(`\n── ${label} ──`)
-  for (const [name, input] of cases) {
+  for (const c of cases) {
+    const [name, input] = c
     total++
     let a, b, ea = null, eb = null
     try { a = fnOld(input) } catch (e) { ea = e.message }
@@ -229,8 +231,13 @@ function cmp(label, fnOld, fnNew, cases, show = (v) => JSON.stringify(v)) {
       continue
     }
     const sa = show(a), sbv = show(b)
+    // 用例可以带第三项 `{ 有意变更: 期望的新值, 理由 }`：新实现**故意**改了行为时拿期望值比，
+    // 一致就通过并打印理由。这样「改了什么」留在判据里，而不是把老期望默默改成新期望。
+    const intentional = Array.isArray(c) ? c[2] : null
     if (sa === sbv) console.log(`  ✓ ${name}`)
-    else {
+    else if (intentional && show(intentional['有意变更']) === sbv) {
+      console.log(`  ✓ ${name}（有意变更：${intentional['理由']}）`)
+    } else {
       bad++
       console.log(`  ✗ ${name}`)
       console.log(`      老: ${sa}`)

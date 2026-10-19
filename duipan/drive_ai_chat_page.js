@@ -242,9 +242,14 @@ async function main() {
     check('AI 气泡的 HTML 与老 renderMarkdown 逐字节相同',
       !!ai && ai.bubbleHTML === sb.renderMarkdown(expect.body),
       `\n        老: ${JSON.stringify(sb.renderMarkdown(expect.body))}\n        新: ${JSON.stringify(ai && ai.bubbleHTML)}`);
+    // 尾巴文案不再等于服务端原文：实现里统一过一遍 pointsLabel（旧字「消耗 Token」与
+    // 「消耗积分：N」都归一成「本次消耗 N 单位」，存量不迁移）。期望值也走同一个归一函数，
+    // 而不是把老原文写死 —— 否则每次改文案都要回来改判据。
+    const ptsAi = await import('../src/app/lib/points.js');
+    const wantToken = ptsAi.pointsLabel(expect.points);
     check('积分尾巴切成了 .msg-token',
-      !!ai && ai.tokenText === expect.points,
-      JSON.stringify(ai && ai.tokenText));
+      !!ai && ai.tokenText === wantToken,
+      JSON.stringify({ 实得: ai && ai.tokenText, 应有: wantToken }));
     check('尾巴是气泡的**兄弟**节点，不在气泡里面',
       !!ai && ai.tokenInsideBubble === false,
       JSON.stringify(ai && ai.tokenInsideBubble));

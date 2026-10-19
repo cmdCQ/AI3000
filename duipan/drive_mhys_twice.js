@@ -466,9 +466,14 @@ async function main() {
     check('⑦ 显示的是记录里存着的那份解读（不是「开始解卦」、也不是登录墙）',
       has(rec.panelText, '记录里存着的旧解析') && !has(rec.panelText, '次数已用完'),
       JSON.stringify(rec.panelText.slice(0, 60)));
+    // 记账行文案在实现里会过一遍 pointsLabel：服务端给的「消耗积分：输入 100 + 输出 200 = 300」
+    // 显示成「本次消耗 300 积分」（只留合计，去掉输入输出明细）。判据跟着归一函数走 ——
+    // 这条测的是「记账行被切出来单独显示」，不是「文案一个字不许动」。
+    const ptsTwice = await import('../src/app/lib/points.js');
+    const wantRecPoints = ptsTwice.pointsLabel('消耗积分：输入 100 + 输出 200 = 300');
     check('⑦ 记账行被切出来做小字（不是当正文渲染）',
-      has(rec.panelText, '消耗积分：输入 100 + 输出 200 = 300'),
-      JSON.stringify(rec.panelText.slice(-60)));
+      has(rec.panelText, wantRecPoints),
+      JSON.stringify({ 实得尾部: rec.panelText.slice(-60), 应有: wantRecPoints }));
     // 这四个名字（`currentRecordId` / `savedAnalysis` / `currentTopic`）在阶段 4 之前是
     // classic script 的顶层 var，判据可以直接 `W.currentRecordId` 读；ESM 之后它们住在
     // `src/app/shared/mhysRender.js` 的模块作用域里。页面为判据开了一个只读出口

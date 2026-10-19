@@ -353,9 +353,19 @@ async function main() {
         JSON.stringify(text.replace(/\s+/g, ' ').slice(0, 120)));
     }
     // 盘分两块画（2026-09-25）：排盘主体 + 其余。四块内容都得在，只是不在同一块里。
-    check('四块内容都在：基本信息 / 四柱细盘 / 命局提要 / 大运一览',
-      ['基本信息', '四柱细盘', '命局提要', '大运一览'].every((t) => text.indexOf(t) >= 0),
+    // 「命局提要」这一块是**有才画**：`summaryBlock()` 在端点没给 overview 时返回空串，
+    // 老判据把四块写死成必须全在，端点在某种输入下不给提要就假红。改成「三块必在 +
+    // 提要跟着端点走」，判据还是能抓住「少画了一块」。
+    const blocksOk = ['基本信息', '四柱细盘', '大运一览'].every((t) => text.indexOf(t) >= 0);
+    check('三块骨架都在：基本信息 / 四柱细盘 / 大运一览', blocksOk,
       JSON.stringify(text.replace(/\s+/g, ' ').slice(0, 200)));
+    // 第四块有两种形态，**都是设计**：
+    //   · 有 AI 解读的页面（老版）：「命局提要」——带白话头条与「展开细说」；
+    //   · 纯盘面（现在的详情页，neutral=true，AI 搬去 /bazi-consult/）：「盘面标记」——
+    //     只列神煞与地支关系，不下结论。所以这一条接受任一形态，而不是钉死一个标题。
+    check('第四块在：命局提要（带解读）或 盘面标记（纯盘面）',
+      text.indexOf('命局提要') >= 0 || text.indexOf('盘面标记') >= 0,
+      JSON.stringify({ 命局提要: text.indexOf('命局提要'), 盘面标记: text.indexOf('盘面标记') }));
     check('日柱那格写「日元」（白话，不是术语「日干」）', /日元/.test(text), '没找到「日元」');
 
     // 生肖：页面只能从服务端的 `display.shengxiao` 取。癸亥 → 猪。
@@ -407,7 +417,9 @@ async function main() {
       mutated.chart.year_pillar.tiangan = '甲';
       mutated.chart.year_pillar.dizhi = '子';
       mutated.display.shengxiao = '龙';
-      mutated.chart.overview.headline = '（变异桩）这一行的头条由端点给';
+      // 详情页现在是纯盘面（neutral），不画 overview.headline —— 让桩改一个**它真的会画**的字段：
+      // 神煞名。这样这条判据验的还是「端点说什么页面就画什么」，只是换了载体。
+      mutated.chart.shensha = [{ name: '（变异桩）天乙贵人', pillar: '年柱', dizhi: '子' }];
       mutated.chart.dayun[0].tiangan = '丙';
       mutated.chart.dayun[0].dizhi = '寅';
       await stub({ paipan: mutated });
@@ -415,8 +427,10 @@ async function main() {
       const t2 = await chartReady(m, 10000);
       // 只认**年柱那一格**的两行（天干/地支）。整页搜「癸亥」不行 —— 大运第二步
       // 本来就是癸亥，那样写会把桩的正确渲染判成失败。
+      // 四柱细盘的表在现行实现里是 `.bz-pillar-sheet`（React 重写前叫 `.bz-table`），
+      // 行首 `<th>` 是项目名（天干/地支/…），第一个 `<td>` 就是年柱。
       const yp2 = await js(m, `${W}
-        var rows = document.querySelectorAll('#baziChart .bz-table tbody tr, #baziRest .bz-table tbody tr');
+        var rows = document.querySelectorAll('#baziChart .bz-pillar-sheet tbody tr, #baziRest .bz-pillar-sheet tbody tr');
         var gan = '', zhi = '';
         for (var i = 0; i < rows.length; i++) {
           var k = (rows[i].querySelector('th') || {}).innerText || '';
@@ -430,507 +444,23 @@ async function main() {
       const zx2 = await js(m, `var el = document.getElementById('baziZodiac');
         return el ? el.textContent : '';`);
       check('生肖照桩画成 🐲（该 emoji 只能从服务端来）', zx2 === '🐲', JSON.stringify(zx2));
-      check('命局提要的头条是桩给的那句',
-        t2.indexOf('（变异桩）这一行的头条由端点给') >= 0, '桩的头条没出现');
+      check('神煞名照桩画出来（纯盘面靠它证明「端点说什么页面就画什么」）',
+        t2.indexOf('（变异桩）天乙贵人') >= 0, JSON.stringify(t2.slice(0, 160)));
       const dy2 = await js(m, `var s = document.querySelector('.bz-dayun .bz-step .bz-dgz');
         return s ? s.innerText : '';`);
       check('首运照桩画成 丙寅', /丙寅/.test(dy2), JSON.stringify(dy2));
       await stub({ paipan: null });
     }
 
-    // ── ④ 五个方面：切换 = 替换（一次只看一个）────────────────────
-    console.log('\n④ 五个方面切换：替换，不累积');
-    await reset(m, { as: KH.alice });
-    await goto(m, DETAIL);
-    await chartReady(m, 10000);
-    await panelReady(m);
-    const aspects = await js(m, `${W}
-      var bar = document.getElementById('baziAspectBar');
-      var bs = bar ? bar.querySelectorAll('.bz-aspect') : [];
-      var out = [];
-      for (var i = 0; i < bs.length; i++) out.push(bs[i].getAttribute('data-aspect'));
-      return { aspects: out, conf: !!(W.AI_PANEL_CONF && W.AI_PANEL_CONF.buildBody),
-               noFollowUp: W.AI_PANEL_CONF ? W.AI_PANEL_CONF.noFollowUp : 'NO_CONF' };`);
-    check('五个方面按后端那套顺序摆出来（与 BAZI_ASPECTS 同一份）',
-      aspects.aspects.join(',') === '综合,事业,财运,婚姻,健康', JSON.stringify(aspects.aspects));
-    check('面板引擎拿到了八字这份配置（parsePath/buildBody 都在）', aspects.conf === true, '没挂上');
-    check('追问栏**没有**被关掉（2026-09-25 拍板「要」）', aspects.noFollowUp !== true,
-      JSON.stringify(aspects.noFollowUp));
-
-    // 选「婚姻」并开始解读
-    await js(m, `${W}
-      document.querySelector('.bz-aspect[data-aspect="婚姻"]').click();
-      return document.getElementById('baziAspectHint').textContent;`);
-    await js(m, `document.querySelector('#aiResponse .ai-start-btn').click(); return true;`);
-    const t1 = await L.panelTextUntil(m, /再看现状/, 8000);
-    check('婚姻这一方面的正文收完并渲染（markdown 成了区块，不是原文）',
-      /【二、你的现状】/.test(t1) && t1.indexOf('**') < 0, JSON.stringify(t1.slice(0, 90)));
-    check('正文里的 token 尾巴被切掉了（那是记账用的，不该给用户看）',
-      t1.indexOf('消耗 Token') < 0, JSON.stringify(t1.slice(-60)));
-    let cap1 = await captured();
-    // 先钉**打到哪个 URL**：`AI_PANEL_CONF.parsePath` 是函数，引擎漏掉一次调用就会
-    // 把函数体当路径拼进 URL（`/my-charts/function%20()%20%7B…%7D`），而那种失败
-    // 在屏幕上只是「一直在检索」—— 光看断言认不出来，必须看服务端收到了什么。
-    check('解读请求打到了 `/api/bazi/parse`',
-      cap1.hits.indexOf('POST /api/bazi/parse') >= 0, `服务端收到过：${hitsTail()}`);
-    check('解读请求带的 tab = 当前方面（婚姻）',
-      cap1.ai.length === 1 && cap1.ai[0].tab === '婚姻',
-      `${JSON.stringify(cap1.ai)} ／ 服务端收到过：${hitsTail()}`);
-    if (cap1.ai.length !== 1) {
-      const why = await js(m, `${W}
-        var r = document.getElementById('aiResponse');
-        return { text: r ? (r.innerText || '') : '', errs: (W.__errs || []).slice(-3) };`);
-      console.log('   · 诊断：面板上是 ' + JSON.stringify(why.text.slice(0, 80))
-        + ' · 页面报错 ' + JSON.stringify(why.errs));
-    }
-
-    // 切到「财运」：上一次的正文不许留在屏幕上
-    const t2 = await js(m, `${W}
-      document.querySelector('.bz-aspect[data-aspect="财运"]').click();
-      var r = document.getElementById('aiResponse');
-      return { text: r ? (r.innerText || '') : '', hint: document.getElementById('baziAspectHint').textContent };`);
-    check('切方面 = **替换**：婚姻那份正文当场消失',
-      t2.text.indexOf('【二、你的现状】') < 0 && t2.text.length < 40,
-      JSON.stringify(t2.text.slice(0, 60)));
-    check('副标题跟着换成财运的说明（告诉不懂的人点下去会得到什么）',
-      /收入来源|破财/.test(t2.hint), JSON.stringify(t2.hint));
-    await js(m, `document.querySelector('#aiResponse .ai-start-btn').click(); return true;`);
-    await L.panelTextUntil(m, /再看现状/, 8000);
-    let cap2 = await captured();
-    check('第二次解读的 tab = 财运（不是把婚姻又发一遍）',
-      cap2.ai.length === 2 && cap2.ai[1].tab === '财运', JSON.stringify(cap2.ai.map((x) => x.tab)));
-
-    // ── ⑤ 旧版可展开：每方面一条 + 旧版折叠 ──────────────────────
-    console.log('\n⑤ 每方面一条 + 旧版可展开（记录来自 `/api/bazi-analyses`）');
-    await reset(m, { as: KH.alice });
-    await stub({
-      records: [
-        { id: 3, chartId: 'chart_1', aspect: '婚姻', question: '', analysis: '最新一份（桩）', createdAt: 3000 },
-        { id: 2, chartId: 'chart_1', aspect: '婚姻', question: '什么时候', analysis: '旧版二（桩）', createdAt: 2000 },
-        { id: 1, chartId: 'chart_1', aspect: '婚姻', question: '', analysis: '旧版一（桩）', createdAt: 1000 },
-      ],
-    });
-    await goto(m, DETAIL);
-    await chartReady(m, 10000);
-    await panelReady(m);
-    // 记录是 mount() 里**异步**取的（`loadRecords`），故等它把旧版块画出来再断言
-    await L.until(m, `return document.querySelectorAll('#baziAiHistory .bz-hist-item').length;`,
-      (n) => n === 2, 8000);
-    const hist0 = await js(m, `${W}
-      document.querySelector('.bz-aspect[data-aspect="婚姻"]').click();
-      return { hasHist: !!document.querySelector('#baziAiHistory .bz-hist'),
-               open: !!document.querySelector('#baziAiHistory .bz-hist[open]'),
-               n: document.querySelectorAll('#baziAiHistory .bz-hist-item').length,
-               now: (document.getElementById('aiResponse') || {}).innerText || '',
-               startBtn: !!document.querySelector('#aiResponse .ai-start-btn') };`);
-    check('同一方面解过多份 → 出现「旧版」折叠块', hist0.hasHist && hist0.n === 2,
-      JSON.stringify(hist0));
-    check('旧版**默认收起**（不抢当前那份的注意力）', hist0.open === false, JSON.stringify(hist0.open));
-    // 「每方面一条」= 切到这个方面直接看到**记录里最新那条**，不再让用户点一次
-    // （`aiSaved()` 取 `rows[方面][0]`，即服务端按 created_at DESC 排的第一条）
-    check('当前正文直接就是**最新一条记录**（新到旧第一条）',
-      hist0.now.indexOf('最新一份') >= 0, JSON.stringify(hist0.now.slice(0, 60)));
-    check('既然有记录可看，就**不再摆**「解读这一方面」按钮', hist0.startBtn === false,
-      '按钮还在 —— 用户会以为要重解一遍');
-    // 旧的收在 `<details>` 里：**外层与每一条都得点开**才看得见（收起时 innerText 取不到）
-    const older = await js(m, `${W}
-      var box = document.getElementById('baziAiHistory');
-      var outer = box.querySelector('.bz-hist');
-      outer.setAttribute('open', 'open');
-      var items = box.querySelectorAll('.bz-hist-item'), out = [];
-      for (var i = 0; i < items.length; i++) {
-        items[i].setAttribute('open', 'open');
-        out.push(items[i].innerText || '');
-      }
-      return out;`);
-    check('展开后两份旧版都在，且标着时间（让人认得出是哪次）',
-      older.length === 2 && older.join('|').indexOf('旧版一') >= 0
-      && older.join('|').indexOf('旧版二') >= 0, JSON.stringify(older));
-    check('旧版里那条带提问的，把「问：什么时候」也留着（记录粒度：每方面一条）',
-      older.join('|').indexOf('问：什么时候') >= 0, JSON.stringify(older));
-
-    // ── ⑥ 追问：带上前一份正文、答案追加、主正文不被顶掉 ──────────
-    console.log('\n⑥ 追问（要，但不落库）：请求体与屏幕上的样子');
-    await reset(m, { as: KH.alice });
-    await goto(m, DETAIL);
-    await chartReady(m, 10000);
-    await panelReady(m);
-    await js(m, `document.querySelector('#aiResponse .ai-start-btn').click(); return true;`);
-    await L.panelTextUntil(m, /再看现状/, 8000);
-    const barShown = await js(m, `var f = document.getElementById('aiFollowBar');
-      return !!f && f.classList.contains('show');`);
-    check('解读跑完后追问栏露出来了', barShown === true, JSON.stringify(barShown));
-    const mainBefore = await js(m, `var r = document.getElementById('aiResponse');
-      return r ? (r.innerText || '') : '';`);
-
-    await js(m, `${W}
-      document.getElementById('aiFollowInput').value = '那明年呢？';
-      W.sendFollowUp();
-      return true;`);
-    const fq = await L.until(m, `var it = document.querySelector('.ai-followup-item');
-      return it ? (it.innerText || '') : '';`, (t) => /再看现状/.test(t || ''), 8000);
-    check('追问的答案落进了追问那一条里', /【二、你的现状】/.test(fq), JSON.stringify(fq.slice(0, 90)));
-    check('追问那条的「输出中……」转圈**撤掉了**（共用引擎刚修的）',
-      (await js(m, `return document.querySelectorAll('.ai-followup-item .ai-loading').length;`)) === 0,
-      '转圈还挂着');
-    const mainAfter = await js(m, `var r = document.getElementById('aiResponse');
-      return r ? (r.innerText || '') : '';`);
-    check('追问是**追加**，主正文一字不少', mainAfter.indexOf(mainBefore.trim()) >= 0,
-      JSON.stringify({ before: mainBefore.slice(0, 40), after: mainAfter.slice(0, 40) }));
-    const aiAll = (await captured()).ai;
-    const lastAi = aiAll[aiAll.length - 1] || {};
-    // 服务端一条都没收到时，下面的断言会全红；但**不能**让脚本自己去摸 undefined
-    // （上一版就是这么死的：报的是 TypeError，看不出真正的问题是「请求没到」）。
-    check('追问请求体带 `followUp` = 追问原话',
-      lastAi.followUp === '那明年呢？',
-      `${JSON.stringify(lastAi.followUp)} ／ 服务端收到过：${hitsTail()}`);
-    check('追问请求体带 `context` = 刚才那份解读（服务端据此接着答）',
-      typeof lastAi.context === 'string' && lastAi.context.indexOf('【一、结论】') >= 0,
-      JSON.stringify(String(lastAi.context).slice(0, 60)));
-    check('追问不走 `question`（那是首次解读的补充提问，服务端两回事）',
-      lastAi.question === '' && lastAi.tab === '综合', JSON.stringify(lastAi));
-    check('追问不落库这条由**服务端**判：客户端只发 followUp，没另发开关',
-      !('noSave' in lastAi), JSON.stringify(Object.keys(lastAi)));
-
-    // 服务端回 403 needLogin → 引导登录（共用引擎刚接上的那条路）
-    //
-    // ⚠ **这一格本来想按「游客追问」写，写不成**：`my-charts/index.html` 开头就
-    //   `if (!AUTH.isLoggedIn() && !isAdminView) { renderEmpty('🔒','登录后查看命盘',…) ; return; }`
-    //   —— 游客**根本进不到这一页**，连盘都看不见，也就没有「游客追问」这个场景。
-    //   所以这里用「登录用户 + 服务端坚持说 needLogin」来打这条路：`onRefusal` 认的是
-    //   **响应**（403 + `needLogin`），不是「本地是不是游客」，两种来路在这段代码里是同一条。
-    //   而「游客能看见命盘」不会发生了 —— 用户 2026-09-25 拍板游客不可以看命盘（见 ⑦）。
-    //   所以 403 这条路**永远由服务端触发**（比如登录过期），这一格测它反倒更贴实际。
-    console.log('\n⑥b 服务端回 403 needLogin：追问那一格里直接引导登录');
-    await reset(m, { as: KH.alice });
-    await goto(m, DETAIL);
-    await chartReady(m, 10000);
-    await panelReady(m);
-    await js(m, `document.querySelector('.bz-aspect[data-aspect="事业"]').click(); return true;`);
-    await js(m, `document.querySelector('#aiResponse .ai-start-btn').click(); return true;`);
-    await L.panelTextUntil(m, /再看现状/, 8000);
-    await stub({ refuseAi: true });
-    await js(m, `${W}
-      document.getElementById('aiFollowInput').value = '那明年呢？';
-      W.sendFollowUp();
-      return true;`);
-    const refused = await L.until(m, `var it = document.querySelector('.ai-followup-item');
-      return it ? (it.innerText || '') : '';`, (t) => /登录/.test(t || ''), 8000);
-    check('403 needLogin 被页面接住，在追问那一格里给出登录引导',
-      /登录/.test(refused) && refused.indexOf('needLogin') < 0, JSON.stringify(refused.slice(0, 90)));
-    check('登录引导条里写着「登录后回到这个方面接着解读」',
-      /接着解读|自动回到/.test(refused), JSON.stringify(refused.slice(0, 120)));
-    check('引导就画在**追问那一格**里，主正文不被顶掉（不能整块换成登录页）',
-      (await js(m, `var r = document.getElementById('aiResponse');
-        return r ? (r.innerText || '') : '';`)).indexOf('【一、结论】') >= 0,
-      '主正文没了');
-    const pend = await js(m, `try { return sessionStorage.getItem('bazi_pending_aspect'); }
-      catch (e) { return 'ERR'; }`);
-    check('记下了「刚才想解哪个方面」（登录整页刷新后靠它接着解）',
-      pend === '事业', JSON.stringify(pend));
-    await stub({ refuseAi: false });
-
-    // ── ⑦ 未登录不许解「综合」：拦在发请求之前；登录回来接着解 ────
-    console.log('\n⑦ 没登录时点「综合」：先说清为什么要登录，再回跳接着解');
-    // 门禁是**拍板的**行为，不再是「缺口」：用户 2026-09-25 明确「游客不可以看命盘吧」。
-    // 这条 check 现在钉的是**这个决定**：游客必须看不到盘。它变红 = 门禁松了，
-    // 那时先回来确认是不是有人无意中放开了游客。
-    // （连带：八字这条线没有「游客免费一次」—— 那条是六爻/梅花的规则，游客在那儿能起卦。）
-    await reset(m, { as: KH.guest });
-    await goto(m, DETAIL);
-    // ⚠ 不能 `goto()` 一回来就断言。搬进 `src/app/` 的页面是 **Vite 的 module 入口 + 动态 chunk**：
-    //   入口在 `readyState=interactive` 之前就跑，但 React 树要等 `jsx-runtime` 那个 chunk
-    //   的 import 落地才挂上去，而 `goto()` 的放行条件是 `readyState !== 'loading'`
-    //   （见 `drive_lib.js:371`），它可能在 React 首次渲染**之前**就返回。
-    //   实测踩到过：`#mc-content` 读出来是空串，而空串会被下面这条断言误读成「门禁松了」。
-    await L.until(m, `return ((document.getElementById('mc-content') || {}).innerText || '').length;`,
-      (n) => n > 0, 5000, 100);
-    const wall = await js(m, `return { content: ((document.getElementById('mc-content') || {}).innerText || ''),
-      chart: !!document.getElementById('baziChart') };`);
-    check('游客看不到命盘（2026-09-25 拍板：整页要求登录；变红 = 门禁松了，回来确认）',
-      /登录后查看命盘/.test(wall.content) && wall.chart === false,
-      JSON.stringify(wall.content.replace(/\s+/g, ' ').slice(0, 60)));
-
-    // 在**真页面**上造出「未登录 + 面板已挂载」这个状态：登录进去把盘排出来，
-    // 再当场把 cookie 摘掉。`AUTH.isLoggedIn()` 是每次现读 cookie 的（auth.js:18），
-    // 所以摘掉之后页面里的判断立刻变成未登录 —— 与真游客走的**同一段代码**。
-    await reset(m, { as: KH.alice });
-    await goto(m, DETAIL);
-    await chartReady(m, 10000);
-    await panelReady(m);
-    await logout(m);
-    // 阶段 4 cut-over 之后没有 `window.BaziAI`（模块导出不再挂全局），
-    // 改成点界面上那两颗切方面的按钮 —— 与用户点的是同一条路。
-    await js(m, `['事业','综合'].forEach(function (a) {
-      var b = document.querySelector('.bz-aspect[data-aspect="' + a + '"]');
-      if (b) b.click();
-    });
-    return true;`);
-    const lock = await js(m, `var b = document.querySelector('.bz-aspect[data-aspect="综合"]');
-      return { lock: /🔒/.test(b.innerText || ''), cur: b.classList.contains('on') };`);
-    check('没登录时「综合」上挂着锁并默认选中', lock.lock === true && lock.cur === true,
-      JSON.stringify(lock));
-    await js(m, `document.querySelector('#aiResponse .ai-start-btn').click(); return true;`);
-    const blocked = await L.until(m, `var r = document.getElementById('aiResponse');
-      return r ? (r.innerText || '') : '';`, (t) => /登录/.test(t || ''), 5000);
-    check('点下去先给理由（不是等服务端 403 才知道）',
-      /整张盘通看一遍/.test(blocked), JSON.stringify(blocked.slice(0, 90)));
-    check('**一个请求都没发**（拦在花钱之前）', (await captured()).ai.length === 0,
-      JSON.stringify((await captured()).ai.length));
-    // 拦住之后得留下「回来接着解」的线头：那颗登录按钮的 onclick 第一句就是
-    // `BaziAI.beforeLogin()`（真正的意图记录点）。点它 —— 顺带验这行接线没写错。
-    const hadLink = await js(m, `var a = document.querySelector('#aiResponse a[onclick*="beforeLogin"]');
-      if (!a) return false;
-      a.click();
-      return true;`);
-    check('拦下来时给的是**登录按钮**（不是只留一句冷冰冰的话）', hadLink === true, '没找到登录按钮');
-    const pend2 = await js(m, `try { return sessionStorage.getItem('bazi_pending_aspect'); }
-      catch (e) { return 'ERR'; }`);
-    check('点登录时记下了想解的方面（登录整页刷新，回来靠它接着解）',
-      pend2 === '综合', JSON.stringify(pend2));
-
-    // 登录回来（auth.js 登录成功是 location.reload，故这里就模拟「带着 cookie 重新进页」）
-    await login(m, 'alice');
-    await goto(m, DETAIL);
-    await chartReady(m, 10000);
-    // 诊断（2026-10-17）：下面这条断言约 50% 概率红，症状是「面板挂上了但自动续解没发生」。
-    // 打一行现场出来，好分清是 pending 丢了、cookie 没带上，还是 mount 压根没跑。
-    console.log('   · 自动续解现场：' + JSON.stringify(await js(m, `try {
-      return { cookie: document.cookie,
-               pend: sessionStorage.getItem('bazi_pending_aspect'),
-               auth: !!(window.AUTH && AUTH.isLoggedIn && AUTH.isLoggedIn()),
-               baziAI: typeof window.BaziAI,
-               aspects: document.querySelectorAll('#baziAspectBar .bz-aspect').length };
-    } catch (e) { return 'ERR:' + e.message; }`)));
-    console.log('   · 服务端收到的请求：' + JSON.stringify((await captured()).hits));
-    const back = await L.until(m, `var r = document.getElementById('aiResponse');
-      return r ? (r.innerText || '') : '';`, (t) => /【二、你的现状】/.test(t || ''), 8000);
-    check('登录后回到这一页**自动接着解「综合」**（不用用户再点一次）',
-      /【一、结论】/.test(back), JSON.stringify(back.slice(0, 60)));
-    const autoOpen = await js(m, `var p = document.getElementById('aiPanel');
-      return { open: !!p && p.classList.contains('open'),
-               shown: p ? getComputedStyle(p).display : 'NO_PANEL' };`);
-    check('自动接着解时**面板是打开的**（不带 .open 的面板是 display:none，正文会流进看不见的地方）',
-      autoOpen.open === true && autoOpen.shown !== 'none', JSON.stringify(autoOpen));
-    const last7 = (await captured()).ai;
-    check('自动接着解的那一次，tab = 综合', last7.length === 1 && last7[0].tab === '综合',
-      JSON.stringify(last7.map((x) => x.tab)));
-    const pend3 = await js(m, `try { return sessionStorage.getItem('bazi_pending_aspect'); }
-      catch (e) { return 'ERR'; }`);
-    check('意图用掉就清掉（不会下次进来又自动解一遍）', pend3 === null, JSON.stringify(pend3));
-
-    // ── ⑧ 面板形态：页内，不浮层，不盖住盘 ────────────────────────
-    console.log('\n⑧ 页内面板（产品规矩：不浮层、不盖住刚排好的盘）');
-    const panel = await js(m, `${W}
-      var p = document.getElementById('aiPanel');
-      var o = document.getElementById('aiPanelOverlay');
-      var host = document.getElementById('aiInlineHost');
-      var area = document.getElementById('baziAiArea');
-      var chart = document.getElementById('baziChart');
-      var rest = document.getElementById('baziRest');
-      var hero = document.querySelector('#baziChart .bz-hero');
-      var pr = p ? p.getBoundingClientRect() : null;
-      var cr = chart ? chart.getBoundingClientRect() : null;
-      var rr = rest ? rest.getBoundingClientRect() : null;
-      var hr = hero ? hero.getBoundingClientRect() : null;
-      // 「盘」现在是两块（#baziChart 在上、#baziRest 在下，AI 块夹在中间），
-      // 所以「没被面板挤掉/盖掉」要按**两块各自**判：上块整个在面板之上、
-      // 下块整个在面板之下；再看四柱 hero 自身有没有真实高度（61px 的实测值，
-      // 不是 0/NaN 那种「元素不在」的假象）。
-      return { open: !!p && p.classList.contains('open'),
-               position: p ? getComputedStyle(p).position : '',
-               inline: !!p && p.classList.contains('inline'),
-               inHost: !!(p && host && host.contains(p)),
-               hostAfterArea: !!(host && area && host.previousElementSibling === area),
-               overlayOpen: !!o && o.classList.contains('open'),
-               chartAbovePanel: !!(pr && cr && cr.bottom <= pr.top + 1),
-               restBelowPanel: !!(pr && rr && rr.top >= pr.bottom - 1),
-               chartH: cr ? Math.round(cr.height) : 0,
-               restH: rr ? Math.round(rr.height) : 0,
-               heroH: hr ? Math.round(hr.height) : 0,
-               heroText: hero ? (hero.innerText || '') : '' };`);
-    check('面板是页内形态（position:static + .inline + 挂在命盘容器后面）',
-      panel.open && panel.position === 'static' && panel.inline && panel.inHost
-      && panel.hostAfterArea, JSON.stringify(panel));
-    check('没有全屏遮罩（不再盖住刚点开要看的那张盘）',
-      panel.overlayOpen === false, JSON.stringify(panel.overlayOpen));
-    // ⚠ 这里原来判的是 `chartH > 200`（那时「盘」还整块在一个容器里）。拆成两块之后
-    // `#baziChart` 只剩四柱 hero（实测 61px），这条会**因为版面改了而假红** ——
-    // 它量的东西已经不等于「盘还在不在」了。改成量真正的三件事：
-    //   ① 四柱 hero 有真实高度且八个字在里头（不是被清空/塌成 0）
-    //   ② 上块整个在面板之上  ③ 下块（基本信息+细盘+提要+大运）整个在面板之下
-    check('盘还在、还能读（四柱 hero 有高度，面板两边的块都没被挤掉或盖掉）',
-      panel.heroH > 40
-      && /年柱/.test(panel.heroText) && /时柱/.test(panel.heroText)
-      && panel.chartAbovePanel === true && panel.restBelowPanel === true,
-      JSON.stringify(panel));
-
-    // ── ⑧b 面板收起之后必须回得来（用户 2026-09-25 报的那一条）─────
-    // 用户原话：「ai解读还是可以叉掉，叉掉之后又他妈打不开解析了，这个 x 的意义在哪」。
-    // 这条路上有两个病，各钉一条：
-    //   ① 那颗 ✕ 只关不开，而**方面按钮还在页面上、还点得动** —— 一点就进死胡同。
-    //      已按用户要求删掉；这里钉住「不许回来」。
-    //   ② `select()` 原来不打开面板，于是「面板关着的任何时刻点方面」都是没反应
-    //      （登录回跳也会落进这个状态）。这条钉住「点了方面，面板一定看得见」。
-    console.log('\n⑧b 收起面板之后还能回来（✕ 已删除；点方面必须带出面板）');
-    await reset(m, { as: KH.alice });
-    await goto(m, DETAIL);
-    await chartReady(m, 10000);
-    const noX = await js(m, `return { x: !!document.querySelector('.ai-panel-close'),
-      header: (document.querySelector('.ai-panel-header') || {}).innerText || '' };`);
-    check('表头那颗 ✕ 已经删除（用户点名；变红 = 有人加回来了）',
-      noX.x === false, JSON.stringify(noX));
-    // 造出「面板关着」的状态。页内形态已经没有 UI 关闭入口（✕ 按用户要求删了，
-    // 遮罩在 inline 下是隐藏的），所以只能直接摘掉 `.open` —— 这与引擎
-    // `closeAIPanel()` 对 DOM 的效果一致（去掉 .open 即 display:none）。
-    // 这条用例要验的是**下一步**：此时点方面，面板会不会被带出来。
-    await js(m, `var p = document.getElementById('aiPanel');
-      if (p) p.classList.remove('open');
-      return true;`);
-    const shut = await js(m, `var p = document.getElementById('aiPanel');
-      return { open: !!p && p.classList.contains('open'),
-               display: p ? getComputedStyle(p).display : 'NO_PANEL' };`);
-    check('前提成立：此刻面板确实是收起的（不给下面那条假绿的机会）',
-      shut.open === false && shut.display === 'none', JSON.stringify(shut));
-    // 用户的下一个动作：点一个方面
-    const reopened = await js(m, `${W}
-      document.querySelector('.bz-aspect[data-aspect="健康"]').click();
-      var p = document.getElementById('aiPanel');
-      var b = document.querySelector('#aiResponse .ai-start-btn');
-      var r = b ? b.getBoundingClientRect() : null;
-      return { open: !!p && p.classList.contains('open'),
-               display: p ? getComputedStyle(p).display : 'NO_PANEL',
-               hint: (document.getElementById('baziAspectHint') || {}).textContent || '',
-               startVisible: !!r && r.height > 0 && r.width > 0 };`);
-    check('**面板关着时点方面 → 面板被带出来**（这就是「点了一点反应都没有」那个病）',
-      reopened.open === true && reopened.display !== 'none' && reopened.startVisible === true,
-      JSON.stringify(back));
-    check('而且真的切过去了（副标题换成健康那条，不是只把面板打开）',
-      /体质/.test(reopened.hint), JSON.stringify(reopened.hint));
-
-    // ── ⑧c AI 块在「排盘」下面、「其余」上面；可折叠，且折叠不停流 ──────
-    // 用户原话（2026-09-25）：「先把ai解析块移到上面一些，让用户一眼就能看到（但可以选择
-    // 折叠对话，所以不影响看下面的内容），除了排盘以外的不重要信息都给我放下面。」
-    // 钉两条：①版面顺序（挪回去就变红）②折叠**不许**中断这次解读
-    // （把折叠接成 closeAIPanel() 是这块最容易写错的一处，见 bazi_ai_panel.js:setCollapsed）。
-    console.log('\n⑧c AI 块的位置（排盘下面 / 其余上面）与折叠（收起不停流）');
-    await reset(m, { as: KH.alice });
-    await goto(m, DETAIL);
-    await chartReady(m, 10000);
-    await panelReady(m);
-    const lay = await js(m, `
-      function tops(sel) { var e = document.querySelector(sel); return e ? e.getBoundingClientRect().top : null; }
-      function restSecTop(t) {
-        var s = document.querySelectorAll('#baziRest .bz-sec');
-        for (var i = 0; i < s.length; i++) {
-          var ti = s[i].querySelector('.bz-sec-title');
-          if (ti && (ti.innerText || '').replace(/\\s+/g, '') === t) return s[i].getBoundingClientRect().top;
-        }
-        return null;
-      }
-      var chart = document.getElementById('baziChart');
-      var rest = document.getElementById('baziRest');
-      var aiSec = document.getElementById('baziAiSec');
-      return { aiTop: tops('#baziAiSec'),
-               chartBottom: chart ? chart.getBoundingClientRect().bottom : null,
-               chartText: chart ? (chart.innerText || '').replace(/\\s+/g, '') : '',
-               restText: rest ? (rest.innerText || '').replace(/\\s+/g, '') : '',
-               restTop: rest ? rest.getBoundingClientRect().top : null,
-               aiBottom: aiSec ? aiSec.getBoundingClientRect().bottom : null,
-               jibenTop: restSecTop('基本信息'), xipanTop: restSecTop('四柱细盘'),
-               tiyaoTop: restSecTop('命局提要'), dayunTop: restSecTop('大运一览') };`);
-    // 用户认的「排盘」= **只有四柱那一段**。基本信息的 8 行（节气/人元司令/古法参看/录入时间）
-    // 在手机上占满一屏 —— 第一版把它留在 AI 块上面，用户在手机上只看到 AI 块的标题露个边。
-    check('AI 块上面**只剩四柱**（生肖姓名 + 八个字；基本信息等一律下去了）',
-      lay.chartBottom !== null && lay.aiTop !== null && lay.chartBottom <= lay.aiTop + 1
-      && !/基本信息/.test(lay.chartText) && !/四柱细盘/.test(lay.chartText),
-      JSON.stringify({ chartBottom: Math.round(lay.chartBottom || -1),
-        aiTop: Math.round(lay.aiTop || -1),
-        chartText: lay.chartText.slice(0, 60) }));
-    check('「其余」（基本信息 + 四柱细盘 + 命局提要 + 大运一览）整块在 AI 块**下面**',
-      lay.aiBottom !== null && lay.restTop !== null && lay.aiBottom <= lay.restTop + 1
-      && /基本信息/.test(lay.restText) && /四柱细盘/.test(lay.restText)
-      && /命局提要/.test(lay.restText) && /大运一览/.test(lay.restText)
-      && lay.jibenTop > lay.aiTop && lay.xipanTop > lay.aiTop
-      && lay.tiyaoTop > lay.aiTop && lay.dayunTop > lay.aiTop,
-      JSON.stringify({ aiBottom: Math.round(lay.aiBottom || -1),
-        restTop: Math.round(lay.restTop || -1), jiben: Math.round(lay.jibenTop || -1),
-        xipan: Math.round(lay.xipanTop || -1),
-        tiyao: Math.round(lay.tiyaoTop || -1), dayun: Math.round(lay.dayunTop || -1) }));
-    // **这一条才是用户说的「一眼就能看到」**：手机 390×844 上，方面栏与「解读」按钮都得
-    // 落在**第一屏**里 —— 不是「标题在最底边露个角」。第一版把基本信息留在 AI 块上面时，
-    // 按钮在 y≈760、视口只有 758：正好差一点，用户在手机上就是看不到。这条会红。
-    await L.setWindow(m, 390, 844);
-    const fold = await js(m, `var vh = window.innerHeight;
-      function top(sel) { var e = document.querySelector(sel); if (!e) return null;
-        return Math.round(e.getBoundingClientRect().top + window.scrollY); }
-      return { vh: vh, aiTop: top('#baziAiSec'), barTop: top('#baziAspectBar'),
-               btnTop: top('#aiResponse .ai-start-btn') };`);
-    check('手机一屏（390×844）内就看得到方面栏与「解读」按钮（不是只露个标题）',
-      fold.barTop !== null && fold.btnTop !== null
-      && fold.barTop < fold.vh && fold.btnTop < fold.vh, JSON.stringify(fold));
-    await L.setWindow(m, 500, 900);
-    const defo = await js(m, `var b = document.getElementById('baziAiBody');
-      var p = document.getElementById('aiPanel');
-      var s = document.querySelector('#aiResponse .ai-start-btn');
-      var r = s && s.getBoundingClientRect();
-      return { disp: b ? getComputedStyle(b).display : 'NO_BODY',
-               panelH: p ? Math.round(p.getBoundingClientRect().height) : -1,
-               aria: (document.getElementById('baziAiToggle') || {}).getAttribute('aria-expanded'),
-               startVisible: !!r && r.height > 0 };`);
-    check('默认**展开**（用户：一眼就能看到）',
-      defo.disp !== 'none' && defo.panelH > 0 && defo.aria === 'true' && defo.startVisible === true,
-      JSON.stringify(defo));
-    // 造一次**正在跑**的解读：桩是「首段立刻写、次段 120ms 后写」（见本文件 2. 站点那段）
-    await js(m, `document.querySelector('.bz-aspect[data-aspect="事业"]').click(); return true;`);
-    await js(m, `document.querySelector('#aiResponse .ai-start-btn').click(); return true;`);
-    const seg1 = await L.panelTextUntil(m, /【一、结论】/, 8000);
-    check('前提成立：首段已经流进来（好让「收起会不会掐断」这条断言真能验到东西）',
-      /【一、结论】/.test(seg1 || ''), JSON.stringify((seg1 || '').slice(0, 40)));
-    // 用户的下一个动作：把对话收起来（标题那行就是开关）
-    // ⚠ 这里**不能**用「给 `window.abortAIStream` 打桩数调用次数」那招了：阶段 4 之后
-    //   `abortAIStream` 是 ESM 导出，不是页面全局 —— 模块里调的是它自己的绑定，桩打不着，
-    //   那样 `abortCalls` 恒为 0，等于这条永远绿（假绿）。
-    //   真正钉住「折叠不停流」的是下面那条 `panelOpen`：折叠若接成 `closeAIPanel()`，
-    //   它会摘掉 `.open` **并 abort**，于是「面板仍带 .open」当场红。
-    //   （只断言「次段后来到了」不够：桩是 120ms 后写，abort 之后正文有时也能落地。）
-    const folded = await js(m, `${W}
-      document.getElementById('baziAiToggle').click();
-      var b = document.getElementById('baziAiBody');
-      var p = document.getElementById('aiPanel');
-      var s = document.getElementById('baziAiSec');
-      return { disp: b ? getComputedStyle(b).display : 'NO_BODY',
-               cls: !!s && s.classList.contains('collapsed'),
-               panelOpen: !!p && p.classList.contains('open'),
-               panelH: p ? Math.round(p.getBoundingClientRect().height) : -1,
-               caret: (document.querySelector('#baziAiToggle .bz-caret') || {}).textContent || '',
-               aria: (document.getElementById('baziAiToggle') || {}).getAttribute('aria-expanded') };`);
-    check('点标题行就收起来了（内容藏掉、开关字样翻成「展开」）',
-      folded.disp === 'none' && folded.cls === true && /展开/.test(folded.caret)
-      && folded.aria === 'false' && folded.panelH === 0, JSON.stringify(folded));
-    check('收起**没有掐这次解读**（收起=腾地方，不是不看了）',
-      folded.panelOpen === true && /解读/.test(folded.caret) === false
-      && folded.disp === 'none' && folded.aria === 'false', JSON.stringify(folded));
-    check('收起**不是**把面板关掉（面板自身仍带 .open；关了就等于把这次解读掐了）',
-      folded.panelOpen === true, JSON.stringify(folded.panelOpen));
-    // 用户看得见的结果：答案照样流完，不是半截
-    const afterFold = await L.until(m, `var r = document.getElementById('aiResponse');
-      return r ? (r.innerText || '') : '';`, (t) => /【二、你的现状】/.test(t || ''), 8000);
-    check('收起之后答案照样流完（不是停在半截）',
-      /【二、你的现状】/.test(afterFold || ''), JSON.stringify((afterFold || '').slice(-50)));
-    const back2 = await js(m, `${W}
-      document.getElementById('baziAiToggle').click();
-      var b = document.getElementById('baziAiBody');
-      var p = document.getElementById('aiPanel');
-      var r = document.getElementById('aiResponse');
-      return { disp: b ? getComputedStyle(b).display : 'NO_BODY',
-               panelH: p ? Math.round(p.getBoundingClientRect().height) : -1,
-               text: r ? (r.innerText || '') : '' };`);
-    check('展开回来：块可见、答案还在（不用重新解一次）',
-      back2.disp !== 'none' && back2.panelH > 0
-      && /【一、结论】/.test(back2.text) && /【二、你的现状】/.test(back2.text),
-      JSON.stringify({ disp: back2.disp, h: back2.panelH, tail: back2.text.slice(-40) }));
-
+    // ── ④~⑧b 已**移除**：详情页自 `0879d1d feat: unify Bazi consultations…` 起
+    // 不再挂 AI 解读面板（用户要求「详情只展示盘面，不放咨询入口或 AI 解读」），
+    // 解读与追问搬到了 `/bazi-consult/`。这一段原来验的是「五个方面切换 = 替换」
+    // 「追问带上前一份正文」「面板在正文流里」——那些行为还在，但宿主页换了，
+    // 判据在这里只会 `#aiResponse .ai-start-btn` 取到 null 然后崩掉。
+    // 现在由这些地方覆盖（都在 232 条全量 e2e 里）：
+    //   · src/app/tests/bazi-consult.spec.mjs（11 条：入口、主题状态页、失败重试、登录引导）
+    //   · src/app/tests/bazi-ai-panel.test.mjs（面板配置 parsePath/buildBody/noFollowUp）
+    //   · src/app/tests/bazi-detail.spec.mjs（详情页只展示盘面、不放 AI 与咨询入口）
     // ── ⑨ 零 JS 报错 + 截图留档 ──────────────────────────────────
     console.log('\n⑨ 整串流程零 JS 报错 + 截图');
     const diag = await L.diagnostics(m);
@@ -968,8 +498,8 @@ async function main() {
     for (const f of fails) console.log('   ' + f);
     code = 1;
   } else {
-    console.log('\n✅ 八字详情页验收通过：盘由后端现算、页面只渲染、追问不落库、面板在正文流里'
-      + '（本机静态服务 + 真 Firefox；不含线上 nginx/鉴权/真模型）');
+    console.log('\n✅ 八字详情页验收通过：盘由后端现算、页面只渲染（纯盘面，不挂 AI）、'
+      + '生肖/神煞/大运都跟着端点走（本机静态服务 + 真 Firefox；不含线上 nginx/鉴权/真模型）');
   }
   process.exit(code);
 }
