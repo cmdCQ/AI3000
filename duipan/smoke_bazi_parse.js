@@ -84,7 +84,10 @@ const R1 = '  // GET /api/bazi-analyses — 命盘的解析记录';
 const R2 = '  // GET /api/admin/mhys-records';
 const RECORDS = slice(src, R1, R2, '八字解析记录端点');
 
-const TOKEN_LIMIT = slice(src, 'function getTokenLimit(tier) {', 'async function ensureDbUser(', 'getTokenLimit');
+// `getTokenLimit()` 已随「周额度 + 永久积分」重构从 auth-server.js 移除（额度改由扣费逻辑
+// 按 tier 现算），源码里再没有这个切片窗口 —— 再按老标记切就是 from=-1，整条 EP 当场红。
+// 端点切片里也不再引用它，所以这里留空串，而不是去别的文件里找一个「替代函数」凑上。
+const TOKEN_LIMIT = '';
 const ESTIMATE = slice(src, 'function estimateTokens(text) {', '// ══════ Prompt 模板引擎', 'estimateTokens');
 
 // 两个**模块级常量**：`LLM_MAX_TOKENS`（上游 token 上限）与 `EMPTY_UPSTREAM_NOTICE`
@@ -330,8 +333,7 @@ function makeHarness(opts) {
     RAG_URL: 'http://rag',
     crypto: require('crypto'),
     JWT_SECRET: 'smoke-secret',
-    estimateTokens: null,   // 由下面 TOKEN_LIMIT/ESTIMATE 段定义，此处占位不用
-    getTokenLimit: null,
+    estimateTokens: null,   // 由下面 ESTIMATE 段定义，此处占位不用
     LLM_MODEL: 'stub-model',
     // 惰性取值：`callParse`/`callRecords` 各自改它，`handle` 里现读（见 factory 里那行注释）
     reqUrl: () => reqUrl,
