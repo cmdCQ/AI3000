@@ -84,7 +84,13 @@ export var MH_AI_PANEL_HTML = `
 <!-- AI 面板 -->
 <div class="ai-panel" id="aiPanel">
   <div class="ai-panel-header">
-    <span id="aiPanelTitle">☯ 自动解析</span>
+    <span class="ai-panel-heading">
+      <span id="aiPanelTitle">☯ 自动解析</span>
+      <!-- 生成式 AI 标识：解读区必须能一眼看出这段字是模型生成的。
+           《AI 使用与风险说明》第七条承诺「界面上会标明」，靠的就是这枚标签 ——
+           删了它，文档里那句话就成了空话。三页（六爻 / 梅花 / 八字）共用这一份模板。 -->
+      <span class="ai-gen-label">AI 生成 · 仅供参考</span>
+    </span>
     <!-- 折叠控件：长文挡住下面的盘时收起来用。**只折正文，不停解析** —— 见
          ai_panel.js 的 toggleAIPanelFold()。文案与八字那块的 .bz-caret 逐字相同。
          ⚠ 这段注释在**模板字符串里面**：不许出现反引号，会把整个模板截断。 -->

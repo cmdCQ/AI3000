@@ -163,6 +163,20 @@ html,body { background:var(--bg); color:var(--text); font-family:var(--sans); mi
   color:var(--text);
   flex-shrink:0;
 }
+/* 标题 + 生成式 AI 标识。同一行、底对齐：标识比标题小一档、颜色降到 --text-muted，
+   它是说明而不是第二个标题。窄屏允许换行，不挤掉右侧的折叠按钮。 */
+.ai-panel-heading {
+  display:flex; align-items:baseline; flex-wrap:wrap; gap:0.3rem 0.5rem;
+  min-width:0;
+}
+.ai-gen-label {
+  font-family:var(--sans);
+  font-size:0.68rem; font-weight:400; letter-spacing:0.03em;
+  color:var(--text-muted);
+  border:1px solid var(--border); border-radius:999px;
+  padding:0.1rem 0.45rem;
+  white-space:nowrap;
+}
 /* 折叠控件（标题栏右侧那颗）—— 点它**只把正文折起来**，标题栏始终留着，
    所以折起来之后仍然看得见「☯ 自动解析 / 展开 ▸」，点一下就能展开回来。
    文案与八字那块的 `.bz-caret` 逐字相同（「收起 ▾」/「展开 ▸」），用户在两个页面

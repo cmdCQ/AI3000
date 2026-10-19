@@ -156,6 +156,9 @@ test.describe('/mhys/ 梅花易数', () => {
     })
     expect(ordered).toEqual({ sameParent: true, after: true })
     await expect(page.locator('#aiInlineHost').getByRole('button', { name: /解卦/ })).toBeVisible()
+    // 生成式 AI 标识：《AI 使用与风险说明》第七条承诺「解读区标有 AI 生成」，就靠这枚标签。
+    // 它必须和标题一起出现在面板栏里，而不是藏在正文末尾（折叠正文后就看不见了）。
+    await expect(page.locator('#aiInlineHost .ai-panel-header .ai-gen-label')).toHaveText(/AI 生成/)
     expect(errors).toEqual([])
   })
 
