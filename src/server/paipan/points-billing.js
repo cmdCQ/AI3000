@@ -18,7 +18,23 @@ function setTokensPerPoint(value) {
 }
 const TIME_ZONE = 'Asia/Shanghai';
 // Existing dated usage rows are retained; allowances are evaluated over the current week.
-const WEEKLY_TOKENS = Object.freeze({ 0: 100000, 1: 500000, 2: null });
+//
+// 额度定义在**积分**上（普通 10 / 会员 50 / SVIP 不限），token 上限 = 积分 × TOKENS_PER_POINT。
+// 2026-10-21 用户要求「用户额度不要随比例变动啊，一直是一样的」：早先额度直接写成 token
+// （100000 / 500000），比例从 10000 改成 5000 之后，界面上「每周 10 积分」会突然变成 20 ——
+// 那是额度跟着比例跑了。改成以积分为准后，比例只决定「1 积分能换多少 token」，
+// 每周还是 10 / 50 积分。
+const WEEKLY_POINTS = Object.freeze({ 0: 10, 1: 50, 2: null });
+function weeklyTokenLimit(tier) {
+  const limit = WEEKLY_POINTS[tier];
+  return limit === null || limit === undefined ? null : limit * TOKENS_PER_POINT;
+}
+// 兼容旧名字：仍按当前比例给出 token 上限（有调用方/测试想看 token 数值时用）。
+const WEEKLY_TOKENS = Object.freeze({
+  get 0() { return weeklyTokenLimit(0); },
+  get 1() { return weeklyTokenLimit(1); },
+  get 2() { return null; },
+});
 const dayFormatter = new Intl.DateTimeFormat('en-CA', {
   timeZone: TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit',
 });
@@ -66,15 +82,15 @@ function quotaOf(user, used, date, permanent = 0) {
   if (!Object.hasOwn(WEEKLY_TOKENS, tier)) throw problem(503, '账户等级无效', 'INVALID_TIER');
   const tokensUsed = integer(used, '本周用量');
   const totalTokensUsed = integer(user.token_used, '累计用量');
-  const tokensLimit = WEEKLY_TOKENS[tier];
+  const tokensLimit = weeklyTokenLimit(tier);
   const weeklyRemaining = tokensLimit === null ? null : Math.max(0, tokensLimit - tokensUsed);
   const permanentTokens = integer(permanent, '永久积分');
   const availableTokens = weeklyRemaining === null ? null : weeklyRemaining + permanentTokens;
   return { username: user.username, tier, billingDate: date, weekStart: weekStartAt(Date.parse(date + 'T00:00:00+08:00')),
     resetAt: resetAtForWeek(weekStartAt(Date.parse(date + 'T00:00:00+08:00'))),
-    pointsUsed: points(tokensUsed), pointsLimit: tokensLimit === null ? null : points(tokensLimit),
+    pointsUsed: points(tokensUsed), pointsLimit: WEEKLY_POINTS[tier],
     pointsRemaining: weeklyRemaining === null ? null : points(weeklyRemaining),
-    weeklyUsed: points(tokensUsed), weeklyLimit: tokensLimit === null ? null : points(tokensLimit),
+    weeklyUsed: points(tokensUsed), weeklyLimit: WEEKLY_POINTS[tier],
     weeklyRemaining: weeklyRemaining === null ? null : points(weeklyRemaining), weeklyTokensRemaining: weeklyRemaining,
     permanentTokens, permanentPoints: points(permanentTokens), totalAvailablePoints: availableTokens === null ? null : points(availableTokens),
     totalPointsUsed: points(totalTokensUsed), tokensUsed, tokensLimit, tokensRemaining: availableTokens, totalTokensUsed };
@@ -308,5 +324,5 @@ function createPointsBilling(db) {
 module.exports = {
   createPointsBilling, billingDateAt, weekStartAt, lockName, setTokensPerPoint,
   get TOKENS_PER_POINT() { return TOKENS_PER_POINT; },
-  TOKENS_PER_POINT_MIN, TOKENS_PER_POINT_MAX, TIME_ZONE, WEEKLY_TOKENS,
+  TOKENS_PER_POINT_MIN, TOKENS_PER_POINT_MAX, TIME_ZONE, WEEKLY_POINTS, WEEKLY_TOKENS, weeklyTokenLimit,
 };

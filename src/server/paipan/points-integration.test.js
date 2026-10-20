@@ -22,7 +22,13 @@ function billingFunctions() {
 
 test('auth source uses points conversion trailer with four decimal places', () => {
   const code = extract('pointsTrailer', '\n// 后台');
-  const ctx = { LLM_MAX_TOKENS: 8000, POINTS_LABEL: '消耗积分：', result: null };
+  // `pointsTrailer()` 现在按 `TOKENS_PER_POINT`（后台可调）换算，所以沙箱里要给模块。
+  // 这里给 10000，让断言里的 10000 token = 1 积分保持直观；比例本身由
+  // points-billing.test.js 的常量用例钉。
+  const ctx = {
+    LLM_MAX_TOKENS: 8000, POINTS_LABEL: '消耗积分：', result: null,
+    pointsBillingModule: { TOKENS_PER_POINT: 10000 },
+  };
   vm.runInNewContext(code + '; result = pointsTrailer(1, 9999, 10000, 2.5);', ctx);
   assert.equal(ctx.result, '\n\n---\n消耗积分：1');
   assert.doesNotMatch(ctx.result, /输入|输出|剩余|=/);

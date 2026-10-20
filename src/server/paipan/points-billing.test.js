@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createPointsBilling, billingDateAt, weekStartAt, lockName, WEEKLY_TOKENS, setTokensPerPoint } = require('./points-billing');
+const { createPointsBilling, billingDateAt, weekStartAt, lockName, WEEKLY_POINTS, WEEKLY_TOKENS, setTokensPerPoint } = require('./points-billing');
 
 // 本文件里的期望值都按「1 积分 = 10000 token」写死（100001 token = 10.0001 分这类整数字）。
 // 产品比例 2026-10-20 改成 5000 且以后还可能从后台调，所以这里把比例钉成 10000 ——
@@ -97,6 +97,9 @@ test('constants and Beijing date are explicit', () => {
   setTokensPerPoint(5000);
   assert.equal(require('./points-billing').TOKENS_PER_POINT, 5000, 'setTokensPerPoint 必须能改到产品默认值 5000');
   setTokensPerPoint(10000);
+  // 2026-10-21 起额度定义在**积分**上：普通 10、会员 50、SVIP 不限；token 上限 = 积分 × 比例。
+  // 本文件把比例钉成 10000，所以 token 上限分别是 100000 / 500000。
+  assert.equal(WEEKLY_POINTS[0], 10); assert.equal(WEEKLY_POINTS[1], 50); assert.equal(WEEKLY_POINTS[2], null);
   assert.equal(WEEKLY_TOKENS[0], 100000); assert.equal(WEEKLY_TOKENS[1], 500000); assert.equal(WEEKLY_TOKENS[2], null);
   assert.equal(billingDateAt(Date.parse('2026-01-01T15:59:59Z')), '2026-01-01');
   assert.equal(billingDateAt(Date.parse('2026-01-01T16:00:00Z')), '2026-01-02');
