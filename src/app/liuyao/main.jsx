@@ -75,7 +75,7 @@ import './style.css'
 // ============================================================
 // 逐项核对过的东西，改之前先回老页对照：
 //   · `.mh-wrapper > .mh-header > a.mh-back[href="/"] + h1.mh-title`「六爻」
-//   · `input#topicInput.input-field`（placeholder「选填」、maxlength 100）
+//   · `input#topicInput.input-field`（placeholder「以疑问句输入事项内容」、maxlength 100）
 //   · `div.gender-row#genderRow` 两个 `button.gender-btn[data-gender=male|female]`，
 //     **male 带 `active`**，各自 `onclick="selectGender('…')"`，内含 `span.gender-icon` ♂/♀
 //   · `div#timeDisplayRow.tp-time-row[onclick=openTimePicker()]`
@@ -104,7 +104,7 @@ const SHELL_HTML = `
   <!-- 1. 事项内容 -->
   <div class="card">
     <div class="card-title">📝 事项内容</div>
-    <input type="text" id="topicInput" class="input-field" placeholder="选填" maxlength="100">
+    <input type="text" id="topicInput" class="input-field" placeholder="以疑问句输入事项内容" maxlength="100">
   </div>
 
   <!-- 2. 性别（六爻用神取法依赖性别） -->

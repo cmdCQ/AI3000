@@ -64,7 +64,7 @@ import './style.css'
 // ============================================================
 // 逐项核对过的东西，改之前先回老页对照：
 //   · `.mh-wrapper > .mh-header > a.mh-back[href="/"] + h1.mh-title`
-//   · `input#topicInput.input-field`（placeholder「选填」、maxlength 100）
+//   · `input#topicInput.input-field`（placeholder「以疑问句输入事项内容」、maxlength 100）
 //   · `div#timeDisplayRow.tp-time-row[onclick=openTimePicker()]`
 //       > `span#timeDisplay.tp-time-text`（初值 `--`）+ `span.tp-time-edit`「修改 ▸」
 //   · `div#methodSelector > div#methodDisplay[onclick=toggleDropdown()]`
@@ -103,7 +103,7 @@ const SHELL_HTML = `
     <!-- 1. 事项内容 -->
     <div class="card">
       <div class="card-title">📝 事项内容</div>
-      <input type="text" id="topicInput" class="input-field" placeholder="选填" maxlength="100">
+      <input type="text" id="topicInput" class="input-field" placeholder="以疑问句输入事项内容" maxlength="100">
     </div>
 
     <!-- 2. 起卦时间 -->
