@@ -205,8 +205,16 @@ function check(label, cond, detail) {
     call('/api/meihua/paipan', { method: 'number', num1: 3, num2: 8, num3: 6, addShichen: true }).status === 400,
     '缺 datetime 时没回 400');
 
-  // 5) 坏输入：报数含 0（金标准钉住「0 非法」）、拆半缺 digits
-  check('梅花/原始：报数含 0 → 400', call('/api/meihua/paipan', { method: 'number', num1: 3, num2: 0, num3: 8 }).status === 400, '0 没被拒');
+  // 5) 0 合法（用户 2026-10-19）：0 按「余数为 0」算 → 上/下卦取 8（坤），动爻照旧
+  //    按三个数之和取。金标准那侧仍拒收 0，所以这条只在 ai3000 自己的端点上验。
+  const zero = call('/api/meihua/paipan', { method: 'number', num1: 0, num2: 0, num3: 0 });
+  check('梅花/原始：报数全 0 → 200 且按余数 0 取（上8下8动6）',
+    zero.status === 200 && !!zero.payload.qigua
+    && zero.payload.qigua.upper_num === 8 && zero.payload.qigua.lower_num === 8
+    && zero.payload.qigua.moving === 6,
+    `状态 ${zero.status} ${JSON.stringify(zero.payload.qigua && [zero.payload.qigua.upper_num, zero.payload.qigua.lower_num, zero.payload.qigua.moving])}`);
+  check('梅花/原始：负数仍被拒（0 放开了，负号没有）',
+    call('/api/meihua/paipan', { method: 'number', num1: 3, num2: -8, num3: 6 }).status === 400, '负数没被拒');
   check('梅花/原始：拆半缺 digits → 400', call('/api/meihua/paipan', { method: 'split' }).status === 400, '缺 digits 没被拒');
   check('梅花/原始：起卦法名非法 → 400', call('/api/meihua/paipan', { method: '瞎写' }).status === 400, '非法法名没被拒');
 }

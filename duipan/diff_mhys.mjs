@@ -518,6 +518,21 @@ check('桩自检⑥c：新侧替身也生效（两侧同一串输入）', () => 
 // ==========================================================================
 const results = { total: 0, pass: 0, fail: 0, red: [] };
 
+// ── 有意变更（登记在案，不删用例）────────────────────────────────
+// 老快照（`legacy_ref/page-mhys.js`）把 0 当成非法报数：「报的数要 1 以上：0 不在先天
+// 卦数里」。2026-10-19 用户改了口径 —— 0 合法，按「余数为 0」算（上/下卦取 8）。
+// 这几例两侧**必然**不同（新侧 ok、老侧报错），登记在这里而不是删掉：留着才能看出
+// 「新侧是不是把所有含 0 的输入都放行了」。动爻规则一个字没动。
+const INTENTIONAL = new Map([
+  ['parseReportNumbers("0 1 2")', '0 合法（用户 2026-10-19）：0 按余数 0 取 8'],
+  ['parseReportNumbers("1 2 0")', '0 合法：动爻仍按三数之和取'],
+  ['parseReportNumbers("1 0 0")', '0 合法：下卦按余数 0 取 8'],
+  ['parseReportNumbers("0 0 0")', '0 合法：全 0 → 上8下8'],
+  ['parseReportNumbers("100 0 0")', '0 合法：只有答案为 0 才取 8，100 本身仍按取余'],
+  ['buildQiguaRequest / method=number（全 0 → 报错）', '0 合法：全 0 应正常构建请求'],
+]);
+const intentionalHits = [];
+
 for (const c of CASES) {
   results.total++;
   // 两侧各自应用一遍（顺序：state → dom → setup），必须完全对称
@@ -540,9 +555,17 @@ for (const c of CASES) {
   const b = c.fixedRandom ? withFixedRandom(runNew) : runNew();
 
   const va = a.value, vb = b.value;
+  // 用例名带 `#序号 ` 前缀（`add()` 加的），登记表按去掉前缀后的名字查。
+  const ikey = c.name.replace(/^#\d+ /, '');
   if (JSON.stringify(va) === JSON.stringify(vb)) {
     results.pass++;
     if (VERBOSE) console.log(`  ok   ${c.name}`);
+    continue;
+  }
+  if (INTENTIONAL.has(ikey)) {
+    // 登记过的差异：仍算绿，但单独计数并打印理由 —— 不做静默放行。
+    results.pass++;
+    intentionalHits.push({ name: c.name, why: INTENTIONAL.get(ikey), va, vb });
     continue;
   }
   results.fail++;
@@ -561,7 +584,14 @@ console.log('桩自检');
 for (const s of selfChecks) console.log(`  ${s.ok ? 'ok  ' : 'FAIL'} ${s.name}${s.ok ? '' : '  → ' + s.msg}`);
 const selfFail = selfChecks.filter((s) => !s.ok).length;
 console.log('');
-console.log(`对拍：${results.total} 例，红 ${results.fail} 例，绿 ${results.pass} 例`);
+console.log(`对拍：${results.total} 例，红 ${results.fail} 例，绿 ${results.pass} 例`
+  + (intentionalHits.length ? `（其中有意变更 ${intentionalHits.length} 例）` : ''));
+if (intentionalHits.length) {
+  console.log('有意变更明细（老快照拒收 0，用户 2026-10-19 起 0 合法）：');
+  for (const h of intentionalHits) {
+    console.log(`  ~ ${h.name} → 老=${JSON.stringify(h.va).slice(0, 60)} / 新=${JSON.stringify(h.vb).slice(0, 60)}`);
+  }
+}
 // 覆盖表
 const covered = [...new Set(CASES.map((c) => c.fn))].sort();
 console.log(`覆盖函数（${covered.length}）：${covered.join(' ')}`);

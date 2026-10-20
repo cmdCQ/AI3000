@@ -290,10 +290,8 @@ export function parseReportNumbers(raw) {
     ? parts.map(function (x) { return parseInt(x, 10); })
     : s.split('').map(function (c) { return parseInt(c, 10); });
   if (nums.length !== 3) return { ok: false, msg: '需要正好三个数，现在有 ' + nums.length + ' 个' };
-  for (var i = 0; i < nums.length; i++) {
-    // 0 不在先天卦数里（八卦对应 1-8），后端也会拒。这里先拦只为给一句人话。
-    if (!(nums[i] >= 1)) return { ok: false, msg: '报的数要 1 以上：0 不在先天卦数里（八卦是 1-8）' };
-  }
+  // 0 **可以报**（用户 2026-10-19）：0 就按「余数为 0」算 —— 上/下卦取 8（坤）、
+  // 动爻照旧按三个数之和取。所以这里不再拦 0；正则已保证只能是 0-9，不会出现负数。
   return { ok: true, nums: nums };
 }
 
@@ -443,13 +441,13 @@ export function renderMethodParams() {
       // 报数 10 / 16 根本打不出来。现在「386」仍按三个数字读（与原来一致），
       // 若用空格等分隔符写「10 8 6」则按三个**数**读。
       h += '<div style="margin-top:0.6rem">'+
-          '<div class="num-input-row"><input type="text" id="numberInput" placeholder="三个数字，如 386；或 10 8 6" inputmode="numeric" style="flex:1;text-align:center"><label class="cb-inline"><input type="checkbox" id="numberAddShichen" checked> 动爻加时辰</label></div>'+
+          '<div class="num-input-row"><input type="text" id="numberInput" placeholder="输入一个三位的数字" inputmode="numeric" style="flex:1;text-align:center"><label class="cb-inline"><input type="checkbox" id="numberAddShichen" checked> 动爻加时辰</label></div>'+
           // §5.1（用户 2026-10-17）：原提示写「报的数都是 1 以上的正整数：0 不在先天卦数里
           //   （八卦对应 1-8）」，而 placeholder 示例却是两位数 `10 8 6` —— 自己跟自己打架。
           //   实测两边只有**文案**错：`parseReportNumbers` 与后端 `qiguaNumbers()` 都只要求
           //   正整数、不设上限，`10 8 6` / `16 8 6` 一直都能出盘。按计划「不许两边都改」，
           //   这里只把「两位数可以填、取的是除以 8 的余数」说明白，校验一个字没动。
-          '<div class="algo-text">起卦算法（古法）：第1个数 ÷8 得余数为上卦，第2个数 ÷8 得余数为下卦，三个数之和 ÷6 得余数为动爻。\n报数填 1 以上的正整数就行：两位数、三位数都可以，取的是除以 8 的余数（例：10 ÷ 8 余 2 取兑，16 ÷ 8 余 8 取坤）。\n0 不能报 —— 0 不在先天卦数里。</div>'+
+          '<div class="algo-text">起卦算法（古法）：第1个数 ÷8 得余数为上卦，第2个数 ÷8 得余数为下卦，三个数之和 ÷6 得余数为动爻。\n报数填 0 以上的整数就行：两位数、三位数都可以，取的是除以 8 的余数（例：10 ÷ 8 余 2 取兑，16 ÷ 8 余 8 取坤）。\n0 也可以报：0 按余数为 0 算，上、下卦都取 8（坤）。</div>'+
           '</div>';
       break;
     case 'character':

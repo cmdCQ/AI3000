@@ -85,15 +85,14 @@ test.describe('/mhys/ 梅花易数', () => {
     expect(errors).toEqual([])
   })
 
-  test('报数起卦：386 与「10 8 6」两种写法都要出盘（§5.1 的现状快照）', async ({ page }) => {
+  test('报数起卦：386 与分段写法「10 8 6」都要出盘', async ({ page }) => {
     const errors = collectErrors(page)
     await page.goto(PAGE)
     await loginAs(page)
     await page.reload()
 
-    // ★ 提示语写的是「三个数字，如 386；或 10 8 6」—— 两种写法必须都认。
-    //   计划 §5.1 记的是「提示与实际校验不一致」，这条判据就是那件事的**现状快照**：
-    //   改 5.1 之前它必须绿，改完如果行为变了，这条会红，提醒重拍。
+    // 两种写法必须都认：`386` 是提示语里的主路径，`10 8 6` 是分段写法（2026-10-19
+    // 用户确认「报数可以填 0 以上任意整数」之后，分段写法仍然成立，输入本身没被收紧）。
     for (const value of ['386', '10 8 6']) {
       const input = page.locator('#methodParams input#numberInput')
       await input.fill(value)
@@ -109,29 +108,26 @@ test.describe('/mhys/ 梅花易数', () => {
     expect(errors).toEqual([])
   })
 
-  // ★ §5.1 的判据（2026-10-17 用户提出：提示文案与实际校验不一致）。
-  //   实测结论（三路互证，见提交消息）：**校验没有问题**——`10 8 6`／`16 8 6` 本来
-  //   就出盘，后端 `qiguaNumbers()` 也只要求正整数、不设上限。不一致在**提示文案**：
-  //   placeholder 示例是两位数 `10 8 6`，同一段提示却写着「八卦对应 1-8」，
-  //   用户据此读成「只许填 1-8」，与它自己的示例打架。
-  //   计划要求「不许两边都改」（那等于没定），所以改文案、且只改文案。
-  //   这条判据钉两件事：文案必须明说两位数可以填；校验照旧拦住 0。
-  test('数字起卦：提示文案与实际校验一致（两位数能填，0 会被拦）', async ({ page }) => {
+  // ★ 0 是合法报数（2026-10-19 用户口径：「0 也可以输入，0 直接就按余数为 0 来算」）。
+  //   0 → `wrap8(0)` = 8（坤）、`wrap6(0)` = 6，所以 `0 0 0` 应当出「坤为地」并且不报错。
+  //   动爻规则没动（仍是三个数之和 ÷6），这里只钉「0 不再被拦」与提示语的说法一致。
+  test('数字起卦：0 可以填，按余数 0 算（上/下卦取 8）', async ({ page }) => {
     await page.goto(PAGE)
     const tip = page.locator('#methodParams .algo-text')
-    await expect(tip).toContainText('两位数')
-    await expect(tip).toContainText('除以 8 的余数')
+    await expect(tip).toContainText('0 也可以报')
+    await expect(tip).toContainText('上、下卦都取 8')
 
-    // 0 仍然被拦 —— 文案改动不许顺手放松校验。
     let dialogMsg = ''
     page.on('dialog', async (d) => {
       dialogMsg = d.message()
       await d.accept()
     })
-    await page.locator('#methodParams input#numberInput').fill('0 8 6')
+    await page.locator('#methodParams input#numberInput').fill('0 0 0')
     await page.locator('#startBtn').click()
-    await expect.poll(() => dialogMsg).toContain('报的数要 1 以上')
-    await expect(page.locator('#resultArea .card-flush')).toHaveCount(0)
+    await expect(page.locator('#resultArea .card-flush')).toBeVisible({ timeout: 10_000 })
+    // 第一张 `.card-flush` 是「排盘信息」，卦名在后面的「起卦结果」卡里 —— 断言整块结果区。
+    await expect(page.locator('#resultArea')).toContainText('坤为地')
+    expect(dialogMsg).toBe('') // 没有弹窗 = 没被拦
   })
 
   test('AI 宿主挂在结果区后面，且有「解卦」按钮', async ({ page }) => {

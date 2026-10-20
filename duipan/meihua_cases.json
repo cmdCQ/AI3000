@@ -6027,37 +6027,12 @@
    "dt": "2026-12-21T14:00:00"
   }
  },
- "err|number|0|1|None": {
-  "kind": "error",
-  "call": {
-   "method": "number",
-   "num1": 0,
-   "num2": 1
-  }
- },
- "err|number|1|0|None": {
-  "kind": "error",
-  "call": {
-   "method": "number",
-   "num1": 1,
-   "num2": 0
-  }
- },
  "err|number|-1|2|None": {
   "kind": "error",
   "call": {
    "method": "number",
    "num1": -1,
    "num2": 2
-  }
- },
- "err|number|1|2|0": {
-  "kind": "error",
-  "call": {
-   "method": "number",
-   "num1": 1,
-   "num2": 2,
-   "num3": 0
   }
  },
  "err|number|1.5|2|None": {

@@ -393,10 +393,13 @@ function qiguaTime(dt) {
  * 不能靠对拍 —— 与 `manual`/`split` 同一种情况。
  */
 function qiguaNumbers(num1, num2, num3, extra) {
+  // 0 合法（用户 2026-10-19）：0 就按「余数为 0」算，`wrap8(0)` → 8（坤）、
+  // `wrap6(0)` → 6。所以判定只用 `v < 0`（负数与非整数照旧拦下）；报错文案保持
+  // 「必须是正整数」—— 它只在真的非法时出现，那时这句话是对的。动爻规则没动。
   for (const [label, v] of [['第一数', num1], ['第二数', num2]]) {
-    if (!Number.isInteger(v) || v <= 0) throw new Error(`${label}必须是正整数，收到 ${v}`);
+    if (!Number.isInteger(v) || v < 0) throw new Error(`${label}必须是正整数，收到 ${v}`);
   }
-  if (num3 !== undefined && num3 !== null && (!Number.isInteger(num3) || num3 <= 0)) {
+  if (num3 !== undefined && num3 !== null && (!Number.isInteger(num3) || num3 < 0)) {
     throw new Error(`第三数必须是正整数，收到 ${num3}`);
   }
 

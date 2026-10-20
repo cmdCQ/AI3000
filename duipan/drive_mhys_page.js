@@ -382,8 +382,19 @@ async function main() {
     await clickStart(m);
     r = await waitResult(m, 3000);
     cap = await captured();
-    check('含 0 被拦下（0 不在先天卦数里）且**没有**发请求',
-      cap.length === 0 && r.alerts.length === 1 && /0/.test(r.alerts[0]),
+    // 2026-10-19 口径：0 合法（按余数 0 算 —— 上/下卦取 8）。故这里由「被拦下」
+    // 改成「照常发出去」；负数仍要被拦，那一条紧接着验。
+    check('含 0 的报数照常发出（0 按余数 0 算），且请求里 num2 就是 0',
+      cap.length === 1 && cap[0].num1 === 3 && cap[0].num2 === 0 && cap[0].num3 === 8
+      && r.alerts.length === 0,
+      `请求数 ${cap.length} / 载荷 ${JSON.stringify(cap[0])} / 提示 ${JSON.stringify(r.alerts)}`);
+    await reset(m);
+    await js(m, `document.getElementById('numberInput').value = '-1 2 3'; return true;`);
+    await clickStart(m);
+    r = await waitResult(m, 2500);
+    cap = await captured();
+    check('负数的报数被拦下且**没有**发请求',
+      cap.length === 0 && r.alerts.length === 1,
       `请求数 ${cap.length} / 提示 ${JSON.stringify(r.alerts)}`);
 
     // ── ④ 拆半求和 ─────────────────────────────────────────────

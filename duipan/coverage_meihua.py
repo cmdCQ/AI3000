@@ -243,21 +243,23 @@ def main() -> int:
     # ── 错误路径 ──
     errs = {k: v["__error__"] for k, v in j.items() if "__error__" in v}
     ger = {k: v["__error__"] for k, v in g.items() if "__error__" in v}
-    # 16 = 金标准 11 + 本版多报的 5 个 n==1 例；11 种文案里唯一重复的一句是「一字占拒收」
+    # 13 = 金标准 8 + 本版多报的 5 个 n==1 例；8 种文案里唯一重复的一句是「一字占拒收」
     # （6 例共用：5 个 api 例 + 生僻字 `龘`，它也只有一个字）。
+    # 2026-10-19：0 变成合法报数（按余数 0 取 8/6），原先 3 条「0 非法」用例从
+    # `BAD_NUMBERS` 删掉了，故金标准错误例 11 → 8、本版 16 → 13、文案 11 → 8。
     dup = Counter(errs.values()).most_common(1)[0]
-    check("错误路径 16 例 / 11 种文案（唯一重复的是「一字占拒收」那句，6 例共用）",
-          len(errs) == 16 and len(set(errs.values())) == 11 and dup[1] == 6
+    check("错误路径 13 例 / 8 种文案（唯一重复的是「一字占拒收」那句，6 例共用）",
+          len(errs) == 13 and len(set(errs.values())) == 8 and dup[1] == 6
           and "两个字以上" in dup[0],
           f"{len(errs)} 例 / {len(set(errs.values()))} 种文案 / 最多重复 {dup[1]} 次：{dup[0][:20]}…")
     same = {cid for cid in ger if errs.get(cid) == ger[cid]}
     check("金标准侧的错误例在被验方侧**仍然都是错误**（无「本该报错却成功」）",
           set(ger) <= set(errs), f"变成成功的 {sorted(set(ger) - set(errs))}")
-    # 11 = 数字非法 5 + 空文本 + 笔画数不符 + 笔画表缺字（龘龘）+ 起卦法名 = 9 逐字相同；
+    # 8 = 数字非法 2 + 空文本 + 笔画数不符 + 笔画表缺字（龘龘）+ 起卦法名 = 6 逐字相同；
     # 余下 2 条（`求财，问事业` 6 字走平仄档、`龘` 1 字走一字占拒收）文案变了，都在申报表里。
     changed = sorted(c for c in ger if c in errs and errs[c] != ger[c])
-    check("金标准侧 11 条错误例：文案逐字相同的 9 条 + 文案变了的 2 条（后者各自申报）",
-          len(same) == 9 and len(changed) == 2, f"逐字相同 {len(same)} 条；不同 {changed}")
+    check("金标准侧 8 条错误例：文案逐字相同的 6 条 + 文案变了的 2 条（后者各自申报）",
+          len(same) == 6 and len(changed) == 2, f"逐字相同 {len(same)} 条；不同 {changed}")
     extra_err = sorted(set(errs) - set(ger))
     check("n==1 的样例（金标准成功）在本版全部拒收，文案含「两个字以上」",
           len(extra_err) == 5 and all("两个字以上" in errs[c] for c in extra_err),

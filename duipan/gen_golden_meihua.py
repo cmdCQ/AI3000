@@ -52,6 +52,12 @@ from core.meihua.strokes import stroke_count                                # no
 # shushu 用文王卦序单名（「恒」），ai3000 用通行全名（「雷风恒」）。对拍铁律 2
 # 明写「身份用上下卦号，不用卦名」，而 `number` 与 `trigrams`（上下卦）都在
 # 被验之列，故卦名不参与比对**不损失任何算法信号**。
+# 报数/字占两法本就用「当下」定月建：金标准若按生成那一刻算，就会随日历漂 ——
+# 2026-10-08 寒露一过，酉月变戌月，这批用例的 `strength.*` 与 `evidence` 全变（那是
+# 金标准腐烂，不是回归）。所以这两法也把时刻钉死，与 `run_js_meihua.js` 的
+# `FROZEN_DT` 用同一个值（酉月正中，离白露/寒露都远）。
+FROZEN_DT = "2026-09-20T12:00:00"
+
 CORPUS_KEYS = ("judgment", "image", "lines", "interpretation", "name")
 GUA_KEYS = ("main", "mutual", "changed", "opposite", "reversed")
 
@@ -94,8 +100,11 @@ CHAR_TEXTS = [
 CHAR_WITH_STROKES = [("问财", [11, 10]), ("梅", [11])]
 
 # ── 错误路径 ──────────────────────────────────────────────────
+# 0 不再是非法的：用户 2026-10-19 定「0 按余数为 0 算」。shushu（金标准）那一侧仍拒收
+# 0，所以这三条 0 的用例从错误路径里删掉 —— 留着会让层 7 永远红一条，而红的不是实现。
+# 0 的正例由 ai3000 自己的端点冒烟与 `tests/mhys.spec.mjs` 钉住。
 BAD_NUMBERS = [
-    (0, 1, None), (1, 0, None), (-1, 2, None), (1, 2, 0), (1.5, 2, None),
+    (-1, 2, None), (1.5, 2, None),
 ]
 BAD_TEXT = "求财，问事业"        # 「，」不在笔画表内
 BAD_TEXT_2 = "龘"                # 48 画，超出表内 1–36 的范围（表内最大 36 画的「齉」）
@@ -288,6 +297,13 @@ def main() -> int:
     specs = {}
 
     for cid, body in cases.items():
+        if body["method"] in ("number", "character"):
+            # 这两法要钉住「当下」（见 FROZEN_DT 注）。API 不开放 dt，故直调 divine()。
+            kw = {k: v for k, v in body.items() if k != "method"}
+            kw["dt"] = datetime.fromisoformat(FROZEN_DT)
+            golden[cid] = strip_corpus(divine(body["method"], **kw))
+            specs[cid] = {"kind": "api", "body": body}
+            continue
         r = client.post("/api/v1/meihua/divine", json=body)
         if r.status_code != 200:
             raise SystemExit(f"{cid} 金标准请求失败 {r.status_code}：{r.text[:300]}")
