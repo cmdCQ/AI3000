@@ -523,13 +523,34 @@ function json(res, data, status = 200) {
   res.end(JSON.stringify(data));
 }
 
+// 一次性迁移的重试包装。
+//
+// 为什么需要：`docker compose` 的 `depends_on: condition: service_healthy` 只在 `up` 时生效，
+// **docker 守护进程重启时容器是各自 restart 的**，后端完全可能比 MySQL 先接受连接。这时
+// `initSchema()` 一次失败就把 `pointsInitError` 永久写上，计费、后台统计、审计这些接口会
+// 一直 503（2026-10-21 00:08 守护进程重启就踩到了，后台仪表盘当场一片空）。所以这里带
+// 退避重试：MySQL 慢十几秒也行，真起不来才最终失败。
+const DB_RETRY_DELAYS = [1000, 2000, 4000, 8000, 12000, 15000];
+async function withDbRetry(label, run) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await run();
+    } catch (error) {
+      if (attempt >= DB_RETRY_DELAYS.length) throw error;
+      const wait = DB_RETRY_DELAYS[attempt];
+      console.error(`[DB] ${label} 第 ${attempt + 1} 次失败：${error.message}；${wait}ms 后重试`);
+      await new Promise(resolve => setTimeout(resolve, wait));
+    }
+  }
+}
+
 // Metered endpoints fail closed if their additive billing migration is unavailable.
 const pointsBilling = createPointsBilling(db);
 let pointsInitError = null;
-const pointsInitialized = pointsBilling.initSchema()
+const pointsInitialized = withDbRetry('points billing init', () => pointsBilling.initSchema())
   // 建表之后立刻把「每积分多少 token」从库里读进内存（库里的值优先于代码里的默认值）。
   // 读失败不让整站计价挂掉：沿用默认值，但打日志。
-  .then(() => pointsBilling.loadTokensPerPointSetting())
+  .then(() => withDbRetry('points settings load', () => pointsBilling.loadTokensPerPointSetting()))
   .catch(error => {
     pointsInitError = error;
     console.error('[DB] points billing init failed:', error.message);
@@ -541,7 +562,7 @@ async function pointsReady() {
 
 // A failed additive migration disables only the new API, explicitly with 503.
 let consultationInitError = null;
-const consultationReady = baziConsultations.initConsultations(db).catch(error => {
+const consultationReady = withDbRetry('bazi consultations init', () => baziConsultations.initConsultations(db)).catch(error => {
   consultationInitError = error;
   console.error('[DB] bazi consultations init failed:', error.message);
 });
@@ -3416,6 +3437,7 @@ async function batchIngestBooks() {
 // Start
 async function initDb() {
   try {
+    await withDbRetry('base tables', async () => {
     await db.query(`CREATE TABLE IF NOT EXISTS chat_history (
       user_id varchar(64) PRIMARY KEY,
       messages longtext NOT NULL,
@@ -3452,6 +3474,7 @@ async function initDb() {
       KEY idx_ip (ip, kind, used_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
     console.log('[DB] anon_usage table ready');
+    });
   } catch (e) {
     console.error('[DB] init error:', e.message);
   }
