@@ -30,7 +30,8 @@ const paipanConst = require('./paipan/constants.js');
 // 它不认识本文件，排盘出口由下面的 `setDeps` 注入。
 const chatTools = require('./chat-tools.js');
 const baziConsultations = require('./paipan/bazi_consultations.js');
-const { createPointsBilling, lockName: pointsLockName } = require('./paipan/points-billing.js');
+const pointsBillingModule = require('./paipan/points-billing.js');
+const { createPointsBilling, lockName: pointsLockName } = pointsBillingModule;
 const { createAccountDeletion } = require('./paipan/account-deletion.js');
 
 // ===== 阿里云号码认证服务（PNVS）短信验证码 =====
@@ -270,7 +271,9 @@ const EMPTY_UPSTREAM_NOTICE = '抱歉，这次没能生成出内容。请再点�
 // Bare-text clients split this marker; numbers are actual points, never relabelled tokens.
 const POINTS_LABEL = '消耗积分：';
 function pointsTrailer(inputTokens, outputTokens, totalTokens, remaining) {
-  const fmt = tokens => Number((tokens / 10000).toFixed(4));
+  // 比例来自 points-billing（后台可改，默认 5000）：这里**不能**再写死 10000，
+  // 否则用户看到的「消耗积分」与账本扣的对不上。
+  const fmt = tokens => Number((tokens / pointsBillingModule.TOKENS_PER_POINT).toFixed(4));
   return '\n\n---\n' + POINTS_LABEL + fmt(totalTokens);
 }
 function requirePoints(quota, estimatedInput = 0) {
@@ -366,6 +369,10 @@ async function getAdminStats() {
       active7d: activeResult[0]?.cnt || 0,
       totalPoints: usage.totalPoints,
       points7d: usage.points7d,
+      // token 原始用量：积分是按比例折算出来的，比例一改历史显示就变，所以后台要能直接
+      // 看到 token（只增不减、与比例无关）。
+      totalTokens: usage.totalTokens,
+      tokens7d: usage.tokens7d,
     };
   };
 
@@ -519,10 +526,14 @@ function json(res, data, status = 200) {
 // Metered endpoints fail closed if their additive billing migration is unavailable.
 const pointsBilling = createPointsBilling(db);
 let pointsInitError = null;
-const pointsInitialized = pointsBilling.initSchema().catch(error => {
-  pointsInitError = error;
-  console.error('[DB] points billing init failed:', error.message);
-});
+const pointsInitialized = pointsBilling.initSchema()
+  // 建表之后立刻把「每积分多少 token」从库里读进内存（库里的值优先于代码里的默认值）。
+  // 读失败不让整站计价挂掉：沿用默认值，但打日志。
+  .then(() => pointsBilling.loadTokensPerPointSetting())
+  .catch(error => {
+    pointsInitError = error;
+    console.error('[DB] points billing init failed:', error.message);
+  });
 async function pointsReady() {
   await pointsInitialized;
   if (pointsInitError) throw Object.assign(new Error('积分服务暂不可用'), { status: 503 });
@@ -858,21 +869,115 @@ async function handleRequest(req, res, pathname, body, url) {
   }
 
   // PATCH /api/admin/user-tier — 设置用户等级
+  //
+  // 2026-10-20 起**必须填理由**，且每次改动都写一行 `user_tier_ledger`（旧等级、新等级、
+  // 理由、操作人、时间）。理由不是走过场：等级决定每周额度，事后在「审计日志」里要能回答
+  // 「谁在什么时候、为什么给他升了级」。
   if (req.method === 'PATCH' && pathname === '/api/admin/user-tier') {
     const payload = checkAuth(req);
     if (!payload || payload.role !== 'admin') return json(res, { error: '未授权' }, 401);
-    const { username, tier } = body;
+    const { username, tier, reason } = body || {};
     if (typeof username !== 'string' || !username || !Number.isInteger(tier) || tier < 0 || tier > 2) return json(res, { error: '参数错误' }, 400);
+    const cleanReason = typeof reason === 'string' ? reason.trim() : '';
+    if (!cleanReason) return json(res, { error: '请填写修改等级的理由' }, 400);
+    if (cleanReason.length > 255) return json(res, { error: '理由最多 255 个字' }, 400);
     try {
       await pointsReady();
-      const quota = await pointsBilling.withUserLock(username, async connection => {
+      // 操作人：优先 JWT 里的管理员名；老 token 没有该字段时退回 admin.json 里的账号名。
+      const actor = payload.username || readJSON(ADMIN_FILE)?.username || 'admin';
+      const result = await pointsBilling.withUserLock(username, async connection => {
+        const [rows] = await connection.query('SELECT tier FROM users WHERE username = ?', [username]);
+        if (!rows.length) throw Object.assign(new Error('用户不存在'), { status: 404 });
+        const oldTier = Number(rows[0].tier) || 0;
         await connection.query('UPDATE users SET tier = ? WHERE username = ?', [tier, username]);
-        return pointsBilling.getQuota(username, connection);
+        if (oldTier !== tier) {
+          await connection.query('INSERT INTO user_tier_ledger (username,old_tier,new_tier,reason,admin_username,created_at) VALUES (?,?,?,?,?,?)',
+            [username, oldTier, tier, cleanReason, actor, Date.now()]);
+        }
+        return { oldTier, quota: await pointsBilling.getQuota(username, connection) };
       });
-      return json(res, { ok: true, ...quota });
+      return json(res, { ok: true, changed: result.oldTier !== tier, ...result.quota, tier, reason: cleanReason });
     } catch (e) {
       console.error('Admin set tier error:', e);
       return json(res, { error: e.status ? e.message : '设置失败' }, e.status || 503);
+    }
+  }
+
+  // GET /api/admin/settings — 后台可调的运行参数（目前只有「每积分多少 token」）
+  if (req.method === 'GET' && pathname === '/api/admin/settings') {
+    const payload = checkAuth(req);
+    if (!payload || payload.role !== 'admin') return json(res, { error: '未授权' }, 401);
+    try {
+      await pointsReady();
+      return json(res, {
+        tokensPerPoint: pointsBillingModule.TOKENS_PER_POINT,
+      });
+    } catch (e) {
+      console.error('Admin settings read error:', e);
+      return json(res, { error: '设置暂不可用' }, 503);
+    }
+  }
+
+  // POST /api/admin/settings — 保存运行参数。改完立即生效（内存值 + 库各写一份），
+  // 不需要重启；库是权威，重启后由 `loadTokensPerPointSetting()` 读回来。
+  if (req.method === 'POST' && pathname === '/api/admin/settings') {
+    const payload = checkAuth(req);
+    if (!payload || payload.role !== 'admin') return json(res, { error: '未授权' }, 401);
+    const bodyIn = body || {};
+    if (!('tokensPerPoint' in bodyIn)) return json(res, { error: '没有要保存的设置项' }, 400);
+    try {
+      await pointsReady();
+      const next = pointsBillingModule.setTokensPerPoint(bodyIn.tokensPerPoint);
+      await pointsBilling.setSetting('tokens_per_point', next);
+      console.log(`[points] 每积分 token 数改为 ${next}（操作人 ${payload.username || 'admin'}）`);
+      return json(res, { ok: true, tokensPerPoint: next });
+    } catch (e) {
+      return json(res, { error: e.status ? e.message : '保存失败' }, e.status || 503);
+    }
+  }
+
+  // GET /api/admin/audit-log — 「谁在什么时候对谁做了什么、为什么」的统一审计出口。
+  //   kind=points → 永久积分发放（`points_permanent_ledger`）
+  //   kind=tier   → 等级变更（`user_tier_ledger`）
+  // 两个台账都是只追加的，所以这里只读，不提供改/删。
+  if (req.method === 'GET' && pathname === '/api/admin/audit-log') {
+    const payload = checkAuth(req);
+    if (!payload || payload.role !== 'admin') return json(res, { error: '未授权' }, 401);
+    const url = new URL(req.url, 'http://x');
+    const kind = url.searchParams.get('kind') || 'points';
+    const who = (url.searchParams.get('username') || '').trim();
+    const limit = Math.min(200, Math.max(1, Number(url.searchParams.get('limit')) || 50));
+    const offset = Math.max(0, Number(url.searchParams.get('offset')) || 0);
+    if (kind !== 'points' && kind !== 'tier') return json(res, { error: 'kind 只能是 points 或 tier' }, 400);
+    try {
+      await pointsReady();
+      const where = who ? ' WHERE username = ?' : '';
+      const params = who ? [who] : [];
+      const rows = kind === 'points'
+        ? (await db.query(
+          `SELECT request_id, username, kind, points_tokens, reason, admin_username, created_at
+             FROM points_permanent_ledger${where} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`,
+          [...params, limit, offset]))[0]
+        : (await db.query(
+          `SELECT id, username, old_tier, new_tier, reason, admin_username, created_at
+             FROM user_tier_ledger${where} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`,
+          [...params, limit, offset]))[0];
+      return json(res, {
+        kind, limit, offset,
+        items: rows.map(r => ({
+          id: r.id ?? null,
+          username: r.username,
+          reason: r.reason,
+          adminUsername: r.admin_username,
+          createdAt: Number(r.created_at),
+          ...(kind === 'points'
+            ? { tokens: Number(r.points_tokens), points: Number((Number(r.points_tokens) / pointsBillingModule.TOKENS_PER_POINT).toFixed(4)), requestId: r.request_id, entryKind: r.kind }
+            : { oldTier: Number(r.old_tier), newTier: Number(r.new_tier) }),
+        })),
+      });
+    } catch (e) {
+      console.error('Admin audit-log error:', e);
+      return json(res, { error: '记录暂不可用' }, 503);
     }
   }
 

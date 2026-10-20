@@ -318,7 +318,7 @@ function makeHarness(opts) {
     + '  LLM_MAX_TOKENS, LLM_REASONING_EFFORT, EMPTY_UPSTREAM_NOTICE,\n'
     + '  BAZI_REPORT_TEMPERATURE,\n'
     + '  baziFull, baziPromptLib, baziFortuneLib, baziReportLib, ganzhiLib, paipanConst, chatTools, require,\n'
-    + '  pointsBilling } = D;\n'
+    + '  pointsBilling, pointsBillingModule } = D;\n'
     + TOKEN_LIMIT + '\n' + ESTIMATE + '\n' + REQUIRE_POINTS + '\n'
     + "const POINTS_LABEL = '" + POINTS_LABEL + "';\n" + POINTS_TRAILER_SRC + '\n'
     + HELPERS + '\n'
@@ -337,6 +337,9 @@ function makeHarness(opts) {
     + ' BAZI_ASPECTS, ANON_IP_DAILY_CAP };');
 
   const impl = factory({
+    // `pointsTrailer()` 现在按 `TOKENS_PER_POINT`（后台可调，默认 5000）换算，
+    // 沙箱里必须给模块本身，否则切片出来的源码一调它就 ReferenceError。
+    pointsBillingModule: require('../src/server/paipan/points-billing.js'),
     db,
     json: (res, obj, status) => { jsonRec.status = status || 200; jsonRec.obj = obj; return res; },
     checkAuth: (req) => {
@@ -582,12 +585,15 @@ console.log('\n④ 登录用户解析「婚姻」：落库 + 记账取真数');
   // 「消耗 Token：」改成「消耗积分：」—— 写死旧字的断言在此之后是**永远为真**的橡皮章。
   // 三个数字必须满足「33 = 11 + 22」，因为那才是「记账取上游真数、不是本地估的」这条
   // 承诺：桩给的 usage 帧就是 11/22/33，本地估的话绝不可能正好凑成这个关系。
-  // 尾巴的形状（e39da53 起）：`---` + `消耗积分：<合计/10000 保留四位>`，例如 33 token → 0.0033。
+  // 尾巴的形状（e39da53 起）：`---` + `消耗积分：<合计 ÷ TOKENS_PER_POINT 保留四位>`。
+  // 比例 2026-10-20 从 10000 改成 5000（后台可调），所以这里按模块当前比例算期望值，
+  // 不写死 0.0033 —— 写死的话下次调比例这条就会红成假警报。
   // 老形状「输入 11 + 输出 22 = 33」已经不写了 —— 判据跟着**当前实现**走，但仍有牙：
   // 数字必须等于「上游 usage 帧的 11 + 22 = 33 token ÷ 10000」，本地估算凑不出来。
-  check('登录用户的正文末尾有记账尾巴，且取的是上游真数（33 token → 0.0033 积分）',
+  const TRAILER_POINTS = Number((33 / require('../src/server/paipan/points-billing.js').TOKENS_PER_POINT).toFixed(4));
+  check(`登录用户的正文末尾有记账尾巴，且取的是上游真数（33 token → ${TRAILER_POINTS} 积分）`,
     r.res.body.indexOf(POINTS_LABEL) >= 0
-    && r.res.body.indexOf(POINTS_LABEL + '0.0033') >= 0
+    && r.res.body.indexOf(POINTS_LABEL + TRAILER_POINTS) >= 0
     && /\n\n---\n/.test(r.res.body), JSON.stringify(r.res.body.slice(-110)));
   const a = h.db._t.analyses[0];
   check('写进解析记录：用户/命盘/方面/提问都对',

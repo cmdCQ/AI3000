@@ -1,7 +1,12 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createPointsBilling, billingDateAt, weekStartAt, lockName, WEEKLY_TOKENS } = require('./points-billing');
+const { createPointsBilling, billingDateAt, weekStartAt, lockName, WEEKLY_TOKENS, setTokensPerPoint } = require('./points-billing');
+
+// 本文件里的期望值都按「1 积分 = 10000 token」写死（100001 token = 10.0001 分这类整数字）。
+// 产品比例 2026-10-20 改成 5000 且以后还可能从后台调，所以这里把比例钉成 10000 ——
+// 测的是换算与账本的**逻辑**，不是产品的当前比例；当前比例由下面那条常量用例单独钉。
+setTokensPerPoint(10000);
 
 // A small in-memory SQL fixture that preserves dates and the permanent ledger.
 // This intentionally models the predicates used by the service instead of returning
@@ -86,6 +91,12 @@ function fixture(options = {}) {
 }
 
 test('constants and Beijing date are explicit', () => {
+  // 产品当前口径：1 积分 = 5000 token（后台可改，默认值就是它）。
+  const { TOKENS_PER_POINT } = require('./points-billing');
+  assert.equal(TOKENS_PER_POINT, 10000); // 本文件已钉成 10000，见文件头
+  setTokensPerPoint(5000);
+  assert.equal(require('./points-billing').TOKENS_PER_POINT, 5000, 'setTokensPerPoint 必须能改到产品默认值 5000');
+  setTokensPerPoint(10000);
   assert.equal(WEEKLY_TOKENS[0], 100000); assert.equal(WEEKLY_TOKENS[1], 500000); assert.equal(WEEKLY_TOKENS[2], null);
   assert.equal(billingDateAt(Date.parse('2026-01-01T15:59:59Z')), '2026-01-01');
   assert.equal(billingDateAt(Date.parse('2026-01-01T16:00:00Z')), '2026-01-02');
@@ -93,7 +104,10 @@ test('constants and Beijing date are explicit', () => {
 });
 test('schema uses additive ledger tables', async () => {
   const f = fixture(); await createPointsBilling(f.db).initSchema();
-  assert.equal(f.calls.filter(x => x.sql.replace(/\s+/g, ' ').trim().startsWith('CREATE TABLE')).length, 3);
+  // 5 张表：points_daily / points_usage / points_permanent_ledger（原有三张）
+  //      + app_settings（2026-10-20 后台可调的换算比例）
+  //      + user_tier_ledger（等级变更审计）
+  assert.equal(f.calls.filter(x => x.sql.replace(/\s+/g, ' ').trim().startsWith('CREATE TABLE')).length, 5);
   assert.match(f.calls[1].sql, /UNIQUE KEY idx_points_request/);
 });
 test('charge stores integer input/output and is idempotent', async () => {

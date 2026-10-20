@@ -1,7 +1,21 @@
 'use strict';
 
 const crypto = require('node:crypto');
-const TOKENS_PER_POINT = 10000;
+// 1 积分 = 多少 token。2026-10-20 用户定 5000（原 10000），并改成后台可配置
+// （`app_settings` 表里一行，`auth-server.js` 启动时读、管理员保存后立即生效）。
+// 只影响**换算显示**：账本里存的始终是 token，历史记录不写比例快照，所以改比例后
+// 旧账按新比例折算是**预期行为**（用户 2026-10-20 明确选「全局按比例折算」）。
+let TOKENS_PER_POINT = 5000;
+const TOKENS_PER_POINT_MIN = 1;
+const TOKENS_PER_POINT_MAX = 1000000;
+function setTokensPerPoint(value) {
+  const number = Number(value);
+  if (!Number.isInteger(number) || number < TOKENS_PER_POINT_MIN || number > TOKENS_PER_POINT_MAX) {
+    throw problem(400, `每积分 token 数必须是 ${TOKENS_PER_POINT_MIN}–${TOKENS_PER_POINT_MAX} 的整数`, 'INVALID_TOKENS_PER_POINT');
+  }
+  TOKENS_PER_POINT = number;
+  return TOKENS_PER_POINT;
+}
 const TIME_ZONE = 'Asia/Shanghai';
 // Existing dated usage rows are retained; allowances are evaluated over the current week.
 const WEEKLY_TOKENS = Object.freeze({ 0: 100000, 1: 500000, 2: null });
@@ -82,6 +96,26 @@ function createPointsBilling(db) {
       total_tokens bigint NOT NULL, created_at bigint NOT NULL,
       UNIQUE KEY idx_points_request (username, request_id),
       KEY idx_points_date (billing_date, username)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin`);
+    // 等级变更台账：谁在什么时候把谁从哪级改到哪级、为什么。
+    // 放这里是因为它与 `points_permanent_ledger` 同属「管理员对用户做过什么」的审计数据，
+    // 而 initSchema 已经在服务启动时被 await 过（`pointsReady()`）。
+    await db.query(`CREATE TABLE IF NOT EXISTS user_tier_ledger (
+      id bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      username varchar(64) NOT NULL,
+      old_tier tinyint NOT NULL,
+      new_tier tinyint NOT NULL,
+      reason varchar(255) NOT NULL,
+      admin_username varchar(64) NOT NULL,
+      created_at bigint NOT NULL,
+      KEY idx_tier_ledger_user (username, created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin`);
+    // 通用键值设置（目前只存「每积分多少 token」，将来别的后台开关也放这里）。
+    // 用独立表而不是写进代码：改比例不该再发一次版。
+    await db.query(`CREATE TABLE IF NOT EXISTS app_settings (
+      setting_key varchar(64) NOT NULL PRIMARY KEY,
+      setting_value varchar(255) NOT NULL,
+      updated_at bigint NOT NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin`);
     await db.query(`CREATE TABLE IF NOT EXISTS points_permanent_ledger (
       id bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY, username varchar(64) NOT NULL,
@@ -196,8 +230,16 @@ function createPointsBilling(db) {
     const text = String(grantPoints);
     if (!/^\d+(?:\.\d{1,4})?$/.test(text) || Number(text) <= 0) throw problem(400, '永久积分必须为正数', 'INVALID_POINTS');
     const [whole, fraction = ''] = text.split('.');
-    const tokens = Number(BigInt(whole) * 10000n + BigInt(fraction.padEnd(4, '0')));
-    if (!Number.isSafeInteger(tokens)) throw problem(400, '积分超出有效范围', 'INVALID_POINTS');
+    // 与 `points()` 用同一个比例：改比例时这里必须跟着变，否则「加 0.5 分」会按另一个
+    // 比例记进账本，账面永远对不上。`whole`/`fraction` 只用来校验格式（最多 4 位小数），
+    // 换算走 Number —— 精度上限有 `Number.isSafeInteger` 兜着。
+    const tokens = Math.round(Number(text) * TOKENS_PER_POINT);
+    if (!Number.isSafeInteger(tokens) || tokens > Number.MAX_SAFE_INTEGER) throw problem(400, '积分超出有效范围', 'INVALID_POINTS');
+    if (tokens <= 0) {
+      // 比例可调（后台「系统设置」），所以最小可发放额随比例变：说清楚，别让人对着
+      // 「积分超出有效范围」猜。
+      throw problem(400, `至少 ${(1 / TOKENS_PER_POINT).toFixed(6).replace(/0+$/, '').replace(/\.$/, '')} 积分（折合 1 token）`, 'INVALID_POINTS');
+    }
     return withUserLock(username, (conn) => transaction(conn, async connection => {
       await readUser(username, connection, true);
       const [existing] = await connection.query('SELECT * FROM points_permanent_ledger WHERE username = ? AND request_id = ?', [username, ledgerRequestId]);
@@ -212,6 +254,33 @@ function createPointsBilling(db) {
       return { ...await quotaAt(username, billingDateAt(), connection), granted: true, replayed: false, pointsGranted: points(tokens) };
     }));
   }
+  /** 读一个设置项；没有或读不出来时返回 `fallback`（不抛错，避免设置读失败把账务带崩）。 */
+  async function getSetting(key, fallback = null) {
+    const [rows] = await db.query('SELECT setting_value FROM app_settings WHERE setting_key = ?', [key]);
+    return rows.length ? rows[0].setting_value : fallback;
+  }
+  async function setSetting(key, value) {
+    await db.query('INSERT INTO app_settings (setting_key,setting_value,updated_at) VALUES (?,?,?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = VALUES(updated_at)',
+      [key, String(value), Date.now()]);
+  }
+  /** 启动时把「每积分 token 数」从库里读进内存；库里没有就写一行默认值。 */
+  async function loadTokensPerPointSetting() {
+    const stored = await getSetting('tokens_per_point');
+    if (stored == null) {
+      await setSetting('tokens_per_point', TOKENS_PER_POINT);
+      return TOKENS_PER_POINT;
+    }
+    const number = Number(stored);
+    if (!Number.isInteger(number) || number < TOKENS_PER_POINT_MIN || number > TOKENS_PER_POINT_MAX) {
+      // 库里的值坏了不要沿用：退回默认值并修回库里，否则整站计价挂掉。
+      console.error('[points] app_settings.tokens_per_point 非法，退回默认值', stored);
+      await setSetting('tokens_per_point', TOKENS_PER_POINT);
+      return TOKENS_PER_POINT;
+    }
+    TOKENS_PER_POINT = number;
+    return TOKENS_PER_POINT;
+  }
+
   async function getAdminUsage(scope) {
     // Aggregate real dated charges, never active users' lifetime counters or admin adjustments.
     if (scope === 'total' || scope === 'all') scope = undefined;
@@ -222,10 +291,22 @@ function createPointsBilling(db) {
     const start = billingDateAt(Date.parse(date + 'T00:00:00+08:00') - 6 * 86400000);
     const source = scope === 'web' ? " AND u.username NOT LIKE 'wx_%'" : scope === 'wechat' ? " AND u.username LIKE 'wx_%'" : '';
     const [rows] = await db.query("SELECT COALESCE(SUM(p.total_tokens),0) AS total_tokens, COALESCE(SUM(CASE WHEN p.billing_date >= ? AND p.billing_date <= ? THEN p.total_tokens ELSE 0 END),0) AS tokens_7d FROM points_usage p JOIN users u ON u.username = p.username WHERE p.kind = 'charge'" + source, [start, date]);
-    return { totalPoints: points(integer(rows[0]?.total_tokens ?? 0, '总用量')),
-      points7d: points(integer(rows[0]?.tokens_7d ?? 0, '七日用量')), billingDate: date, scope: scope || 'all' };
+    const totalTokens = integer(rows[0]?.total_tokens ?? 0, '总用量');
+    const tokens7d = integer(rows[0]?.tokens_7d ?? 0, '七日用量');
+    return {
+      totalTokens, tokens7d,
+      totalPoints: points(totalTokens), points7d: points(tokens7d),
+      billingDate: date, scope: scope || 'all',
+    };
   }
-  return { initSchema, getQuota, charge, grantPermanentPoints, withUserLock, getAdminUsage, lockName };
+  return {
+    initSchema, getQuota, charge, grantPermanentPoints, withUserLock, getAdminUsage, lockName,
+    getSetting, setSetting, loadTokensPerPointSetting,
+  };
 }
 
-module.exports = { createPointsBilling, billingDateAt, weekStartAt, lockName, TOKENS_PER_POINT, TIME_ZONE, WEEKLY_TOKENS };
+module.exports = {
+  createPointsBilling, billingDateAt, weekStartAt, lockName, setTokensPerPoint,
+  get TOKENS_PER_POINT() { return TOKENS_PER_POINT; },
+  TOKENS_PER_POINT_MIN, TOKENS_PER_POINT_MAX, TIME_ZONE, WEEKLY_TOKENS,
+};
