@@ -8,9 +8,10 @@ import Users from './Users.jsx';
 import Prompts from './Prompts.jsx';
 import Records from './Records.jsx';
 import Dashboard from './Dashboard.jsx';
+import AuditLog from './AuditLog.jsx';
 import './style.css';
 
-const menuItems=[['dashboard','仪表盘'],['users','用户管理'],['charts','命盘管理'],['divination','占卜管理'],['suggestions','建议管理'],['books','参考书籍'],['prompts','Prompt管理'],['settings','系统设置']];
+const menuItems=[['dashboard','仪表盘'],['users','用户管理'],['charts','命盘管理'],['divination','占卜管理'],['suggestions','建议管理'],['books','参考书籍'],['prompts','Prompt管理'],['audit','审计日志'],['settings','系统设置']];
 const labels=Object.fromEntries(menuItems);
 function readRoute(){const value=location.hash.slice(1);return labels[value]?value:'dashboard'}
 
@@ -28,8 +29,14 @@ function Login({onSuccess}) {
 function Settings(){
   const [form]=Form.useForm();const {message}=App.useApp();
   const [loading,setLoading]=useState(false),[error,setError]=useState('');
+  const [pointsForm]=Form.useForm();const [pointsSaving,setPointsSaving]=useState(false),[pointsError,setPointsError]=useState('');
+  useEffect(()=>{let alive=true;api.settings().then(d=>{if(alive)pointsForm.setFieldsValue({tokensPerPoint:d?.tokensPerPoint})}).catch(e=>{if(alive)setPointsError(e.message)});return()=>{alive=false}},[]);
+  async function savePoints(v){setPointsSaving(true);setPointsError('');try{const r=await api.saveSettings({tokensPerPoint:Number(v.tokensPerPoint)});message.success(`已保存：1 积分 = ${r.tokensPerPoint} token`)}catch(e){setPointsError(e.message)}finally{setPointsSaving(false)}}
   async function save(v){setLoading(true);setError('');try{await api.password({currentPassword:v.currentPassword,newPassword:v.newPassword});message.success('密码已更新');form.resetFields()}catch(e){setError(e.message)}finally{setLoading(false)}}
-  return <><Typography.Title level={3}>系统设置</Typography.Title><Card title="修改管理员密码"><Form form={form} layout="vertical" onFinish={save} style={{maxWidth:480}}>
+  return <><Typography.Title level={3}>系统设置</Typography.Title><Card title="积分换算" style={{marginBottom:16}}><Form form={pointsForm} layout="vertical" onFinish={savePoints} style={{maxWidth:480}}>
+    <Form.Item name="tokensPerPoint" label="每 1 积分等于多少 token" extra="只影响展示换算：账本里存的始终是 token，改完立刻生效（不需要重启）。历史记录按新比例折算。" rules={[{required:true,message:'请填写换算比例'}]}><Input inputMode="numeric"/></Form.Item>
+    {pointsError&&<Alert type="error" title={pointsError}/>}<Button type="primary" htmlType="submit" loading={pointsSaving}>保存</Button>
+  </Form></Card><Card title="修改管理员密码"><Form form={form} layout="vertical" onFinish={save} style={{maxWidth:480}}>
     <Form.Item name="currentPassword" label="当前密码" rules={[{required:true}]}><Input.Password autoComplete="current-password"/></Form.Item>
     <Form.Item name="newPassword" label="新密码" rules={[{required:true,min:8,message:'新密码至少 8 位'}]}><Input.Password autoComplete="new-password"/></Form.Item>
     <Form.Item name="confirmation" label="确认新密码" dependencies={['newPassword']} rules={[{required:true},{validator:(_,v)=>!v||v===form.getFieldValue('newPassword')?Promise.resolve():Promise.reject(new Error('两次输入不一致'))}]}><Input.Password autoComplete="new-password"/></Form.Item>
@@ -46,7 +53,7 @@ function Shell({onLogout}){
   }
   let page;
   if(['charts','divination','suggestions'].includes(active))page=<Records key={active} kind={active}/>;
-  else{const Page={dashboard:Dashboard,users:Users,books:Books,prompts:Prompts,settings:Settings}[active]||Dashboard;page=<Page/>}
+  else{const Page={dashboard:Dashboard,users:Users,books:Books,prompts:Prompts,audit:AuditLog,settings:Settings}[active]||Dashboard;page=<Page/>}
   return <Layout className="admin-shell"><Layout.Header className="admin-header">
     <Button aria-label="打开菜单" icon={<MenuOutlined/>} onClick={()=>setOpen(true)}/><Typography.Title level={4}>易三千 · {labels[active]}</Typography.Title>
     <Space><Typography.Text className="account-label">管理员</Typography.Text><Button aria-label="退出" type="text" icon={<LogoutOutlined/>} onClick={onLogout}>退出</Button></Space>

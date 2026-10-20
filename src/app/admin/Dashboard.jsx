@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Button, Card, Empty, Grid, List, Space, Spin, Statistic, Table, Tag, Typography } from 'antd';
 import { api } from './api.js';
+import { timeMinuteText } from './format.js';
 
 const tierLabels = ['普通用户', '普通会员', 'SVIP'];
 const statItems = [
@@ -11,13 +12,14 @@ const statItems = [
   ['divinations', '排卦总数'],
   ['totalPoints', '累计积分消耗'],
   ['points7d', '近七天积分消耗'],
+  // 2026-10-20 用户要求：仪表盘要看得到 token 用量本身，而不只是折合出来的积分。
+  // token 是账本里的原始单位，积分只是按「每积分多少 token」换算的展示值。
+  ['totalTokens', '累计 token 用量'],
+  ['tokens7d', '近七天 token 用量'],
 ];
 
-function dateText(value) {
-  if (!value) return '—';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('zh-CN', { hour12: false });
-}
+// 统一走 format.js（北京时间、毫秒时间戳格式化）。
+const dateText = timeMinuteText;
 
 function tierOf(user) {
   return Number.isInteger(user?.tier) ? user.tier : 0;
@@ -78,7 +80,7 @@ export default function Dashboard() {
     </div>
     <Spin spinning={loading}>
       <div className="stat-grid">
-        {statItems.map(([key, title]) => <Card key={key}><Statistic title={title} value={total[key] ?? '—'} precision={key === 'totalPoints' || key === 'points7d' ? 4 : 0} /></Card>)}
+        {statItems.map(([key, title]) => <Card key={key}><Statistic title={title} value={total[key] ?? '—'} precision={key === 'totalPoints' || key === 'points7d' ? 4 : 0} groupSeparator="," /></Card>)}
       </div>
       <div className="admin-dashboard-panels">
         <Card title="会员等级分布">

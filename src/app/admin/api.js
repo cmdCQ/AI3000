@@ -35,7 +35,10 @@ export const api = {
   suggestions: () => request('/suggestion-users'), suggestionDetail: id => request(`/suggestion-detail/${encodeURIComponent(id)}`),
   folders: () => request('/book-folders'), books: query => request(`/books${query || ''}`), book: id => request(`/books/${id}`),
   prompts: () => request('/prompts'), updatePrompt: (key, value) => request(`/prompts/${encodeURIComponent(key)}`, { method: 'POST', body: JSON.stringify({ value }) }),
-  updateTier: (username, tier) => request('/user-tier', { method: 'PATCH', body: JSON.stringify({ username, tier }) }),
+  updateTier: (username, tier, reason) => request('/user-tier', { method: 'PATCH', body: JSON.stringify({ username, tier, reason }) }),
+  settings: () => request('/settings'),
+  saveSettings: body => request('/settings', { method: 'POST', body: JSON.stringify(body) }),
+  auditLog: (kind, username = '', limit = 50, offset = 0) => request(`/audit-log?kind=${encodeURIComponent(kind)}&limit=${limit}&offset=${offset}${username ? `&username=${encodeURIComponent(username)}` : ''}`),
   grantPermanentPoints: (username, points, reason, requestId) => request('/permanent-points', { method: 'POST', body: JSON.stringify({ username, points, reason, requestId }) }),
   password: body => request('/password', { method: 'POST', body: JSON.stringify(body) }),
 };

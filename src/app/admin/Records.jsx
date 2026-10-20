@@ -1,8 +1,10 @@
 import React, {useEffect,useRef,useState} from 'react';
 import {Alert,Button,Card,Empty,Grid,Input,List,Modal,Select,Space,Table,Tag,Typography} from 'antd';
 import {api,request} from './api.js';
+import {timeMinuteText} from './format.js';
 const identity=u=>u.userId||u.username||u.id;
-const displayDate=v=>v?new Date(v).toLocaleString('zh-CN',{hour12:false}):'—';
+// 统一走 format.js：这些接口给的是毫秒时间戳，日期一律按北京时间显示。
+const displayDate = timeMinuteText;
 
 export default function Records({kind}) {
   const screens=Grid.useBreakpoint();

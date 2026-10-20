@@ -122,8 +122,13 @@ test('积分和等级使用稳定账号标识；失败保留表单', async ({pag
   await page.getByLabel('会员等级',{exact:true}).click()
   await page.getByRole('combobox',{name:/会员等级/}).press('ArrowDown')
   await page.getByRole('combobox',{name:/会员等级/}).press('Enter')
+  // 2026-10-20 起改等级**必须填理由**：不填就拦在本地，不发请求。
   await page.getByRole('dialog').getByRole('button',{name:/保存/}).click()
-  await expect.poll(()=>bodies.tier).toEqual({username:'account-alice',tier:1})
+  await expect(page.getByText('请填写调整理由',{exact:true})).toBeVisible()
+  expect(bodies.tier).toBeUndefined()
+  await page.getByLabel('调整理由',{exact:true}).fill('测试升级')
+  await page.getByRole('dialog').getByRole('button',{name:/保存/}).click()
+  await expect.poll(()=>bodies.tier).toEqual({username:'account-alice',tier:1,reason:'测试升级'})
   await expect(page.getByRole('button',{name:'删除用户',exact:true}).first()).toBeEnabled()
 })
 

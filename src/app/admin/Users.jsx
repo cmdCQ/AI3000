@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, App, Button, Card, Form, Grid, Input, List, Modal, Select, Space, Table, Tag, Typography } from 'antd';
 import { EditOutlined } from '@ant-design/icons';
 import { api } from './api.js';
+import { timeMinuteText } from './format.js';
 
 const TIER_LABELS = ['普通用户', '普通会员', 'SVIP'];
 const tierOptions = TIER_LABELS.map((label, value) => ({ value, label }));
@@ -116,7 +117,7 @@ export default function Users() {
   async function saveTier(values) {
     setTierPending(true); setTierError('');
     try {
-      await api.updateTier(canonicalUsername(selected), values.tier);
+      await api.updateTier(canonicalUsername(selected), values.tier, values.reason);
       message.success('会员等级已更新');
       setTierOpen(false);
       await load();
@@ -131,8 +132,9 @@ export default function Users() {
     { title: '本周积分', key: 'weekly', render: (_, user) => { const q = quotaFor(user, tiers); return <Space direction="vertical" size={0}><span>已用：{numberText(q.pointsUsed)}</span><span>上限：{q.tier === 2 && q.pointsLimit === null ? '无限' : numberText(q.pointsLimit)}</span><span>剩余：{q.tier === 2 && q.pointsRemaining === null ? '无限' : numberText(q.pointsRemaining)}</span></Space>; } },
     { title: '永久积分', key: 'permanent', render: (_, user) => numberText(quotaFor(user, tiers).permanentPoints) },
     { title: '累计积分', key: 'total', render: (_, user) => numberText(quotaFor(user, tiers).totalPointsUsed) },
-    { title: '注册时间', dataIndex: 'createdAt', render: text },
-    { title: '最后活跃', dataIndex: 'lastActive', render: text },
+    // createdAt / lastActive 是毫秒时间戳：这里必须格式化，直接渲染数字就是「时间戳」。
+    { title: '注册时间', dataIndex: 'createdAt', width: 150, render: timeMinuteText },
+    { title: '最后活跃', dataIndex: 'lastActive', width: 150, render: timeMinuteText },
     { title: '操作', key: 'actions', fixed: 'right', render: (_, user) => <Space wrap><Button size="small" onClick={() => openPoints(user)}>添加永久积分</Button><Button aria-label="调整等级" size="small" icon={<EditOutlined />} onClick={() => openTier(user)}>调整等级</Button><Button size="small" danger onClick={() => openDelete(user)}>删除用户</Button></Space> },
   ];
 
@@ -146,8 +148,8 @@ export default function Users() {
         <div><dt>本周积分</dt><dd>已用 {numberText(quota.pointsUsed)} / 上限 {quota.tier === 2 && quota.pointsLimit === null ? '无限' : numberText(quota.pointsLimit)} / 剩余 {quota.tier === 2 && quota.pointsRemaining === null ? '无限' : numberText(quota.pointsRemaining)}</dd></div>
         <div><dt>永久积分</dt><dd>{numberText(quota.permanentPoints)}</dd></div>
         <div><dt>累计积分</dt><dd>{numberText(quota.totalPointsUsed)}</dd></div>
-        <div><dt>注册时间</dt><dd>{text(user.createdAt)}</dd></div>
-        <div><dt>最后活跃</dt><dd>{text(user.lastActive)}</dd></div>
+        <div><dt>注册时间</dt><dd>{timeMinuteText(user.createdAt)}</dd></div>
+        <div><dt>最后活跃</dt><dd>{timeMinuteText(user.lastActive)}</dd></div>
       </dl>
       <Space wrap className="mobile-card-actions"><Button onClick={() => openPoints(user)}>添加永久积分</Button><Button aria-label="调整等级" icon={<EditOutlined />} onClick={() => openTier(user)}>调整等级</Button><Button danger onClick={() => openDelete(user)}>删除用户</Button></Space>
     </List.Item>;
@@ -168,7 +170,7 @@ export default function Users() {
     </Modal>
     <Modal className="admin-mobile-modal" title="调整等级" open={tierOpen} onCancel={() => !tierPending && setTierOpen(false)} footer={null} destroyOnHidden>
       {tierError && <Alert type="error" title={tierError} style={{ marginBottom: 16 }} />}
-      <Form form={tierForm} layout="vertical" onFinish={saveTier}><Form.Item name="tier" label="会员等级" rules={[{ required: true, message: '请选择会员等级' }]}><Select virtual={false} options={tierOptions} /></Form.Item><Button type="primary" htmlType="submit" loading={tierPending}>确认保存</Button></Form>
+      <Form form={tierForm} layout="vertical" onFinish={saveTier}><Form.Item name="tier" label="会员等级" rules={[{ required: true, message: '请选择会员等级' }]}><Select virtual={false} options={tierOptions} /></Form.Item><Form.Item name="reason" label="调整理由" rules={[{ required: true, whitespace: true, message: '请填写调整理由' }, { max: 255, message: '最多 255 个字' }]}><Input.TextArea rows={2} placeholder="会记进「审计日志」，事后能查到是谁、什么时候、为什么改的" /></Form.Item><Button type="primary" htmlType="submit" loading={tierPending}>确认保存</Button></Form>
     </Modal>
   </>;
 }

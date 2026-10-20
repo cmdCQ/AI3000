@@ -75,3 +75,15 @@ body { margin: 0; min-width: 320px; }
 
 
 }
+
+/* 审计日志（移动端）：一条一张卡，理由不横滑也能读全 */
+.audit-item { display: flex; flex-direction: column; gap: 4px; padding: 12px 0; }
+.audit-item-head { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.audit-item-change { display: flex; align-items: center; gap: 6px; }
+.audit-item-reason { white-space: normal; word-break: break-word; }
+
+.audit-item { text-align: left; }
+
+/* 时间列：'2026/10/20 22:34' 被压成 '2026/10/2' 比换行更糟，宁可撑宽 */
+.admin-table .ant-table-tbody > tr > td .admin-nowrap,
+.admin-nowrap { white-space: nowrap; }
