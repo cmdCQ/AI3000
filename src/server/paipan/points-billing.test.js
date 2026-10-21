@@ -23,6 +23,12 @@ function fixture(options = {}) {
     calls.push({ sql, values });
     const normalized = sql.replace(/\s+/g, ' ').trim();
     if (normalized.startsWith('CREATE TABLE')) return [{}];
+    // 三列缓存/积分字段的补列检查：fixture 里都当作「已存在」，于是不产生 ALTER 与回填。
+    if (normalized.startsWith('SELECT COUNT(*) AS n FROM information_schema.COLUMNS')) {
+      return [[{ n: options.legacyColumns ? 0 : 1 }]];
+    }
+    if (normalized.startsWith('ALTER TABLE')) return [{}];
+    if (normalized.startsWith('UPDATE points_usage SET')) return [{}];
     if (normalized.startsWith('SELECT username')) {
       return [users.filter(u => u.username === values[0]).map(u => ({ ...u }))];
     }
@@ -59,9 +65,10 @@ function fixture(options = {}) {
       return [row ? [{ ...row }] : []];
     }
     if (normalized.startsWith('INSERT INTO points_usage')) {
-      const [username, requestId, kind, date, input, output, total] = values;
+      const [username, requestId, kind, date, input, output, total, cached, billable, pointsValue] = values;
       usage.set(username + '/' + requestId, { username, request_id: requestId, kind,
-        billing_date: date, input_tokens: input, output_tokens: output, total_tokens: total });
+        billing_date: date, input_tokens: input, output_tokens: output, total_tokens: total,
+        cached_tokens: cached, billable_tokens: billable, points: pointsValue });
       return [{}];
     }
     if (normalized.startsWith('INSERT INTO points_daily')) {
@@ -74,10 +81,12 @@ function fixture(options = {}) {
       user.token_used += values[0];
       return [{ affectedRows: 1 }];
     }
-    if (normalized.startsWith('SELECT COALESCE(SUM(p.total_tokens)')) {
+    if (normalized.startsWith('SELECT COALESCE(SUM(p.billable_tokens)')) {
       const rows = [...usage.values()].filter(row => row.kind === 'charge');
-      return [[{ total_tokens: rows.reduce((n, row) => n + row.total_tokens, 0),
-        tokens_7d: rows.reduce((n, row) => n + row.total_tokens, 0) }]];
+      const billable = rows.reduce((n, row) => n + Number(row.billable_tokens ?? row.total_tokens), 0);
+      const raw = rows.reduce((n, row) => n + Number(row.total_tokens), 0);
+      const pts = rows.reduce((n, row) => n + Number(row.points ?? 0), 0);
+      return [[{ total_tokens: billable, raw_tokens: raw, total_points: pts, tokens_7d: billable, raw_tokens_7d: raw, points_7d: pts }]];
     }
     if (normalized.startsWith('SELECT GET_LOCK')) return [[{ acquired: lockResult }]];
     if (normalized.startsWith('SELECT RELEASE_LOCK')) return [[{ released: 1 }]];
@@ -120,6 +129,50 @@ test('charge stores integer input/output and is idempotent', async () => {
   const replay = await b.charge('alice', { inputTokens: 10001, outputTokens: 9999, requestId: 'r1', billingDate: day });
   assert.equal(replay.replayed, true); assert.equal(f.users[0].token_used, 20000);
   await assert.rejects(() => b.charge('alice', { inputTokens: 1, outputTokens: 1, requestId: 'r1', billingDate: day }), { code: 'REQUEST_CONFLICT' });
+});
+test('缓存命中的提示 token 按 1/10 计费，原始与计费两种数都落库', async () => {
+  const f = fixture(), b = createPointsBilling(f.db), day = billingDateAt();
+  // 10000 个提示 token 里 5000 命中缓存：计费 = 5000(未命中) + ceil(5000*0.1)=500 + 1000(输出) = 6500
+  const result = await b.charge('alice', { inputTokens: 10000, cachedTokens: 5000, outputTokens: 1000, requestId: 'cache', billingDate: day });
+  assert.equal(result.totalTokens, 6500, '计费 token 要按缓存折算');
+  assert.equal(result.rawTokens, 11000, '原始 token 仍要能读到（与上游控制台对账）');
+  assert.equal(result.cachedTokens, 5000);
+  assert.equal(result.pointsCharged, 0.65);
+  assert.equal(f.users[0].token_used, 6500, '累计用量按计费 token 记');
+  const row = f.usage.get('alice/cache');
+  assert.equal(row.input_tokens, 10000); assert.equal(row.output_tokens, 1000);
+  assert.equal(row.cached_tokens, 5000); assert.equal(row.billable_tokens, 6500);
+  assert.equal(Number(row.points), 0.65);
+  // 重放同一 requestId 时返回**落库**的积分，而不是按当前比例重算。
+  const replay = await b.charge('alice', { inputTokens: 10000, cachedTokens: 5000, outputTokens: 1000, requestId: 'cache', billingDate: day });
+  assert.equal(replay.replayed, true); assert.equal(replay.pointsCharged, 0.65);
+});
+test('缓存数超过输入 token 视为上游异常，不记账', async () => {
+  const f = fixture(), b = createPointsBilling(f.db);
+  await assert.rejects(() => b.charge('alice', { inputTokens: 10, cachedTokens: 11, outputTokens: 1, requestId: 'bad', billingDate: billingDateAt() }), { code: 'INVALID_USAGE' });
+  assert.equal(f.usage.size, 0);
+});
+test('改比例不改写历史积分（仪表盘读落库的 points）', async () => {
+  const f = fixture(), b = createPointsBilling(f.db);
+  await b.charge('alice', { inputTokens: 20000, outputTokens: 0, requestId: 'hist', billingDate: '2026-01-05' });
+  const before = await b.getAdminUsage('all');
+  assert.equal(before.totalPoints, 2); // 20000 / 10000（本文件钉的比例）
+  assert.equal(before.rawTokens, 20000);
+  setTokensPerPoint(5000);
+  try {
+    const after = await b.getAdminUsage('all');
+    // token 数不变，积分不随比例重算 —— 这正是「历史消耗不该跟着比例跳」的要求。
+    assert.equal(after.totalTokens, 20000);
+    assert.equal(after.totalPoints, 2);
+  } finally { setTokensPerPoint(10000); }
+});
+test('老库补列时回填 billable_tokens 与 points，不把历史算成 0', async () => {
+  const f = fixture({ legacyColumns: true }), b = createPointsBilling(f.db);
+  await b.initSchema();
+  const sqls = f.calls.map(c => c.sql.replace(/\s+/g, ' ').trim());
+  assert.equal(sqls.filter(q => q.startsWith('ALTER TABLE points_usage ADD COLUMN')).length, 3);
+  assert.equal(sqls.some(q => q.startsWith('UPDATE points_usage SET billable_tokens = total_tokens')), true);
+  assert.equal(sqls.some(q => q.startsWith('UPDATE points_usage SET points = ROUND(total_tokens /')), true);
 });
 test('withUserLock passes checked-out connection and quota', async () => {
   const f = fixture(), b = createPointsBilling(f.db);

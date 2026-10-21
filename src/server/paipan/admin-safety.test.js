@@ -46,7 +46,10 @@ function runRoute(route, { payload = { role: 'admin' }, query, url } = {}) {
     { async getAdminUsage(scope) {
       assert.equal(scope, 'all');
       // 2026-10-20 起仪表盘还要看到 token 原始用量（积分是按比例折算的展示值）。
-      return { totalPoints: 12.5, points7d: 3.25, totalTokens: 62500, tokens7d: 16250 };
+      // 2026-10-21 加了缓存折算：totalTokens 是「计费 token」，rawTokens 才是上游原始用量，
+      // 仪表盘展示的是后者的七日版（rawTokens7d）。
+      return { totalPoints: 12.5, points7d: 3.25, totalTokens: 62500, tokens7d: 16250,
+        rawTokens: 62500, rawTokens7d: 16250 };
     } },
     { deepseek: { apiKey: '' } },
     { username: 'CQA' },
@@ -103,7 +106,8 @@ test('GET stats returns actual totals without channel splits or fabricated serve
   assert.equal(response.status, 200);
   assert.deepEqual(response.body.total, {
     users: 10, todayUsers: 2, active7d: 4, totalPoints: 12.5,
-    points7d: 3.25, totalTokens: 62500, tokens7d: 16250, charts: 8, divinations: 9,
+    points7d: 3.25, totalTokens: 62500, tokens7d: 16250, rawTokens: 62500, rawTokens7d: 16250,
+    charts: 8, divinations: 9,
   });
   assert.deepEqual(Object.keys(response.body).sort(), ['deepseek', 'total']);
   for (const key of ['web', 'wechat', 'server', 'expiresAt', 'daysLeft']) {

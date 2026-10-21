@@ -270,6 +270,14 @@ const EMPTY_UPSTREAM_NOTICE = '抱歉，这次没能生成出内容。请再点�
 
 // Bare-text clients split this marker; numbers are actual points, never relabelled tokens.
 const POINTS_LABEL = '消耗积分：';
+/** 上游 usage 里「命中缓存的提示 token」数：新旧字段名都认，取不到按 0。 */
+function cachedPromptTokens(usage) {
+  if (!usage) return 0;
+  const direct = Number(usage.prompt_cache_hit_tokens);
+  if (Number.isFinite(direct) && direct >= 0) return Math.round(direct);
+  const nested = Number(usage.prompt_tokens_details && usage.prompt_tokens_details.cached_tokens);
+  return Number.isFinite(nested) && nested >= 0 ? Math.round(nested) : 0;
+}
 function pointsTrailer(inputTokens, outputTokens, totalTokens, remaining) {
   // 比例来自 points-billing（后台可改，默认 5000）：这里**不能**再写死 10000，
   // 否则用户看到的「消耗积分」与账本扣的对不上。
@@ -373,6 +381,8 @@ async function getAdminStats() {
       // 看到 token（只增不减、与比例无关）。
       totalTokens: usage.totalTokens,
       tokens7d: usage.tokens7d,
+      rawTokens: usage.rawTokens,
+      rawTokens7d: usage.rawTokens7d,
     };
   };
 
@@ -2560,6 +2570,7 @@ userPrompt += '\n\n注意：参考古籍已在最上方提供，请在回答开�
         }
         try {
           const charge = await pointsBilling.charge(username, { inputTokens, outputTokens,
+            cachedTokens: cachedPromptTokens(realUsage),
             requestId: req.pointsContext.requestId, billingDate: req.pointsContext.quota.billingDate }, req.pointsContext.connection);
           const tokenLine = pointsTrailer(inputTokens, outputTokens, charge.totalTokens, charge.pointsRemaining);
           fullText += tokenLine;
@@ -3198,6 +3209,7 @@ async function streamBaziParse(res, opts) {
       const outputTokens = realUsage ? realUsage.completion_tokens : estimateTokens(fullText);
       try {
         const charge = await pointsBilling.charge(username, { inputTokens, outputTokens,
+          cachedTokens: cachedPromptTokens(realUsage),
           requestId: consultationMode ? 'bzc_' + opts.requestId : opts.requestId,
           billingDate: opts.pointsQuota.billingDate }, billingDb);
         billing = { status: 'charged', inputTokens, outputTokens, totalTokens: charge.totalTokens,
@@ -3341,11 +3353,22 @@ function buildLiuyaoFollowUpPrompt(topic, followUp, context, cardData) {
 
 
 
+// 本地 token 估算。**只用于「发请求前的额度预检」**，真实记账一律用上游返回的 usage。
+//
+// 2026-10-21 校准：旧版按「中文 0.6 / 其余 0.25」算，对中文与数字混合的提示词低估约 2.2 倍
+// （同一段 7011 字符估 2327，DeepSeek 实际 5035）。官方文档给的是 0.6/0.3 的粗口径，
+// 实测这个模型的真实密度是：中文 ≈0.9、全角符号 ≈0.95、数字 ≈0.78、英文字母 ≈0.3、
+// 空白 ≈0.1、其它 ASCII 符号 ≈0.35（用 7 组样本各测一次 prompt_tokens 拟合，误差 ≤8%）。
+// 低估会让「积分不足」的拦截偏晚，高估会误拦正常提问，所以按类分权重而不是一刀切。
 function estimateTokens(text) {
   if (!text) return 0;
-  const chinese = (text.match(/[\u4e00-\u9fff\u3400-\u4dbf]/g) || []).length;
-  const english = text.length - chinese;
-  return Math.ceil(chinese * 0.6 + english * 0.25) + 10;
+  const cjk = (text.match(/[\u3400-\u4dbf\u4e00-\u9fff]/g) || []).length;
+  const fullwidth = (text.match(/[\u3000-\u303f\uff00-\uffef]/g) || []).length;
+  const digits = (text.match(/[0-9]/g) || []).length;
+  const letters = (text.match(/[A-Za-z]/g) || []).length;
+  const spaces = (text.match(/[ \t\r\n]/g) || []).length;
+  const rest = text.length - cjk - fullwidth - digits - letters - spaces;
+  return Math.ceil(cjk * 0.9 + fullwidth * 0.95 + digits * 0.78 + letters * 0.3 + spaces * 0.1 + rest * 0.35) + 10;
 }
 
 // ══════ Prompt 模板引擎 ══════

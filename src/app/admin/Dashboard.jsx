@@ -13,9 +13,10 @@ const statItems = [
   ['totalPoints', '累计积分消耗'],
   ['points7d', '近七天积分消耗'],
   // 2026-10-20 用户要求：仪表盘要看得到 token 用量本身，而不只是折合出来的积分。
-  // token 是账本里的原始单位，积分只是按「每积分多少 token」换算的展示值。
-  ['totalTokens', '累计 token 用量'],
-  ['tokens7d', '近七天 token 用量'],
+  // 这里用**原始** token（与 DeepSeek 控制台一致）；命中缓存的那部分只按 1/10 计费，
+  // 折算后的「计费 token」不展示 —— 展示它反而会让人以为上游统计少了。
+  ['rawTokens', '累计 token 用量'],
+  ['rawTokens7d', '近七天 token 用量'],
 ];
 
 // 统一走 format.js（北京时间、毫秒时间戳格式化）。

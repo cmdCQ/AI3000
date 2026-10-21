@@ -17,6 +17,16 @@ function setTokensPerPoint(value) {
   return TOKENS_PER_POINT;
 }
 const TIME_ZONE = 'Asia/Shanghai';
+// 命中缓存的提示 token 只按 1/10 计价（DeepSeek 官方定价：命中价是未命中的 1/10）。
+// 2026-10-21 用户报「token 用量显示有问题」，实测同一段提示第二次请求 5035 个提示 token
+// 里 4864 个命中缓存；旧账把这 4864 个和未命中的按同一个价扣，用户被多扣了 2–5 倍。
+// 注意：这里只影响**计费 token**，`points_usage.input_tokens` 仍存上游原值，方便对账。
+const CACHE_HIT_WEIGHT = 0.1;
+function cacheAdjustedTokens(inputTokens, cachedTokens, outputTokens) {
+  const cached = Math.min(Math.max(0, cachedTokens), inputTokens);
+  const missed = inputTokens - cached;
+  return missed + Math.ceil(cached * CACHE_HIT_WEIGHT) + outputTokens;
+}
 // Existing dated usage rows are retained; allowances are evaluated over the current week.
 //
 // 额度定义在**积分**上（普通 10 / 会员 50 / SVIP 不限），token 上限 = 积分 × TOKENS_PER_POINT。
@@ -133,6 +143,26 @@ function createPointsBilling(db) {
       setting_value varchar(255) NOT NULL,
       updated_at bigint NOT NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin`);
+    // 缓存折算与「积分落库」两件事需要的三列。老库没有这三列，用 ALTER 补；
+    // 补完必须回填，否则 `SUM(points)`、`SUM(billable_tokens)` 会把历史算成 0。
+    async function ensureColumn(table, column, definition) {
+      const [rows] = await db.query('SELECT COUNT(*) AS n FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?', [table, column]);
+      if (Number(rows[0]?.n) > 0) return false;
+      await db.query(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+      return true;
+    }
+    const addedCached = await ensureColumn('points_usage', 'cached_tokens', 'bigint NOT NULL DEFAULT 0');
+    const addedBillable = await ensureColumn('points_usage', 'billable_tokens', 'bigint NOT NULL DEFAULT 0');
+    const addedPoints = await ensureColumn('points_usage', 'points', 'decimal(18,4) NOT NULL DEFAULT 0');
+    if (addedBillable) {
+      // 老账没有缓存信息，只能按「全部未命中」记 —— 保守方向（宁可少算优惠，也不凭空多发）。
+      await db.query('UPDATE points_usage SET billable_tokens = total_tokens WHERE billable_tokens = 0');
+    }
+    if (addedPoints) {
+      // 历史积分按**回填那一刻**的比例冻结一次；此后改比例不再改写历史。
+      await db.query('UPDATE points_usage SET points = ROUND(total_tokens / ?, 4) WHERE points = 0', [TOKENS_PER_POINT]);
+    }
+    if (addedCached) console.log('[points] points_usage 已补 cached_tokens / billable_tokens / points 三列并回填');
     await db.query(`CREATE TABLE IF NOT EXISTS points_permanent_ledger (
       id bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY, username varchar(64) NOT NULL,
       request_id varchar(128) NOT NULL, kind varchar(16) NOT NULL, points_tokens bigint NOT NULL,
@@ -177,7 +207,11 @@ function createPointsBilling(db) {
     userValue(username);
     const inputTokens = integer(usage.inputTokens, '输入token');
     const outputTokens = integer(usage.outputTokens, '输出token');
+    const cachedTokens = integer(usage.cachedTokens ?? 0, '缓存token');
+    if (cachedTokens > inputTokens) throw problem(503, '缓存用量异常', 'INVALID_USAGE');
     const totalTokens = integer(inputTokens + outputTokens, '总token');
+    // 计费用的是折算后的 token（命中缓存那部分按 1/10）；账本两种数都存，便于对账。
+    const billableTokens = integer(cacheAdjustedTokens(inputTokens, cachedTokens, outputTokens), '计费token');
     const requestId = requestValue(usage.requestId);
     const date = dateValue(usage.billingDate ?? billingDateAt());
     return transaction(connection, async conn => {
@@ -192,29 +226,32 @@ function createPointsBilling(db) {
             || (usage.billingDate != null && row.billing_date !== date)) {
           throw problem(409, '计费请求标识已用于不同用量', 'REQUEST_CONFLICT');
         }
+        const storedBillable = integer(row.billable_tokens ?? row.total_tokens, '计费token');
         return { ...await quotaAt(username, billingDateAt(), conn), charged: false, replayed: true,
-          chargeBillingDate: row.billing_date, inputTokens, outputTokens,
-          totalTokens: integer(row.total_tokens, '总token'), pointsCharged: points(integer(row.total_tokens, '总token')) };
+          chargeBillingDate: row.billing_date, inputTokens, outputTokens, cachedTokens: integer(row.cached_tokens ?? 0, '缓存token'),
+          totalTokens: storedBillable, rawTokens: integer(row.total_tokens, '总token'),
+          pointsCharged: row.points != null ? Number(row.points) : points(storedBillable) };
       }
       const [daily] = await conn.query('SELECT used_tokens FROM points_daily WHERE username = ? AND billing_date = ?', [username, date]);
-      const nextUsed = integer(integer(daily[0]?.used_tokens ?? 0, '当日用量') + totalTokens, '当日用量');
+      const nextUsed = integer(integer(daily[0]?.used_tokens ?? 0, '当日用量') + billableTokens, '当日用量');
       const currentQuota = await quotaAt(username, date, conn);
       const weeklyLeft = currentQuota.weeklyTokensRemaining;
-      const uncovered = weeklyLeft === null ? 0 : Math.max(0, totalTokens - weeklyLeft);
+      const uncovered = weeklyLeft === null ? 0 : Math.max(0, billableTokens - weeklyLeft);
       // Usage has already occurred; never discard it if the upstream exceeded estimates.
       const permanentSpend = Math.min(uncovered, currentQuota.permanentTokens);
-      integer(integer(user.token_used, '累计用量') + totalTokens, '累计用量');
+      integer(integer(user.token_used, '累计用量') + billableTokens, '累计用量');
       // Quota admission belongs before model invocation. Never discard incurred usage here.
       const now = Date.now();
-      await conn.query('INSERT INTO points_usage (username,request_id,kind,billing_date,input_tokens,output_tokens,total_tokens,created_at) VALUES (?,?,?,?,?,?,?,?)',
-        [username, requestId, 'charge', date, inputTokens, outputTokens, totalTokens, now]);
+      await conn.query('INSERT INTO points_usage (username,request_id,kind,billing_date,input_tokens,output_tokens,total_tokens,cached_tokens,billable_tokens,points,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+        [username, requestId, 'charge', date, inputTokens, outputTokens, totalTokens, cachedTokens, billableTokens, points(billableTokens), now]);
       await conn.query('INSERT INTO points_daily (username,billing_date,used_tokens,updated_at) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE used_tokens = VALUES(used_tokens), updated_at = VALUES(updated_at)',
         [username, date, nextUsed, now]);
       if (permanentSpend > 0) await conn.query('INSERT INTO points_permanent_ledger (username,request_id,kind,points_tokens,reason,admin_username,created_at) VALUES (?,?,?,?,?,?,?)', [username, 'spend:' + crypto.createHash('sha256').update(requestId).digest('hex'), 'spend', -permanentSpend, 'AI usage', 'system', now]);
-      const [updated] = await conn.query('UPDATE users SET token_used = token_used + ? WHERE username = ?', [totalTokens, username]);
+      const [updated] = await conn.query('UPDATE users SET token_used = token_used + ? WHERE username = ?', [billableTokens, username]);
       if (updated.affectedRows !== 1) throw problem(503, '累计用量结算异常', 'SETTLEMENT_FAILED');
       return { ...await quotaAt(username, billingDateAt(), conn), charged: true, replayed: false,
-        chargeBillingDate: date, inputTokens, outputTokens, totalTokens, pointsCharged: points(totalTokens) };
+        chargeBillingDate: date, inputTokens, outputTokens, cachedTokens, totalTokens: billableTokens,
+        rawTokens: totalTokens, pointsCharged: points(billableTokens) };
     });
   }
   async function withUserLock(username, callback) {
@@ -306,12 +343,18 @@ function createPointsBilling(db) {
     const date = billingDateAt();
     const start = billingDateAt(Date.parse(date + 'T00:00:00+08:00') - 6 * 86400000);
     const source = scope === 'web' ? " AND u.username NOT LIKE 'wx_%'" : scope === 'wechat' ? " AND u.username LIKE 'wx_%'" : '';
-    const [rows] = await db.query("SELECT COALESCE(SUM(p.total_tokens),0) AS total_tokens, COALESCE(SUM(CASE WHEN p.billing_date >= ? AND p.billing_date <= ? THEN p.total_tokens ELSE 0 END),0) AS tokens_7d FROM points_usage p JOIN users u ON u.username = p.username WHERE p.kind = 'charge'" + source, [start, date]);
+    // token 用**折算后**的 billable_tokens（缓存命中按 1/10），积分用**落库**的 points ——
+    // 后者不再按当前比例反算，所以改比例不会把历史消耗一起改写。
+    const [rows] = await db.query("SELECT COALESCE(SUM(p.billable_tokens),0) AS total_tokens, COALESCE(SUM(p.total_tokens),0) AS raw_tokens, COALESCE(SUM(p.points),0) AS total_points, COALESCE(SUM(CASE WHEN p.billing_date >= ? AND p.billing_date <= ? THEN p.billable_tokens ELSE 0 END),0) AS tokens_7d, COALESCE(SUM(CASE WHEN p.billing_date >= ? AND p.billing_date <= ? THEN p.total_tokens ELSE 0 END),0) AS raw_tokens_7d, COALESCE(SUM(CASE WHEN p.billing_date >= ? AND p.billing_date <= ? THEN p.points ELSE 0 END),0) AS points_7d FROM points_usage p JOIN users u ON u.username = p.username WHERE p.kind = 'charge'" + source, [start, date, start, date, start, date]);
     const totalTokens = integer(rows[0]?.total_tokens ?? 0, '总用量');
     const tokens7d = integer(rows[0]?.tokens_7d ?? 0, '七日用量');
+    const rawTokens = integer(rows[0]?.raw_tokens ?? 0, '原始用量');
+    const rawTokens7d = integer(rows[0]?.raw_tokens_7d ?? 0, '七日原始用量');
+    const totalPoints = Number(Number(rows[0]?.total_points ?? 0).toFixed(4));
+    const points7d = Number(Number(rows[0]?.points_7d ?? 0).toFixed(4));
     return {
-      totalTokens, tokens7d,
-      totalPoints: points(totalTokens), points7d: points(tokens7d),
+      totalTokens, tokens7d, rawTokens, rawTokens7d,
+      totalPoints, points7d,
       billingDate: date, scope: scope || 'all',
     };
   }
@@ -323,6 +366,7 @@ function createPointsBilling(db) {
 
 module.exports = {
   createPointsBilling, billingDateAt, weekStartAt, lockName, setTokensPerPoint,
+  cacheAdjustedTokens, CACHE_HIT_WEIGHT,
   get TOKENS_PER_POINT() { return TOKENS_PER_POINT; },
   TOKENS_PER_POINT_MIN, TOKENS_PER_POINT_MAX, TIME_ZONE, WEEKLY_POINTS, WEEKLY_TOKENS, weeklyTokenLimit,
 };

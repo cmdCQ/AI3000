@@ -431,6 +431,14 @@ function streamFixture({ chunks = [], throwStream = false, failBilling = false, 
   LLM_MODEL: 'mock-model', LLM_MAX_TOKENS: 500, LLM_REASONING_EFFORT: 'low', BAZI_REPORT_TEMPERATURE: 0.3,
   EMPTY_UPSTREAM_NOTICE: 'empty', AbortController, console: { error() {} },
   estimateTokens: text => text.length, requirePoints: () => 500,
+  // 与 auth-server.js 里的实现同义：新增了「命中缓存的提示 token」提取，沙箱里必须也有，
+  // 否则流函数第一步就 ReferenceError（踩过一次：表现成 billing unknown）。
+  cachedPromptTokens: usage => {
+    const direct = Number(usage && usage.prompt_cache_hit_tokens);
+    if (Number.isFinite(direct) && direct >= 0) return Math.round(direct);
+    const nested = Number(usage && usage.prompt_tokens_details && usage.prompt_tokens_details.cached_tokens);
+    return Number.isFinite(nested) && nested >= 0 ? Math.round(nested) : 0;
+  },
   pointsTrailer: () => '\nlegacy billing trailer',
   pointsBilling: { charge: async (_username, usage) => {
     charges++; if (failBilling) throw new Error('billing failed');

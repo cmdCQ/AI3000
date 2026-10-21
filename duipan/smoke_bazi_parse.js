@@ -138,6 +138,11 @@ if (POINTS_TRAILER_SRC.indexOf('POINTS_LABEL') < 0) {
     + JSON.stringify(POINTS_TRAILER_SRC.slice(0, 80)));
   process.exit(2);
 }
+// 命中缓存的提示 token 提取（`cachedPromptTokens`）。2026-10-21 起记账要按缓存折算，
+// 它同样落在切片窗口之外；不注入就是 `cachedPromptTokens is not defined`，而外面那个
+// `catch` 会把它吞成「积分结算未确认」—— 表象是尾巴变了一句道歉，不是崩。
+const CACHED_PROMPT_SRC = mustMatch(/function cachedPromptTokens\(usage\) \{[\s\S]*?\n\}/,
+  'cachedPromptTokens', '缓存命中 token 提取')[0];
 const NOTICE_PARTS = mustMatch(/const EMPTY_UPSTREAM_NOTICE = ([\s\S]*?);\n/,
   'EMPTY_UPSTREAM_NOTICE', '空正文时给用户看的那句话')[1];
 // 那句提示是几个字符串字面量相加，逐段取出来拼回原样（比 eval 稳，也不执行任何东西）
@@ -319,7 +324,7 @@ function makeHarness(opts) {
     + '  BAZI_REPORT_TEMPERATURE,\n'
     + '  baziFull, baziPromptLib, baziFortuneLib, baziReportLib, ganzhiLib, paipanConst, chatTools, require,\n'
     + '  pointsBilling, pointsBillingModule } = D;\n'
-    + TOKEN_LIMIT + '\n' + ESTIMATE + '\n' + REQUIRE_POINTS + '\n'
+    + TOKEN_LIMIT + '\n' + ESTIMATE + '\n' + REQUIRE_POINTS + '\n' + CACHED_PROMPT_SRC + '\n'
     + "const POINTS_LABEL = '" + POINTS_LABEL + "';\n" + POINTS_TRAILER_SRC + '\n'
     + HELPERS + '\n'
     + 'async function handle(req, res, body, pathname) {\n'
