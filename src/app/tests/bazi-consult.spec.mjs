@@ -82,6 +82,27 @@ test('生成时发送切换为停止，停止后恢复输入且保留问题', as
   await expect(page.getByRole('status')).toContainText('已停止生成')
 })
 const open = page => page.goto('/bazi-consult/?chartId=c1', { waitUntil: 'domcontentloaded' })
+test('流式期间地址栏只同步一次，不会被 Safari 的 replaceState 限流掐断回答', async ({ page }) => {
+  // 每个 delta 帧都带 consultationId（服务端就是这么发的）。Safari 对
+  // history.replaceState() 有「10 秒内最多 100 次」的硬限制，超了会**抛异常**，
+  // 异常从 for-await 里冒出来就把回答截断 —— 用户 iPhone 上「一直被截断」的真因。
+  await page.addInitScript(() => {
+    window.__replaceStateCalls = 0
+    const original = history.replaceState.bind(history)
+    history.replaceState = (...args) => { window.__replaceStateCalls += 1; return original(...args) }
+  })
+  const { errors } = await mock(page)
+  const frames = Array.from({ length: 160 }, (_, i) => `event: delta\ndata: ${JSON.stringify({ text: `第${i}段。`, consultationId: 'q1' })}\n\n`).join('')
+  // 必须放在 mock() 之后：mock 里的 `**/api/**` 会盖掉先注册的同名路由。
+  await page.route('**/api/bazi/consultations/send', route => route.fulfill({ contentType: 'text/event-stream', body:
+    frames + `event: done\ndata: ${JSON.stringify({ consultationId: 'q1', status: 'completed', billing: { status: 'not_charged' }, save: { status: 'saved' } })}\n\n` }))
+  await page.goto('/bazi-consult/?chartId=c1', { waitUntil: 'domcontentloaded' })
+  await page.locator('.bc-presets button').first().click()
+  await expect(page.locator('.bc-markdown')).toContainText('第159段。')
+  expect(await page.evaluate(() => window.__replaceStateCalls)).toBe(1)
+  await expect(page.getByRole('status')).toContainText('回答生成完成')
+  expect(errors).toEqual([])
+})
 test('首屏不自动发送，四个预设和真实出生摘要可见', async ({ page }) => {
   const { requests, errors } = await mock(page)
   await open(page)

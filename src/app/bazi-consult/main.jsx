@@ -33,23 +33,40 @@ function useConsultationAdapter({ chartId, consultationId, presetRef, report }) 
       if (presetRef.current?.text === text) payload.presetId = presetRef.current.id
       presetRef.current = null
       let full = ''
-      report({ notice: '', draft: '' })
+      report({ notice: '', draft: '', phase: 'running' })
       try {
         for await (const item of sendConsultation(payload, abortSignal)) {
-          if (item.data.consultationId) {
+          // 只有**第一次**拿到 id 时改地址栏。服务端在每个 delta 帧里都带 consultationId，
+          // 逐帧 replaceState 会在 Safari 上撞上「Attempt to use history.replaceState() more than
+          // 100 times per 10 seconds」——那是个**会抛异常**的限制，异常从 for-await 里冒出来，
+          // 于是流被就地掐断、回答停在一句话中间（用户实测：iPhone 上「一直被截断」）。
+          // 同一件事在 Chrome 上只是节流警告，所以只在她的设备上复现。
+          if (item.data.consultationId && item.data.consultationId !== activeId.current) {
             activeId.current = item.data.consultationId
-            window.history.replaceState(null, '', `/bazi-consult/?consultationId=${encodeURIComponent(activeId.current)}`)
+            try {
+              window.history.replaceState(null, '', `/bazi-consult/?consultationId=${encodeURIComponent(activeId.current)}`)
+            } catch { /* 地址栏同步失败不能影响正在生成的回答 */ }
           }
           if (item.event === 'delta') {
             full += item.data.text || ''
             yield { content: [{ type: 'text', text: full }] }
           } else if (item.event === 'done') {
-            report({ notice: outcomeNotice(item.data), draft: item.data.status === 'completed' ? '' : text })
+            report({ notice: outcomeNotice(item.data), draft: item.data.status === 'completed' ? '' : text, phase: 'done' })
           }
         }
       } catch (error) {
-        report({ notice: error.name === 'AbortError' ? '已停止生成；已有内容保留，记录和积分请加载咨询记录确认。' : error.message, draft: text })
-        if (error.name !== 'AbortError') throw error
+        // 服务端的 4xx/5xx 自带可读文案（「请先登录」「咨询条数已达上限」），原样给用户；
+        // 只有浏览器侧的意外（比如读取流时抛错）才在这里补一句人话，并保留控制台细节。
+        const aborted = error.name === 'AbortError'
+        if (!aborted && !error.status) console.error('[bazi-consult]', error)
+        report({
+          notice: aborted
+            ? '已停止生成；已有内容保留，记录和积分请加载咨询记录确认。'
+            : (error.status ? error.message : '这次回答中途断了，已经生成的部分保留在这里，可以重新提问。'),
+          draft: text,
+          phase: 'done',
+        })
+        if (!aborted) throw error
       }
     },
   }), [chartId, presetRef, report])
@@ -67,7 +84,16 @@ function AssistantMessage() {
   </MessagePrimitive.Root>
 }
 function Chat({ chart, consultation, initialMessages }) {
-  const [result, setResult] = useState({ notice: '', draft: '' })
+  const [result, setResult] = useState({ notice: '', draft: '', phase: 'idle' })
+  // 等待秒数：模型出第一个字之前，界面必须有东西在动。梅花那边是「已等 N 秒」，
+  // 这里沿用同一口径 —— 用户能判断「在干活」还是「卡住了」，也才能决定要不要停。
+  const [seconds, setSeconds] = useState(0)
+  useEffect(() => {
+    if (result.phase !== 'running') { setSeconds(0); return undefined }
+    setSeconds(0)
+    const timer = setInterval(() => setSeconds(value => value + 1), 1000)
+    return () => clearInterval(timer)
+  }, [result.phase])
   const presetRef = useRef(null)
   const adapter = useConsultationAdapter({ chartId: chart.id, consultationId: consultation?.id, presetRef, report: setResult })
   const runtime = useLocalRuntime(adapter, { initialMessages })
@@ -90,10 +116,15 @@ function Chat({ chart, consultation, initialMessages }) {
               </section>
             </AuiIf>
             <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
-            <AuiIf condition={s => s.thread.isRunning}><p className="bc-generating">正在回答<span aria-hidden="true"> ···</span></p></AuiIf>
+            <AuiIf condition={s => s.thread.isRunning}>
+              <p className="bc-generating" role="status" aria-live="polite">
+                <span className="bc-gen-dot" aria-hidden="true" />
+                正在输出中<span className="bc-gen-elapsed">（已 {seconds} 秒）</span>
+              </p>
+            </AuiIf>
           </div>
-          <ThreadPrimitive.ScrollToBottom className="bc-latest" aria-label="回到最新消息">↓ 回到最新</ThreadPrimitive.ScrollToBottom>
         </ThreadPrimitive.Viewport>
+          <ThreadPrimitive.ScrollToBottom className="bc-latest" aria-label="回到最新消息">↓ 回到最新</ThreadPrimitive.ScrollToBottom>
         <footer className="bc-input-area">
           {result.notice && <p role="status" className="bc-status">{result.notice}</p>}
           <ComposerPrimitive.Root className="bc-composer">
