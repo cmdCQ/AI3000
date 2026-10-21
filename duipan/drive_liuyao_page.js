@@ -58,7 +58,10 @@ const LY = require(path.join(ROOT, 'src', 'server', 'paipan', 'liuyao.js'));
 //   结果 `freeze_backend.sh` 的页面层红在 `listen EADDRINUSE 127.0.0.1:8898`
 //   上 —— 那不是页面坏了，是我自己撞了自己。
 //   **规矩：同一时刻全机只能有一个驱页在跑。** 要并发验证就先等对方跑完。
-const PORT = Number(process.env.DRIVE_PORT || 8898);
+// 2026-10-21：8898 被系统里一个无关服务占住了（`/opt/deepseek-tools/server.py`，
+// 与本项目无关），冻门直接红在 `listen EADDRINUSE 127.0.0.1:8898` —— 又是一次
+// 「红得像页面坏了、其实只是端口撞了」。默认口改成 8903，并保留 `DRIVE_PORT` 覆盖。
+const PORT = Number(process.env.DRIVE_PORT || 8903);
 const MARIONETTE_PORT = Number(process.env.DRIVE_MARIONETTE_PORT || 2829);
 const ORIGIN = `http://127.0.0.1:${PORT}`;
 
