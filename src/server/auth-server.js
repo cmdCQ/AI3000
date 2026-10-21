@@ -2804,7 +2804,11 @@ function baziChartFromParams(card) {
   //   ⚠ `liunian[*].shishen_zhi` 恒为空串（`bazi_fortune.js:500` 拿**五行**当地支查表，
   //     照搬基准的缺陷第 1 条）—— 故提示词那一块**自己写明「地支十神本系统不提供」**，
   //     别让模型去补一个根本不存在的字段（见 `bazi_report.js` 的 `liunianText`）。
-  chart.liunian = baziFortuneLib.calculateLiunian(chart, gender, y, thisYear, thisYear + 9);
+  //   ⚠ 起点**往前补 6 年**（2026-10-21）：用户最常问的是「去年/前两年」，而原来只给未来
+  //     10 年，模型要么自己推干支（推错还说得像有依据），要么回一句「快照从 2026 年起列，
+  //     2025 年没有评级」—— 后者在真实会话里出现过。出生年份晚于六年前的，就从出生年算起。
+  const liunianStart = Math.max(thisYear - 6, y);   // 往年前补 6 年，但不早于出生年
+  chart.liunian = baziFortuneLib.calculateLiunian(chart, gender, y, liunianStart, thisYear + 9);
 
   return {
     ok: true,

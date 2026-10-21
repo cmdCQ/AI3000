@@ -345,16 +345,45 @@ test('delete uses send lock: active mocked model request gets busy409 without de
   assert.equal(f.consultations.length, 0); assert.equal(f.turns.length, 0);
 });
 
-test('effective model history skips unanswered attempts but retains marked partial pairs without truncating', () => {
+test('effective model history keeps usable partial answers, drops empty and half-sentence attempts, and never labels status', () => {
   const messages = promptMessages({ chart: 'facts' }, [
     { user_content: 'failed question', assistant_content: '', status: 'failed' },
     { user_content: 'pending question', assistant_content: '', status: 'pending' },
     { user_content: 'partial question', assistant_content: 'X'.repeat(500), status: 'partial' },
+    // 中断且只写了半个列表项的残句：留着只会把后续回答带偏，必须丢。
+    { user_content: 'cut question', assistant_content: '- 我的约束', status: 'stopped' },
   ], 'current raw', null);
   assert.equal(messages.length, 4);
   assert.equal(messages[1].content, 'partial question');
-  assert.match(messages[2].content, /partial/); assert.ok(messages[2].content.endsWith('X'.repeat(500)));
+  // 不再注入「状态 xxx」标记 —— 模型会把它原样说给用户（实测「上一条我的回复曾中断（状态 stopped）」）。
+  assert.equal(messages[2].content, 'X'.repeat(500));
+  assert.doesNotMatch(messages[2].content, /partial|状态/);
   assert.equal(messages[3].content, 'current raw');
+});
+
+test('system prompt carries a compact chart digest instead of the raw snapshot JSON', () => {
+  const snapshot = {
+    name: '甲', gender: 'male', referenceYear: 2026,
+    birth: { year: 1990, month: 5, day: 17, hour: 14, minute: 30, calendar: 'solar' },
+    sizhu: { year_gz: '庚午', month_gz: '辛巳', day_gz: '壬午', hour_gz: '丁未' },
+    chart: {
+      day_master: '壬', day_master_wuxing: '水', strength: '身弱', pattern: '偏印格',
+      overview: { headline: '壬水日主·身弱·偏印格（格成），用金忌火' },
+      yong_shen: { yong_shen_wx: '金', xi_shen_wx: '水', ji_shen_wx: '火' },
+      shishen_summary: [{ shishen: '偏印', count: 2 }],
+      shensha: [{ name: '禄神', pillar: '年支', dizhi: '午' }],
+      dayun: [{ tiangan: '壬', dizhi: '午', start_age: 6, end_age: 16, start_year: 1996, end_year: 2006, dm_shishen: '比肩', quality: '吉' }],
+      liunian: [{ year: 2026, tiangan: '丙', dizhi: '午', age: 36, shishen_gan: '正财', quality: '吉', summary: '丙午年，正财临运' }],
+    },
+  };
+  const [system] = promptMessages(snapshot, [], '问', null);
+  const text = system.content;
+  assert.match(text, /【四柱】年 庚午 · 月 辛巳 · 日 壬午 · 时 丁未/);
+  assert.match(text, /【大运】/); assert.match(text, /【流年】覆盖 2026–2026/);
+  // 原始 JSON 的字段名不该出现：出现了模型就会说「快照已加载」「服务端数据」。
+  assert.doesNotMatch(text, /is_benming_chong|shishen_zhi|"chart"/);
+  assert.ok(text.length < 2000, 'compact digest must stay small, got ' + text.length);
+  assert.match(text, /快照.*状态|「快照」「服务端数据」/);
 });
 
 test('concurrent first sends reject with 409 instead of duplicate model or charge', async () => {

@@ -256,7 +256,10 @@ function dayunText(dayun, currentYear) {
  *   而不是指望模型不去编（写在提示词里的禁令挡不住「缺一个字段」这种诱惑）。
  */
 function liunianText(liunian, currentYear) {
-  const arr = asArray(liunian);
+  // 流年数据从 2026-10-21 起包含**往年**（`auth-server.js` 把起点往前补了 6 年，供咨询里问
+  // 「去年」时对照）。但这一块表头写的是「未来流年」，是给解读报告用的前瞻清单 —— 把往年
+  // 塞进来会让表头与内容自相矛盾，也会让模型把已经发生的事写成预测。故这里只保留今年及以后。
+  const arr = asArray(liunian).filter((l) => !currentYear || Number(l.year) >= Number(currentYear));
   if (!arr.length) return '';
   const lines = arr.map((l) => {
     const gz = String(l.tiangan == null ? '' : l.tiangan) + String(l.dizhi == null ? '' : l.dizhi);
